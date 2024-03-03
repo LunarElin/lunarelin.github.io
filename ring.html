@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta name="description" content="" />
+        <meta name="author" content="" />
+        <title>DD Plan Solely for Jo</title>
+        <!-- Favicon-->
+        <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+        <!-- Bootstrap icons-->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet" />
+        <!-- Core theme CSS (includes Bootstrap)-->
+        <link href="css/styles.css" rel="stylesheet" />
+    </head>
+    <body>
+        <!-- Navigation-->
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <div class="container px-4 px-lg-5">
+                <a class="navbar-brand" href="#!">DD Plan</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
+                        <li class="nav-item"><a class="nav-link active" aria-current="page" href="index.html">Home</a></li>
+                        <li class="nav-item"><a class="nav-link" href="timeline.html">Timeline</a></li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" id="navbarDropdown" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Shop</a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <li><a class="dropdown-item" href="ring.html">Ring</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <!-- <li><a class="dropdown-item" href="#!">Necklace</a></li> -->
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <form class="d-flex">
+                    <button class="btn btn-outline-dark" onclick="toggleText(event)">
+                        Price
+                    </button>
+                </form>
+            </div>
+        </nav>
+
+
+        <!-- Related items section-->
+        <section class="py-5 bg-light" id="related_items">
+            <div class="container px-4 px-lg-5 mt-5">
+                <h2 class="fw-bolder mb-4">Related products</h2>
+                <div class="row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-start">
+                    <div class="col mb-5">
+                        <div class="card h-100">
+                            <!-- Product image-->
+                            <img class="card-img-top" src="assets/du953_1.png" alt="..." />
+                            <!-- Product details-->
+                            <div class="card-body p-4">
+                                <div class="text-center">
+                                    <!-- Product name-->
+                                    <h5 class="fw-bolder">헤들리</h5>
+                                    <!-- Product price-->
+                                    <p class="price" style="display: none;">2,477,800</p>
+                                </div>
+                            </div>
+                            <!-- Product actions-->
+                            <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                <div class="text-center"><a class="btn btn-outline-dark mt-auto" href="#du953_1">상품보기</a></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col mb-5">
+                        <div class="card h-100">
+                            <!-- Product image-->
+                            <img class="card-img-top" src="assets/du953_2.png" alt="..." />
+                            <!-- Product details-->
+                            <div class="card-body p-4">
+                                <div class="text-center">
+                                    <!-- Product name-->
+                                    <h5 class="fw-bolder">릴리안</h5>
+                                    <!-- Product price-->
+                                    <p class="price" style="display: none;">2,125,200</p>
+                                </div>
+                            </div>
+                            <!-- Product actions-->
+                            <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                <div class="text-center"><a class="btn btn-outline-dark mt-auto" href="#du953_2">상품보기</a></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col mb-5">
+                        <div class="card h-100">
+                            <!-- Product image-->
+                            <img class="card-img-top" src="assets/whiterain_1.png" alt="..." />
+                            <!-- Product details-->
+                            <div class="card-body p-4">
+                                <div class="text-center">
+                                    <!-- Product name-->
+                                    <h5 class="fw-bolder">레비나</h5>
+                                    <!-- Product price-->
+                                    <p class="price" style="display: none;">2,530,000</p>
+                                </div>
+                            </div>
+                            <!-- Product actions-->
+                            <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                <div class="text-center"><a class="btn btn-outline-dark mt-auto" href="#whiterain_1">상품보기</a></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col mb-5">
+                        <div class="card h-100">
+                            <!-- Product image-->
+                            <img class="card-img-top" src="assets/df_1.png" alt="..." />
+                            <!-- Product details-->
+                            <div class="card-body p-4">
+                                <div class="text-center">
+                                    <!-- Product name-->
+                                    <h5 class="fw-bolder">피아젯 가든</h5>
+                                    <!-- Product price-->
+                                    <p class="price" style="display: none;">5,400,000</p>
+                                </div>
+                            </div>
+                            <!-- Product actions-->
+                            <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                <div class="text-center"><a class="btn btn-outline-dark mt-auto" href="#df_1">상품보기</a></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col mb-5">
+                        <div class="card h-100">
+                            <!-- Product image-->
+                            <img class="card-img-top" src="assets/nouv_1.png" alt="..." />
+                            <!-- Product details-->
+                            <div class="card-body p-4">
+                                <div class="text-center">
+                                    <!-- Product name-->
+                                    <h5 class="fw-bolder">에보니</h5>
+                                    <!-- Product price-->
+                                    <p class="price" style="display: none;">1,320,000</p>
+                                </div>
+                            </div>
+                            <!-- Product actions-->
+                            <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                                <div class="text-center"><a class="btn btn-outline-dark mt-auto" href="#nouv_1">상품보기</a></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Product section-->
+        <section class="py-5" id="du953_1">
+            <div class="container px-4 px-lg-5 my-5">
+                <div class="row gx-4 gx-lg-5 align-items-center">
+                    <div class="col-md-6"><img class="card-img-top mb-5 mb-md-0" src="assets/du953_1.png" alt="..." /></div>
+                    <div class="col-md-6">
+                        <div class="small mb-1">DU953</div>
+                        <h1 class="display-5 fw-bolder">헤들리</h1>
+                        <div class="fs-5 mb-5">
+                            <p class="price" style="display: none;">2,477,800</p>
+                            <span>Free</span>
+                        </div>
+                        <p class="lead">당신과 함께한 시간들이 소중한 보석처럼 빛나고 있어요. 이 작은 반지가 우리의 사랑과 약속을 담아내기엔 턱없이 부족하지만, 이 작은 공간 속에 담긴 마음만큼은 우주보다도 깊고 넓다는 걸 기억해주세요. 영원히 변치 않을 우리의 사랑을 이 반지에 담아, 당신 손가락에 영원의 빛을 더합니다.</p>
+                        <div class="d-flex">
+                            <a href="https://953.co.kr/product/%ED%97%A4%EB%93%A4%EB%A6%AC-lab5%EB%B6%80-%ED%99%94%EB%A0%A4%ED%95%9C-%EB%94%94%EC%9E%90%EC%9D%B8%EC%9D%98-%EB%9E%A9%EB%8B%A4%EC%9D%B4%EC%95%84-%ED%94%84%EB%A1%9C%ED%8F%AC%EC%A6%88%EB%B0%98%EC%A7%80-%EC%84%B8%EC%8C%8D%EB%B0%98%EC%A7%80/889/category/148/display/1/" target="_blank" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                <i class="bi-cart-fill me-1"></i>
+                                Go To Shop
+                            </a>
+                            <a href="#related_items" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                Back to Top
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Product section-->
+        <section class="py-5" id="du953_2">
+            <div class="container px-4 px-lg-5 my-5">
+                <div class="row gx-4 gx-lg-5 align-items-center">
+                    <div class="col-md-6"><img class="card-img-top mb-5 mb-md-0" src="assets/du953_2.png" alt="..." /></div>
+                    <div class="col-md-6">
+                        <div class="small mb-1">DU953</div>
+                        <h1 class="display-5 fw-bolder">릴리안</h1>
+                        <div class="fs-5 mb-5">
+                            <p class="price" style="display: none;">2,125,200</p>
+                            <span>Free</span>
+                        </div>
+                        <p class="lead">클래식한 아름다움과 자연의 섬세함이 현대적인 감성으로 재해석되어 조화를 이루고 있는 이 반지는, 중앙에 자리한 반짝이는 다이아몬드는 우리의 시간이 얼마나 빛나는지를 상징하듯 눈부십니다. 잎사귀 모양의 세공은 삶의 모든 순간을 소중하게 여기는 마음을 담고 있으며, 이는 마치 당신이 내 삶에 선사한 빛나는 순간들을 반영합니다. 매끄럽고 광택 나는 로즈 골드와, 주변에 둘러싼 작은 다이아몬드들은 당신이 내 삶에 더해준 소중한 순간들을 떠올리게 합니다. </p>
+                        <div class="d-flex">
+                            <a href="https://953.co.kr/product/%EB%A6%B4%EB%A6%AC%EC%95%88-7%EB%B6%80-%EB%9E%A9%EB%8B%A4%EC%9D%B4%EC%95%84%EB%B0%98%EC%A7%80-%ED%94%84%EB%A1%9C%ED%8F%AC%EC%A6%88-%EB%8B%A4%EC%9D%B4%EC%95%84%EB%A7%81-%EA%B0%80%EB%93%9C%EB%A7%81-%ED%8F%AC%ED%95%A8/1501/category/158/display/1/" target="_blank" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                <i class="bi-cart-fill me-1"></i>
+                                Go To Shop
+                            </a>
+                            <a href="#related_items" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                Back to Top
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Product section-->
+        <section class="py-5" id="whiterain_1">
+            <div class="container px-4 px-lg-5 my-5">
+                <div class="row gx-4 gx-lg-5 align-items-center">
+                    <div class="col-md-6"><img class="card-img-top mb-5 mb-md-0" src="assets/whiterain_1.png" alt="..." /></div>
+                    <div class="col-md-6">
+                        <div class="small mb-1">Whiterain</div>
+                        <h1 class="display-5 fw-bolder">레비나</h1>
+                        <div class="fs-5 mb-5">
+                            <p class="price" style="display: none;">2,125,200</p>
+                            <span>Free</span>
+                        </div>
+                        <p class="lead"> 영원히 당신의 곁을 지키고 싶은 제가, 이 반지를 드립니다. 우리의 사랑이 이 반지처럼 변치 않고 항상 빛나길 바랍니다. 당신과 함께하는 모든 순간이 저에겐 소중한 선물입니다. </p>
+                        <div class="d-flex">
+                            <a href="https://www.whiterain.co.kr/shop/shopdetail.html?branduid=10221507&xcode=020&mcode=003&scode=005&type=Y&sort=manual&cur_code=020003005&search=&GfDT=bm15W11F" target="_blank" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                <i class="bi-cart-fill me-1"></i>
+                                Go To Shop
+                            </a>
+                            <a href="#related_items" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                Back to Top
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Product section-->
+        <section class="py-5" id="df_1">
+            <div class="container px-4 px-lg-5 my-5">
+                <div class="row gx-4 gx-lg-5 align-items-center">
+                    <div class="col-md-6"><img class="card-img-top mb-5 mb-md-0" src="assets/df_1.png" alt="..." /></div>
+                    <div class="col-md-6">
+                        <div class="small mb-1">diamondforest</div>
+                        <h1 class="display-5 fw-bolder">피아젯 가든</h1>
+                        <div class="fs-5 mb-5">
+                            <p class="price" style="display: none;">5,400,000</p>
+                            <span>Free</span>
+                        </div>
+                        <p class="lead"> 이 반지의 중앙에 자리한 빛나는 보석처럼, 당신은 제 삶의 중심에서 가장 찬란하게 빛나고 있습니다. 옆에 둘러싸인 작은 다이아몬드들처럼 우리의 추억과 앞으로 쌓아갈 순간들이 당신을 더욱 빛나게 할 거예요. 이 반지가 우리의 아름다운 시작을 상징하며, 영원히 당신 곁에 머물길 바랍니다. </p>
+                        <div class="d-flex">
+                            <a href="https://www.diamondforest.kr/propose_rings/?idx=475" target="_blank" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                <i class="bi-cart-fill me-1"></i>
+                                Go To Shop
+                            </a>
+                            <a href="#related_items" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                Back to Top
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Product section-->
+        <section class="py-5" id="nouv_1">
+            <div class="container px-4 px-lg-5 my-5">
+                <div class="row gx-4 gx-lg-5 align-items-center">
+                    <div class="col-md-6"><img class="card-img-top mb-5 mb-md-0" src="assets/nouv_1.png" alt="..." /></div>
+                    <div class="col-md-6">
+                        <div class="small mb-1">nouv</div>
+                        <h1 class="display-5 fw-bolder">에보니</h1>
+                        <div class="fs-5 mb-5">
+                            <p class="price" style="display: none;">1,320,000</p>
+                            <span>Free</span>
+                        </div>
+                        <p class="lead">이 독특한 반지가 교차하는 선처럼, 우리 인생의 길이 아름다운 만남으로 이어졌습니다. 반지의 빛나는 다이아몬드는 우리의 만남이 얼마나 소중한지를 상징합니다.</p>
+                        <div class="d-flex">
+                            <a href="https://nouv.co.kr/product/detail.html?product_no=603&cate_no=46&display_group=1" target="_blank" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                <i class="bi-cart-fill me-1"></i>
+                                Go To Shop
+                            </a>
+                            <a href="#related_items" class="btn btn-outline-dark flex-shrink-0" role="button">
+                                Back to Top
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Footer-->
+        <footer class="py-5 bg-dark">
+            <div class="container"><p class="m-0 text-center text-white">Only You</p></div>
+        </footer>
+        <!-- Bootstrap core JS-->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Core theme JS-->
+        <script src="js/scripts.js"></script>
+        
+        <script>
+            function toggleText(e) {
+                e.preventDefault();
+                var prices = document.querySelectorAll('.price');
+                prices.forEach(function(price) {
+                    if (price.style.display === "none") {
+                        price.style.display = "block";
+                    } else {
+                        price.style.display = "none";
+                    }
+                });
+            }
+        </script>
+
+    </body>
+</html>
