@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#182337">
+<title>작은 머지 · 3 Merge</title>
+<link rel="stylesheet" href="styles.css">
+<main>
+  <header><a href="../../">← 홈</a><span>PLAYABLE PROTOTYPE · v1</span></header>
+  <h1>작은 머지<span>같은 숫자 셋, 새로운 하나.</span></h1>
+  <section class="stats"><div>점수<strong id="score">0</strong></div><div>최고 기록<strong id="best">0</strong></div><div>다음 숫자<strong id="next">1</strong></div></section>
+  <p id="message" role="status" aria-live="polite">밝게 표시된 빈칸에 1을 놓아 첫 머지를 만들어 보세요.</p>
+  <div id="board" aria-label="5 곱하기 5 퍼즐 보드"></div>
+  <button id="restart" class="restart">새로 시작</button>
+  <p class="help">빈칸을 톡! 상하좌우로 같은 숫자 <b>3개 이상</b>이 연결되면 놓은 칸에서 숫자가 1 올라갑니다. 대각선은 제외, 연쇄도 가능해요.</p>
+  <details><summary>테스트 기록</summary><p id="session"></p><button id="download">이번 판 기록 저장</button><p>재미 검증은 직접 플레이 후 판단해 주세요. 고민된 선택, 답답했던 순간, 다시 하고 싶은 이유를 기억해 주세요.</p></details>
+</main>
+<script type="module" src="game.js"></script>
+</html>
