@@ -110,7 +110,7 @@ test('timer and effects pause in modals or hidden tabs; timeout and retry are co
     assert.match(a.get('modal-content').textContent,/해가 저물었어요/);const seed=a.w.__qa.state.seed;a.click('[data-action="retry"]');assert.equal(a.w.__qa.state.seed,seed);assert.equal(a.w.__qa.state.status,'playing');assert.deepEqual(a.errors,[]);
   }finally {a.close();}
 });
-test('local links and SVG parse; prompt page preserves original text and copy works',async()=>{
+test('local links and SVG parse; edited prompts preserve intent and copy works',async()=>{
   const promptHtml=readFileSync(new URL('prompts.html',root),'utf8');
   for(const document of [html,promptHtml]) for(const match of document.matchAll(/(?:src|href)="([^"]+)"/g)) {if(['./','../../'].includes(match[1])||match[1].startsWith('#')) continue;assert.ok(readFileSync(new URL(match[1],root)).length);}
   assert.match(html,/href="prompts.html"/);
@@ -118,7 +118,8 @@ test('local links and SVG parse; prompt page preserves original text and copy wo
   const dom=new JSDOM(promptHtml,{url:'https://example.test/prompts.html',runScripts:'outside-only'}),w=dom.window;let copied='';
   try {
     Object.defineProperty(w.navigator,'clipboard',{value:{writeText:async text=>{copied=text;}}});w.eval(readFileSync(new URL('prompts.js',root),'utf8'));
-    const original=w.document.getElementById('original-prompt').textContent;assert.ok(original.startsWith('1. 기존 3머지 처럼 신규 게임 하나 추가할거야.'));assert.ok(original.endsWith('6. 나에게 물어볼 필요는 없고, 네가 PD로서 완성 될 때까지 작업 진행해.'));assert.match(original,/아이템도 10종 정도/);
+    const original=w.document.getElementById('original-prompt').textContent;assert.equal(original.split('\n').length,6);assert.match(original,/HTML5.*모바일/);assert.match(original,/아이템을 약 10종/);assert.match(original,/PD로서.*완성될 때까지/);
+    assert.match(w.document.querySelector('.prompt-intro').textContent,/의도는 유지.*정리본/);assert.match(w.document.getElementById('testing-prompt').textContent,/자체 테스트.*Git에 커밋/);assert.doesNotMatch(promptHtml,/자게|판위|과장 되게|원문 복사/);
     w.document.querySelector('[data-copy="original-prompt"]').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(copied,original);assert.match(w.document.getElementById('copy-status').textContent,/복사했어요/);
     w.navigator.clipboard.writeText=async()=>{throw Error('denied');};w.document.querySelector('[data-copy="fever-prompt"]').click();await new Promise(resolve=>setImmediate(resolve));assert.match(w.document.getElementById('copy-status').textContent,/직접 복사/);assert.match(w.getSelection().toString(),/피버 진행/);
   }finally {dom.window.close();}
