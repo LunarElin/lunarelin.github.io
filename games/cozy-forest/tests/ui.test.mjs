@@ -113,7 +113,7 @@ test('timer and effects pause in modals or hidden tabs; timeout and retry are co
 test('local links and SVG parse; edited prompts preserve intent and copy works',async()=>{
   const promptHtml=readFileSync(new URL('prompts.html',root),'utf8');
   for(const document of [html,promptHtml]) for(const match of document.matchAll(/(?:src|href)="([^"]+)"/g)) {if(['./','../../'].includes(match[1])||match[1].startsWith('#')) continue;assert.ok(readFileSync(new URL(match[1],root)).length);}
-  assert.match(html,/href="prompts.html"/);
+  assert.match(html,/href="prompts\.html(?:\?[^\"]*)?"/);
   const a=app();try {const parser=new a.w.DOMParser();for(const svg of a.w.document.querySelectorAll('svg')) assert.equal(parser.parseFromString(svg.outerHTML,'image/svg+xml').querySelector('parsererror'),null);}finally {a.close();}
   const dom=new JSDOM(promptHtml,{url:'https://example.test/prompts.html',runScripts:'outside-only'}),w=dom.window;let copied='';
   try {
