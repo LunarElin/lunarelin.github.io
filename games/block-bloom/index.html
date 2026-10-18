@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#18152e"><meta name="description" content="반짝이는 블록을 같은 색 출구로! 여섯 가지 퍼즐 모드와 즉시 사용 부스터를 갖춘 컬러 슬라이딩 게임.">
+  <title>BLOCK BLOOM — 컬러를 터뜨려!</title><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg class="svg-defs" aria-hidden="true"><defs><filter id="glow"><feGaussianBlur stdDeviation="3"/></filter></defs></svg>
+<div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+<header class="topbar">
+  <a class="wordmark" href="../../"><span class="brand-icon"><i></i><i></i><i></i><i></i></span><span>BLOCK<b>BLOOM</b><small>BY LUNARELIN</small></span></a>
+  <div class="top-actions"><button class="wallet" id="shop-open" aria-label="상점 열기"><span class="coin">✦</span><b id="coins">350</b><span class="wallet-plus">+</span></button><button class="icon-button" id="sound-toggle" aria-label="효과음 켜짐" aria-pressed="true">♫</button><button class="icon-button" id="settings-open" aria-label="설정">⚙</button><a class="portfolio-link" href="../../#play">포트폴리오 <span>↗</span></a></div>
+</header>
+<main class="game-layout">
+  <aside class="mode-panel" aria-label="게임 모드">
+    <p class="eyebrow">PICK YOUR PLAY</p><h1>오늘은 어떤<br><span>퍼즐 기분?</span></h1>
+    <div id="modes" class="mode-list"></div>
+    <button class="daily-card" id="daily-open"><span class="daily-orb">✧</span><span><small>매일 반가운 선물</small><b>데일리 보너스</b><em id="daily-status">100 코인 받기 ↗</em></span></button>
+    <a class="making-link" href="design.html">게임 디자인 & 제작 노트 ↗</a>
+  </aside>
+
+  <section class="play-panel" aria-labelledby="mode-title">
+    <div class="level-heading"><div><p class="eyebrow" id="mode-eyebrow">COLOR ESCAPE</p><h2 id="mode-title">컬러 탈출 <span id="level-badge">01</span></h2></div><div class="level-controls"><button class="icon-button" id="restart" aria-label="다시 시작">↻</button><button class="icon-button" id="pause" aria-label="일시 정지">Ⅱ</button><button class="icon-button" id="help" aria-label="플레이 방법">?</button></div></div>
+    <div class="hud"><div class="timer" id="timer"><span>◷</span><strong id="time">03:00</strong><small id="freeze-time"></small></div><div class="hud-goal"><span id="cleared">0 / 8</span><small>BLOCKS OUT</small></div><div class="hud-score"><strong id="score">0</strong><small>SCORE</small></div></div>
+    <div class="progress-track"><i id="progress"></i></div>
+    <div class="board-stage" id="board-stage">
+      <div class="board-aura"></div>
+      <div class="board-frame" id="board-frame">
+        <div id="gates" class="gates" aria-label="색상별 출구"></div>
+        <div class="board" id="board" aria-label="6×6 퍼즐 보드"><div class="board-grid" aria-hidden="true"></div><div id="platforms" aria-hidden="true"></div><div id="blocks"></div><div id="hint-arrow" aria-hidden="true" hidden></div></div>
+      </div>
+      <div id="fx-layer" aria-hidden="true"></div><div id="combo-label" class="combo-label" aria-live="polite"></div>
+      <div class="fever-banner" id="fever-banner" hidden>✦ BLOOM FEVER ✦</div>
+    </div>
+    <div class="dock" id="dock" hidden><div class="dock-label"><b>TRIPLE DOCK</b><span>같은 색 3개 → BOOM!</span></div><div id="dock-slots"></div></div>
+    <div class="factory-bar" id="factory-bar" hidden><span>⚙ 생성기 <b id="queue-count">4</b></span><div id="queue-preview"></div><button id="lift">승강기 ⇅</button></div>
+    <div class="input-guide"><p id="instruction">블록을 드래그해서 같은 색 출구로!</p><div class="direction-pad" aria-label="선택 블록 이동"><button data-direction="0,-1" aria-label="위로 이동">↑</button><button data-direction="-1,0" aria-label="왼쪽으로 이동">←</button><button data-direction="0,1" aria-label="아래로 이동">↓</button><button data-direction="1,0" aria-label="오른쪽으로 이동">→</button></div></div>
+    <div class="booster-heading"><span>조금의 도움이 필요할 때</span><button id="booster-shop">부스터 충전 +</button></div>
+    <div id="items" class="items" aria-label="즉시 사용 아이템"></div>
+    <div class="mobile-rewards"><button id="daily-mobile">✧ 데일리 선물</button><button id="pass-mobile">★ 누적 별 보상</button></div>
+    <div class="play-bottom"><span><i></i>진행 상황 자동 저장</span><span>DRAG · TAP + ARROWS</span></div>
+  </section>
+
+  <aside class="journey-panel" aria-label="도전과 보상">
+    <div class="journey-card"><p class="eyebrow">MAKE ROOM FOR COLOR</p><div class="hero-mini" aria-hidden="true"><div class="mini-piece mini-pink"><i></i><i></i><i></i><i></i></div><div class="mini-piece mini-yellow"><i></i><i></i></div><span class="mini-spark">✧</span><span class="mini-spark second">✦</span></div><h2>작게 밀고,<br><span>크게 터뜨려!</span></h2><p id="mode-description">길을 열고, 색을 맞추고.<br>손끝에서 터지는 기분 좋은 한 수.</p></div>
+    <div class="bloom-pass"><div class="card-heading"><span>✦ BLOOM PASS</span><b id="pass-stars">0 ★</b></div><p>별을 모으면 선물이 피어나요.</p><div class="pass-track"><i id="pass-progress"></i><span>3</span><span>9</span><span>18</span></div><button id="pass-open">누적 별 보상 보기 <span>↗</span></button></div>
+    <div class="combo-card"><div><span class="combo-icon">ϟ</span><b>LET IT BLOOM</b></div><p>4초 안에 연속 탈출하면 콤보!<br>5콤보부터 10초간 피버가 시작돼요.</p><div class="fever-meter"><i id="fever-progress"></i></div><span id="combo-count">NEXT BOOM IS YOURS.</span></div>
+    <button class="howto-link" id="help-side">처음이신가요? 플레이 가이드 ↗</button>
+  </aside>
+</main>
+<footer class="footer"><span>© 2026 LUNARELIN · BLOCK BLOOM</span><span>포트폴리오 데모 · 현금 결제 / 실제 광고 없음</span><a href="design.html">REFERENCE & DESIGN ↗</a></footer>
+<div class="toast" id="toast" role="status" hidden></div>
+<dialog id="modal" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="닫기">×</button><div id="modal-content"></div></dialog>
+<script type="module" src="game.mjs?v=1"></script>
+</body>
+</html>

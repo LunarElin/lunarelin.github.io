@@ -19,6 +19,7 @@ GitHub Pages의 저장소 루트 배포를 사용합니다. 포트폴리오를 �
 
 ## 플레이 가능한 게임
 
+- `games/block-bloom/`: 블록 블룸. 입체 컬러 블록을 같은 색 출구로 미는 슬라이딩 퍼즐. 기본·트리플·2048 합성·열쇠·빙결·팩토리 6개 모드, 즉시 사용 아이템 5종, 콤보·피버, 코인 경제와 별 보상을 제공합니다. [실행·검증](games/block-bloom/README.md), [게임 디자인과 수익화 설계](games/block-bloom/design.html).
 - `games/merge3/`: 작은 머지 v1. 5×5 보드에서 같은 숫자 3개 이상을 상하좌우로 연결하는 HTML5 퍼즐입니다.
 - `games/cozy-forest/`: 포근포근 숲. 귀여운 동물 트리플 매칭, 보드에서 발견하는 아이템 5종, 실습 수업 6개, 무한 스테이지와 피버를 갖춘 모바일 HTML5 퍼즐입니다. 규칙·실행·검증: `games/cozy-forest/README.md`. 제작 프롬프트 정리본: `games/cozy-forest/prompts.html`.
 - 홈페이지의 게임 메뉴와 플레이 버튼에서 이동합니다. 게임 상단의 홈 링크로 포트폴리오에 돌아옵니다.
