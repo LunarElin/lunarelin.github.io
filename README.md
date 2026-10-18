@@ -20,7 +20,7 @@ GitHub Pages의 저장소 루트 배포를 사용합니다. 포트폴리오를 �
 ## 플레이 가능한 게임
 
 - `games/merge3/`: 작은 머지 v1. 5×5 보드에서 같은 숫자 3개 이상을 상하좌우로 연결하는 HTML5 퍼즐입니다.
-- `games/cozy-forest/`: 포근포근 숲. 귀여운 동물 트리플 매칭, 아이템 10종, 실습 튜토리얼 11개, 무한 스테이지와 피버를 갖춘 모바일 HTML5 퍼즐입니다. 규칙·실행·검증: `games/cozy-forest/README.md`.
+- `games/cozy-forest/`: 포근포근 숲. 귀여운 동물 트리플 매칭, 보드에서 발견하는 아이템 5종, 실습 수업 6개, 무한 스테이지와 피버를 갖춘 모바일 HTML5 퍼즐입니다. 규칙·실행·검증: `games/cozy-forest/README.md`. 제작 프롬프트 원문: `games/cozy-forest/prompts.html`.
 - 홈페이지의 게임 메뉴와 플레이 버튼에서 이동합니다. 게임 상단의 홈 링크로 포트폴리오에 돌아옵니다.
 - `games/merge3/rules.mjs`: DOM과 분리된 보드 판정 및 난수 코드
 - `games/merge3/game.js`: 입력, 화면 표시, 최고 점수 및 판 기록

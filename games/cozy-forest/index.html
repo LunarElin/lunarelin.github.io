@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#edf0e3">
-  <meta name="description" content="동물 셋이 만나면 숲이 포근해져요. 귀여운 동물 트리플 매칭 퍼즐, 아이템 10종과 무한 스테이지. PC와 모바일에서 설치 없이 플레이하세요.">
+  <meta name="description" content="동물 셋이 만나면 숲이 포근해져요. 보드에서 발견하는 아이템 5종, 화려한 피버와 무한 스테이지를 PC와 모바일에서 플레이하세요.">
   <title>포근포근 숲 · Cozy Forest</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -24,7 +24,7 @@
       <div class="intro-animals" id="intro-animals" aria-hidden="true"></div>
       <div class="mode-tabs" role="group" aria-label="게임 모드">
         <button id="endless-mode" class="mode active" aria-pressed="true"><b>끝없는 산책</b><small>매번 새로운 무한 스테이지 <span>↗</span></small></button>
-        <button id="tutorial-mode" class="mode" aria-pressed="false"><b>숲속 학교</b><small>처음부터, 아이템 10종 배우기 <span>↗</span></small></button>
+        <button id="tutorial-mode" class="mode" aria-pressed="false"><b>숲속 학교</b><small>처음부터, 보드 아이템 5종 배우기 <span>↗</span></small></button>
       </div>
       <div class="personal"><div><small>최고 점수</small><b id="best">0</b></div><div><small>도착한 숲</small><b id="best-level">01</b></div></div>
       <p class="quiet-note"><span class="small-dot"></span> 잠깐 쉬어도 괜찮아요.<br>산책 기록은 이 브라우저에 저장돼요.</p>
@@ -35,26 +35,28 @@
       <div class="progress-track"><i id="rescue-progress"></i></div>
       <div class="forest" id="forest">
         <div id="scenery"></div>
+        <div class="fever-atmosphere" aria-hidden="true"><div class="fever-rays"></div><div id="fever-stars"></div></div>
         <div class="board-caption"><span class="small-dot"></span> <span id="board-caption">가려지지 않은 동물을 찾아보세요</span></div>
+        <div class="fever-live" aria-hidden="true"><b>FEVER ×2</b><span id="fever-clock">12.0s</span><strong id="fever-earned">+0</strong></div>
         <div id="board" class="board" role="group" aria-label="숲의 동물 타일"></div>
         <div class="board-bottom"><span id="combo">오늘도, 한 걸음씩</span><span id="remaining">30 friends</span></div>
-        <div class="fever-flash" id="fever-flash" aria-hidden="true">FEVER!<small>숲속 친구들과 신나는 시간</small></div>
+        <div class="fever-flash" id="fever-flash" aria-hidden="true"><b>FEVER!</b><span>×2</span><small>점수 2배 · 시간은 잠깐 멈춤!</small></div>
       </div>
       <div class="basket-area"><div class="basket-label"><b>나의 바구니</b><span id="tray-count">0 / 7</span></div><div id="tray" class="tray" role="group" aria-label="동물을 모으는 바구니"></div><p id="message" role="status" aria-live="polite">같은 동물 <b>3마리</b>를 모아 집으로 보내주세요.</p></div>
       <div class="fever-area"><span data-icon="fever"></span><b id="fever-label">숲의 설렘</b><div class="fever-track"><i id="fever-progress"></i></div><span id="fever-count">0%</span></div>
-      <div class="mobile-tools"><button id="mobile-items"><span data-icon="basket"></span> 아이템 가방 <b>10</b></button><button id="mobile-lessons"><span data-icon="leaf"></span> 숲속 학교</button></div>
+      <div class="mobile-tools"><button id="mobile-items"><span data-icon="basket"></span> 아이템 설명 <b>5</b></button><button id="mobile-lessons"><span data-icon="leaf"></span> 숲속 학교</button></div>
       <div id="lesson-banner" class="lesson-banner" hidden><span id="lesson-icon"></span><div><b id="lesson-heading"></b><p id="lesson-text"></p></div><span id="lesson-check"></span></div>
     </section>
-    <aside class="item-panel" id="item-panel" aria-label="아이템 가방">
-      <div class="panel-heading"><div><p class="eyebrow">A LITTLE HELP</p><h2>산책 가방<span>10</span></h2></div><div class="wallet" title="보유 도토리"><span data-icon="coin"></span><b id="coins">150</b></div></div>
-      <p class="panel-note">조금 어려울 땐, 숲의 도움을 받아요.</p>
+    <aside class="item-panel" id="item-panel" aria-label="보드 아이템 설명">
+      <div class="panel-heading"><div><p class="eyebrow">FIND THEM IN THE FOREST</p><h2>숲속 아이템<span>5</span></h2></div><div class="wallet" title="모은 도토리"><span data-icon="coin"></span><b id="coins">150</b></div></div>
+      <p class="panel-note">동물들 사이에 숨어 있어요.<br>보드에서 찾으면 톡! 바로 발동해요.</p>
       <div id="items" class="items"></div>
-      <div class="item-detail" id="item-detail"><span data-icon="leaf"></span><p>아이템을 누르면 사용법을<br>확인하고 쓸 수 있어요.</p></div>
+      <div class="item-detail" id="item-detail"><span data-icon="leaf"></span><p>아이템은 바구니를 차지하지 않아요.<br>위의 동물을 치워 아이템을 꺼내보세요.</p></div>
       <button id="item-guide" class="text-button">아이템 도감 & 숲속 학교 <span>↗</span></button>
       <div class="forest-note"><span>✳</span><p>서두르지 않아도 좋아요.<br>피버에선 시간이 잠시 멈춰요.</p></div>
     </aside>
   </main>
-  <footer class="footer"><span>A SMALL GAME, A SOFT LANDING.</span><span>HTML5 · TOUCH & CLICK · MADE WITH CARE</span></footer>
+  <footer class="footer"><span>A SMALL GAME, A SOFT LANDING.</span><a href="prompts.html" class="prompt-link">이 게임을 만든 프롬프트 ↗</a></footer>
   <dialog id="modal" aria-labelledby="modal-title"><div id="modal-content"></div></dialog>
   <div id="effects" class="effects" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
