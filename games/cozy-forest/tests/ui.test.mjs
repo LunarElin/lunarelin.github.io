@@ -118,8 +118,8 @@ test('local links and SVG parse; edited prompts preserve intent and copy works',
   const dom=new JSDOM(promptHtml,{url:'https://example.test/prompts.html',runScripts:'outside-only'}),w=dom.window;let copied='';
   try {
     Object.defineProperty(w.navigator,'clipboard',{value:{writeText:async text=>{copied=text;}}});w.eval(readFileSync(new URL('prompts.js',root),'utf8'));
-    const original=w.document.getElementById('original-prompt').textContent;assert.equal(original.split('\n').length,6);assert.match(original,/HTML5.*모바일/);assert.match(original,/아이템을 약 10종/);assert.match(original,/PD로서.*완성될 때까지/);
-    assert.match(w.document.querySelector('.prompt-intro').textContent,/의도는 유지.*정리본/);assert.match(w.document.getElementById('testing-prompt').textContent,/자체 테스트.*Git에 커밋/);assert.doesNotMatch(promptHtml,/자게|판위|과장 되게|원문 복사/);
+    const original=w.document.getElementById('original-prompt').textContent;assert.equal(original.split('\n').length,6);assert.match(original,/HTML5.*모바일/);assert.match(original,/아이템을 약 10종/);assert.match(original,/PD의 판단/);assert.match(original,/완성될 때까지/);
+    assert.match(w.document.querySelector('.prompt-intro').textContent,/의도는 유지.*정리본/);assert.match(w.document.getElementById('testing-prompt').textContent,/직접 테스트.*Git에 커밋/);assert.doesNotMatch(promptHtml,/자게|판위|과장 되게|원문 복사|3머지처럼|해줘|네가/);
     w.document.querySelector('[data-copy="original-prompt"]').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(copied,original);assert.match(w.document.getElementById('copy-status').textContent,/복사했어요/);
     w.navigator.clipboard.writeText=async()=>{throw Error('denied');};w.document.querySelector('[data-copy="fever-prompt"]').click();await new Promise(resolve=>setImmediate(resolve));assert.match(w.document.getElementById('copy-status').textContent,/직접 복사/);assert.match(w.getSelection().toString(),/피버 진행/);
   }finally {dom.window.close();}
