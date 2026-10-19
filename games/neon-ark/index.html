@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080c19">
+<meta name="description" content="탐사대 3명, 탐사정 1대, 행성 1개. 제한된 도크와 회항으로 9개 항로를 완주하는 로그라이크 탐사 퍼즐.">
+<title>NEON ARK · 네온 아크</title><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="preload" href="assets/fonts/Jua-Regular.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="styles.css">
+</head><body>
+<div class="starfield" aria-hidden="true"></div>
+<header class="site-header"><a class="wordmark" href="./" aria-label="네온 아크"><img src="icon.svg" width="32" height="32" alt="">NEON ARK</a><nav aria-label="게임 탐색"><a href="../../#play">← 홈</a><a href="design.html">설계</a></nav></header>
+<main>
+<section class="intro"><div><h1>NEON <span>ARK</span><sup>네온 아크</sup></h1><p class="tagline">길을 열고, 행성으로.</p></div></section>
+<div class="layout">
+
+<section class="game-shell" aria-label="네온 아크 게임">
+<div class="game-top"><div><span class="online-dot"></span><span id="sector-label">SECTOR 01</span><b id="sector-name">첫 번째 신호</b></div><div class="controls"><button id="sound" aria-label="효과음 끄기" aria-pressed="true" title="효과음">♫</button><button id="pause" aria-label="일시 정지" title="일시 정지">Ⅱ</button><button id="help" aria-label="플레이 방법" title="플레이 방법">?</button></div></div>
+<div id="arena" class="arena">
+<div class="survey-scene"><div class="survey-copy"><span>탐사</span><b id="survey-count">0 / 9</b><div class="survey-track"><i id="survey-bar"></i></div></div><div id="planet" class="survey-planet" aria-hidden="true"><img id="planet-sprite" src="assets/kenney/planet-cyan.png" width="1280" height="1280" alt="" decoding="async"><span class="orbit-track"></span></div><span id="planet-label" class="planet-label">행성 01</span><div class="survey-chain"><div class="hull-readout"><span>선체</span><strong id="hull">3 / 3</strong><div id="hull-pips" class="hull-pips" aria-label="현재 선체 3, 최대 3"></div></div></div><span class="survey-risk" id="risk-label">도크 포화 → 비상 이탈 · 선체 −1</span></div><div id="planet-log" class="planet-log" aria-label="행성 조사 기록"></div>
+<div id="puzzle-area">
+<div class="crew-line"><div class="crew-label"><span>탑승</span><b id="crew-count">27</b></div><div id="crew" class="crew" aria-label="관측 가능한 탐사대 대기열"></div><span id="queue-hidden" class="queue-end">+21</span></div>
+<p class="deployment-brief">탐사대 <b>3명</b><i>→</i>탐사정 <b>1대 출항</b><i>→</i>행성 <b>1개 조사</b></p><p id="queue-forecast" class="queue-forecast">앞 6명 관측 · 순서대로 탑승</p>
+<div class="dock-label"><span>도크</span><span id="dock-free">빈 도크 3칸</span></div><div id="docks" class="docks" aria-label="탐사대 탑승 도크"></div><p id="dock-warning" class="dock-warning" hidden>마지막 도크 · 포화 시 선체 −1</p>
+<div class="hangar-label"><span>격납고 <b id="ships-left">09</b></span><span>길을 여세요</span></div>
+<div class="hangar"><div id="board" class="board" role="group" aria-label="격납고 탐사정 퍼즐"></div></div>
+</div>
+<section id="upgrade-choice" class="upgrade-choice" aria-label="항로 클리어와 강화 선택" hidden></section>
+<div id="fx" class="fx" aria-hidden="true"></div><div id="hit-label" class="hit-label" aria-hidden="true"></div>
+</div>
+<p id="message" class="message" role="status" aria-live="polite">같은 색 3명 → 출항</p>
+<div class="game-bottom"><button id="undo" disabled>↶ 회항 1</button><button id="restart" aria-label="탐사 중단 · 선체 1 소모">귀환 −1</button></div>
+</section>
+<aside class="right-panel">
+<section class="panel telemetry"><h2>원정</h2><div class="telemetry-row"><span>대원</span><b id="deployed">0 / 27명</b></div><div class="telemetry-row"><span>점수</span><b id="score">0</b></div><div class="telemetry-row"><span>연속 출항</span><b id="combo">×0</b></div><p id="chain-label" class="chain-note">점수 보너스</p><div class="telemetry-row"><span>회항</span><b id="undo-output">1 / 1회</b></div><div class="telemetry-row"><span>관측</span><b id="preview-output">앞 6명</b></div><div class="telemetry-row"><span>빈 도크</span><b id="dock-capacity">3칸</b></div><div class="telemetry-row"><span>누적 점수</span><b id="run-score">0</b></div><button id="new-run" class="new-run">새 원정</button></section>
+<section class="panel build-guide"><h2>강화 <b id="upgrade-count">0</b></h2><p>눌러서 효과 보기</p><div id="build-list" class="build-list"></div><p class="build-footnote">원정 동안 유지</p></section>
+<details class="panel record-panel"><summary>기록</summary><div class="route" id="route"></div><div class="mission-bottom"><span>최고 항로</span><strong id="best-stage">01</strong></div><p id="legacy-record" class="legacy-record"></p></details>
+</aside>
+</div>
+<footer><a href="../../#play">포트폴리오</a><a href="design.html#art">아트 · Kenney</a></footer>
+</main><dialog id="modal" aria-labelledby="modal-title"><button id="modal-close" class="modal-close" aria-label="닫기">×</button><div id="modal-content"></div></dialog><script type="module" src="game.mjs"></script>
+</body></html>
