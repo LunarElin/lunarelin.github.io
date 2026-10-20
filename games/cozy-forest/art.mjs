@@ -1,4 +1,4 @@
-import {ANIMALS} from './rules.mjs?v=20261021';
+import {ANIMALS} from './rules.mjs?v=20261021-balance';
 const outline='#694f43';
 export function animal(type,cls='') {
   const a=ANIMALS[type], c=a.color;

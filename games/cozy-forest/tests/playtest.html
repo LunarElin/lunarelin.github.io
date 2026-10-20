@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cozy Forest 로컬 플레이 검증</title>
+<style>body{font:18px/1.6 system-ui;max-width:560px;margin:24px auto;padding:16px;background:#edf0e3;color:#344c36}label{display:block;margin:16px 0}input,button{font:inherit;min-height:48px;box-sizing:border-box;width:100%;padding:8px}button{background:#d0dfa9;border:2px solid #728a54;border-radius:12px}p{font-size:16px}</style>
+<h1>후반 플레이 검증</h1>
+<p>로컬 테스트 전용입니다. 이 서버 주소의 Cozy Forest 저장만 테스트 판으로 교체합니다. 공개 사이트의 기록은 변경하지 않습니다.</p>
+<form id="setup">
+<label>스테이지<input id="level" type="number" min="1" max="1000" value="20" required></label>
+<label>배치 시드<input id="seed" type="number" min="1" max="4294967295" value="20261021" required></label>
+<button>테스트 판 시작</button>
+</form><p id="status" role="status"></p>
+<script type="module">
+import {createGame} from '../rules.mjs?v=20261021-balance';
+const local=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
+document.querySelector('button').disabled=!local;
+if(!local) document.getElementById('status').textContent='로컬 서버에서만 사용할 수 있어요.';
+document.getElementById('setup').addEventListener('submit',event=>{
+  event.preventDefault();if(!local) return;
+  const level=Number(document.getElementById('level').value),seed=Number(document.getElementById('seed').value);
+  const active=createGame({level,seed});
+  const profile={schoolVersion:2,best:0,level,coins:150,lessons:[],sound:true,haptics:false,welcomed:true};
+  try {localStorage.setItem('cozy-forest:v1',JSON.stringify({profile,active}));location.href='../';}
+  catch {document.getElementById('status').textContent='저장소를 사용할 수 없어 테스트 판을 만들지 못했어요.';}
+});
+</script>
+</html>

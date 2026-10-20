@@ -7,8 +7,8 @@
   <meta name="description" content="동물 셋이 만나면 숲이 포근해져요. 보드에서 발견하는 아이템 5종, 화려한 피버와 무한 스테이지를 PC와 모바일에서 플레이하세요.">
   <title>포근포근 숲 · Cozy Forest</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="preload" href="assets/fonts/jua-game.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20261021">
+  <link rel="preload" href="assets/fonts/jua-game.woff2?v=20261021-balance" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=20261021-balance">
 </head>
 <body class="game-page">
   <main class="game-shell" aria-label="동물 퍼즐">
@@ -23,12 +23,12 @@
         <div class="fever-flash" id="fever-flash" aria-hidden="true"><b>피버!</b><span>×2</span><small>점수 2배 · 시간 정지</small></div>
       </div>
       <section class="basket-area" aria-label="나의 바구니"><div class="basket-label"><b>바구니</b><span id="tray-count">0 / 7</span></div><div id="tray" class="tray" role="group" aria-label="동물을 모으는 바구니"></div><p id="message" role="status" aria-live="polite">같은 동물 3마리를 모아요</p></section>
-      <div class="fever-area"><img src="assets/ui/star.png" width="26" height="26" alt=""><b id="fever-label">피버 준비</b><div class="fever-track"><i id="fever-progress"></i></div><span id="fever-count">0%</span><div class="fever-live" aria-hidden="true"><b>피버 ×2</b><span id="fever-clock">12.0초</span><strong id="fever-earned">+0</strong></div></div>
+      <div class="fever-area"><img src="assets/ui/star.png" width="26" height="26" alt=""><b id="fever-label">피버 준비</b><div class="fever-track"><i id="fever-progress"></i></div><span id="fever-count">0%</span><div class="fever-live" id="fever-live" role="group" aria-label="피버 상태" aria-hidden="true"><b>피버 ×2</b><span id="fever-clock">16.0초</span><strong id="fever-earned">+0</strong></div></div>
       <nav class="game-tools" aria-label="게임 메뉴"><button id="mobile-items"><span data-icon="basket"></span>도감</button><button id="tutorial-mode"><span data-icon="leaf"></span>수업</button><button id="help"><span data-icon="help"></span>도움말</button></nav>
   </main>
   <dialog id="modal" aria-labelledby="modal-title"><div id="modal-content"></div></dialog>
   <div id="effects" class="effects" aria-hidden="true"></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="game.mjs?v=20261021"></script>
+  <script type="module" src="game.mjs?v=20261021-balance"></script>
 </body>
 </html>

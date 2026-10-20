@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
+import {createGame} from '../rules.mjs';
 const {JSDOM,VirtualConsole}=createRequire(import.meta.url)(process.env.COZY_FOREST_JSDOM||'jsdom');
 const root=new URL('../',import.meta.url);
 const source=['rules.mjs','art.mjs','game.mjs'].map(file=>readFileSync(new URL(file,root),'utf8').replace(/^import .+;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
@@ -73,7 +74,7 @@ test('refresh restores discovered items, remaining board, basket and fever score
   }finally {a.close();}
   const b=app(saved);try {
     const active=JSON.parse(saved).active;assert.equal(b.w.__qa.state.board.length,active.board.length);assert.equal(b.w.__qa.state.tray.length,1);
-    assert.equal(b.w.__qa.state.fever,12);assert.equal(b.w.__qa.state.used.fever,1);assert.equal(b.get('modal').open,true);assert.match(b.get('modal-content').textContent,/이어서 산책/);assert.deepEqual(b.errors,[]);
+    assert.equal(b.w.__qa.state.fever,16);assert.equal(b.w.__qa.state.used.fever,1);assert.equal(b.get('modal').open,true);assert.match(b.get('modal-content').textContent,/이어서 산책/);assert.deepEqual(b.errors,[]);
   }finally {b.close();}
 });
 test('legacy profile keeps records and maps school lessons; invalid storage still plays',()=>{
@@ -85,12 +86,12 @@ test('normal match has a shockwave and larger score pop; fever persists between 
   const a=app(null,{reduced:false});try {
     a.click('[data-action="resume"]');a.lesson(5);a.click('[data-board-item="fever"]');
     assert.ok(a.w.document.querySelector('.game-shell').classList.contains('is-fever'));assert.ok(a.get('fever-flash').classList.contains('show'));
-    a.advance(600);assert.ok(a.get('effects').querySelector('.fever-mote'));assert.match(a.get('fever-clock').textContent,/11\./);
+    a.advance(600);assert.ok(a.get('effects').querySelector('.fever-mote'));assert.match(a.get('fever-clock').textContent,/15\./);
     for(let i=0;i<3;i++) {const id=a.w.__qa.state.solution.find(id=>a.w.__qa.state.board.some(t=>t.id===id));a.click(`[data-tile="${id}"]`);}
     assert.ok(a.get('effects').querySelector('.fever-ring'));assert.match(a.get('effects').querySelector('.score-pop:last-of-type')?.textContent||a.get('effects').textContent,/피버 보너스 ×2/);
     assert.ok(a.w.__qa.state.feverScore>0);assert.equal(a.get('fever-earned').textContent,`+${a.w.__qa.state.feverScore.toLocaleString()}`);assert.ok(a.get('forest').classList.contains('fever-hit'));assert.ok(a.notes.includes(1319));
     a.advance(600);const before=a.w.__qa.state.fever;a.click('#pause');a.advance(3000);assert.equal(a.w.__qa.state.fever,before);assert.ok(a.w.document.body.classList.contains('effects-paused'));
-    a.click('[data-action="resume"]');a.advance(13000);assert.equal(a.w.__qa.state.fever,0);assert.equal(a.w.document.querySelector('.game-shell').classList.contains('is-fever'),false);assert.ok(a.get('effects').children.length<5);assert.deepEqual(a.errors,[]);
+    a.click('[data-action="resume"]');a.advance(25000);assert.equal(a.w.__qa.state.fever,0);assert.equal(a.w.document.querySelector('.game-shell').classList.contains('is-fever'),false);assert.ok(a.get('effects').children.length<5);assert.deepEqual(a.errors,[]);
   }finally {a.close();}
 });
 test('reduced motion disables burst and ambient nodes while preserving fever information',()=>{
@@ -145,4 +146,43 @@ test('local links and SVG parse; edited prompts preserve intent and copy works',
     w.document.querySelector('[data-copy="original-prompt"]').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(copied,original);assert.match(w.document.getElementById('copy-status').textContent,/복사했어요/);
     w.navigator.clipboard.writeText=async()=>{throw Error('denied');};w.document.querySelector('[data-copy="fever-prompt"]').click();await new Promise(resolve=>setImmediate(resolve));assert.match(w.document.getElementById('copy-status').textContent,/직접 복사/);assert.match(w.getSelection().toString(),/피버 진행/);
   }finally {dom.window.close();}
+});
+
+function pressureRound(item='magnet') {
+  const s=createGame({level:50,seed:20261022});
+  s.board=Array.from({length:24},(_,id)=>({id,type:Math.floor(id/3),x:id%6+.5,y:Math.floor(id/6)+.45,z:id===0?8:0}));
+  s.board.push({id:24,type:null,item,x:.5,y:.45,z:item==='magnet'?6:10});
+  s.total=24;s.itemsTotal=1;s.solution=s.board.map(t=>t.id);return s;
+}
+test('critical basket reveals a tappable rescue tile with a readable prompt',()=>{
+  const a=app({profile:{welcomed:true},active:pressureRound()});try {
+    a.click('[data-action="resume"]');
+    assert.equal(a.w.document.querySelector('[data-board-item="magnet"]').disabled,true);
+    for(const id of [1,3,6,9,12]) a.click(`[data-tile="${id}"]`);
+    const item=a.w.document.querySelector('[data-board-item="magnet"]');assert.equal(item.disabled,false);assert.ok(item.classList.contains('hinted'));
+    assert.match(a.get('message').textContent,/구조 신호/);assert.equal(a.w.__qa.state.itemsCollected,0);
+    a.click('[data-board-item="magnet"]');assert.equal(a.w.__qa.state.saved,3);assert.equal(a.w.__qa.state.used.magnet,1);assert.deepEqual(a.errors,[]);
+  }finally {a.close();}
+});
+test('an older six-slot save receives its rescue signal on resume',()=>{
+  const s=pressureRound();delete s.feverExtension;
+  for(const id of [1,3,6,9,12,15]) {const tile=s.board.find(t=>t.id===id);s.board=s.board.filter(t=>t.id!==id);s.tray.push(tile);}
+  const a=app({profile:{welcomed:true},active:s});try {
+    assert.equal(a.w.__qa.state.tray.length,6);assert.equal(a.w.document.querySelector('[data-board-item="magnet"]').disabled,false);
+    assert.match(a.get('message').textContent,/구조 신호/);assert.deepEqual(a.errors,[]);
+  }finally {a.close();}
+});
+test('queued snow clock and star extension are reflected in HUD, pause and saves',()=>{
+  const s=pressureRound('freeze');s.fever=5;
+  const a=app({profile:{welcomed:true},active:s});try {
+    a.click('[data-action="resume"]');a.click('[data-board-item="freeze"]');assert.match(a.get('message').textContent,/피버 뒤 눈꽃/);assert.equal(a.get('timer-effect').textContent,'피버·눈꽃');
+    a.advance(3000);assert.equal(a.w.__qa.state.frozen,15);a.click('#pause');a.advance(5000);assert.equal(a.w.__qa.state.frozen,15);
+    a.click('[data-action="resume"]');a.advance(2500);assert.ok(Math.abs(a.w.__qa.state.frozen-14.5)<.05);assert.match(a.get('timer-effect').textContent,/눈꽃/);assert.deepEqual(a.errors,[]);
+  }finally {a.close();}
+  const star=pressureRound('fever');star.fever=5;star.feverExtension=4;star.feverScore=123;
+  const b=app({profile:{welcomed:true},active:star});try {
+    b.click('[data-action="resume"]');b.click('[data-board-item="fever"]');assert.equal(b.get('fever-clock').textContent,'13.0초');assert.equal(b.get('fever-earned').textContent,'+323');
+    assert.match(b.get('message').textContent,/피버 \+8초/);assert.equal(b.get('fever-flash').classList.contains('show'),false);
+    assert.equal(JSON.parse(b.w.localStorage.getItem(KEY)).active.feverExtension,4);assert.deepEqual(b.errors,[]);
+  }finally {b.close();}
 });
