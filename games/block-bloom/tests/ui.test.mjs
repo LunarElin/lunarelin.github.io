@@ -27,6 +27,73 @@ function app(saved=null,{brokenStorage=false,reduced=false,ready=false}={}) {
   function pointer(el,type,props={}){const event=new w.Event(type,{bubbles:true});Object.assign(event,{pointerId:1,button:0,clientX:40,clientY:40,...props});el.dispatchEvent(event);}
   return{dom,w,get,click,advance,solve,notes,errors,pointer,timerCount:()=>intervals.size,saved:()=>JSON.parse(w.localStorage.getItem(KEY)),close:()=>w.close()};
 }
+
+function dragBoard(a,blocks,mode='classic') {
+  const s={...createLevel(mode,1,123),blocks,queue:[],tray:[],reserve:[],unlocked:[],plan:[],initial:blocks.length,total:blocks.length,moves:0,removed:0,score:0,started:true};
+  a.w.__qa.setState(s);Object.defineProperty(a.get('board'),'clientWidth',{value:360,configurable:true});
+  return a.w.document.querySelector(`[data-block="${blocks[0].id}"]`);
+}
+const piece=(id,x,y,color='blue',extra={})=>({id,x,y,color,w:1,h:1,rank:1,...extra});
+
+test('one held drag follows right, down, left and up, then undoes the entire path once',()=>{
+  const a=app();try{const b=dragBoard(a,[piece(0,1,1),piece(1,5,5)]);
+    a.pointer(b,'pointerdown');
+    for(const [clientX,clientY]of[[160,40],[160,160],[100,160],[100,100]])a.pointer(b,'pointermove',{clientX,clientY});
+    assert.equal(b.style.transform,'translate(60px,60px)');assert.equal(a.w.__qa.state.moves,0);
+    a.advance(1000);const time=a.w.__qa.state.time;a.pointer(b,'pointerup',{clientX:100,clientY:100});
+    assert.deepEqual([a.w.__qa.state.blocks[0].x,a.w.__qa.state.blocks[0].y],[2,2]);assert.equal(a.w.__qa.state.moves,1);assert.equal(a.w.__qa.state.time,time);
+    assert.equal(a.saved().history.length,1);a.click('[data-item="undo"]');assert.deepEqual([a.w.__qa.state.blocks[0].x,a.w.__qa.state.blocks[0].y],[1,1]);assert.equal(a.w.__qa.state.time,time);
+  }finally{a.close();}
+});
+
+test('drag follows both pointer axes, stops at obstacles and can turn around a corner',()=>{
+  const a=app();try{let b=dragBoard(a,[piece(0,1,1),piece(1,5,5)]);
+    a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:58,clientY:58});assert.equal(b.style.transform,'translate(18px,18px)');a.pointer(b,'pointercancel');
+    b=dragBoard(a,[piece(0,1,1),piece(1,2,1),piece(2,5,5)]);a.pointer(b,'pointerdown');
+    a.pointer(b,'pointermove',{clientX:100,clientY:40});assert.equal(b.style.transform,'translate(0px,0px)');
+    a.pointer(b,'pointermove',{clientX:100,clientY:100});a.pointer(b,'pointermove',{clientX:160,clientY:100});a.pointer(b,'pointerup',{clientX:160,clientY:100});
+    assert.deepEqual([a.w.__qa.state.blocks[0].x,a.w.__qa.state.blocks[0].y],[2,2]);assert.equal(a.w.__qa.state.moves,1);
+  }finally{a.close();}
+});
+
+test('drag returning to its start or cancellation spends no move and ignores other pointers',()=>{
+  const a=app();try{const b=dragBoard(a,[piece(0,1,1),piece(1,5,5)]);
+    a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:160});a.pointer(b,'pointermove',{clientX:280,pointerId:2});a.pointer(b,'pointerup',{clientX:280,pointerId:2});
+    assert.equal(b.style.transform,'translate(120px,0px)');a.pointer(b,'pointermove');a.pointer(b,'pointerup');assert.equal(a.w.__qa.state.moves,0);
+    for(const cancel of ['pointercancel','lostpointercapture']){a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:160,clientY:100});a.pointer(b,cancel);a.pointer(b,'pointerup',{clientX:160,clientY:100});assert.equal(a.w.__qa.state.moves,0);assert.equal(b.style.transform,'');}
+    assert.equal(a.saved().history.length,0);
+  }finally{a.close();}
+});
+
+test('a turn during drag reaches its matching exit and merge, while wrong gates stay blocked',()=>{
+  for(const mode of ['classic','merge']){const a=app();try{
+    const b=dragBoard(a,[piece(0,1,1,mode==='merge'?'coral':'blue'),piece(1,2,mode==='merge'?2:4,'coral'),piece(2,5,5)],mode);
+    a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientY:100});a.pointer(b,'pointermove',{clientX:mode==='merge'?100:400,clientY:100});
+    assert.equal(a.w.__qa.state.blocks.some(b=>b.id===0),false);assert.equal(a.w.__qa.state.moves,1);assert.equal(a.saved().history.length,1);
+    if(mode==='merge')assert.equal(a.w.__qa.state.blocks.find(b=>b.id===1).rank,2);else assert.equal(a.w.__qa.state.removed,1);
+    a.pointer(b,'pointerup',{clientX:400,clientY:100});assert.equal(a.w.__qa.state.moves,1);
+  }finally{a.close();}}
+  const a=app();try{const b=dragBoard(a,[piece(0,0,1,'lime'),piece(1,5,5)]);a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:-200});a.pointer(b,'pointerup',{clientX:-200});assert.equal(a.w.__qa.state.blocks[0].x,0);assert.equal(a.w.__qa.state.moves,0);}finally{a.close();}
+});
+
+test('fast diagonal drags cannot tunnel through a wall or cut an occupied corner',()=>{
+  const a=app();try{let b=dragBoard(a,[piece(0,1,1),...Array.from({length:6},(_,y)=>piece(y+1,3,y,'coral'))]);
+    a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:2000,clientY:160});a.pointer(b,'pointerup',{clientX:2000,clientY:160});
+    assert.equal(a.w.__qa.state.blocks[0].x,2);assert.equal(a.w.__qa.state.blocks[0].y,3);
+    b=dragBoard(a,[piece(0,1,1),piece(1,2,1),piece(2,1,2)]);a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:160,clientY:160});a.pointer(b,'pointerup',{clientX:160,clientY:160});
+    assert.deepEqual([a.w.__qa.state.blocks[0].x,a.w.__qa.state.blocks[0].y],[1,1]);assert.equal(a.w.__qa.state.moves,0);
+    b=dragBoard(a,[piece(0,1,1),piece(1,2,2)]);a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:58,clientY:58});
+    assert.equal(b.style.transform,'translate(18px,0px)');a.pointer(b,'pointercancel');
+  }finally{a.close();}
+});
+
+test('items and keyboard input cancel a pending drag instead of later committing stale positions',()=>{
+  const a=app();try{let b=dragBoard(a,[piece(0,1,1),piece(1,5,5)]);a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:100});
+    a.click('[data-item="freeze"]');a.pointer(b,'pointerup',{clientX:100});assert.equal(a.w.__qa.state.blocks[0].x,1);assert.equal(a.w.__qa.state.moves,0);assert.equal(a.w.__qa.state.frozen,20);
+    b=a.w.document.querySelector('[data-block="0"]');a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:100});b.dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+    a.pointer(b,'pointerup',{clientX:100});assert.deepEqual([a.w.__qa.state.blocks[0].x,a.w.__qa.state.blocks[0].y],[1,2]);assert.equal(a.w.__qa.state.moves,1);
+  }finally{a.close();}
+});
 test('all six modes load, display their mechanics and complete through actual block and direction buttons',()=>{
   const a=app();try{
     a.click('#mode-open');assert.equal(a.get('modes').children.length,6);a.click('[data-action="resume"]');assert.equal(a.get('items').children.length,5);

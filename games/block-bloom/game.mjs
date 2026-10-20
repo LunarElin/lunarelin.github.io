@@ -176,6 +176,7 @@ function complete() {
 }
 function commit(result,{remember=true}={}) {
   if(!result.ok)return false;
+  cancelDrag();
   if(remember){history.push(snapshot(state));if(history.length>30)history.shift();}
   state=result.state;hint=null;armed=null;
   if(!state.blocks.some(b=>b.id===selected))selected=null;
@@ -183,13 +184,14 @@ function commit(result,{remember=true}={}) {
 }
 function performMove(id,dx,dy) {
   if(busy||$('modal').open||state.status!=='playing'||state.started===false)return;
-  if(!commit(move(state,id,dx,dy))) {
-    sound('blocked');const frame=$('board-frame');frame.classList.remove('blocked');void frame.offsetWidth;frame.classList.add('blocked');
-    const b=state.blocks.find(b=>b.id===id);
-    if(b?.ice)toast('얼음은 다른 블록이 탈출할 때 깨져요.');
-    else if(state.mode==='merge'&&b?.rank===1)toast('같은 색 2를 합쳐 4부터 탈출할 수 있어요.');
-    else if(state.mode==='key'&&b&&!b.key&&!state.unlocked.includes(b.color))toast('같은 색 열쇠 블록을 먼저 탈출시키세요.');
-  }
+  if(!commit(move(state,id,dx,dy)))blockedMove(id);
+}
+function blockedMove(id) {
+  sound('blocked');const frame=$('board-frame');frame.classList.remove('blocked');void frame.offsetWidth;frame.classList.add('blocked');
+  const b=state.blocks.find(b=>b.id===id);
+  if(b?.ice)toast('얼음은 다른 블록이 탈출할 때 깨져요.');
+  else if(state.mode==='merge'&&b?.rank===1)toast('같은 색 2를 합쳐 4부터 탈출할 수 있어요.');
+  else if(state.mode==='key'&&b&&!b.key&&!state.unlocked.includes(b.color))toast('같은 색 열쇠 블록을 먼저 탈출시키세요.');
 }
 function selectBlock(id) {
   if(state.status!=='playing'||$('modal').open)return;
@@ -201,6 +203,7 @@ function selectBlock(id) {
 }
 function activateItem(id) {
   if(state.status!=='playing'||$('modal').open)return;
+  cancelDrag();
   if(profile.items[id]<=0){toast(`${ITEMS[id].name}을 충전해 주세요.`);openModal('shop');return;}
   if(id==='hint') {
     if(busy)return;busy=true;$('instruction').textContent='길을 찾는 중…'; const epoch = runEpoch;
@@ -243,7 +246,7 @@ function openModal(kind) {
   const previousKind=modalKind;modalKind=kind;armed=null;document.body.classList.add('paused');renderItems();let html='';
   if(kind==='ready') html=modalHeading('','블록 블룸')+`<img class="ready-icon" src="icon.svg" width="88" height="88" alt=""><p class="ready-copy">${MODES[state.mode].name} · ${state.level} 단계</p><p class="modal-copy">${MODES[state.mode].goal}</p><button class="primary" data-action="start">시작</button><button class="secondary" data-action="modes">모드 선택</button><a class="demo-label" href="../../">포트폴리오로</a>`;
   else if(kind==='modes') html=modalHeading('','모드 선택')+renderModes()+'<button class="secondary" data-action="resume">돌아가기</button>';
-  else if(kind==='help') html=modalHeading('','플레이 방법',MODES[state.mode].description)+'<ol class="help-list"><li><b>1</b><span>블록을 드래그하세요. 블록 선택 후 화면 화살표나 방향키로 한 칸씩 움직일 수도 있어요.</span></li><li><b>2</b><span>블록 전체 폭을 같은 색 출구에 맞추고, 바깥으로 한 번 더 밀어주세요.</span></li><li><b>3</b><span>해머와 자석은 블록을 고른 뒤 사용해요. 아이템을 먼저 누르고 블록을 골라도 돼요. 아이템 효과와 개수는 길게 누르거나 상점에서 확인할 수 있어요.</span></li><li><b>4</b><span>4초 안에 연속 탈출! 5연속부터 10초간 피버로 점수가 2배예요.</span></li></ol>'+(state.mode==='factory'?'<p class="modal-copy">승강기는 빛나는 두 발판 사이를 이동해요. 블록을 발판 왼쪽 위에 맞추고 선택한 뒤 승강기를 누르세요. 도착 칸이 비어 있어야 해요.</p>':'')+(state.mode==='triple'?'<p class="modal-copy">이어하기는 수집 블록을 구조함에 보관해요. 구조함의 블록도 새로 수집한 같은 색과 3개씩 합쳐져요.</p>':'')+'<button class="secondary" data-action="shop">아이템 효과</button><button class="primary" data-action="resume">계속</button>';
+  else if(kind==='help') html=modalHeading('','플레이 방법',MODES[state.mode].description)+'<ol class="help-list"><li><b>1</b><span>블록을 누른 채 상하좌우로 움직이세요. 손을 떼지 않고 방향을 바꿀 수 있어요. 화면 화살표나 방향키로도 이동할 수 있어요.</span></li><li><b>2</b><span>블록 전체 폭을 같은 색 출구에 맞추고, 바깥으로 한 번 더 밀어주세요.</span></li><li><b>3</b><span>해머와 자석은 블록을 고른 뒤 사용해요. 아이템을 먼저 누르고 블록을 골라도 돼요. 아이템 효과와 개수는 길게 누르거나 상점에서 확인할 수 있어요.</span></li><li><b>4</b><span>4초 안에 연속 탈출! 5연속부터 10초간 피버로 점수가 2배예요.</span></li></ol>'+(state.mode==='factory'?'<p class="modal-copy">승강기는 빛나는 두 발판 사이를 이동해요. 블록을 발판 왼쪽 위에 맞추고 선택한 뒤 승강기를 누르세요. 도착 칸이 비어 있어야 해요.</p>':'')+(state.mode==='triple'?'<p class="modal-copy">이어하기는 수집 블록을 구조함에 보관해요. 구조함의 블록도 새로 수집한 같은 색과 3개씩 합쳐져요.</p>':'')+'<button class="secondary" data-action="shop">아이템 효과</button><button class="primary" data-action="resume">계속</button>';
   else if(kind==='pause') html=modalHeading('','쉬는 중',`점수 ${state.score.toLocaleString('ko-KR')} · 시간도 멈췄어요.`)+'<button class="primary" data-action="resume">계속</button><div class="modal-actions"><button class="secondary" id="restart" data-action="restart">다시</button><button class="secondary" id="settings-open" data-action="settings"><img src="assets/icons/gear.png" alt="" width="22" height="22">설정</button><button class="secondary" id="daily-open" data-action="daily-open">매일 선물</button><button class="secondary" id="pass-open" data-action="pass"><img src="assets/icons/star.png" alt="" width="22" height="22">별 보상</button></div><button class="secondary" data-action="modes">모드 선택</button><a class="secondary" href="../../"><img src="assets/icons/home.png" alt="" width="22" height="22">나가기</a>';
   else if(kind==='restart') html=modalHeading('','다시 시작할까요?','같은 배치로 돌아가요. 사용한 아이템은 돌아오지 않아요.')+'<button class="primary" data-action="restart-confirm">다시</button><button class="secondary" data-action="resume">계속</button>';
   else if(kind==='switch') html=modalHeading('','모드를 바꿀까요?','현재 보드는 종료해요. 코인·아이템·레벨 진도는 유지돼요.')+`<button class="primary" data-action="switch-confirm" data-value="${$('modal').dataset.nextMode}">변경</button><button class="secondary" data-action="resume">계속</button>`;
@@ -285,27 +288,62 @@ listen($('blocks'),'pointerdown',event=>{
   selected=id;hint=null;
   $('blocks').querySelectorAll('.block').forEach(b=>{b.classList.toggle('selected',Number(b.dataset.block)===id);b.setAttribute('aria-pressed',String(Number(b.dataset.block)===id));});renderHint();
   const b=state.blocks.find(b=>b.id===id);setText('instruction',`${COLORS[b.color].name} 선택`);
-  drag={id,el,x:event.clientX,y:event.clientY,pointer:event.pointerId};el.setPointerCapture?.(event.pointerId);
+  drag={id,el,x:event.clientX,y:event.clientY,pointer:event.pointerId,origin:b,preview:state,events:[],offsetX:0,offsetY:0};el.setPointerCapture?.(event.pointerId);
 });
-listen($('blocks'),'pointermove',event=>{
-  if(!drag||event.pointerId!==drag.pointer)return;
-  const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.hypot(dx,dy)<8)return;
-  const b=state.blocks.find(b=>b.id===drag.id);if(!b)return;
-  const cell=$('board').clientWidth/6;
-  let vx=0,vy=0;const horizontal=Math.abs(dx)>Math.abs(dy),delta=horizontal?dx:dy,sign=Math.sign(delta);
-  const preview=move(state,b.id,horizontal?sign*6:0,horizontal?0:sign*6),landed=preview.state.blocks.find(other=>other.id===b.id);
-  const allowed=!preview.ok?4:!landed?((horizontal?(sign>0?6-b.x-b.w:b.x):(sign>0?6-b.y-b.h:b.y))+.7)*cell:Math.abs(horizontal?landed.x-b.x:landed.y-b.y)*cell;
-  const offset=sign*Math.min(Math.abs(delta),allowed);if(horizontal)vx=offset;else vy=offset;
-  drag.el.classList.add('dragging');drag.el.style.transform=`translate(${vx}px,${vy}px)`;
-});
-function endDrag(event,cancel=false){
-  if(!drag||event.pointerId!==drag.pointer)return;const current=drag;cancelDrag();
-  const dx=event.clientX-current.x,dy=event.clientY-current.y;if(cancel||Math.hypot(dx,dy)<14)return;
-  const cell=$('board').clientWidth/6;if(cell<=0)return;
-  const horizontal=Math.abs(dx)>Math.abs(dy),distance=horizontal?dx:dy,steps=Math.min(6,Math.max(1,Math.round(Math.abs(distance)/cell)))*Math.sign(distance);
-  performMove(current.id,horizontal?steps:0,horizontal?0:steps);
+function finishDrag(){
+  const current=drag,b=current.preview.blocks.find(b=>b.id===current.id);cancelDrag();
+  if(!b||b.x!==current.origin.x||b.y!==current.origin.y) {
+    // A whole pointer path is one undoable move; never restore the clock from its preview.
+    commit({ok:true,state:{...current.preview,moves:state.moves+1,time:state.time,frozen:state.frozen},events:current.events});
+  } else if(current.blocked)blockedMove(current.id);
 }
-listen($('blocks'),'pointerup',event=>endDrag(event));listen($('blocks'),'pointercancel',event=>endDrag(event,true));listen($('blocks'),'lostpointercapture',cancelDrag);
+function dragOffset(b,axis,offset,across){
+  if(!offset)return 0;
+  const horizontal=axis==='x',size=horizontal?b.w:b.h,other=horizontal?'y':'x',otherSize=horizontal?b.h:b.w,sign=Math.sign(offset);
+  const step=move(drag.preview,b.id,horizontal?sign:0,horizontal?0:sign);
+  const exits=step.ok&&!step.state.blocks.some(block=>block.id===b.id)&&step.events.some(e=>e.type==='exit');
+  const merged=step.events.find(e=>e.type==='merge')?.block.id;
+  let limit=sign>0?SIZE-b[axis]-size:b[axis];if(exits)limit++;
+  for(const block of drag.preview.blocks){
+    if(block.id===b.id||block.id===merged||b[other]+across>=block[other]+(horizontal?block.h:block.w)||b[other]+across+otherSize<=block[other])continue;
+    const gap=sign>0?block[axis]-b[axis]-size:b[axis]-block[axis]-(horizontal?block.w:block.h);
+    if(gap>=0)limit=Math.min(limit,gap);
+  }
+  if(Math.abs(offset)>limit+.05)drag.blocked=true;
+  return sign*Math.min(Math.abs(offset),limit);
+}
+function updateDrag(event){
+  if(!drag||event.pointerId!==drag.pointer)return;
+  const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+  if(!drag.el.classList.contains('dragging')&&Math.hypot(dx,dy)<8)return;
+  drag.el.classList.add('dragging');const cell=$('board').clientWidth/SIZE;if(cell<=0)return;
+  drag.x=event.clientX;drag.y=event.clientY;
+  // Sample the pointer segment so fast or diagonal input cannot skip an occupied cell.
+  const samples=Math.min(64,Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/(cell/4))));
+  for(let i=0;i<samples;i++){
+    drag.offsetX+=dx/cell/samples;drag.offsetY+=dy/cell/samples;
+    const axes=Math.abs(drag.offsetX)>=Math.abs(drag.offsetY)?['x','y']:['y','x'];
+    for(const axis of axes){
+      const key=axis==='x'?'offsetX':'offsetY',sign=Math.sign(drag[key]);
+      if(Math.abs(drag[key])<.5)continue;
+      const result=move(drag.preview,drag.id,axis==='x'?sign:0,axis==='y'?sign:0);
+      if(!result.ok){drag[key]=0;continue;}
+      drag.preview=result.state;drag.events.push(...result.events);drag[key]-=sign;
+      if(!result.state.blocks.some(b=>b.id===drag.id)){finishDrag();return;}
+    }
+    const b=drag.preview.blocks.find(b=>b.id===drag.id);
+    drag.offsetX=dragOffset(b,'x',drag.offsetX,0);drag.offsetY=dragOffset(b,'y',drag.offsetY,drag.offsetX);
+  }
+  const b=drag.preview.blocks.find(b=>b.id===drag.id);
+  const vx=Math.round((b.x-drag.origin.x+drag.offsetX)*cell*100)/100,vy=Math.round((b.y-drag.origin.y+drag.offsetY)*cell*100)/100;
+  drag.el.style.transform=`translate(${vx}px,${vy}px)`;
+}
+listen($('blocks'),'pointermove',updateDrag);
+function endDrag(event,cancel=false){
+  if(!drag||event.pointerId!==drag.pointer)return;
+  if(cancel){cancelDrag();return;}updateDrag(event);if(drag)finishDrag();
+}
+listen($('blocks'),'pointerup',event=>endDrag(event));listen($('blocks'),'pointercancel',event=>endDrag(event,true));listen($('blocks'),'lostpointercapture',event=>{if(drag?.pointer===event.pointerId)cancelDrag();});
 listen($('blocks'),'click',event=>{if(event.detail===0){const el=event.target.closest('[data-block]');if(el)selectBlock(Number(el.dataset.block));}});
 listen($('items'),'pointerdown',event=>{
   const b=event.target.closest('[data-item]');if(!b)return;suppressItemClick=false;
