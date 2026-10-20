@@ -64,7 +64,7 @@ test('shop debits exact prices; bundle and shared daily reward cannot be claimed
   }finally{a.close();}
 });
 test('winning records coins before modal and reload neither duplicates rewards nor loses level progress',()=>{
-  const a=app();let saved;try{a.solve();saved=a.saved();assert.equal(saved.profile.wins,1);assert.equal(saved.profile.levels.classic,2);assert.equal(saved.profile.coins,480);a.click('[data-action="pass"]');a.click('[data-action="pass-claim"][data-value="3"]');assert.equal(a.w.__qa.profile.coins,600);}finally{a.close();}
+  const a=app();let saved;try{a.solve();saved=a.saved();assert.equal(saved.profile.wins,1);assert.equal(saved.profile.levels.classic,2);assert.equal(saved.profile.coins,480);a.click('#modal-close');assert.equal(a.timerCount(),0,'closing a finished result must not restart a clock');a.click('#pause');a.click('[data-action="pass"]');a.click('[data-action="pass-claim"][data-value="3"]');assert.equal(a.w.__qa.profile.coins,600);}finally{a.close();}
   const b=app(saved);try{assert.equal(b.w.__qa.profile.coins,480);assert.equal(b.w.__qa.profile.wins,1);assert.equal(b.get('modal').open,true);b.click('[data-action="next"]');assert.equal(b.w.__qa.state.level,2);}finally{b.close();}
 });
 test('loss recovery debits once, empties dock, and adds 45 seconds; fresh retry preserves spent inventory',()=>{

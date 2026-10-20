@@ -168,6 +168,7 @@ function react(events) {
   }
 }
 function complete() {
+  if(state.status!=='playing')stopClock();
   if(state.status==='won') {
     const reward=winReward(state,profile);state=reward.state;profile=reward.profile;save();renderHud();sound('win');celebration();
     const epoch = runEpoch; later(()=>{if(epoch===runEpoch&&state.status==='won')openModal('won');},600);
@@ -338,7 +339,7 @@ function viewportChanged(){cancelDrag();layoutBoard();}
 listen(window,'resize',viewportChanged);if(window.visualViewport)listen(window.visualViewport,'resize',viewportChanged);
 if(window.ResizeObserver){boardObserver=new ResizeObserver(layoutBoard);boardObserver.observe($('board-stage'));}
 function stopClock(){if(timerId!==null){clearInterval(timerId);timerId=null;}}
-function startClock(){if(!disposed&&timerId===null){lastFrame=performance.now();timerId=setInterval(clockTick,200);}}
+function startClock(){if(!disposed&&timerId===null&&state.status==='playing'&&state.started!==false&&!$('modal').open){lastFrame=performance.now();timerId=setInterval(clockTick,200);}}
 function clockTick(){
   const now=performance.now(),dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
   if(document.hidden||$('modal').open||busy||state.status!=='playing'||state.started===false)return;
