@@ -56,3 +56,11 @@ test('candidate caps and forged, old or inconsistent saves are rejected',()=>{
  const build=Object.fromEntries(Object.entries(UPGRADES).map(([k,u])=>[k,u.max]));assert.deepEqual(upgradeChoices(createStage(4,1,build)),[]);
  const s=createStage(3,1);for(const mutate of [x=>x.version=2,x=>x.hull=99,x=>x.hull=0,x=>x.undoUsed=4,x=>x.hp=100,x=>x.queue.pop(),x=>x.stage=10,x=>x.ships.push(x.ships[0]),x=>x.status='won',x=>x.score=Infinity,x=>x.build.plasma=1,x=>x.ships[0].id='<img>',x=>x.moves=10]){const bad=clone(s);mutate(bad);assert.equal(validState(bad),false);}assert.equal(validState(null),false);
 });
+
+test('corrupt dock placeholders cannot restore a board that has no usable docking slot',()=>{
+ for(const placeholder of [false,0,'']){
+  const saved=createStage(1,1);saved.docks.fill(placeholder);
+  assert.equal(validState(saved),false);
+ }
+ assert.ok(validState(JSON.parse(JSON.stringify(createStage(1,1)))));
+});

@@ -119,6 +119,7 @@ export function validState(state) {
   if (!state.build || Object.keys(state.build).length !== Object.keys(UPGRADES).length || Object.entries(UPGRADES).some(([key, upgrade]) => !integer(state.build[key], 0, upgrade.max))) return false;
   const stats = buildStats(state.build);
   if (!integer(state.hull, 0, stats.maxHull) || !Array.isArray(state.ships) || state.ships.length > 21 || !Array.isArray(state.docks) || state.docks.length !== stats.docks || !Array.isArray(state.queue) || state.queue.length > 63 || !Array.isArray(state.solution)) return false;
+  if (state.docks.some(ship => ship !== null && (typeof ship !== 'object' || Array.isArray(ship)))) return false;
   const all = [...state.ships, ...state.docks.filter(Boolean)], ids = new Set(), cells = new Set();
   for (const ship of all) {
     if (!ship || !/^s\d{1,2}$/.test(ship.id) || ids.has(ship.id) || !integer(ship.color, 0, 3) || !integer(ship.dir, 0, 3) || !integer(ship.loaded, 0, 2) || !integer(ship.x, 0, 5) || !integer(ship.y, 0, 4)) return false;

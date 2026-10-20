@@ -1,6 +1,6 @@
 import { COLORS } from './rules.mjs';
 
-// Kenney CC0 originals; source paths and licenses are in assets/kenney/CREDITS.md.
+// Local Kenney CC0 sprites; source paths, size optimizations and licenses are in assets/kenney/CREDITS.md.
 export const FLEETS = [
   { name: 'cyan', hull: 'assets/kenney/ship-cyan.png', engine: 'assets/kenney/engine-blue.png', width: 112 },
   { name: 'pink', hull: 'assets/kenney/ship-pink.png', engine: 'assets/kenney/engine-blue.png', width: 99 },
