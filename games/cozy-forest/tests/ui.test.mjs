@@ -37,15 +37,16 @@ function app(saved=null,{brokenStorage=false,reduced=true}={}) {
   function lesson(index) {click('#tutorial-mode');click(`[data-lesson="${index}"]`);}
   return {dom,w,get,click,advance,solve,lesson,notes,errors,close:()=>dom.window.close()};
 }
-test('items appear among board animals; the right panel only explains them',()=>{
+test('items stay on the board; the guide opens separately without activation buttons',()=>{
   const a=app();try {
     assert.equal(a.get('modal').open,true);assert.equal(a.get('board').querySelectorAll('.item-tile').length,3);
+    a.click('[data-action="resume"]');a.click('#mobile-items');
     assert.equal(a.get('items').querySelectorAll('.item-explainer').length,5);assert.equal(a.get('items').querySelectorAll('button').length,0);
     assert.equal(a.w.document.querySelector('[data-action="buy-item"]'),null);
     a.click('[data-action="resume"]');a.lesson(3);
     const tray=a.w.__qa.state.tray.length;a.click('[data-board-item="freeze"]');
     assert.equal(a.w.__qa.state.frozen,15);assert.equal(a.w.__qa.state.tray.length,tray);assert.equal(a.get('modal').open,false);
-    assert.equal(a.get('lesson-check').textContent,'✓ 배웠어요');assert.ok(a.get('items').querySelector('[data-item-info="freeze"]').classList.contains('selected'));assert.deepEqual(a.errors,[]);
+    assert.equal(a.w.__qa.state.used.freeze,1);a.click('#mobile-items');assert.ok(a.get('items').querySelector('[data-item-info="freeze"]').classList.contains('selected'));assert.deepEqual(a.errors,[]);
   }finally {a.close();}
 });
 test('all six school lessons collect their board item, finish and record graduation',()=>{
@@ -86,7 +87,7 @@ test('normal match has a shockwave and larger score pop; fever persists between 
     assert.ok(a.w.document.querySelector('.game-shell').classList.contains('is-fever'));assert.ok(a.get('fever-flash').classList.contains('show'));
     a.advance(600);assert.ok(a.get('effects').querySelector('.fever-mote'));assert.match(a.get('fever-clock').textContent,/11\./);
     for(let i=0;i<3;i++) {const id=a.w.__qa.state.solution.find(id=>a.w.__qa.state.board.some(t=>t.id===id));a.click(`[data-tile="${id}"]`);}
-    assert.ok(a.get('effects').querySelector('.fever-ring'));assert.match(a.get('effects').querySelector('.score-pop:last-of-type')?.textContent||a.get('effects').textContent,/FEVER BONUS ×2/);
+    assert.ok(a.get('effects').querySelector('.fever-ring'));assert.match(a.get('effects').querySelector('.score-pop:last-of-type')?.textContent||a.get('effects').textContent,/피버 보너스 ×2/);
     assert.ok(a.w.__qa.state.feverScore>0);assert.equal(a.get('fever-earned').textContent,`+${a.w.__qa.state.feverScore.toLocaleString()}`);assert.ok(a.get('forest').classList.contains('fever-hit'));assert.ok(a.notes.includes(1319));
     a.advance(600);const before=a.w.__qa.state.fever;a.click('#pause');a.advance(3000);assert.equal(a.w.__qa.state.fever,before);assert.ok(a.w.document.body.classList.contains('effects-paused'));
     a.click('[data-action="resume"]');a.advance(13000);assert.equal(a.w.__qa.state.fever,0);assert.equal(a.w.document.querySelector('.game-shell').classList.contains('is-fever'),false);assert.ok(a.get('effects').children.length<5);assert.deepEqual(a.errors,[]);
@@ -99,21 +100,42 @@ test('rapid clicks do not duplicate item pickups and effect nodes are bounded an
   const a=app(null,{reduced:false});try {
     a.click('[data-action="resume"]');a.lesson(5);const old=a.w.document.querySelector('[data-board-item="fever"]');old.click();old.click();
     assert.equal(a.w.__qa.state.used.fever,1);assert.equal(a.w.__qa.state.itemsCollected,1);
-    a.solve({showResult:false});assert.ok(a.get('effects').children.length<=180);a.advance(2200);assert.equal(a.get('effects').children.length,0);assert.deepEqual(a.errors,[]);
+    a.solve({showResult:false});assert.ok(a.get('effects').children.length<=112);a.advance(2200);assert.equal(a.get('effects').children.length,0);assert.deepEqual(a.errors,[]);
   }finally {a.close();}
 });
 test('timer and effects pause in modals or hidden tabs; timeout and retry are connected',()=>{
   const a=app();try {
     a.click('[data-action="resume"]');a.click('#help');const time=a.w.__qa.state.time;a.advance(5000);assert.equal(a.w.__qa.state.time,time);
     a.click('[data-action="resume"]');Object.defineProperty(a.w.document,'hidden',{value:true,configurable:true});a.w.document.dispatchEvent(new a.w.Event('visibilitychange'));a.advance(5000);assert.equal(a.w.__qa.state.time,time);
-    Object.defineProperty(a.w.document,'hidden',{value:false,configurable:true});a.w.document.dispatchEvent(new a.w.Event('visibilitychange'));a.w.__qa.state.time=.05;a.advance(200);
+    Object.defineProperty(a.w.document,'hidden',{value:false,configurable:true});a.w.document.dispatchEvent(new a.w.Event('visibilitychange'));assert.equal(a.get('modal').open,true);a.click('[data-action="resume"]');a.w.__qa.state.time=.05;a.advance(200);
     assert.match(a.get('modal-content').textContent,/해가 저물었어요/);const seed=a.w.__qa.state.seed;a.click('[data-action="retry"]');assert.equal(a.w.__qa.state.seed,seed);assert.equal(a.w.__qa.state.status,'playing');assert.deepEqual(a.errors,[]);
   }finally {a.close();}
 });
+test('page cache return cleans effects, pauses play and restarts exactly one timer',()=>{
+  const a=app(null,{reduced:false});try {
+    a.click('[data-action="resume"]');a.lesson(5);a.click('[data-board-item="fever"]');
+    assert.ok(a.get('effects').children.length>0);
+    const event=new a.w.Event('pagehide');Object.defineProperty(event,'persisted',{value:true});a.w.dispatchEvent(event);
+    const time=a.w.__qa.state.fever;assert.equal(a.get('effects').children.length,0);a.advance(3000);assert.equal(a.w.__qa.state.fever,time);
+    const show=new a.w.Event('pageshow');Object.defineProperty(show,'persisted',{value:true});a.w.dispatchEvent(show);a.w.dispatchEvent(show);
+    assert.equal(a.get('modal').open,true);a.advance(1000);assert.equal(a.w.__qa.state.fever,time);
+    a.click('[data-action="resume"]');a.advance(1000);assert.ok(Math.abs(a.w.__qa.state.fever-(time-1))<.01);assert.deepEqual(a.errors,[]);
+  }finally {a.close();}
+});
+
+test('an unfinished endless score is saved as a record before refresh',()=>{
+  const a=app();let saved;try {
+    a.click('[data-action="resume"]');
+    while(a.w.__qa.state.saved===0) {const id=a.w.__qa.state.solution.find(id=>a.w.__qa.state.board.some(t=>t.id===id));a.click(`[data-tile="${id}"]`);}
+    saved=a.w.localStorage.getItem(KEY);assert.equal(JSON.parse(saved).profile.best,a.w.__qa.state.score);
+  }finally {a.close();}
+  const b=app(saved);try {assert.ok(b.w.__qa.profile.best>0);assert.equal(b.w.__qa.profile.best,b.w.__qa.state.score);assert.deepEqual(b.errors,[]);}finally {b.close();}
+});
+
 test('local links and SVG parse; edited prompts preserve intent and copy works',async()=>{
   const promptHtml=readFileSync(new URL('prompts.html',root),'utf8');
   for(const document of [html,promptHtml]) for(const match of document.matchAll(/(?:src|href)="([^"]+)"/g)) {if(['./','../../'].includes(match[1])||match[1].startsWith('#')) continue;assert.ok(readFileSync(new URL(match[1],root)).length);}
-  assert.match(html,/href="prompts\.html(?:\?[^\"]*)?"/);
+  assert.match(source,/href="prompts\.html/);assert.match(source,/href="\.\.\/\.\.\/"/);
   const a=app();try {const parser=new a.w.DOMParser();for(const svg of a.w.document.querySelectorAll('svg')) assert.equal(parser.parseFromString(svg.outerHTML,'image/svg+xml').querySelector('parsererror'),null);}finally {a.close();}
   const dom=new JSDOM(promptHtml,{url:'https://example.test/prompts.html',runScripts:'outside-only'}),w=dom.window;let copied='';
   try {

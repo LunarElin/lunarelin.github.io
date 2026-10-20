@@ -110,4 +110,7 @@ test('save validation accepts mixed boards and rejects corrupt tiles or legacy r
   for(const changes of [{version:1},{time:NaN},{capacity:99},{board:null},{board:[null]},{tray:[null]},{solution:null},{mode:'bad'},{lesson:999},{score:-10},{used:{bogus:1}}]) assert.equal(validSave({...state,...changes}),false);
   const duplicate=structuredClone(state);duplicate.board[1].id=duplicate.board[0].id;assert.equal(validSave(duplicate),false);
   const badItem=structuredClone(state);badItem.board.find(t=>t.item).item='unknown';assert.equal(validSave(badItem),false);
+  for(const changes of [{solution:[]},{solution:[1,1]},{total:0},{saved:.5},{fever:13},{charge:101},{itemsTotal:99}]) assert.equal(validSave({...state,...changes}),false);
+  const empty={...state,board:[],tray:[],saved:state.total,itemsCollected:state.itemsTotal};assert.equal(validSave(empty),false);
+  assert.equal(validSave({...state,used:{fever:1}}),false);
 });

@@ -160,12 +160,17 @@ export function tick(state,dt) {
 export function validSave(state) {
   if(!state||state.version!==2||!['tutorial','endless'].includes(state.mode)||state.status!=='playing') return false;
   if(!Number.isInteger(state.level)||state.level<1||!Number.isInteger(state.lesson)||state.lesson<0||state.lesson>=LESSONS.length) return false;
-  if(!Array.isArray(state.board)||!Array.isArray(state.tray)||state.board.length>65||state.tray.length>=state.capacity) return false;
+  if(!Array.isArray(state.board)||!Array.isArray(state.tray)||!state.board.length||state.board.length>65||state.tray.length>=state.capacity) return false;
   if(!Array.isArray(state.solution)||!state.used||typeof state.used!=='object') return false;
   if(!['score','saved','total','time','elapsed','charge','combo','fever','feverScore','frozen','seed','shuffles','itemsCollected','itemsTotal'].every(key=>Number.isFinite(state[key])&&state[key]>=0)) return false;
   if(!Number.isFinite(state.lastMatch)||!Number.isInteger(state.capacity)||state.capacity<7||state.capacity>10||state.time<=0) return false;
+  if(!['saved','total','combo','seed','shuffles','itemsCollected','itemsTotal'].every(key=>Number.isInteger(state[key]))) return false;
+  if(state.total<=0||state.total>60||state.total%3||state.saved%3||state.itemsTotal>5||state.charge>100||state.fever>12||state.frozen>15) return false;
+  if(!state.solution.every(Number.isInteger)||new Set(state.solution).size!==state.solution.length) return false;
+  if(!state.board.every(t=>t&&state.solution.includes(t.id))) return false;
   const all=[...state.board,...state.tray];
   if(!all.every(t=>t&&Number.isInteger(t.id)&&(t.item?ITEMS.some(item=>item.id===t.item)&&t.type===null:Number.isInteger(t.type)&&t.type>=0&&t.type<ANIMALS.length)&&Number.isFinite(t.x)&&t.x>=0&&t.x<=6&&Number.isFinite(t.y)&&t.y>=0&&t.y<=5&&Number.isFinite(t.z)&&t.z>=0)) return false;
   if(state.tray.some(t=>t.item)||!Object.entries(state.used).every(([id,n])=>ITEMS.some(item=>item.id===id)&&Number.isInteger(n)&&n>=0)) return false;
+  if(Object.values(state.used).reduce((sum,n)=>sum+n,0)!==state.itemsCollected) return false;
   return new Set(all.map(t=>t.id)).size===all.length&&all.filter(t=>!t.item).length+state.saved===state.total&&all.filter(t=>t.item).length+state.itemsCollected===state.itemsTotal&&ANIMALS.every((_,type)=>all.filter(t=>!t.item&&t.type===type).length%3===0);
 }
