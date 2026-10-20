@@ -1,8 +1,12 @@
-import { SIZE, COLORS, MODES, GATES, ITEMS, ITEM_COSTS, createLevel, move, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState } from './rules.mjs';
+import { SIZE, COLORS, MODES, GATES, ITEMS, ITEM_COSTS, createLevel, move, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState, migrateRun } from './rules.mjs?v=2';
 
 const $ = id => document.getElementById(id);
 const KEY = 'block-bloom:v1';
 const itemColors = { hammer: '#ff99b2', freeze: '#8cdfff', hint: '#ffdd8d', undo: '#c1a1ff', magnet: '#8fe6bc' };
+const shortItems = { hammer: '해머', freeze: '빙결', hint: '힌트', undo: '되돌림', magnet: '자석' };
+const effectTimers = new Set(), oscillators = new Set(), outputs = new Set();
+const lifecycle = new AbortController();
+let timerId = null, runEpoch = 0, disposed = false, boardObserver;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 let profile = newProfile(), state, history = [], selected = null, armed = null, hint = null, modalKind = '', toastTimer, busy = false;
 let activeTime = 0, lastClear = -100, combo = 0, feverUntil = 0, lastFrame = performance.now(), lastSave = 0, audio, storageWarning = false;
@@ -10,10 +14,26 @@ try {
   const saved = JSON.parse(localStorage.getItem(KEY));
   if (saved) {
     profile = restoreProfile(saved.profile);
-    if (validRun(saved.run)) { state = saved.run; history = Array.isArray(saved.history) ? saved.history.filter(validRun).slice(-30) : []; }
+    if (validRun(saved.run)) { state = migrateRun(saved.run); history = Array.isArray(saved.history) ? saved.history.filter(validRun).slice(-30).map(migrateRun) : []; }
   }
 } catch { /* A private or unavailable store still allows a fresh game. */ }
-if (!state) state = createLevel('classic', profile.levels.classic, seed());
+if (!state) state = { ...createLevel('classic', profile.levels.classic, seed()), started: false };
+
+function later(fn, ms) { const id = window.setTimeout(() => { effectTimers.delete(id); if (!disposed) fn(); }, ms); effectTimers.add(id); return id; }
+function cancelLater(id) { clearTimeout(id); effectTimers.delete(id); }
+function stopAudio() {
+  for (const osc of oscillators) { try { osc.stop(); osc.disconnect(); } catch {} }
+  oscillators.clear(); for (const out of outputs) { try { out.disconnect(); } catch {} } outputs.clear();
+  if (audio?.state === 'running') void audio.suspend?.().catch(() => {});
+}
+function clearEffects() {
+  for (const id of effectTimers) clearTimeout(id); effectTimers.clear(); busy = false;
+  $('fx-layer').replaceChildren(); $('combo-label').textContent = ''; $('toast').hidden = true;
+  $('board-frame').classList.remove('impact','blocked');
+}
+function layoutBoard() { const el = $('board-stage'), size = Math.floor(Math.min(el.clientWidth, el.clientHeight - 10, 440)); if (size > 0) el.style.setProperty('--board-size', `${size}px`); }
+function setText(id, value) { const el = $(id); if (el && el.textContent !== String(value)) el.textContent = value; }
+function listen(target, name, fn) { target.addEventListener(name, fn, { signal: lifecycle.signal }); }
 
 function seed() { const values = new Uint32Array(1); crypto.getRandomValues(values); return values[0]; }
 function localDate() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
@@ -22,26 +42,24 @@ function save() {
   try { localStorage.setItem(KEY, JSON.stringify({ profile, run: snapshot(state), history: history.map(snapshot) })); }
   catch { if (!storageWarning) { storageWarning = true; toast('이 브라우저에서는 저장할 수 없어요. 현재 게임은 계속 플레이할 수 있어요.'); } }
 }
-function toast(message) { clearTimeout(toastTimer); $('toast').textContent = message; $('toast').hidden = false; toastTimer = setTimeout(() => { $('toast').hidden = true; }, 2800); }
+function toast(message) { cancelLater(toastTimer); $('toast').textContent = message; $('toast').hidden = false; toastTimer = later(() => { $('toast').hidden = true; }, 2800); }
 function colorStyle(color) { const c = COLORS[color]; return `--piece:${c.hex};--light:${c.light};--dark:${c.dark}`; }
 function canAnimate() { return profile.motion && !reduced.matches; }
 function syncPreferences() {
   document.body.classList.toggle('reduced-motion', !canAnimate()); document.body.dataset.skin = profile.skin;
-  $('sound-toggle').textContent = profile.sound ? '♫' : '♪'; $('sound-toggle').setAttribute('aria-pressed', String(profile.sound));
-  $('sound-toggle').setAttribute('aria-label', `효과음 ${profile.sound ? '켜짐' : '꺼짐'}`);
 }
 function sound(kind = 'move', strength = 1) {
   if (!profile.sound) return;
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === 'suspended') void audio.resume();
-    const start = audio.currentTime, out = audio.createGain(); out.gain.value = .13; out.connect(audio.destination);
+    if (audio.state === 'suspended') void audio.resume().catch(() => {});
+    const start = audio.currentTime, out = audio.createGain(); out.gain.value = .13; out.connect(audio.destination); outputs.add(out);
     const tone = (frequency, delay, duration, type = 'sine', end = frequency) => {
       const osc = audio.createOscillator(), gain = audio.createGain(); osc.type = type; osc.frequency.setValueAtTime(frequency, start + delay);
       osc.frequency.exponentialRampToValueAtTime(Math.max(20,end), start + delay + duration);
       gain.gain.setValueAtTime(.001, start + delay); gain.gain.linearRampToValueAtTime(.6, start + delay + .009); gain.gain.exponentialRampToValueAtTime(.001, start + delay + duration);
-      osc.connect(gain); gain.connect(out); osc.start(start + delay); osc.stop(start + delay + duration + .02);
-      osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+      osc.connect(gain); gain.connect(out); oscillators.add(osc); osc.start(start + delay); osc.stop(start + delay + duration + .02);
+      osc.onended = () => { oscillators.delete(osc); osc.disconnect(); gain.disconnect(); };
     };
     if (kind === 'move') tone(220, 0, .06, 'sine', 140);
     else if (kind === 'blocked') tone(95, 0, .09, 'triangle', 65);
@@ -53,12 +71,12 @@ function sound(kind = 'move', strength = 1) {
       [1,1.25,1.5].forEach((n,i)=>tone(base*n, .02+i*.035, .22,'sine',base*n*1.2));
       if (kind === 'merge' || kind === 'triple') tone(1400,.06,.25,'triangle',700);
     }
-    setTimeout(() => out.disconnect(), 1200);
+    later(() => { out.disconnect(); outputs.delete(out); }, 1200);
   } catch { /* Sound is optional on browsers without Web Audio. */ }
 }
 function vibrate(strong = false) { if (profile.haptic && canAnimate()) try { navigator.vibrate?.(strong ? [16,12,25] : 8); } catch { /* Optional hardware. */ } }
 function renderModes() {
-  $('modes').innerHTML = Object.entries(MODES).map(([id,m]) => `<button class="mode-button ${state.mode===id?'active':''}" data-mode="${id}" aria-pressed="${state.mode===id}"><span class="mode-icon">${m.icon}</span><span><b>${m.name}</b><small>${m.en}</small></span><em>↗</em></button>`).join('');
+  return `<div class="mode-list" id="modes">${Object.entries(MODES).map(([id,m]) => `<button class="mode-button ${state.mode===id?'active':''}" data-mode="${id}" aria-pressed="${state.mode===id}"><span class="mode-icon">${m.icon}</span><b>${m.name}</b><small>${profile.levels[id]} 단계</small></button>`).join('')}</div>`;
 }
 function renderBlocks() {
   const focusedId = document.activeElement?.dataset?.block;
@@ -76,34 +94,31 @@ function renderHint() {
   if (b) { arrow.style.left = `${b.x / 6 * 100}%`; arrow.style.top = `${b.y / 6 * 100}%`; arrow.style.width = `${b.w/6*100}%`; arrow.style.height = `${b.h/6*100}%`; arrow.textContent = hint.dx>0?'➜':hint.dx<0?'⬅':hint.dy>0?'⬇':'⬆'; }
 }
 function renderItems() {
-  $('items').innerHTML = Object.entries(ITEMS).map(([id,item])=>`<button class="item-button ${armed===id?'active':''} ${profile.items[id]?'':'empty'}" style="--item-color:${itemColors[id]}" data-item="${id}" aria-label="${item.name}, ${item.description}, 보유 ${profile.items[id]}개" aria-pressed="${armed===id}" title="${item.description}"><span class="item-icon">${item.icon}</span><b>${item.name}</b><small>${profile.items[id]||'+'}</small></button>`).join('');
+  $('items').innerHTML = Object.entries(ITEMS).map(([id,item])=>`<button class="item-button ${armed===id?'active':''} ${profile.items[id]?'':'empty'}" style="--item-color:${itemColors[id]}" data-item="${id}" aria-label="${item.name}, ${item.description}, 보유 ${profile.items[id]}개" aria-pressed="${armed===id}" title="${item.description}"><span class="item-icon">${id==='undo'?'<img src="assets/icons/return.png" alt="" width="24" height="24">':item.icon}</span><b>${shortItems[id]}</b><small>${profile.items[id]||'+'}</small></button>`).join('');
 }
 function renderHud() {
-  const seconds = Math.ceil(state.time); $('time').textContent = `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
+  const seconds = Math.ceil(state.time); setText('time', `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`);
   $('timer').classList.toggle('urgent', seconds<=20 && state.frozen<=0); $('timer').classList.toggle('frozen', state.frozen>0);
-  $('freeze-time').textContent = state.frozen>0 ? `❄ ${Math.ceil(state.frozen)}s` : '';
-  $('cleared').textContent = `${state.removed} / ${state.total}`; $('score').textContent = state.score.toLocaleString('ko-KR');
-  $('coins').textContent = profile.coins.toLocaleString('ko-KR'); $('progress').style.width = `${state.removed/state.total*100}%`;
-  $('pass-stars').textContent = `${profile.stars} ★`; $('pass-progress').style.width = `${Math.min(100,profile.stars/18*100)}%`;
+  setText('freeze-time', state.frozen>0 ? `❄ ${Math.ceil(state.frozen)}` : '');
+  setText('cleared', `${state.removed} / ${state.total}`); setText('coins', profile.coins.toLocaleString('ko-KR'));
   const fever = activeTime < feverUntil;
-  $('fever-progress').style.width = `${fever ? Math.max(0,(feverUntil-activeTime)/10*100) : Math.min(100,combo/5*100)}%`;
-  $('combo-count').textContent = fever ? `FEVER · ${Math.ceil(feverUntil-activeTime)}s · SCORE ×2` : combo>0 ? `${combo} COMBO · KEEP IT GOING!` : 'NEXT BOOM IS YOURS.';
+  setText('combo-count', fever ? `피버 ${Math.ceil(feverUntil-activeTime)}초` : combo>1 ? `${combo}연속!` : '');
   document.body.classList.toggle('fever',fever); $('fever-banner').hidden = !fever;
 }
 function renderAux() {
   $('dock').hidden = state.mode!=='triple';
+  setText('reserve-count', state.reserve?.length ? `구조 ${state.reserve.length}` : '수집');
   if (state.mode==='triple') $('dock-slots').innerHTML = Array.from({length:7},(_,i)=>`<div class="dock-slot ${state.tray[i]?'filled':''} ${i===6&&state.tray.length>=5?'danger':''}" ${state.tray[i]?`style="${colorStyle(state.tray[i])}" data-symbol="${COLORS[state.tray[i]].symbol}"`:''}></div>`).join('');
-  $('factory-bar').hidden = state.mode!=='factory'; $('queue-count').textContent = state.queue.length;
+  $('factory-bar').hidden = state.mode!=='factory'; $('lift').hidden = state.mode!=='factory'; setText('queue-count', state.queue.length);
   $('queue-preview').innerHTML = state.queue.map(b=>`<i style="${colorStyle(b.color)}"></i>`).join('');
-  $('daily-status').textContent = profile.daily===localDate() ? '오늘 선물 수령 완료 ✓' : '100 코인 받기 ↗';
 }
 function render() {
-  const mode = MODES[state.mode]; $('mode-title').firstChild.textContent = mode.name+' '; $('mode-eyebrow').textContent = mode.en;
-  $('level-badge').textContent = String(state.level).padStart(2,'0'); $('mode-description').textContent = mode.description;
-  renderModes(); renderBlocks(); renderItems(); renderHud(); renderAux(); syncPreferences();
+  setText('mode-title', MODES[state.mode].name); setText('level-badge', state.level);
+  $('level-badge').setAttribute('aria-label', `레벨 ${state.level}`);
+  renderBlocks(); renderItems(); renderHud(); renderAux(); syncPreferences(); layoutBoard();
 }
 
-function addFX(element, duration) { const layer = $('fx-layer'); while (layer.childElementCount > 220) layer.firstElementChild.remove(); layer.append(element); setTimeout(()=>element.remove(),duration); }
+function addFX(element, duration) { const layer = $('fx-layer'); while (layer.childElementCount >= 180) layer.firstElementChild.remove(); layer.append(element); later(()=>element.remove(),duration); }
 function burst(b, kind = 'exit', strength = 1) {
   const boardRect = $('board').getBoundingClientRect(), stageRect = $('board-stage').getBoundingClientRect();
   const cell = boardRect.width/6, x = boardRect.left-stageRect.left+(b.x+b.w/2)*cell, y = boardRect.top-stageRect.top+(b.y+b.h/2)*cell;
@@ -122,7 +137,7 @@ function burst(b, kind = 'exit', strength = 1) {
     }
     const frame=$('board-frame');frame.classList.remove('impact');void frame.offsetWidth;frame.classList.add('impact');
   }
-  const word=document.createElement('b');word.className='fx-word';word.textContent=kind==='merge'?'MERGE!':kind==='triple'?'TRIPLE BLOOM!':kind==='thaw'?'CRACK!':`+${100*b.w*b.h*b.rank}`;
+  const word=document.createElement('b');word.className='fx-word';word.textContent=kind==='merge'?'합성!':kind==='triple'?'트리플!':kind==='thaw'?'얼음 파괴!':`+${100*b.w*b.h*b.rank}`;
   word.style.cssText=`left:${x}px;top:${y}px;--color:${color}`;addFX(word,900);
 }
 function celebration() {
@@ -136,13 +151,13 @@ function react(events) {
   const clears=events.filter(e=>['exit','merge'].includes(e.type)), triple=events.find(e=>e.type==='triple');
   if(clears.length) {
     combo=activeTime-lastClear<=4?combo+clears.length:clears.length;lastClear=activeTime;
-    if(combo>=5&&feverUntil<=activeTime) {feverUntil=activeTime+10;toast('BLOOM FEVER! 10초 동안 점수 2배');}
+    if(combo>=5&&feverUntil<=activeTime) {feverUntil=activeTime+10;toast('피버! 10초 동안 점수 2배');}
     const multiplier=activeTime<feverUntil?2:1;
     state.score+=(multiplier-1)*clears.reduce((sum,e)=>sum+(e.type==='merge'?250*e.block.rank:100*e.block.w*e.block.h*e.block.rank),0)+Math.max(0,combo-1)*25;
     for(const event of clears) burst(event.block,event.type,Math.min(8,combo));
     if(triple) burst({color:triple.color,x:2,y:4,w:2,h:1,rank:1},'triple',4);
-    const label=$('combo-label');label.textContent=combo>=5?'BLOOM FEVER!':combo>=2?`${combo} COMBO!`:'';label.classList.remove('pop');void label.offsetWidth;if(label.textContent)label.classList.add('pop');
-    setTimeout(()=>{label.textContent='';label.classList.remove('pop');},750);
+    const label=$('combo-label');label.textContent=combo>=5?'블룸 피버!':combo>=2?`${combo}연속!`:'';label.classList.remove('pop');void label.offsetWidth;if(label.textContent)label.classList.add('pop');
+    later(()=>{label.textContent='';label.classList.remove('pop');},750);
     sound(triple?'triple':clears.some(e=>e.type==='merge')?'merge':'exit',combo);vibrate(combo>=3);
   } else if(events.some(e=>e.type==='lift')){sound('merge');toast('승강기 이동! 막힌 칸을 건너뛰었어요.');}
   else sound('move');
@@ -155,7 +170,7 @@ function react(events) {
 function complete() {
   if(state.status==='won') {
     const reward=winReward(state,profile);state=reward.state;profile=reward.profile;save();renderHud();sound('win');celebration();
-    setTimeout(()=>{if(state.status==='won')openModal('won');},600);
+    const epoch = runEpoch; later(()=>{if(epoch===runEpoch&&state.status==='won')openModal('won');},600);
   } else if(state.status==='lost') {save();openModal('lost');}
 }
 function commit(result,{remember=true}={}) {
@@ -166,7 +181,7 @@ function commit(result,{remember=true}={}) {
   react(result.events);render();save();complete();return true;
 }
 function performMove(id,dx,dy) {
-  if(busy||$('modal').open||state.status!=='playing')return;
+  if(busy||$('modal').open||state.status!=='playing'||state.started===false)return;
   if(!commit(move(state,id,dx,dy))) {
     sound('blocked');const frame=$('board-frame');frame.classList.remove('blocked');void frame.offsetWidth;frame.classList.add('blocked');
     const b=state.blocks.find(b=>b.id===id);
@@ -187,8 +202,9 @@ function activateItem(id) {
   if(state.status!=='playing'||$('modal').open)return;
   if(profile.items[id]<=0){toast(`${ITEMS[id].name}을 충전해 주세요.`);openModal('shop');return;}
   if(id==='hint') {
-    if(busy)return;busy=true;$('instruction').textContent='길을 찾는 중…';
-    setTimeout(()=>{
+    if(busy)return;busy=true;$('instruction').textContent='길을 찾는 중…'; const epoch = runEpoch;
+    later(()=>{
+      if(epoch!==runEpoch)return;
       try {
         const action=guide(state,5000);
         if(action){hint=action;selected=action.id;profile.items.hint--;renderBlocks();renderItems();save();toast('빛나는 화살표 방향으로 밀어보세요.');}
@@ -204,48 +220,51 @@ function activateItem(id) {
   if(['hammer','magnet'].includes(id)&&selected===null){armed=armed===id?null:id;renderItems();toast(armed?`${ITEMS[id].name}: 사용할 블록을 선택하세요.`:'아이템 선택을 취소했어요.');return;}
   const result=useItem(state,id,selected);
   if(!result.ok){toast(id==='freeze'?'이미 시간이 멈춰 있어요.':'먼저 블록을 선택하세요.');return;}
-  profile.items[id]--;commit(result);
+  profile.items[id]--;commit(result,{remember:id!=='freeze'});
   if(id==='freeze'){sound('freeze');toast('타임 프리즈! 20초 동안 시간이 멈춰요.');}
 }
-function newRun(mode=state.mode,level=profile.levels[mode],retry=false) {
-  const oldSeed=state.seed;state=createLevel(mode,level,retry?oldSeed:seed());history=[];selected=null;armed=null;hint=null;combo=0;feverUntil=0;lastClear=-100;activeTime=0;busy=false;
-  closeModal();$('fx-layer').replaceChildren();$('combo-label').textContent='';$('instruction').textContent=MODES[mode].goal;render();save();
+function newRun(mode=state.mode,level=profile.levels[mode],retry=false,autoStart=false) {
+  runEpoch++; clearEffects(); cancelDrag(); stopAudio();
+  const oldSeed=state.seed;state={...createLevel(mode,level,retry?oldSeed:seed()),started:autoStart};history=[];selected=null;armed=null;hint=null;combo=0;feverUntil=0;lastClear=-100;activeTime=0;busy=false;
+  closeModal();$('instruction').textContent=MODES[mode].goal;render();save();if(!autoStart)openModal('ready');
 }
 
-function closeModal() {if($('modal').open)$('modal').close();modalKind='';lastFrame=performance.now();}
-function modalHeading(eyebrow,title,copy='') {return `<p class="modal-eyebrow">${eyebrow}</p><h2 class="modal-title" id="modal-title">${title}</h2>${copy?`<p class="modal-copy">${copy}</p>`:''}`;}
+function closeModal() {if($('modal').open)$('modal').close();modalKind='';lastFrame=performance.now();document.body.classList.toggle('paused',document.hidden);if(!document.hidden)startClock();}
+function modalHeading(eyebrow,title,copy='') {return `<h2 class="modal-title" id="modal-title">${title}</h2>${copy?`<p class="modal-copy">${copy}</p>`:''}`;}
 function shopMarkup() {
   return modalHeading('BOOSTER LAB', '작은 도움, 큰 한 방.', `보유 코인 <b>${profile.coins.toLocaleString('ko-KR')} ✦</b>`) + '<p class="shop-intro">클리어와 데일리 보상으로 얻은 코인으로 충전하세요.</p>' +
     Object.entries(ITEMS).map(([id,item])=>`<div class="shop-row"><span class="shop-symbol" style="--item-color:${itemColors[id]}">${item.icon}</span><div><b>${item.name} <small>보유 ${profile.items[id]}개 · ${item.description}</small></b></div><button data-action="buy" data-value="${id}" ${profile.coins<ITEM_COSTS[id]?'disabled':''}>${ITEM_COSTS[id]} ✦</button></div>`).join('')+
     `<div class="shop-bundle"><h3>✧ 웰컴 스타터 팩</h3><p>150 코인 + 해머 2 + 프리즈 2 + 마그넷 1<br>번들 구성 체험 · 1회 무료 지급</p><button data-action="starter" ${profile.starter?'disabled':''}>${profile.starter?'수령 완료 ✓':'무료 데모 받기'}</button></div><button class="secondary" data-action="reward-demo" ${profile.daily===localDate()?'disabled':''}>보상형 광고 데모 · 오늘의 100 코인</button><button class="secondary" data-action="skin">${profile.aurora?`오로라 보드 ${profile.skin==='aurora'?'끄기':'적용'}`:'오로라 보드 꾸미기 · 400 ✦'}</button><span class="demo-label">결제와 광고 송출 없는 포트폴리오 데모입니다.<br>보상 데모와 데일리 보너스는 하루 1회 보상을 공유해요.</span>`;
 }
+function settingLabel(k){return (k==='sound'?'<img src="assets/icons/'+(profile[k]?'audioOn':'audioOff')+'.png" alt="" width="20" height="20">':' ')+(profile[k]?'켬':'끔');}
 function openModal(kind) {
-  modalKind=kind;armed=null;renderItems();const content=$('modal-content');let html='';
-  if(kind==='help') {
-    html=modalHeading('A LITTLE PUSH, A BIG BLOOM', '한 수씩, 기분 좋게.', MODES[state.mode].description)+
-      '<ol class="help-list"><li><b>01</b><span>블록을 <strong>드래그</strong>해서 움직여요. 클릭 후 <strong>방향키 / WASD / 화면 화살표</strong>로 한 칸씩 움직일 수도 있어요.</span></li><li><b>02</b><span>블록 전체 폭이 출구 안에 들어오도록 맞춘 뒤, <strong>같은 색 출구 바깥으로 한 번 더</strong> 밀어주세요. 색마다 ● ◆ ✦ ▲ 기호도 있어요.</span></li><li><b>03</b><span>해머·마그넷은 블록 선택 후 바로 사용! 아이템을 먼저 누른 뒤 블록을 골라도 돼요.</span></li><li><b>04</b><span>4초 이내 연속 탈출은 콤보. 5콤보부터 10초간 피버로 점수 2배! 제한 시간 안에 모두 탈출시키세요.</span></li></ol>'+
-      (state.mode==='factory'?'<p class="modal-copy">승강기: 중앙 두 패드의 왼쪽 위 칸(x=2, y=2 또는 4)에 맞춘 블록을 선택하고 ⇅ 버튼 또는 Space를 누르세요. 목적지가 비어 있으면 중간 블록을 건너뛰어요. 생성기는 첫 보드가 빈 뒤 하나씩 공급해요.</p>':'')+
-      '<button class="primary" data-action="resume">좋아요, 플레이!</button>';
-  } else if(kind==='pause')html=modalHeading('TAKE A BREATH','잠깐 쉬어가요.','쉬는 동안 시간도 함께 멈춰요.')+'<div class="modal-art">Ⅱ</div><button class="primary" data-action="resume">계속 플레이</button><button class="secondary" data-action="restart-confirm">처음부터 다시</button>';
-  else if(kind==='restart')html=modalHeading('ONE MORE TRY','이 보드를 다시 풀까요?','같은 배치로 처음부터 시작해요. 사용한 아이템은 돌아오지 않아요.')+'<button class="primary" data-action="restart-confirm">같은 보드 다시 시작</button><button class="secondary" data-action="resume">계속 플레이</button>';
-  else if(kind==='switch')html=modalHeading('NEW PUZZLE, NEW MOOD','다른 모드로 이동할까요?','현재 보드는 종료하고 선택한 모드에서 새 게임을 시작해요. 코인과 아이템, 모드별 도달 레벨은 유지돼요.')+`<button class="primary" data-action="switch-confirm" data-value="${$('modal').dataset.nextMode}">모드 이동</button><button class="secondary" data-action="resume">현재 게임 계속</button>`;
-  else if(kind==='shop')html=shopMarkup();
-  else if(kind==='daily')html=modalHeading('A DAILY LITTLE GIFT','오늘도, 반가워요!','매일 100 코인을 받아 마음에 드는 부스터를 충전하세요.')+`<div class="modal-art">✧</div><button class="primary" data-action="daily" ${profile.daily===localDate()?'disabled':''}>${profile.daily===localDate()?'오늘 선물 수령 완료 ✓':'100 코인 받기 ✦'}</button><span class="demo-label">한국 시간 자정마다 새 선물 · 이 브라우저에 저장</span>`;
-  else if(kind==='settings')html=modalHeading('YOUR KIND OF BLOOM','플레이 설정')+['sound','motion','haptic'].map(k=>`<div class="settings-row"><span>${{sound:'효과음',motion:'화면 흔들림 · 파티클',haptic:'진동 (지원 기기)'}[k]}</span><button data-action="setting" data-value="${k}" class="${profile[k]?'on':''}" aria-pressed="${profile[k]}">${profile[k]?'ON':'OFF'}</button></div>`).join('')+'<p class="modal-copy">기기의 동작 줄이기 설정도 자동으로 적용해요.<br>팝업과 다른 탭을 보는 동안 시간은 멈춰요.</p><button class="primary" data-action="resume">플레이로 돌아가기</button><a class="demo-label" href="design.html">게임 디자인 · 수익화 설계 노트 ↗</a>';
-  else if(kind==='pass')html=modalHeading('BLOOM PASS · FREE TRACK','별이 모이면 선물이! ',`누적 ${profile.stars} ★ · 모든 모드의 클리어 별이 모여요.`)+[3,9,18].map((n,i)=>`<div class="pass-reward"><div><b>${n} ★ BLOOM ${i+1}</b><small>${[120,200,350][i]} 코인 + 마그넷 1개</small></div><button data-action="pass-claim" data-value="${n}" ${profile.stars<n||profile.pass.includes(n)?'disabled':''}>${profile.pass.includes(n)?'수령 완료':'받기'}</button></div>`).join('')+'<span class="demo-label">무료 누적 보상 트랙 · 현금 결제 없음</span>';
-  else if(kind==='won')html=modalHeading('BEAUTIFULLY CLEARED!', '완벽한 블룸!')+`<div class="modal-stars">${'★'.repeat(state.earnedStars||1)}${'☆'.repeat(3-(state.earnedStars||1))}</div><p class="modal-copy" style="text-align:center">${MODES[state.mode].name} · LEVEL ${state.level}<br>남은 시간 65초 초과 ★★★ · 25초 초과 ★★</p><div class="result-grid"><div><b>${state.score.toLocaleString('ko-KR')}</b><small>SCORE</small></div><div><b>${state.moves}</b><small>MOVES</small></div><div><b>+${state.earnedCoins||0} ✦</b><small>COINS SAVED</small></div></div><button class="primary" data-action="next">다음 레벨 →</button><button class="secondary" data-action="pass">별 보상 보기 ✧</button>`;
-  else if(kind==='lost') {
-    const cost=120+state.continues*60;
-    html=modalHeading('SO CLOSE. ONE MORE BLOOM?',state.reason==='tray'?'도크가 가득 찼어요.':'시간이 다 됐어요.',state.reason==='tray'?'도크를 비우고 45초를 더 받아 이어가세요.':'열어둔 길 그대로, 45초를 더 받아 이어가세요.')+`<div class="modal-art">↻</div><button class="primary" data-action="continue" ${state.continues>=2||profile.coins<cost?'disabled':''}>${state.continues>=2?'이어하기 2회 사용 완료':`이어하기 · ${cost} ✦`}</button><button class="secondary" data-action="restart-confirm">같은 보드 다시 도전</button><span class="demo-label">보유 ${profile.coins} 코인 · 이어하기는 한 판에 최대 2회</span>`;
-  }
-  content.innerHTML=html;if(!$('modal').open)$('modal').showModal();lastFrame=performance.now();
+  stopClock(); cancelDrag(); clearEffects(); stopAudio();
+  const previousKind=modalKind;modalKind=kind;armed=null;document.body.classList.add('paused');renderItems();let html='';
+  if(kind==='ready') html=modalHeading('','블록 블룸')+`<img class="ready-icon" src="icon.svg" width="88" height="88" alt=""><p class="ready-copy">${MODES[state.mode].name} · ${state.level} 단계</p><p class="modal-copy">${MODES[state.mode].goal}</p><button class="primary" data-action="start">시작</button><button class="secondary" data-action="modes">모드 선택</button><a class="demo-label" href="../../">포트폴리오로</a>`;
+  else if(kind==='modes') html=modalHeading('','모드 선택')+renderModes()+'<button class="secondary" data-action="resume">돌아가기</button>';
+  else if(kind==='help') html=modalHeading('','플레이 방법',MODES[state.mode].description)+'<ol class="help-list"><li><b>1</b><span>블록을 드래그하세요. 블록 선택 후 화면 화살표나 방향키로 한 칸씩 움직일 수도 있어요.</span></li><li><b>2</b><span>블록 전체 폭을 같은 색 출구에 맞추고, 바깥으로 한 번 더 밀어주세요.</span></li><li><b>3</b><span>해머와 자석은 블록을 고른 뒤 사용해요. 아이템을 먼저 누르고 블록을 골라도 돼요. 아이템 효과와 개수는 길게 누르거나 상점에서 확인할 수 있어요.</span></li><li><b>4</b><span>4초 안에 연속 탈출! 5연속부터 10초간 피버로 점수가 2배예요.</span></li></ol>'+(state.mode==='factory'?'<p class="modal-copy">승강기는 빛나는 두 발판 사이를 이동해요. 블록을 발판 왼쪽 위에 맞추고 선택한 뒤 승강기를 누르세요. 도착 칸이 비어 있어야 해요.</p>':'')+(state.mode==='triple'?'<p class="modal-copy">이어하기는 수집 블록을 구조함에 보관해요. 구조함의 블록도 새로 수집한 같은 색과 3개씩 합쳐져요.</p>':'')+'<button class="secondary" data-action="shop">아이템 효과</button><button class="primary" data-action="resume">계속</button>';
+  else if(kind==='pause') html=modalHeading('','쉬는 중',`점수 ${state.score.toLocaleString('ko-KR')} · 시간도 멈췄어요.`)+'<button class="primary" data-action="resume">계속</button><div class="modal-actions"><button class="secondary" id="restart" data-action="restart">다시</button><button class="secondary" id="settings-open" data-action="settings"><img src="assets/icons/gear.png" alt="" width="22" height="22">설정</button><button class="secondary" id="daily-open" data-action="daily-open">매일 선물</button><button class="secondary" id="pass-open" data-action="pass"><img src="assets/icons/star.png" alt="" width="22" height="22">별 보상</button></div><button class="secondary" data-action="modes">모드 선택</button><a class="secondary" href="../../"><img src="assets/icons/home.png" alt="" width="22" height="22">나가기</a>';
+  else if(kind==='restart') html=modalHeading('','다시 시작할까요?','같은 배치로 돌아가요. 사용한 아이템은 돌아오지 않아요.')+'<button class="primary" data-action="restart-confirm">다시</button><button class="secondary" data-action="resume">계속</button>';
+  else if(kind==='switch') html=modalHeading('','모드를 바꿀까요?','현재 보드는 종료해요. 코인·아이템·레벨 진도는 유지돼요.')+`<button class="primary" data-action="switch-confirm" data-value="${$('modal').dataset.nextMode}">변경</button><button class="secondary" data-action="resume">계속</button>`;
+  else if(kind==='shop') html=shopMarkup();
+  else if(kind==='daily') html=modalHeading('','매일 선물','오늘의 100 코인으로 아이템을 충전하세요.')+`<div class="modal-art">✧</div><button class="primary" data-action="daily" ${profile.daily===localDate()?'disabled':''}>${profile.daily===localDate()?'오늘 수령 완료':'100 코인 받기'}</button><span class="demo-label">한국 시간 자정에 새 선물</span>`;
+  else if(kind==='settings') html=modalHeading('','설정')+['sound','motion','haptic'].map(k=>`<div class="settings-row"><span>${{sound:'효과음',motion:'화면 효과',haptic:'진동'}[k]}</span><button data-action="setting" data-value="${k}" class="${profile[k]?'on':''}" aria-pressed="${profile[k]}">${settingLabel(k)}</button></div>`).join('')+'<p class="modal-copy">기기의 동작 줄이기 설정을 따르며, 다른 탭을 보면 시간과 효과가 멈춰요. 진동은 지원 기기에서 작동해요.</p><button class="primary" data-action="resume">계속</button><a class="demo-label" href="design.html">제작 · 수익화 설계 노트</a><span class="demo-label">포트폴리오 데모 · 실제 결제·광고 없음</span>';
+  else if(kind==='pass') html=modalHeading('','별 보상',`모은 별 ${profile.stars} ★ · 모든 모드의 별을 모아요.`)+[3,9,18].map((n,i)=>`<div class="pass-reward"><div><b>${n} ★</b><small>${[120,200,350][i]} 코인 · 자석 1</small></div><button data-action="pass-claim" data-value="${n}" ${profile.stars<n||profile.pass.includes(n)?'disabled':''}>${profile.pass.includes(n)?'완료':'받기'}</button></div>`).join('')+'<span class="demo-label">무료 누적 보상</span>';
+  else if(kind==='won') html=modalHeading('','완벽한 블룸!')+`<div class="modal-stars">${'★'.repeat(state.earnedStars||1)}${'☆'.repeat(3-(state.earnedStars||1))}</div><p class="modal-copy" style="text-align:center">${MODES[state.mode].name} · ${state.level} 단계</p><div class="result-grid"><div><b>${state.score.toLocaleString('ko-KR')}</b><small>점수</small></div><div><b>${state.moves}</b><small>이동</small></div><div><b>+${state.earnedCoins||0}</b><small>코인 저장</small></div></div><button class="primary" data-action="next">다음</button><button class="secondary" data-action="pass">별 보상</button><span class="demo-label">남은 시간 65초 초과 ★★★ · 25초 초과 ★★</span>`;
+  else if(kind==='lost') {const cost=120+state.continues*60;html=modalHeading('',state.reason==='tray'?'수집함이 찼어요':'시간이 다 됐어요',state.reason==='tray'?'수집 블록을 구조함에 보관하고, 45초 더 이어가요. 구조한 블록도 같은 색과 계속 매칭돼요.':'열어둔 길 그대로 45초 더 이어가세요.')+`<button class="primary" data-action="continue" ${state.continues>=2||profile.coins<cost?'disabled':''}>${state.continues>=2?'이어하기 모두 사용':`계속 · ${cost} 코인`}</button><button class="secondary" data-action="restart-confirm">다시</button><span class="demo-label">보유 ${profile.coins} 코인 · 최대 2회</span>`;}
+  if(kind==='won'||kind==='lost')html+='<a class="secondary" href="../../">나가기</a>';
+  $('modal-content').innerHTML=html;if(previousKind!==kind)$('modal').scrollTop=0;$('modal-close').hidden=kind==='ready';
+  if(!$('modal').open)$('modal').showModal();lastFrame=performance.now();
 }
 function claimDaily(){if(profile.daily===localDate())return;profile.coins+=100;profile.daily=localDate();save();renderHud();renderAux();toast('오늘의 100 코인을 받았어요!');}
 function onAction(action,value) {
-  if(action==='resume')closeModal();
-  else if(action==='restart-confirm')newRun(state.mode,state.level,true);
+  if(action==='start'){state.started=true;closeModal();save();}
+  else if(action==='resume'){if(state.started===false)openModal('ready');else closeModal();}
+  else if(['modes','settings','shop','restart'].includes(action))openModal(action);
+  else if(action==='daily-open')openModal('daily');
+  else if(action==='restart-confirm')newRun(state.mode,state.level,true,true);
   else if(action==='switch-confirm')newRun(value);
-  else if(action==='next')newRun(state.mode,state.level+1);
+  else if(action==='next')newRun(state.mode,state.level+1,false,true);
   else if(action==='buy') {const cost=ITEM_COSTS[value];if(!cost||profile.coins<cost)return;profile.coins-=cost;profile.items[value]++;save();renderHud();renderItems();openModal('shop');toast(`${ITEMS[value].name} +1`);}
   else if(action==='starter'){if(profile.starter)return;profile.starter=true;profile.coins+=150;profile.items.hammer+=2;profile.items.freeze+=2;profile.items.magnet++;save();renderHud();renderItems();openModal('shop');toast('스타터 팩을 받았어요!');}
   else if(action==='daily'){claimDaily();openModal('daily');}
@@ -253,70 +272,92 @@ function onAction(action,value) {
   else if(action==='setting'){profile[value]=!profile[value];syncPreferences();save();openModal('settings');}
   else if(action==='pass')openModal('pass');
   else if(action==='pass-claim'){const n=Number(value);if(![3,9,18].includes(n)||profile.stars<n||profile.pass.includes(n))return;profile.pass.push(n);profile.coins+={3:120,9:200,18:350}[n];profile.items.magnet++;save();renderHud();renderItems();openModal('pass');toast('코인과 마그넷 선물이 도착했어요!');}
-  else if(action==='continue'){const cost=120+state.continues*60;if(profile.coins<cost)return;const next=continueRun(state);if(!next)return;profile.coins-=cost;state=next;history=[];combo=0;feverUntil=0;closeModal();render();save();}
+  else if(action==='continue'){const cost=120+state.continues*60;if(profile.coins<cost)return;const next=continueRun(state);if(!next)return;profile.coins-=cost;state=next;history=[];combo=0;feverUntil=0;closeModal();render();save();if(state.status==='won')complete();}
   else if(action==='skin'){if(!profile.aurora){if(profile.coins<400){toast('오로라 보드에는 400 코인이 필요해요.');return;}profile.coins-=400;profile.aurora=true;}profile.skin=profile.skin==='aurora'?'original':'aurora';syncPreferences();save();renderHud();openModal('shop');}
 }
 
-let drag=null;
-$('blocks').addEventListener('pointerdown',event=>{
-  const el=event.target.closest('[data-block]');if(!el||state.status!=='playing'||$('modal').open||busy)return;
+let drag=null,itemPress=null,suppressItemClick=false;
+function cancelDrag(){if(!drag)return;const current=drag;drag=null;current.el.classList.remove('dragging');current.el.style.transform='';try{if(current.el.hasPointerCapture?.(current.pointer))current.el.releasePointerCapture(current.pointer);}catch{}}
+listen($('blocks'),'pointerdown',event=>{
+  const el=event.target.closest('[data-block]');if(!el||event.button>0||drag||state.status!=='playing'||state.started===false||$('modal').open||busy)return;
   const id=Number(el.dataset.block);if(armed){selectBlock(id);return;}
   selected=id;hint=null;
-  document.querySelectorAll('.block').forEach(b=>{b.classList.toggle('selected',Number(b.dataset.block)===id);b.setAttribute('aria-pressed',String(Number(b.dataset.block)===id));});renderHint();
-  const b=state.blocks.find(b=>b.id===id);$('instruction').textContent=`${COLORS[b.color].name} 선택 · 드래그 또는 방향키로 이동`;
+  $('blocks').querySelectorAll('.block').forEach(b=>{b.classList.toggle('selected',Number(b.dataset.block)===id);b.setAttribute('aria-pressed',String(Number(b.dataset.block)===id));});renderHint();
+  const b=state.blocks.find(b=>b.id===id);setText('instruction',`${COLORS[b.color].name} 선택`);
   drag={id,el,x:event.clientX,y:event.clientY,pointer:event.pointerId};el.setPointerCapture?.(event.pointerId);
 });
-$('blocks').addEventListener('pointermove',event=>{
+listen($('blocks'),'pointermove',event=>{
   if(!drag||event.pointerId!==drag.pointer)return;
   const dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.hypot(dx,dy)<8)return;
   const b=state.blocks.find(b=>b.id===drag.id);if(!b)return;
   const cell=$('board').clientWidth/6;
-  // Live dragging follows the same collision rules as the committed move.
   let vx=0,vy=0;const horizontal=Math.abs(dx)>Math.abs(dy),delta=horizontal?dx:dy,sign=Math.sign(delta);
   const preview=move(state,b.id,horizontal?sign*6:0,horizontal?0:sign*6),landed=preview.state.blocks.find(other=>other.id===b.id);
   const allowed=!preview.ok?4:!landed?((horizontal?(sign>0?6-b.x-b.w:b.x):(sign>0?6-b.y-b.h:b.y))+.7)*cell:Math.abs(horizontal?landed.x-b.x:landed.y-b.y)*cell;
   const offset=sign*Math.min(Math.abs(delta),allowed);if(horizontal)vx=offset;else vy=offset;
   drag.el.classList.add('dragging');drag.el.style.transform=`translate(${vx}px,${vy}px)`;
 });
-function endDrag(event,cancel=false) {
-  if(!drag||event.pointerId!==drag.pointer)return;const current=drag;drag=null;current.el.classList.remove('dragging');current.el.style.transform='';
-  const dx=event.clientX-current.x,dy=event.clientY-current.y;
-  if(cancel||Math.hypot(dx,dy)<14)return;
-  const cell=$('board').clientWidth/6, horizontal=Math.abs(dx)>Math.abs(dy), distance=horizontal?dx:dy, steps=Math.min(6,Math.max(1,Math.round(Math.abs(distance)/cell)))*Math.sign(distance);
+function endDrag(event,cancel=false){
+  if(!drag||event.pointerId!==drag.pointer)return;const current=drag;cancelDrag();
+  const dx=event.clientX-current.x,dy=event.clientY-current.y;if(cancel||Math.hypot(dx,dy)<14)return;
+  const cell=$('board').clientWidth/6;if(cell<=0)return;
+  const horizontal=Math.abs(dx)>Math.abs(dy),distance=horizontal?dx:dy,steps=Math.min(6,Math.max(1,Math.round(Math.abs(distance)/cell)))*Math.sign(distance);
   performMove(current.id,horizontal?steps:0,horizontal?0:steps);
 }
-$('blocks').addEventListener('pointerup',event=>endDrag(event));$('blocks').addEventListener('pointercancel',event=>endDrag(event,true));
-$('blocks').addEventListener('click',event=>{if(event.detail===0){const el=event.target.closest('[data-block]');if(el)selectBlock(Number(el.dataset.block));}});
-$('modes').addEventListener('click',event=>{const button=event.target.closest('[data-mode]');if(!button||button.dataset.mode===state.mode)return;const mode=button.dataset.mode;if(state.moves>0&&state.status==='playing'){$('modal').dataset.nextMode=mode;openModal('switch');}else newRun(mode);});
-$('items').addEventListener('click',event=>{const b=event.target.closest('[data-item]');if(b)activateItem(b.dataset.item);});
-document.querySelectorAll('[data-direction]').forEach(button=>button.addEventListener('click',()=>{if(selected===null){toast('먼저 움직일 블록을 선택하세요.');return;}const [dx,dy]=button.dataset.direction.split(',').map(Number);performMove(selected,dx,dy);}));
-document.addEventListener('keydown',event=>{
+listen($('blocks'),'pointerup',event=>endDrag(event));listen($('blocks'),'pointercancel',event=>endDrag(event,true));listen($('blocks'),'lostpointercapture',cancelDrag);
+listen($('blocks'),'click',event=>{if(event.detail===0){const el=event.target.closest('[data-block]');if(el)selectBlock(Number(el.dataset.block));}});
+listen($('items'),'pointerdown',event=>{
+  const b=event.target.closest('[data-item]');if(!b)return;suppressItemClick=false;
+  itemPress={x:event.clientX,y:event.clientY,timer:later(()=>{suppressItemClick=true;const id=b.dataset.item;toast(`${ITEMS[id].description} · ${profile.items[id]}개`);},500)};
+});
+function cancelItemPress(){if(itemPress)cancelLater(itemPress.timer);itemPress=null;}
+listen($('items'),'pointermove',event=>{if(itemPress&&Math.hypot(event.clientX-itemPress.x,event.clientY-itemPress.y)>10)cancelItemPress();});
+listen($('items'),'pointerup',cancelItemPress);listen($('items'),'pointercancel',()=>{cancelItemPress();suppressItemClick=false;});
+listen($('items'),'contextmenu',event=>event.preventDefault());
+listen($('items'),'click',event=>{if(suppressItemClick){suppressItemClick=false;return;}const b=event.target.closest('[data-item]');if(b)activateItem(b.dataset.item);});
+for(const button of document.querySelectorAll('[data-direction]'))listen(button,'click',()=>{if(selected===null){toast('블록을 먼저 선택하세요');return;}const [dx,dy]=button.dataset.direction.split(',').map(Number);performMove(selected,dx,dy);});
+listen(document,'keydown',event=>{
   if($('modal').open||event.ctrlKey||event.metaKey||event.altKey||event.target.matches('input,select,textarea'))return;
   const directions={ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1],ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0]};
-  if(directions[event.key]){event.preventDefault();if(selected===null){toast('블록을 먼저 선택하세요.');return;}performMove(selected,...directions[event.key]);}
+  if(directions[event.key]){event.preventDefault();if(selected===null){toast('블록을 먼저 선택하세요');return;}performMove(selected,...directions[event.key]);}
   else if(event.code==='Space'&&state.mode==='factory'&&(!event.target.matches('button,a')||event.target.closest('[data-block]'))){event.preventDefault();commit(elevate(state,selected));}
 });
-$('lift').addEventListener('click',()=>{if(!commit(elevate(state,selected)))toast('중앙 패드 왼쪽 위에 블록을 맞추고 선택하세요. 도착 패드도 비어 있어야 해요.');});
-$('modal-content').addEventListener('click',event=>{const button=event.target.closest('[data-action]');if(button&&!button.disabled)onAction(button.dataset.action,button.dataset.value);});
-$('modal-close').addEventListener('click',closeModal);$('modal').addEventListener('cancel',()=>{modalKind='';lastFrame=performance.now();});$('modal').addEventListener('close',()=>{lastFrame=performance.now();});
-for(const id of ['help','help-side'])$(id).addEventListener('click',()=>openModal('help'));
-for(const id of ['shop-open','booster-shop'])$(id).addEventListener('click',()=>openModal('shop'));
-$('settings-open').addEventListener('click',()=>openModal('settings'));
-for(const id of ['pass-open','pass-mobile'])$(id).addEventListener('click',()=>openModal('pass'));
-for(const id of ['daily-open','daily-mobile'])$(id).addEventListener('click',()=>openModal('daily'));
-$('pause').addEventListener('click',()=>{if(state.status==='playing')openModal('pause');else openModal(state.status);});$('restart').addEventListener('click',()=>openModal('restart'));
-$('sound-toggle').addEventListener('click',()=>{profile.sound=!profile.sound;syncPreferences();save();if(profile.sound)sound('move');});
-reduced.addEventListener?.('change',syncPreferences);
-document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden){drag=null;save();}});
-window.addEventListener('pagehide',save);
-setInterval(()=>{
-  const now=performance.now(),dt=Math.min(1,(now-lastFrame)/1000);lastFrame=now;
-  if(document.hidden||$('modal').open||busy||state.status!=='playing')return;
+listen($('lift'),'click',()=>{if(!commit(elevate(state,selected)))toast('발판 왼쪽 위에 블록을 맞춰 선택하세요. 도착 칸도 비워주세요.');});
+listen($('modal-content'),'click',event=>{
+  const mode=event.target.closest('[data-mode]');
+  if(mode){const id=mode.dataset.mode;if(id===state.mode){if(state.started===false)openModal('ready');else closeModal();return;}if(state.moves>0&&state.status==='playing'){$('modal').dataset.nextMode=id;openModal('switch');}else newRun(id);return;}
+  const b=event.target.closest('[data-action]');if(b&&!b.disabled)onAction(b.dataset.action,b.dataset.value);
+});
+listen($('modal-close'),'click',()=>{if(state.started===false)openModal('ready');else closeModal();});
+listen($('modal'),'cancel',event=>{event.preventDefault();if(state.started===false)openModal('ready');else closeModal();});
+listen($('modal'),'close',()=>{lastFrame=performance.now();if(!document.hidden)startClock();});
+listen($('help'),'click',()=>openModal('help'));listen($('shop-open'),'click',()=>openModal('shop'));listen($('mode-open'),'click',()=>openModal('modes'));
+listen($('pause'),'click',()=>openModal(state.status!=='playing'?state.status:state.started===false?'ready':'pause'));
+reduced.addEventListener?.('change',syncPreferences,{signal:lifecycle.signal});
+function viewportChanged(){cancelDrag();layoutBoard();}
+listen(window,'resize',viewportChanged);if(window.visualViewport)listen(window.visualViewport,'resize',viewportChanged);
+if(window.ResizeObserver){boardObserver=new ResizeObserver(layoutBoard);boardObserver.observe($('board-stage'));}
+function stopClock(){if(timerId!==null){clearInterval(timerId);timerId=null;}}
+function startClock(){if(!disposed&&timerId===null){lastFrame=performance.now();timerId=setInterval(clockTick,200);}}
+function clockTick(){
+  const now=performance.now(),dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
+  if(document.hidden||$('modal').open||busy||state.status!=='playing'||state.started===false)return;
   activeTime+=dt;state=tick(state,dt);
   if(activeTime-lastClear>4&&activeTime>=feverUntil)combo=0;
-  renderHud();if(now-lastSave>4000){save();lastSave=now;}
-  if(state.status==='lost')complete();
-},200);
+  renderHud();if(now-lastSave>4000){save();lastSave=now;}if(state.status==='lost')complete();
+}
+listen(document,'visibilitychange',()=>{
+  lastFrame=performance.now();cancelDrag();cancelItemPress();
+  document.body.classList.toggle('paused',document.hidden||$('modal').open);if(document.hidden){stopClock();clearEffects();stopAudio();save();}
+  else{layoutBoard();if(state.status!=='playing'&&!$('modal').open)openModal(state.status);else if(!$('modal').open)startClock();}
+});
+listen(window,'pagehide',event=>{
+  save();stopClock();cancelDrag();cancelItemPress();clearEffects();stopAudio();
+  if(!event.persisted){disposed=true;boardObserver?.disconnect();lifecycle.abort();if(audio?.close)void audio.close().catch(()=>{});audio=null;}
+});
+listen(window,'pageshow',()=>{lastFrame=performance.now();layoutBoard();if(!document.hidden&&!$('modal').open)startClock();});
 render();save();
 if(state.status==='won'){const result=winReward(state,profile);state=result.state;profile=result.profile;save();renderHud();openModal('won');}
 else if(state.status==='lost')openModal('lost');
+else if(state.started===false)openModal('ready');
+else startClock();

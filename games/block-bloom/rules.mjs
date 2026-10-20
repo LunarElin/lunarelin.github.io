@@ -33,10 +33,10 @@ export function random(seed) {
   return () => { n += 0x6D2B79F5; let t = n; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 export function copyState(s) {
-  return { ...s, blocks: s.blocks.map(b => ({ ...b })), tray: [...s.tray], queue: s.queue.map(b => ({ ...b })), unlocked: [...s.unlocked] };
+  return { ...s, blocks: s.blocks.map(b => ({ ...b })), tray: [...s.tray], reserve: [...(s.reserve || [])], queue: s.queue.map(b => ({ ...b })), unlocked: [...s.unlocked] };
 }
 export function boardKey(s) {
-  return s.blocks.map(b => `${b.id}:${b.x},${b.y},${b.rank},${b.ice || 0}`).sort().join('|') + '/' + s.tray.join(',') + '/' + s.unlocked.join(',') + '/' + s.queue.length;
+  return s.blocks.map(b => `${b.id}:${b.x},${b.y},${b.rank},${b.ice || 0}`).sort().join('|') + '/' + s.tray.join(',') + '/' + (s.reserve || []).join(',') + '/' + s.unlocked.join(',') + '/' + s.queue.length;
 }
 export function fits(s, block, x, y, ignore = block.id) {
   return x >= 0 && y >= 0 && x + block.w <= SIZE && y + block.h <= SIZE && !s.blocks.some(b => b.id !== ignore && x < b.x + b.w && x + block.w > b.x && y < b.y + b.h && y + block.h > b.y);
@@ -44,6 +44,13 @@ export function fits(s, block, x, y, ignore = block.id) {
 function gateFor(b, dx, dy) {
   return GATES.find(g => g.color === b.color && g.dx === dx && g.dy === dy &&
     (dx ? b.y >= g.start && b.y + b.h <= g.start + g.span : b.x >= g.start && b.x + b.w <= g.start + g.span));
+}
+function matchTriple(s, color) {
+  if ([...s.tray, ...s.reserve].filter(c => c === color).length < 3) return false;
+  let count = 3;
+  s.reserve = s.reserve.filter(c => c !== color || count-- <= 0);
+  s.tray = s.tray.filter(c => c !== color || count-- <= 0);
+  return true;
 }
 function collect(s, b, events, bypass = false) {
   s.blocks = s.blocks.filter(other => other.id !== b.id);
@@ -54,8 +61,7 @@ function collect(s, b, events, bypass = false) {
   events.push({ type: 'exit', block: { ...b }, bypass });
   if (s.mode === 'triple') {
     s.tray.push(b.color);
-    if (s.tray.filter(c => c === b.color).length >= 3) {
-      let n = 3; s.tray = s.tray.filter(c => c !== b.color || n-- <= 0);
+    if (matchTriple(s, b.color)) {
       s.score += 450; events.push({ type: 'triple', color: b.color });
     }
   }
@@ -65,7 +71,7 @@ function settle(s, events) {
     const b = s.queue.shift(); s.blocks.push(b); events.push({ type: 'spawn', block: { ...b } });
   }
   if (s.mode === 'triple' && s.tray.length >= 7) { s.status = 'lost'; s.reason = 'tray'; }
-  else if (!s.blocks.length && !s.queue.length && !s.tray.length) { s.status = 'won'; events.push({ type: 'win' }); }
+  else if (!s.blocks.length && !s.queue.length && !s.tray.length && !s.reserve.length) { s.status = 'won'; events.push({ type: 'win' }); }
 }
 export function move(s, id, dx, dy, { merge = true } = {}) {
   if (s.status !== 'playing' || !Number.isInteger(dx) || !Number.isInteger(dy) || (!dx === !dy) || Math.abs(dx + dy) > SIZE) return { ok: false, state: s, events: [] };
@@ -106,7 +112,7 @@ function rawShuffle(s, history, rng, count) {
   }
 }
 function makeBase(mode, level, seed) {
-  return { version: 1, mode, level, seed, blocks: [], queue: [], tray: [], unlocked: [], total: 0, initial: 0, removed: 0, score: 0, moves: 0, time: mode === 'classic' && level === 1 ? 180 : 120 + Math.min(60, level * 3), frozen: 0, status: 'playing', reason: '', rewarded: false, continues: 0, liftDirection: 1, plan: [] };
+  return { version: 1, mode, level, seed, blocks: [], queue: [], tray: [], reserve: [], unlocked: [], total: 0, initial: 0, removed: 0, score: 0, moves: 0, time: mode === 'classic' && level === 1 ? 180 : 120 + Math.min(60, level * 3), frozen: 0, status: 'playing', reason: '', rewarded: false, continues: 0, liftDirection: 1, plan: [] };
 }
 export function createLevel(mode = 'classic', level = 1, seed = Date.now()) {
   if (!MODES[mode]) mode = 'classic';
@@ -165,7 +171,8 @@ export function guide(s, limit = 16000) {
   for (let at = 0; at < queue.length && at < limit; at++) {
     const node = queue[at];
     // Prefer colors already in the dock to avoid filling its last slot with a new color.
-    const blocks = [...node.s.blocks].sort((a,b) => node.s.tray.filter(c=>c===b.color).length - node.s.tray.filter(c=>c===a.color).length);
+    const dock = [...node.s.tray, ...(node.s.reserve || [])];
+    const blocks = [...node.s.blocks].sort((a,b) => dock.filter(c=>c===b.color).length - dock.filter(c=>c===a.color).length);
     for (const b of blocks) for (const [dx,dy] of [[0,-1],[1,0],[0,1],[-1,0]]) {
       const result = move(node.s, b.id, dx, dy); if (!result.ok || result.state.status === 'lost') continue;
       const first = node.first || { id: b.id, dx, dy };
@@ -199,14 +206,30 @@ export function elevate(s, id) {
 }
 export function tick(s, seconds) {
   if (s.status !== 'playing' || !Number.isFinite(seconds) || seconds <= 0) return s;
-  const next = copyState(s), protectedTime = Math.min(s.frozen, seconds);
+  const next = { ...s }, protectedTime = Math.min(s.frozen, seconds);
   next.frozen = Math.max(0, s.frozen - seconds); next.time = Math.max(0, s.time - (seconds - protectedTime));
   if (next.time <= 0) { next.status = 'lost'; next.reason = 'time'; }
   return next;
 }
 export function continueRun(s) {
   if (s.status !== 'lost' || s.continues >= 2) return null;
-  const next = copyState(s); next.status = 'playing'; next.time += 45; next.tray = []; next.reason = ''; next.continues++; return next;
+  const next = copyState(s); next.status = 'playing'; next.time += 45;
+  next.reserve.push(...next.tray); next.tray = []; next.reason = ''; next.continues++;
+  settle(next, []); return next;
+}
+export function migrateRun(s) {
+  const next = copyState(s);
+  // Older continues discarded partial triples. Recover only missing remainders.
+  if (s.mode === 'triple' && s.continues > 0 && s.reserve === undefined) {
+    for (const color of Object.keys(COLORS)) {
+      const count = s.blocks.filter(b => b.color === color).length + s.tray.filter(c => c === color).length;
+      next.reserve.push(...Array((3 - count % 3) % 3).fill(color));
+      while (matchTriple(next, color)) { /* Already-complete legacy remainders need no new block. */ }
+    }
+  }
+  if (!next.blocks.length && !next.queue.length) settle(next, []);
+  if (s.started === undefined) next.started = true;
+  return next;
 }
 export function newProfile() {
   return { coins: 350, items: { hammer: 3, freeze: 3, hint: 5, undo: 5, magnet: 2 }, levels: Object.fromEntries(Object.keys(MODES).map(k=>[k,1])), wins: 0, stars: 0, best: 0, daily: '', starter: false, pass: [], sound: true, motion: true, haptic: true, skin: 'original', aurora: false };
@@ -233,6 +256,8 @@ export function validRun(s) {
   if (!s || s.version !== 1 || !MODES[s.mode] || !Number.isInteger(s.level) || s.level < 1 || s.level > 9999 || !Number.isInteger(s.seed) || !['playing','won','lost'].includes(s.status) || !Array.isArray(s.blocks) || s.blocks.length > 20 || !Array.isArray(s.queue) || s.queue.length > 4 || !Array.isArray(s.tray) || s.tray.length > 7 || !Array.isArray(s.unlocked) || !Array.isArray(s.plan) || s.plan.length > 20000) return false;
   for (const key of ['total','initial','removed','moves','score','continues']) if (!Number.isInteger(s[key]) || s[key] < 0) return false;
   if (s.continues > 2 || !Number.isFinite(s.time) || s.time < 0 || s.time > 600 || !Number.isFinite(s.frozen) || s.frozen < 0 || s.frozen > 20) return false;
+  if (s.reserve !== undefined && (!Array.isArray(s.reserve) || s.reserve.length > 14 || s.reserve.some(c => !COLORS[c]) || (s.mode !== 'triple' && s.reserve.length))) return false;
+  if (s.started !== undefined && typeof s.started !== 'boolean') return false;
   const blocks = [...s.blocks,...s.queue], ids = new Set();
   for (const b of blocks) {
     if (!b || !COLORS[b.color] || ![1,2].includes(b.w) || ![1,2].includes(b.h) || !Number.isInteger(b.x) || !Number.isInteger(b.y) || b.x < 0 || b.y < 0 || b.x + b.w > SIZE || b.y + b.h > SIZE || !Number.isInteger(b.id) || ids.has(b.id) || !Number.isInteger(b.rank) || b.rank < 1 || b.rank > 4 || (b.ice !== undefined && ![0,1,2].includes(b.ice))) return false;
@@ -240,6 +265,6 @@ export function validRun(s) {
   }
   if (s.blocks.some(b => !fits(s,b,b.x,b.y)) || s.tray.some(c=>!COLORS[c]) || s.unlocked.some(c=>!COLORS[c])) return false;
   if (s.removed + blocks.length !== s.total || s.total < 1 || s.total > 20 || s.initial > s.total || (s.mode !== 'triple' && s.tray.length)) return false;
-  if (s.status === 'won' && (blocks.length || s.tray.length)) return false;
+  if (s.status === 'won' && (blocks.length || s.tray.length || s.reserve?.length)) return false;
   return s.plan.every(a => a && Number.isInteger(a.id) && Number.isInteger(a.dx) && Number.isInteger(a.dy) && (!a.dx !== !a.dy) && Math.abs(a.dx+a.dy) <= SIZE);
 }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MODES, GATES, createLevel, move, guide, fits, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, boardKey } from './rules.mjs';
+import { MODES, GATES, createLevel, move, guide, fits, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, boardKey, migrateRun } from './rules.mjs';
 
 const block = (id,color,x,y,w=1,h=1,extra={}) => ({id,color,x,y,w,h,rank:1,...extra});
 function fixture(mode,blocks,extra={}) { return {...createLevel(mode,1,1),blocks,plan:[],queue:[],tray:[],unlocked:[],total:blocks.length,initial:blocks.length,removed:0,moves:0,score:0,...extra}; }
@@ -75,4 +75,21 @@ test('corrupt saves are rejected and profile values are bounded',()=>{
   const p=restoreProfile({coins:-1,stars:Infinity,items:{hint:-10,hammer:2},levels:{classic:-4},sound:false,skin:'aurora',aurora:false});
   assert.equal(p.coins,350);assert.equal(p.items.hint,5);assert.equal(p.items.hammer,2);assert.equal(p.sound,false);assert.equal(p.skin,'original');
   assert.equal(boardKey(s),boardKey(JSON.parse(JSON.stringify(s))));
+});
+test('a full triple dock can continue and finish without losing partial colors',()=>{
+  let s=createLevel('triple',1,33);
+  for(const id of [0,1,3,4,6,7,9])s=useItem(s,'hammer',id).state;
+  assert.equal(s.status,'lost');assert.equal(s.tray.length,7);
+  s=continueRun(s);assert.equal(s.reserve.length,7);assert.equal(s.tray.length,0);assert.ok(validRun(s));
+  for(const id of [2,5,8,10,11]){s=useItem(s,'hammer',id).state;assert.ok(validRun(s));}
+  assert.equal(s.status,'won');assert.equal(s.reserve.length+s.tray.length,0);
+});
+test('older continued triple saves recover missing remainders without resetting coins or board',()=>{
+  let old=createLevel('triple',1,22);for(const id of [0,1,3,4,6,7,9])old=useItem(old,'hammer',id).state;
+  old={...old,status:'playing',continues:1,tray:[]};delete old.reserve;delete old.started;
+  assert.ok(validRun(old));let restored=migrateRun(old);assert.equal(restored.blocks.length,5);assert.equal(restored.reserve.length,7);
+  for(const id of [2,5,8,10,11])restored=useItem(restored,'hammer',id).state;
+  assert.equal(restored.status,'won');assert.equal(restoreProfile({coins:123}).coins,123);
+  const stranded={...old,blocks:[],removed:12,total:12,tray:['coral'],continues:1};
+  assert.ok(validRun(stranded));assert.equal(migrateRun(stranded).status,'won','recovers an already empty legacy board');
 });
