@@ -1,17 +1,30 @@
 # LunarElin — Game Client Developer
 
-15년 이상 경력의 게임 클라이언트 개발자 포트폴리오입니다. 실제 참여 타이틀, 기술 스택, 상세 이력과 성과는 입력 예정입니다.
+게임 클라이언트 개발자 LunarElin의 포트폴리오입니다. 노션 원문을 바탕으로 Ark, 그랑사가·GSU, 세븐나이츠 글로벌 등의 담당 업무와 기술 스택, 협업 방식을 소개합니다. 경력 약 16년 3개월과 재직 기간은 원문에 명시된 2025년 8월 9일 기준이며, 이후 이력은 추정하지 않습니다.
 
 에이전트는 작업 전에 [AGENTS.md](AGENTS.md)의 저장소 지도, 작업별 진입점, 검증 명령과 Git 작업 규칙을 참고합니다.
 
 ## 구성
 
-- `index.html`: 포트폴리오 메인, 프로젝트와 소개
+- `index.html`: 프로토타입 우선의 포트폴리오 메인, 대표 사례와 경력·소개
+- `portfolio/block-bloom.html`: 블록 블룸의 설계 의도·Codex 협업·검증 근거와 후속 검증 제안
+- `portfolio/case-study.css`: 대표 사례 페이지 디자인
 - `portfolio/style.css`: 포트폴리오 디자인
-- `portfolio/main.js`: 프로젝트 필터와 작성 가이드
+- `portfolio/main.js`: 현재 읽는 영역의 메뉴 강조
+- `portfolio/mark.svg`: 직접 작성한 달·별 파비콘
 - `archive/2026-10-14-original/index.html`: 전환 전 원본 페이지
 
 빌드나 패키지 설치 없이 정적 HTTP 서버 또는 GitHub Pages에서 실행합니다.
+
+경력·자기소개의 출처는 [기존 노션 포트폴리오](https://app.notion.com/p/23aeae97f1a2800eb4d8e161e8e464bd)입니다. `portfolio/assets/`의 이전 게임 이미지 5개는 해당 원문의 첨부 이미지를 WebP로 무손실 변환해 로컬로 제공합니다. 원문에 연결된 [슈퍼빌런랩스 AMA](https://www.youtube.com/live/hHAhYbN0tQI), [GSU 레이드](https://youtu.be/sRqXcnXf2oI), [그랑사가 결투장](https://youtu.be/Ji5BV7GBIME)의 영상 썸네일 3개도 로컬로 제공합니다. 연보라색과 경력 이미지 갤러리, 개발 경험·협업·AI 활용을 담은 자기소개 여섯 문단을 유지합니다.
+
+게임 프로토타입과 블록 블룸 대표 사례를 먼저 보여주는 구성은 [베이글코드 AI Game Director 공고](https://career.bagelcode.com/ko/o/212948)의 코어 설계·AI 프로토타이핑·검증 관점을 참고했습니다. 대표 사례의 구현 설명은 게임 README·제작 노트·소스를 근거로 하며, AI 협업은 실제 Codex 제작 요청·명령 실행·검사 출력·배포 기록을 확인해 정리했습니다. 제작자가 정한 방향과 Codex의 구현·검증을 구분하고, 사용자·UA·매출 성과는 추정하지 않습니다. 초기 구현은 [커밋 24ffd68](https://github.com/LunarElin/lunarelin.github.io/tree/24ffd68a087d7e680191302bcf99f07c9b1241d2/games/block-bloom)에서 확인할 수 있습니다.
+
+`block-bloom-screen.webp`와 `block-bloom-board.webp`는 2026년 10월 18일 제작 당시의 실제 브라우저 실행 화면을 각각 전체·보드 크롭으로 변환한 이미지입니다. 게임 코드와 자산을 홈페이지에서 실행하지 않고 결과 화면만 제공합니다.
+
+첫 화면 이미지 외의 이미지는 지연 로딩하며, 영상은 클릭 시 YouTube로 이동합니다. 외부 글꼴·게임 코드·영상 플레이어는 홈페이지에서 미리 로드하지 않습니다. 본문은 운영체제의 한글 지원 글꼴을 사용합니다.
+
+홈페이지 수정 후 `node --check portfolio/main.js`와 `git diff --check -- index.html portfolio README.md`를 실행하고, 실제 브라우저에서 320px·390px·PC 배치와 세부 경력 펼치기, 게임 진입·홈 복귀를 확인합니다.
 
 ## 원본 보존
 
