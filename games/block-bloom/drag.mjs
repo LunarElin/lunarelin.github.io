@@ -1,4 +1,4 @@
-import { SIZE, GATES, move } from './rules.mjs?v=2';
+import { SIZE, GATES, move, hasGimmick } from './rules.mjs?v=3';
 
 const EPS = 1e-8;
 export function createDrag(state, id) {
@@ -36,7 +36,7 @@ function projectPath(drag, x, y) {
 }
 function colliders(drag) {
   const b = drag.origin, s = drag.state;
-  const canExit = !b.ice && (s.mode !== 'key' || b.key || s.unlocked.includes(b.color)) && (s.mode !== 'merge' || b.rank >= 2);
+  const canExit = !b.ice && (!hasGimmick(s,'key') || b.key || s.unlocked.includes(b.color)) && (!hasGimmick(s,'merge') || b.rank >= 2);
   const gate = canExit ? GATES.find(g => g.color === b.color) : null;
   const walls = [];
   for (const side of ['left', 'right', 'top', 'bottom']) {
@@ -80,7 +80,7 @@ function resetPressure(drag) {
 }
 function pushMerge(drag, face, dx, dy, slideX, slideY) {
   const target = face.rect.block, b = drag.origin;
-  if (!target || drag.state.mode !== 'merge' || b.color !== target.color || b.rank !== target.rank || b.w !== target.w || b.h !== target.h) return false;
+  if (!target || !hasGimmick(drag.state,'merge') || b.color !== target.color || b.rank !== target.rank || b.w !== target.w || b.h !== target.h) return false;
   const axis = face.nx ? 'x' : 'y', other = face.nx ? 'y' : 'x', delta = face.nx ? dx : dy, sign = Math.sign(delta), slide = face.nx ? slideY : slideX;
   if (!sign) return false;
   let enter = 0, leave = 1;

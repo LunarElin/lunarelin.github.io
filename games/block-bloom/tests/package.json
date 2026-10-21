@@ -2,6 +2,6 @@
   "name": "block-bloom-tests",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node --test ../rules.test.mjs drag.test.mjs ui.test.mjs" },
+  "scripts": { "test": "node --test ../rules.test.mjs campaign.test.mjs drag.test.mjs ui.test.mjs" },
   "devDependencies": { "jsdom": "30.1.3" }
 }

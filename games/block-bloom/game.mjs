@@ -1,5 +1,5 @@
-import { SIZE, COLORS, MODES, GATES, ITEMS, ITEM_COSTS, createLevel, move, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState, migrateRun } from './rules.mjs?v=2';
-import { createDrag, dragBy } from './drag.mjs?v=1';
+import { SIZE, COLORS, GATES, ITEMS, ITEM_COSTS, createLevel, createStage, stageInfo, runInfo, hasGimmick, migrateCampaignRun, move, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState } from './rules.mjs?v=3';
+import { createDrag, dragBy } from './drag.mjs?v=2';
 
 const $ = id => document.getElementById(id);
 const KEY = 'block-bloom:v1';
@@ -15,10 +15,13 @@ try {
   const saved = JSON.parse(localStorage.getItem(KEY));
   if (saved) {
     profile = restoreProfile(saved.profile);
-    if (validRun(saved.run)) { state = migrateRun(saved.run); history = Array.isArray(saved.history) ? saved.history.filter(validRun).slice(-30).map(migrateRun) : []; }
+    if (validRun(saved.run)) {
+      state = migrateCampaignRun(saved.run);
+      history = Array.isArray(saved.history) ? saved.history.filter(validRun).map(migrateCampaignRun).filter(s=>s.stage===state.stage&&s.mode===state.mode&&s.level===state.level&&s.seed===state.seed).slice(-30) : [];
+    }
   }
 } catch { /* A private or unavailable store still allows a fresh game. */ }
-if (!state) state = { ...createLevel('classic', profile.levels.classic, seed()), started: false };
+if (!state) state = createStage(profile.stage, seed());
 
 function later(fn, ms) { const id = window.setTimeout(() => { effectTimers.delete(id); if (!disposed) fn(); }, ms); effectTimers.add(id); return id; }
 function cancelLater(id) { clearTimeout(id); effectTimers.delete(id); }
@@ -78,18 +81,34 @@ function sound(kind = 'move', strength = 1) {
   } catch { /* Sound is optional on browsers without Web Audio. */ }
 }
 function vibrate(strong = false) { if (profile.haptic && canAnimate()) try { navigator.vibrate?.(strong ? [16,12,25] : 8); } catch { /* Optional hardware. */ } }
-function renderModes() {
-  return `<div class="mode-list" id="modes">${Object.entries(MODES).map(([id,m]) => `<button class="mode-button ${state.mode===id?'active':''}" data-mode="${id}" aria-pressed="${state.mode===id}"><span class="mode-icon">${m.icon}</span><b>${m.name}</b><small>${profile.levels[id]} 단계</small></button>`).join('')}</div>`;
+const gimmickNames={key:'열쇠',ice:'얼음',merge:'합성',triple:'수집함',factory:'생성기',lift:'승강기'};
+function gimmickTags(info){return `<div class="gimmick-tags">${(info.gimmicks.length?info.gimmicks:['classic']).map(id=>`<span>${gimmickNames[id]||'색상 탈출'}</span>`).join('')}</div>`;}
+function gimmickArt(info){
+  const tile=(color,text)=>`<span class="intro-piece" style="${colorStyle(color)}">${text}</span>`,sign=text=>`<span class="intro-sign">${text}</span>`;
+  const focus=info.gimmicks.at(-1)||'classic';let art;
+  if(focus==='merge')art=tile('coral','2')+sign('+')+tile('coral','2')+sign('→')+tile('coral','4');
+  else if(focus==='key')art=tile('gold','<i class="intro-key"></i>')+sign('→')+'<span class="intro-exit gold-exit">✓</span>';
+  else if(focus==='ice')art=tile('blue','❄₂')+sign('←')+'<span class="intro-count">탈출<b>2번</b></span>';
+  else if(focus==='triple')art='<span class="intro-match">'+tile('coral','●').repeat(3)+'</span>'+sign('→')+'<span class="intro-spark">✦</span>';
+  else if(focus==='factory')art='<span class="intro-machine">⚙</span>'+sign('→')+tile('blue','◆');
+  else if(focus==='lift')art='<span class="intro-platform">'+tile('lime','✦')+'</span>'+sign('⇄')+'<span class="intro-platform empty-pad">⇅</span>';
+  else art=tile('coral','●')+sign('→')+'<span class="intro-exit coral-exit">▴</span>';
+  return `<div class="gimmick-art" data-gimmick-art="${focus}" aria-hidden="true">${art}</div>`;
 }
+function stageIntroMarkup(ready){
+  const info=runInfo(state),heading=state.campaignLegacy?'이어서 플레이':`스테이지 ${state.stage}`;
+  return `<div class="stage-intro"><div class="intro-scroll"><p class="intro-stage">${heading}</p><h2 class="intro-title" id="modal-title">${info.title}</h2><span class="intro-badge">${ready?state.campaignLegacy?'진행 중인 퍼즐':info.introLabel:'이번 기믹'}</span>${gimmickTags(info)}${gimmickArt(info)}<p class="intro-description">${info.description}</p><ul class="intro-tips">${info.tips.map(tip=>`<li>${tip}</li>`).join('')}</ul></div><div class="intro-actions">${ready?'<a class="icon-button" href="../../" aria-label="포트폴리오로"><img src="assets/icons/home.png" alt="" width="24" height="24"></a>':'<button class="secondary intro-controls" data-action="controls">조작</button>'}<button class="primary" autofocus data-action="${ready?'start':'resume'}">${ready?'시작':'계속'}</button></div></div>`;
+}
+function nextStageNumber(){return state.campaignLegacy?profile.stage:Math.min(9999,state.stage+1);}
 function renderBlocks() {
   const focusedId = document.activeElement?.dataset?.block;
   $('blocks').innerHTML = state.blocks.map(b => {
-    const c = COLORS[b.color], label = `${c.name} ${b.w}×${b.h} 블록${state.mode === 'merge' ? ' 숫자 '+2**b.rank : ''}${b.key?' 열쇠':''}${b.ice?' 얼음 '+b.ice+'겹':''}`;
-    return `<button class="block ${selected===b.id?'selected':''} ${b.ice?'iced':''}" data-block="${b.id}" data-ice="${b.ice||0}" aria-label="${label}" aria-pressed="${selected===b.id}" style="${colorStyle(b.color)};--w:${b.w};--h:${b.h};left:${b.x/SIZE*100}%;top:${b.y/SIZE*100}%;width:${b.w/SIZE*100}%;height:${b.h/SIZE*100}%"><span class="block-body">${'<i class="stud"></i>'.repeat(b.w*b.h)}<span class="block-symbol ${state.mode==='merge'?'block-number':''} ${b.key?'block-key':''}">${state.mode==='merge'?2**b.rank:b.key?'⚿':c.symbol}</span></span></button>`;
+    const c = COLORS[b.color], label = `${c.name} ${b.w}×${b.h} 블록${hasGimmick(state,'merge') ? ' 숫자 '+2**b.rank : ''}${b.key?' 열쇠':''}${b.ice?' 얼음 '+b.ice+'겹':''}`;
+    return `<button class="block ${selected===b.id?'selected':''} ${b.ice?'iced':''}" data-block="${b.id}" data-ice="${b.ice||0}" aria-label="${label}" aria-pressed="${selected===b.id}" style="${colorStyle(b.color)};--w:${b.w};--h:${b.h};left:${b.x/SIZE*100}%;top:${b.y/SIZE*100}%;width:${b.w/SIZE*100}%;height:${b.h/SIZE*100}%"><span class="block-body">${'<i class="stud"></i>'.repeat(b.w*b.h)}<span class="block-symbol ${hasGimmick(state,'merge')?'block-number':''} ${b.key?'block-key':''}">${hasGimmick(state,'merge')?2**b.rank:b.key?'⚿':c.symbol}</span></span></button>`;
   }).join('');
   if (focusedId && $('blocks').querySelector(`[data-block="${focusedId}"]`)) $('blocks').querySelector(`[data-block="${focusedId}"]`).focus({ preventScroll: true });
-  $('gates').innerHTML = GATES.map(g=>`<div class="gate ${g.side} ${state.mode==='key'&&!state.unlocked.includes(g.color)?'locked':''}" style="${colorStyle(g.color)}" aria-label="${COLORS[g.color].name} ${g.side} 출구"><span>${g.side==='top'?'▴':g.side==='right'?'▸':g.side==='bottom'?'▾':'◂'}</span><span class="gate-lock">${state.mode==='key'&&!state.unlocked.includes(g.color)?'⚿':state.mode==='merge'?'4+':COLORS[g.color].symbol}</span></div>`).join('');
-  $('platforms').innerHTML = state.mode==='factory' ? '<div class="platform">⇅</div><div class="platform second">⇅</div>' : '';
+  $('gates').innerHTML = GATES.map(g=>`<div class="gate ${g.side} ${hasGimmick(state,'key')&&!state.unlocked.includes(g.color)?'locked':''}" style="${colorStyle(g.color)}" aria-label="${COLORS[g.color].name} ${g.side} 출구"><span>${g.side==='top'?'▴':g.side==='right'?'▸':g.side==='bottom'?'▾':'◂'}</span><span class="gate-lock">${hasGimmick(state,'key')&&!state.unlocked.includes(g.color)?'⚿':hasGimmick(state,'merge')?'4+':COLORS[g.color].symbol}</span></div>`).join('');
+  $('platforms').innerHTML = hasGimmick(state,'lift') ? '<div class="platform">⇅</div><div class="platform second">⇅</div>' : '';
   renderHint();
 }
 function renderHint() {
@@ -109,15 +128,15 @@ function renderHud() {
   document.body.classList.toggle('fever',fever); $('fever-banner').hidden = !fever;
 }
 function renderAux() {
-  $('dock').hidden = state.mode!=='triple';
+  $('dock').hidden = !hasGimmick(state,'triple');
   setText('reserve-count', state.reserve?.length ? `구조 ${state.reserve.length}` : '수집');
-  if (state.mode==='triple') $('dock-slots').innerHTML = Array.from({length:7},(_,i)=>`<div class="dock-slot ${state.tray[i]?'filled':''} ${i===6&&state.tray.length>=5?'danger':''}" ${state.tray[i]?`style="${colorStyle(state.tray[i])}" data-symbol="${COLORS[state.tray[i]].symbol}"`:''}></div>`).join('');
-  $('factory-bar').hidden = state.mode!=='factory'; $('lift').hidden = state.mode!=='factory'; setText('queue-count', state.queue.length);
+  if (hasGimmick(state,'triple')) $('dock-slots').innerHTML = Array.from({length:7},(_,i)=>`<div class="dock-slot ${state.tray[i]?'filled':''} ${i===6&&state.tray.length>=5?'danger':''}" ${state.tray[i]?`style="${colorStyle(state.tray[i])}" data-symbol="${COLORS[state.tray[i]].symbol}"`:''}></div>`).join('');
+  $('factory-bar').hidden = !hasGimmick(state,'factory'); $('lift').hidden = !hasGimmick(state,'lift'); setText('queue-count', state.queue.length);
   $('queue-preview').innerHTML = state.queue.map(b=>`<i style="${colorStyle(b.color)}"></i>`).join('');
 }
 function render() {
-  setText('mode-title', MODES[state.mode].name); setText('level-badge', state.level);
-  $('level-badge').setAttribute('aria-label', `레벨 ${state.level}`);
+  const info=runInfo(state);setText('stage-label',state.campaignLegacy?'이어서':'스테이지');setText('stage-number',state.campaignLegacy?'↻':state.stage);setText('stage-name',info.shortTitle);
+  $('stage-display').setAttribute('aria-label',state.campaignLegacy?`이어서 ${info.title}`:`스테이지 ${state.stage} ${info.title}`);
   renderBlocks(); renderItems(); renderHud(); renderAux(); syncPreferences(); layoutBoard();
 }
 
@@ -193,8 +212,8 @@ function blockedMove(id) {
   sound('blocked');const frame=$('board-frame');frame.classList.remove('blocked');void frame.offsetWidth;frame.classList.add('blocked');
   const b=state.blocks.find(b=>b.id===id);
   if(b?.ice)toast('얼음은 다른 블록이 탈출할 때 깨져요.');
-  else if(state.mode==='merge'&&b?.rank===1)toast('같은 색 2를 합쳐 4부터 탈출할 수 있어요.');
-  else if(state.mode==='key'&&b&&!b.key&&!state.unlocked.includes(b.color))toast('같은 색 열쇠 블록을 먼저 탈출시키세요.');
+  else if(hasGimmick(state,'merge')&&b?.rank===1)toast('같은 색 2를 합쳐 4부터 탈출할 수 있어요.');
+  else if(hasGimmick(state,'key')&&b&&!b.key&&!state.unlocked.includes(b.color))toast('같은 색 열쇠 블록을 먼저 탈출시키세요.');
 }
 function selectBlock(id) {
   if(state.status!=='playing'||$('modal').open)return;
@@ -221,7 +240,7 @@ function activateItem(id) {
   }
   if(id==='undo') {
     if(!history.length){toast('되돌릴 이동이 없어요.');return;}
-    const old=history.pop();state={...old,time:state.time,frozen:state.frozen,continues:state.continues};profile.items.undo--;selected=null;hint=null;armed=null;combo=0;feverUntil=0;
+    const old=history.pop();state={...old,time:state.time,frozen:state.frozen,continues:state.continues,started:state.started};profile.items.undo--;selected=null;hint=null;armed=null;combo=0;feverUntil=0;
     render();save();sound('move');toast('한 수 되돌렸어요. 남은 시간은 유지돼요.');return;
   }
   if(['hammer','magnet'].includes(id)&&selected===null){armed=armed===id?null:id;renderItems();toast(armed?`${ITEMS[id].name}: 사용할 블록을 선택하세요.`:'아이템 선택을 취소했어요.');return;}
@@ -230,10 +249,11 @@ function activateItem(id) {
   profile.items[id]--;commit(result,{remember:id!=='freeze'});
   if(id==='freeze'){sound('freeze');toast('타임 프리즈! 20초 동안 시간이 멈춰요.');}
 }
-function newRun(mode=state.mode,level=profile.levels[mode],retry=false,autoStart=false) {
+function newRun(stage=profile.stage,retry=false,autoStart=false) {
   runEpoch++; clearEffects(); cancelDrag(); stopAudio();
-  const oldSeed=state.seed;state={...createLevel(mode,level,retry?oldSeed:seed()),started:autoStart};history=[];selected=null;armed=null;hint=null;combo=0;feverUntil=0;lastClear=-100;activeTime=0;busy=false;
-  closeModal();$('instruction').textContent=MODES[mode].goal;render();save();if(!autoStart)openModal('ready');
+  const previous=state,next=retry&&previous.campaignLegacy?migrateCampaignRun(createLevel(previous.mode,previous.level,previous.seed)):createStage(stage,retry?previous.seed:seed());
+  state={...next,started:autoStart};history=[];selected=null;armed=null;hint=null;combo=0;feverUntil=0;lastClear=-100;activeTime=0;busy=false;
+  closeModal();$('instruction').textContent=runInfo(state).description;render();save();if(!autoStart)openModal('ready');
 }
 
 function closeModal() {if($('modal').open)$('modal').close();modalKind='';lastFrame=performance.now();document.body.classList.toggle('paused',document.hidden);if(!document.hidden)startClock();}
@@ -247,31 +267,31 @@ function settingLabel(k){return (k==='sound'?'<img src="assets/icons/'+(profile[
 function openModal(kind) {
   stopClock(); cancelDrag(); clearEffects(); stopAudio();
   const previousKind=modalKind;modalKind=kind;armed=null;document.body.classList.add('paused');renderItems();let html='';
-  if(kind==='ready') html=modalHeading('','블록 블룸')+`<img class="ready-icon" src="icon.svg" width="88" height="88" alt=""><p class="ready-copy">${MODES[state.mode].name} · ${state.level} 단계</p><p class="modal-copy">${MODES[state.mode].goal}</p><button class="primary" data-action="start">시작</button><button class="secondary" data-action="modes">모드 선택</button><a class="demo-label" href="../../">포트폴리오로</a>`;
-  else if(kind==='modes') html=modalHeading('','모드 선택')+renderModes()+'<button class="secondary" data-action="resume">돌아가기</button>';
-  else if(kind==='help') html=modalHeading('','플레이 방법',MODES[state.mode].description)+'<ol class="help-list"><li><b>1</b><span>블록을 누른 채 상하좌우로 움직이세요. 손을 떼지 않고 방향을 바꿀 수 있어요. 화면 화살표나 방향키로도 이동할 수 있어요.</span></li><li><b>2</b><span>블록 전체 폭을 같은 색 출구에 맞추고, 바깥으로 한 번 더 밀어주세요.</span></li><li><b>3</b><span>해머와 자석은 블록을 고른 뒤 사용해요. 아이템을 먼저 누르고 블록을 골라도 돼요. 아이템 효과와 개수는 길게 누르거나 상점에서 확인할 수 있어요.</span></li><li><b>4</b><span>4초 안에 연속 탈출! 5연속부터 10초간 피버로 점수가 2배예요.</span></li></ol>'+(state.mode==='factory'?'<p class="modal-copy">승강기는 빛나는 두 발판 사이를 이동해요. 블록을 발판 왼쪽 위에 맞추고 선택한 뒤 승강기를 누르세요. 도착 칸이 비어 있어야 해요.</p>':'')+(state.mode==='triple'?'<p class="modal-copy">이어하기는 수집 블록을 구조함에 보관해요. 구조함의 블록도 새로 수집한 같은 색과 3개씩 합쳐져요.</p>':'')+'<button class="secondary" data-action="shop">아이템 효과</button><button class="primary" data-action="resume">계속</button>';
-  else if(kind==='pause') html=modalHeading('','쉬는 중',`점수 ${state.score.toLocaleString('ko-KR')} · 시간도 멈췄어요.`)+'<button class="primary" data-action="resume">계속</button><div class="modal-actions"><button class="secondary" id="restart" data-action="restart">다시</button><button class="secondary" id="settings-open" data-action="settings"><img src="assets/icons/gear.png" alt="" width="22" height="22">설정</button><button class="secondary" id="daily-open" data-action="daily-open">매일 선물</button><button class="secondary" id="pass-open" data-action="pass"><img src="assets/icons/star.png" alt="" width="22" height="22">별 보상</button></div><button class="secondary" data-action="modes">모드 선택</button><a class="secondary" href="../../"><img src="assets/icons/home.png" alt="" width="22" height="22">나가기</a>';
+  if(kind==='ready'||kind==='help') html=stageIntroMarkup(kind==='ready');
+  else if(kind==='controls') html=modalHeading('','플레이 방법')+'<ol class="help-list"><li><b>1</b><span>블록을 누른 채 상하좌우로 움직이세요. 손을 떼지 않고 방향을 바꿀 수 있어요. 화면 화살표나 방향키로도 이동할 수 있어요.</span></li><li><b>2</b><span>블록 전체 폭을 같은 색 출구에 맞추고, 바깥으로 한 번 더 밀어주세요.</span></li><li><b>3</b><span>해머와 자석은 블록을 고른 뒤 사용해요. 아이템을 먼저 누르고 블록을 골라도 돼요. 효과와 개수는 길게 누르거나 상점에서 확인하세요.</span></li><li><b>4</b><span>4초 안에 연속 탈출! 5연속부터 10초간 피버로 점수가 2배예요.</span></li></ol>'+'<button class="secondary" data-action="help">이번 기믹</button><button class="primary" data-action="resume">계속</button>';
+  else if(kind==='pause') html=modalHeading('','쉬는 중',`점수 ${state.score.toLocaleString('ko-KR')} · 시간도 멈췄어요.`)+'<button class="primary" data-action="resume">계속</button><div class="modal-actions"><button class="secondary" id="restart" data-action="restart">다시</button><button class="secondary" id="settings-open" data-action="settings"><img src="assets/icons/gear.png" alt="" width="22" height="22">설정</button><button class="secondary" id="daily-open" data-action="daily-open">매일 선물</button><button class="secondary" id="pass-open" data-action="pass"><img src="assets/icons/star.png" alt="" width="22" height="22">별 보상</button></div><button class="secondary" data-action="help">이번 기믹</button><a class="secondary" href="../../"><img src="assets/icons/home.png" alt="" width="22" height="22">나가기</a>';
   else if(kind==='restart') html=modalHeading('','다시 시작할까요?','같은 배치로 돌아가요. 사용한 아이템은 돌아오지 않아요.')+'<button class="primary" data-action="restart-confirm">다시</button><button class="secondary" data-action="resume">계속</button>';
-  else if(kind==='switch') html=modalHeading('','모드를 바꿀까요?','현재 보드는 종료해요. 코인·아이템·레벨 진도는 유지돼요.')+`<button class="primary" data-action="switch-confirm" data-value="${$('modal').dataset.nextMode}">변경</button><button class="secondary" data-action="resume">계속</button>`;
   else if(kind==='shop') html=shopMarkup();
   else if(kind==='daily') html=modalHeading('','매일 선물','오늘의 100 코인으로 아이템을 충전하세요.')+`<div class="modal-art">✧</div><button class="primary" data-action="daily" ${profile.daily===localDate()?'disabled':''}>${profile.daily===localDate()?'오늘 수령 완료':'100 코인 받기'}</button><span class="demo-label">한국 시간 자정에 새 선물</span>`;
   else if(kind==='settings') html=modalHeading('','설정')+['sound','motion','haptic'].map(k=>`<div class="settings-row"><span>${{sound:'효과음',motion:'화면 효과',haptic:'진동'}[k]}</span><button data-action="setting" data-value="${k}" class="${profile[k]?'on':''}" aria-pressed="${profile[k]}">${settingLabel(k)}</button></div>`).join('')+'<p class="modal-copy">기기의 동작 줄이기 설정을 따르며, 다른 탭을 보면 시간과 효과가 멈춰요. 진동은 지원 기기에서 작동해요.</p><button class="primary" data-action="resume">계속</button><a class="demo-label" href="design.html">제작 · 수익화 설계 노트</a><span class="demo-label">포트폴리오 데모 · 실제 결제·광고 없음</span>';
-  else if(kind==='pass') html=modalHeading('','별 보상',`모은 별 ${profile.stars} ★ · 모든 모드의 별을 모아요.`)+[3,9,18].map((n,i)=>`<div class="pass-reward"><div><b>${n} ★</b><small>${[120,200,350][i]} 코인 · 자석 1</small></div><button data-action="pass-claim" data-value="${n}" ${profile.stars<n||profile.pass.includes(n)?'disabled':''}>${profile.pass.includes(n)?'완료':'받기'}</button></div>`).join('')+'<span class="demo-label">무료 누적 보상</span>';
-  else if(kind==='won') html=modalHeading('','완벽한 블룸!')+`<div class="modal-stars">${'★'.repeat(state.earnedStars||1)}${'☆'.repeat(3-(state.earnedStars||1))}</div><p class="modal-copy" style="text-align:center">${MODES[state.mode].name} · ${state.level} 단계</p><div class="result-grid"><div><b>${state.score.toLocaleString('ko-KR')}</b><small>점수</small></div><div><b>${state.moves}</b><small>이동</small></div><div><b>+${state.earnedCoins||0}</b><small>코인 저장</small></div></div><button class="primary" data-action="next">다음</button><button class="secondary" data-action="pass">별 보상</button><span class="demo-label">남은 시간 65초 초과 ★★★ · 25초 초과 ★★</span>`;
+  else if(kind==='pass') html=modalHeading('','별 보상',`모은 별 ${profile.stars} ★ · 스테이지의 별을 모아요.`)+[3,9,18].map((n,i)=>`<div class="pass-reward"><div><b>${n} ★</b><small>${[120,200,350][i]} 코인 · 자석 1</small></div><button data-action="pass-claim" data-value="${n}" ${profile.stars<n||profile.pass.includes(n)?'disabled':''}>${profile.pass.includes(n)?'완료':'받기'}</button></div>`).join('')+'<span class="demo-label">무료 누적 보상</span>';
+  else if(kind==='won') {
+    const next=stageInfo(nextStageNumber());
+    html=modalHeading('',state.campaignLegacy?'퍼즐 클리어!':`스테이지 ${state.stage} 클리어!`)+`<div class="modal-stars">${'★'.repeat(state.earnedStars||1)}${'☆'.repeat(3-(state.earnedStars||1))}</div><div class="result-grid"><div><b>${state.score.toLocaleString('ko-KR')}</b><small>점수</small></div><div><b>${state.moves}</b><small>이동</small></div><div><b>+${state.earnedCoins||0}</b><small>코인 저장</small></div></div><div class="next-stage"><span>${next.introLabel}</span><b>다음 ${next.number} · ${next.shortTitle}</b></div><button class="primary" data-action="next">다음 스테이지</button><button class="secondary" data-action="pass">별 보상</button>`;
+  }
   else if(kind==='lost') {const cost=120+state.continues*60;html=modalHeading('',state.reason==='tray'?'수집함이 찼어요':'시간이 다 됐어요',state.reason==='tray'?'수집 블록을 구조함에 보관하고, 45초 더 이어가요. 구조한 블록도 같은 색과 계속 매칭돼요.':'열어둔 길 그대로 45초 더 이어가세요.')+`<button class="primary" data-action="continue" ${state.continues>=2||profile.coins<cost?'disabled':''}>${state.continues>=2?'이어하기 모두 사용':`계속 · ${cost} 코인`}</button><button class="secondary" data-action="restart-confirm">다시</button><span class="demo-label">보유 ${profile.coins} 코인 · 최대 2회</span>`;}
   if(kind==='won'||kind==='lost')html+='<a class="secondary" href="../../">나가기</a>';
-  $('modal-content').innerHTML=html;if(previousKind!==kind)$('modal').scrollTop=0;$('modal-close').hidden=kind==='ready';
+  $('modal').dataset.kind=kind;$('modal-content').innerHTML=html;if(previousKind!==kind)$('modal').scrollTop=0;$('modal-close').hidden=kind==='ready';
   if(!$('modal').open)$('modal').showModal();lastFrame=performance.now();
 }
 function claimDaily(){if(profile.daily===localDate())return;profile.coins+=100;profile.daily=localDate();save();renderHud();renderAux();toast('오늘의 100 코인을 받았어요!');}
 function onAction(action,value) {
-  if(action==='start'){state.started=true;closeModal();save();}
+  if(action==='start'){if(state.started!==false||state.status!=='playing'||modalKind!=='ready')return;state.started=true;closeModal();save();}
   else if(action==='resume'){if(state.started===false)openModal('ready');else closeModal();}
-  else if(['modes','settings','shop','restart'].includes(action))openModal(action);
+  else if(['help','controls','settings','shop','restart'].includes(action))openModal(action);
   else if(action==='daily-open')openModal('daily');
-  else if(action==='restart-confirm')newRun(state.mode,state.level,true,true);
-  else if(action==='switch-confirm')newRun(value);
-  else if(action==='next')newRun(state.mode,state.level+1,false,true);
+  else if(action==='restart-confirm')newRun(state.stage,true);
+  else if(action==='next'){if(state.status==='won')newRun(nextStageNumber());}
   else if(action==='buy') {const cost=ITEM_COSTS[value];if(!cost||profile.coins<cost)return;profile.coins-=cost;profile.items[value]++;save();renderHud();renderItems();openModal('shop');toast(`${ITEMS[value].name} +1`);}
   else if(action==='starter'){if(profile.starter)return;profile.starter=true;profile.coins+=150;profile.items.hammer+=2;profile.items.freeze+=2;profile.items.magnet++;save();renderHud();renderItems();openModal('shop');toast('스타터 팩을 받았어요!');}
   else if(action==='daily'){claimDaily();openModal('daily');}
@@ -279,7 +299,7 @@ function onAction(action,value) {
   else if(action==='setting'){profile[value]=!profile[value];syncPreferences();save();openModal('settings');}
   else if(action==='pass')openModal('pass');
   else if(action==='pass-claim'){const n=Number(value);if(![3,9,18].includes(n)||profile.stars<n||profile.pass.includes(n))return;profile.pass.push(n);profile.coins+={3:120,9:200,18:350}[n];profile.items.magnet++;save();renderHud();renderItems();openModal('pass');toast('코인과 마그넷 선물이 도착했어요!');}
-  else if(action==='continue'){const cost=120+state.continues*60;if(profile.coins<cost)return;const next=continueRun(state);if(!next)return;profile.coins-=cost;state=next;history=[];combo=0;feverUntil=0;closeModal();render();save();if(state.status==='won')complete();}
+  else if(action==='continue'){const cost=120+state.continues*60;if(profile.coins<cost)return;const next=continueRun(state);if(!next)return;profile.coins-=cost;state=next;history=[];combo=0;feverUntil=0;closeModal();render();save();if(state.status==='won')complete();else if(state.started===false)openModal('ready');}
   else if(action==='skin'){if(!profile.aurora){if(profile.coins<400){toast('오로라 보드에는 400 코인이 필요해요.');return;}profile.coins-=400;profile.aurora=true;}profile.skin=profile.skin==='aurora'?'original':'aurora';syncPreferences();save();renderHud();openModal('shop');}
 }
 
@@ -356,18 +376,16 @@ listen(document,'keydown',event=>{
   if($('modal').open||event.ctrlKey||event.metaKey||event.altKey||event.target.matches('input,select,textarea'))return;
   const directions={ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1],ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0]};
   if(directions[event.key]){event.preventDefault();if(selected===null){toast('블록을 먼저 선택하세요');return;}performMove(selected,...directions[event.key]);}
-  else if(event.code==='Space'&&state.mode==='factory'&&(!event.target.matches('button,a')||event.target.closest('[data-block]'))){event.preventDefault();commit(elevate(state,selected));}
+  else if(event.code==='Space'&&hasGimmick(state,'lift')&&(!event.target.matches('button,a')||event.target.closest('[data-block]'))){event.preventDefault();commit(elevate(state,selected));}
 });
 listen($('lift'),'click',()=>{if(!commit(elevate(state,selected)))toast('발판 왼쪽 위에 블록을 맞춰 선택하세요. 도착 칸도 비워주세요.');});
 listen($('modal-content'),'click',event=>{
-  const mode=event.target.closest('[data-mode]');
-  if(mode){const id=mode.dataset.mode;if(id===state.mode){if(state.started===false)openModal('ready');else closeModal();return;}if(state.moves>0&&state.status==='playing'){$('modal').dataset.nextMode=id;openModal('switch');}else newRun(id);return;}
   const b=event.target.closest('[data-action]');if(b&&!b.disabled)onAction(b.dataset.action,b.dataset.value);
 });
 listen($('modal-close'),'click',()=>{if(state.started===false)openModal('ready');else closeModal();});
 listen($('modal'),'cancel',event=>{event.preventDefault();if(state.started===false)openModal('ready');else closeModal();});
 listen($('modal'),'close',()=>{lastFrame=performance.now();if(!document.hidden)startClock();});
-listen($('help'),'click',()=>openModal('help'));listen($('shop-open'),'click',()=>openModal('shop'));listen($('mode-open'),'click',()=>openModal('modes'));
+listen($('help'),'click',()=>openModal(state.status!=='playing'?state.status:state.started===false?'ready':'help'));listen($('shop-open'),'click',()=>openModal(state.status!=='playing'?state.status:'shop'));
 listen($('pause'),'click',()=>openModal(state.status!=='playing'?state.status:state.started===false?'ready':'pause'));
 reduced.addEventListener?.('change',syncPreferences,{signal:lifecycle.signal});
 function viewportChanged(){cancelDrag();cancelSettle();layoutBoard();}

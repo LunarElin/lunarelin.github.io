@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
-import { createLevel, GATES, COLORS } from '../rules.mjs';
+import { createLevel, createStage, stageInfo, hasGimmick, newProfile, GATES, COLORS } from '../rules.mjs';
 
 const root=new URL('../',import.meta.url),html=readFileSync(new URL('index.html',root),'utf8');
 const source=['rules.mjs','drag.mjs','game.mjs'].map(file=>readFileSync(new URL(file,root),'utf8').replace(/^import .+;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
@@ -20,12 +20,12 @@ function app(saved=null,{brokenStorage=false,reduced=false,ready=false}={}) {
   w.AudioContext=class{state='running';currentTime=0;destination={};resume(){return Promise.resolve();}createGain(){return{gain:{value:0,setValueAtTime:noop,linearRampToValueAtTime:noop,exponentialRampToValueAtTime:noop},connect:noop,disconnect:noop};}createOscillator(){return{type:'sine',frequency:{setValueAtTime:f=>notes.push(f),exponentialRampToValueAtTime:noop},connect:noop,disconnect:noop,start:noop,stop:noop};}};
   if(saved)w.localStorage.setItem(KEY,typeof saved==='string'?saved:JSON.stringify(saved));
   if(brokenStorage)Object.defineProperty(w,'localStorage',{get(){throw Error('storage blocked');}});
-  w.eval(source+'\nwindow.__qa={get state(){return state},get profile(){return profile},get combo(){return combo},get feverUntil(){return feverUntil},get activeTime(){return activeTime},setState(s){state=s;history=[];render();},newRun:(mode,level)=>newRun(mode,level,false,true),resources:()=>({timers:effectTimers.size,sounds:oscillators.size,outputs:outputs.size})};');
+  w.eval(source+'\nwindow.__qa={get state(){return state},get profile(){return profile},get combo(){return combo},get feverUntil(){return feverUntil},get activeTime(){return activeTime},setState(s){state=s;history=[];render();},newRun:stage=>newRun(stage,false,true),resources:()=>({timers:effectTimers.size,sounds:oscillators.size,outputs:outputs.size})};');
   if(!ready&&w.document.querySelector('[data-action="start"]'))w.document.querySelector('[data-action="start"]').click();
   const get=id=>w.document.getElementById(id);
   function click(selector){const el=w.document.querySelector(selector);assert.ok(el,'missing '+selector);assert.equal(el.disabled,false,'disabled '+selector);el.click();}
   function advance(ms){const until=now+ms;while(now<until){now=Math.min(until,now+50);for(const item of intervals.values())if(now>=item.next){item.next=now+item.ms;item.fn();}for(const [id,item]of[...timeouts])if(now>=item.at){timeouts.delete(id);item.fn();}}}
-  function solve(){const s=w.__qa.state,plan=createLevel(s.mode,s.level,s.seed).plan;for(const action of plan){click(`[data-block="${action.id}"]`);for(let i=0;i<Math.abs(action.dx+action.dy);i++)click(`[data-direction="${Math.sign(action.dx)},${Math.sign(action.dy)}"]`);}assert.equal(w.__qa.state.status,'won');advance(650);}
+  function solve(){const s=w.__qa.state,plan=(s.stage&&!s.campaignLegacy?createStage(s.stage,s.seed):createLevel(s.mode,s.level,s.seed)).plan;for(const action of plan){click(`[data-block="${action.id}"]`);for(let i=0;i<Math.abs(action.dx+action.dy);i++)click(`[data-direction="${Math.sign(action.dx)},${Math.sign(action.dy)}"]`);}assert.equal(w.__qa.state.status,'won');advance(650);}
   function pointer(el,type,props={},paint=true){const event=new w.Event(type,{bubbles:true});Object.assign(event,{pointerId:1,button:0,clientX:40,clientY:40,...props});el.dispatchEvent(event);if(paint)frame();}
   return{dom,w,get,click,advance,solve,notes,errors,pointer,frame,frameCount:()=>frames.size,timerCount:()=>intervals.size,saved:()=>JSON.parse(w.localStorage.getItem(KEY)),close:()=>w.close()};
 }
@@ -135,16 +135,22 @@ test('items and keyboard input cancel a pending drag instead of later committing
     a.pointer(b,'pointerup',{clientX:100});assert.deepEqual([a.w.__qa.state.blocks[0].x,a.w.__qa.state.blocks[0].y],[1,2]);assert.equal(a.w.__qa.state.moves,1);
   }finally{a.close();}
 });
-test('all six modes load, display their mechanics and complete through actual block and direction buttons',()=>{
+test('twelve stages progress through real buttons, preview each next gimmick and wait for its explanation',()=>{
   const a=app();try{
-    a.click('#mode-open');assert.equal(a.get('modes').children.length,6);a.click('[data-action="resume"]');assert.equal(a.get('items').children.length,5);
-    for(const mode of ['classic','triple','merge','key','ice','factory']){
-      a.w.__qa.newRun(mode,1);assert.equal(a.get('dock').hidden,mode!=='triple');assert.equal(a.get('factory-bar').hidden,mode!=='factory');
-      if(mode==='key')assert.equal(a.get('blocks').querySelectorAll('.block-key').length,4);
-      if(mode==='ice')assert.equal(a.get('blocks').querySelectorAll('.iced').length,2);
-      a.solve();assert.equal(a.get('modal').open,true);assert.match(a.get('modal-content').textContent,/완벽한 블룸/);assert.ok(a.saved().run.rewarded);
+    assert.equal(a.get('mode-open'),null);assert.equal(a.w.document.querySelector('[data-mode]'),null);assert.equal(a.get('items').children.length,5);
+    for(let stage=1;stage<=12;stage++){
+      const s=a.w.__qa.state;assert.equal(s.stage,stage);assert.equal(s.started,true);assert.equal(a.get('stage-number').textContent,String(stage));
+      assert.equal(a.get('dock').hidden,!hasGimmick(s,'triple'));assert.equal(a.get('factory-bar').hidden,!hasGimmick(s,'factory'));assert.equal(a.get('lift').hidden,!hasGimmick(s,'lift'));
+      if(hasGimmick(s,'key'))assert.ok(a.get('blocks').querySelectorAll('.block-key').length);
+      if(hasGimmick(s,'ice'))assert.equal(a.get('blocks').querySelectorAll('.iced').length,2);
+      a.solve();assert.equal(a.get('modal').open,true);assert.match(a.get('modal-content').textContent,/클리어/);assert.ok(a.saved().run.rewarded);assert.equal(a.saved().profile.stage,stage+1);
+      assert.match(a.w.document.querySelector('.next-stage').textContent,new RegExp(stageInfo(stage+1).shortTitle));
+      a.click('[data-action="next"]');assert.equal(a.w.__qa.state.stage,stage+1);assert.equal(a.w.__qa.state.started,false);assert.equal(a.get('modal').dataset.kind,'ready');
+      assert.equal(a.get('modal-title').textContent,stageInfo(stage+1).title);assert.equal(a.w.document.querySelector('.intro-description').textContent,stageInfo(stage+1).description);
+      const time=a.w.__qa.state.time,moves=a.w.__qa.state.moves,items=JSON.stringify(a.w.__qa.profile.items);a.advance(5000);a.click('[data-block]');a.click('[data-direction="1,0"]');a.click('[data-item="hammer"]');
+      assert.equal(a.w.__qa.state.time,time);assert.equal(a.w.__qa.state.moves,moves);assert.equal(JSON.stringify(a.w.__qa.profile.items),items);a.click('[data-action="start"]');
     }
-    assert.equal(a.w.__qa.profile.wins,6);assert.deepEqual(a.errors,[]);
+    assert.equal(a.w.__qa.profile.wins,12);assert.match(stageInfo(13).introLabel,/응용/);assert.deepEqual(a.errors,[]);
   }finally{a.close();}
 });
 test('pause, modal and hidden page protect time; freeze consumes exactly one item',()=>{
@@ -173,7 +179,14 @@ test('shop debits exact prices; bundle and shared daily reward cannot be claimed
 });
 test('winning records coins before modal and reload neither duplicates rewards nor loses level progress',()=>{
   const a=app();let saved;try{a.solve();saved=a.saved();assert.equal(saved.profile.wins,1);assert.equal(saved.profile.levels.classic,2);assert.equal(saved.profile.coins,480);a.click('#modal-close');assert.equal(a.timerCount(),0,'closing a finished result must not restart a clock');a.click('#pause');a.click('[data-action="pass"]');a.click('[data-action="pass-claim"][data-value="3"]');assert.equal(a.w.__qa.profile.coins,600);}finally{a.close();}
-  const b=app(saved);try{assert.equal(b.w.__qa.profile.coins,480);assert.equal(b.w.__qa.profile.wins,1);assert.equal(b.get('modal').open,true);b.click('[data-action="next"]');assert.equal(b.w.__qa.state.level,2);}finally{b.close();}
+  const b=app(saved);try{assert.equal(b.w.__qa.profile.coins,480);assert.equal(b.w.__qa.profile.wins,1);assert.equal(b.get('modal').open,true);b.click('[data-action="next"]');assert.equal(b.w.__qa.state.stage,2);assert.equal(b.w.__qa.state.started,false);}finally{b.close();}
+});
+
+test('help or shop during the clear animation still opens the result and next stage',()=>{
+  for(const button of ['#help','#shop-open']){const a=app();try{
+    a.w.__qa.setState({...a.w.__qa.state,blocks:[piece(0,0,0,'coral')],initial:1,total:1,queue:[],plan:[]});a.click('[data-block="0"]');a.click('[data-direction="0,-1"]');assert.equal(a.w.__qa.state.status,'won');
+    a.click(button);a.advance(1000);assert.equal(a.get('modal').dataset.kind,'won');a.click('[data-action="next"]');assert.equal(a.w.__qa.state.stage,2);assert.equal(a.get('modal').dataset.kind,'ready');
+  }finally{a.close();}}
 });
 test('loss recovery debits once, empties dock, and adds 45 seconds; fresh retry preserves spent inventory',()=>{
   const a=app();try{
@@ -204,6 +217,33 @@ test('all local page assets and portfolio links resolve; original games remain l
 test('start is touch accessible and reading the ready screen consumes no time',()=>{
   const a=app(null,{ready:true});try{const time=a.w.__qa.state.time;assert.equal(a.get('modal').open,true);a.advance(12000);assert.equal(a.w.__qa.state.time,time);a.click('[data-action="start"]');assert.equal(a.get('modal').open,false);a.advance(1500);assert.ok(a.w.__qa.state.time<time);}finally{a.close();}
 });
+
+test('an unread stage briefing survives cancel, reload and tab restoration without spending time or items',()=>{
+  const a=app();let saved;try{
+    a.solve();a.click('[data-action="next"]');const time=a.w.__qa.state.time;
+    a.get('modal').dispatchEvent(new a.w.Event('cancel',{cancelable:true}));a.click('#modal-close');assert.equal(a.get('modal').dataset.kind,'ready');
+    a.w.dispatchEvent(new a.w.PageTransitionEvent('pagehide',{persisted:true}));a.w.dispatchEvent(new a.w.PageTransitionEvent('pageshow',{persisted:true}));a.advance(10000);
+    assert.equal(a.w.__qa.state.time,time);assert.equal(a.timerCount(),0);saved=a.saved();assert.equal(saved.run.started,false);
+  }finally{a.close();}
+  const b=app(saved,{ready:true});try{
+    assert.equal(b.w.__qa.state.stage,2);assert.equal(b.w.__qa.profile.wins,1);assert.equal(b.w.__qa.profile.coins,480);assert.equal(b.get('modal').dataset.kind,'ready');
+    b.advance(12000);assert.equal(b.w.__qa.state.time,saved.run.time);b.click('[data-action="start"]');b.advance(1000);assert.ok(b.w.__qa.state.time<saved.run.time);
+    b.click('#pause');b.click('#restart');b.click('[data-action="restart-confirm"]');assert.equal(b.w.__qa.state.stage,2);assert.equal(b.w.__qa.state.seed,saved.run.seed);assert.equal(b.w.__qa.state.started,false);assert.equal(b.w.__qa.profile.stage,2);assert.equal(b.get('modal').dataset.kind,'ready');
+  }finally{b.close();}
+});
+
+test('legacy mode saves keep their board and economy, explain actual mechanics, then join stage one',()=>{
+  const profile=newProfile();delete profile.stage;profile.coins=900;profile.wins=12;profile.levels.ice=7;
+  const run={...createLevel('ice',7,5932),started:true,time:100};
+  const a=app({run,profile,history:[run]},{ready:true});try{
+    assert.equal(a.w.__qa.state.campaignLegacy,true);assert.equal(a.w.__qa.profile.stage,1);assert.equal(a.w.__qa.profile.coins,900);
+    assert.equal(JSON.stringify(a.w.__qa.state.blocks),JSON.stringify(run.blocks));assert.match(a.get('stage-label').textContent,/이어서/);
+    assert.equal(a.w.document.querySelector('[data-gimmick="key"]'),null);assert.equal(a.w.document.querySelector('[data-gimmick-art]').dataset.gimmickArt,'ice');
+    a.advance(4000);assert.equal(a.w.__qa.state.time,100);a.click('[data-action="start"]');a.click('[data-item="undo"]');assert.equal(a.w.__qa.state.started,true);assert.equal(a.w.__qa.profile.items.undo,4);
+    a.solve();assert.equal(a.w.__qa.profile.stage,1);assert.equal(a.w.__qa.profile.wins,13);const coins=a.w.__qa.profile.coins;
+    a.click('[data-action="next"]');assert.equal(a.w.__qa.state.stage,1);assert.equal(a.w.__qa.state.campaignLegacy,undefined);assert.equal(a.w.__qa.state.started,false);assert.equal(a.w.__qa.profile.coins,coins);assert.deepEqual(a.errors,[]);
+  }finally{a.close();}
+});
 test('visibility changes cancel pointer capture and reset dragged block transforms',()=>{
   const a=app();try{const b=a.w.document.querySelector('[data-block]');a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:85});assert.ok(b.classList.contains('dragging'));const moves=a.w.__qa.state.moves;
     Object.defineProperty(a.w.document,'hidden',{value:true,configurable:true});a.w.document.dispatchEvent(new a.w.Event('visibilitychange'));assert.equal(b.style.transform,'');assert.equal(b.classList.contains('dragging'),false);assert.equal(a.timerCount(),0);
@@ -219,7 +259,7 @@ test('bfcache restores one clock; final page exit releases timers, effects, audi
 });
 test('long press explains an item without spending it and a new run cancels a pending hint',()=>{
   const a=app();try{const b=a.w.document.querySelector('[data-item="hammer"]');a.pointer(b,'pointerdown');a.advance(550);a.pointer(b,'pointerup');b.click();assert.equal(a.w.__qa.profile.items.hammer,3);assert.match(a.get('toast').textContent,/선택 블록/);
-    a.click('[data-item="hint"]');a.w.__qa.newRun('merge',1);a.advance(100);assert.equal(a.w.__qa.profile.items.hint,5);assert.equal(a.w.__qa.state.mode,'merge');assert.equal(a.get('hint-arrow').hidden,true);
+    a.click('[data-item="hint"]');a.w.__qa.newRun(4);a.advance(100);assert.equal(a.w.__qa.profile.items.hint,5);assert.equal(a.w.__qa.state.mode,'merge');assert.equal(a.get('hint-arrow').hidden,true);
   }finally{a.close();}
 });
 test('idle HUD ticks avoid rewriting unchanged numbers',()=>{

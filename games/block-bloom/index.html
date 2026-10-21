@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#201536"><meta name="description" content="같은 색 출구로 블록을 밀어 탈출! 여섯 가지 퍼즐과 다섯 부스터를 휴대폰에서 바로 플레이하세요.">
-<title>블록 블룸 — 컬러를 터뜨려!</title><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="preload" href="assets/fonts/bloom-ui.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="styles.css?v=3">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#201536"><meta name="description" content="같은 색 출구로 블록을 밀어 탈출! 스테이지마다 새 기믹을 배우고 조합하는 퍼즐을 휴대폰에서 바로 플레이하세요.">
+<title>블록 블룸 — 컬러를 터뜨려!</title><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="preload" href="assets/fonts/bloom-ui.woff2?v=2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
 <main class="game-shell" aria-label="블록 블룸">
-<header class="game-header"><button class="mode-switch" id="mode-open" aria-label="모드 선택"><span id="mode-title">컬러 탈출</span><span class="level-badge" id="level-badge" aria-label="레벨 1">1</span><span class="mode-chevron" aria-hidden="true">⌄</span></button><button class="icon-button" id="help" aria-label="플레이 방법"><img src="assets/icons/question.png" alt="" width="24" height="24"></button><button class="icon-button" id="pause" aria-label="일시 정지"><img src="assets/icons/pause.png" alt="" width="24" height="24"></button></header>
+<header class="game-header"><div class="stage-display" id="stage-display" role="group" aria-label="스테이지 1"><strong id="stage-number">1</strong><span class="stage-label" id="stage-label">스테이지</span><span class="stage-name" id="stage-name">첫 탈출</span></div><button class="icon-button" id="help" aria-label="이번 기믹 안내"><img src="assets/icons/question.png" alt="" width="24" height="24"></button><button class="icon-button" id="pause" aria-label="일시 정지"><img src="assets/icons/pause.png" alt="" width="24" height="24"></button></header>
 <section class="hud" aria-label="현재 상태"><div class="timer" id="timer"><span class="hud-label">남은 시간 <span id="freeze-time"></span></span><strong id="time">03:00</strong></div><div class="hud-goal"><span class="hud-label"><span class="normal-goal">탈출</span><span id="fever-banner" hidden>피버 ×2</span></span><strong id="cleared">0 / 8</strong></div><button class="wallet" id="shop-open" aria-label="코인 상점"><span class="hud-label"><span class="coin" aria-hidden="true">✦</span> 코인 ＋</span><strong id="coins">350</strong></button></section>
 <section class="play-space" aria-label="플레이 영역">
 <div class="board-stage" id="board-stage"><div class="board-aura" aria-hidden="true"></div><div class="board-frame" id="board-frame"><div class="gates" id="gates" aria-label="색상별 출구"></div><div class="board" id="board" aria-label="6×6 퍼즐 보드"><div class="board-grid" aria-hidden="true"></div><div id="platforms" aria-hidden="true"></div><div id="blocks"></div><div id="hint-arrow" aria-hidden="true" hidden></div></div></div><div id="fx-layer" aria-hidden="true"></div><div id="combo-label" class="combo-label" aria-live="polite"></div></div>
@@ -18,5 +18,5 @@
 </main>
 <div class="toast" id="toast" role="status" hidden></div>
 <dialog id="modal" aria-labelledby="modal-title"><button class="modal-close" id="modal-close" aria-label="닫기">×</button><div id="modal-content"></div></dialog>
-<script type="module" src="game.mjs?v=4"></script>
+<script type="module" src="game.mjs?v=5"></script>
 </body></html>
