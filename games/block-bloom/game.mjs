@@ -1,4 +1,5 @@
 import { SIZE, COLORS, MODES, GATES, ITEMS, ITEM_COSTS, createLevel, move, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState, migrateRun } from './rules.mjs?v=2';
+import { createDrag, dragBy } from './drag.mjs?v=1';
 
 const $ = id => document.getElementById(id);
 const KEY = 'block-bloom:v1';
@@ -6,7 +7,7 @@ const itemColors = { hammer: '#ff99b2', freeze: '#8cdfff', hint: '#ffdd8d', undo
 const shortItems = { hammer: '해머', freeze: '빙결', hint: '힌트', undo: '되돌림', magnet: '자석' };
 const effectTimers = new Set(), oscillators = new Set(), outputs = new Set();
 const lifecycle = new AbortController();
-let timerId = null, runEpoch = 0, disposed = false, boardObserver;
+let timerId = null, runEpoch = 0, disposed = false, boardObserver, settleAnimation = null;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 let profile = newProfile(), state, history = [], selected = null, armed = null, hint = null, modalKind = '', toastTimer, busy = false;
 let activeTime = 0, lastClear = -100, combo = 0, feverUntil = 0, lastFrame = performance.now(), lastSave = 0, audio, storageWarning = false;
@@ -27,6 +28,7 @@ function stopAudio() {
   if (audio?.state === 'running') void audio.suspend?.().catch(() => {});
 }
 function clearEffects() {
+  cancelSettle();
   for (const id of effectTimers) clearTimeout(id); effectTimers.clear(); busy = false;
   $('fx-layer').replaceChildren(); $('combo-label').textContent = ''; $('toast').hidden = true;
   $('board-frame').classList.remove('impact','blocked');
@@ -47,6 +49,7 @@ function colorStyle(color) { const c = COLORS[color]; return `--piece:${c.hex};-
 function canAnimate() { return profile.motion && !reduced.matches; }
 function syncPreferences() {
   document.body.classList.toggle('reduced-motion', !canAnimate()); document.body.dataset.skin = profile.skin;
+  if (!canAnimate()) cancelSettle();
 }
 function sound(kind = 'move', strength = 1) {
   if (!profile.sound) return;
@@ -176,7 +179,7 @@ function complete() {
 }
 function commit(result,{remember=true}={}) {
   if(!result.ok)return false;
-  cancelDrag();
+  cancelDrag();cancelSettle();
   if(remember){history.push(snapshot(state));if(history.length>30)history.shift();}
   state=result.state;hint=null;armed=null;
   if(!state.blocks.some(b=>b.id===selected))selected=null;
@@ -281,64 +284,58 @@ function onAction(action,value) {
 }
 
 let drag=null,itemPress=null,suppressItemClick=false;
-function cancelDrag(){if(!drag)return;const current=drag;drag=null;current.el.classList.remove('dragging');current.el.style.transform='';try{if(current.el.hasPointerCapture?.(current.pointer))current.el.releasePointerCapture(current.pointer);}catch{}}
+function cancelSettle(){const current=settleAnimation;settleAnimation=null;current?.animation.cancel();}
+function cancelDrag(){if(!drag)return;const current=drag;drag=null;if(current.frame!==null)cancelAnimationFrame(current.frame);current.el.classList.remove('dragging');current.el.style.transform='';try{if(current.el.hasPointerCapture?.(current.pointer))current.el.releasePointerCapture(current.pointer);}catch{}}
+function paintDrag(current){
+  const vx=Math.round((current.path.x-current.path.origin.x)*current.cell*100)/100,vy=Math.round((current.path.y-current.path.origin.y)*current.cell*100)/100;
+  current.el.style.transform=`translate(${vx}px,${vy}px)`;
+}
+function queueDragFrame(){
+  const current=drag;if(current.frame!==null)return;
+  current.frame=requestAnimationFrame(()=>{current.frame=null;if(drag===current)paintDrag(current);});
+}
 listen($('blocks'),'pointerdown',event=>{
   const el=event.target.closest('[data-block]');if(!el||event.button>0||drag||state.status!=='playing'||state.started===false||$('modal').open||busy)return;
   const id=Number(el.dataset.block);if(armed){selectBlock(id);return;}
   selected=id;hint=null;
   $('blocks').querySelectorAll('.block').forEach(b=>{b.classList.toggle('selected',Number(b.dataset.block)===id);b.setAttribute('aria-pressed',String(Number(b.dataset.block)===id));});renderHint();
-  const b=state.blocks.find(b=>b.id===id);setText('instruction',`${COLORS[b.color].name} 선택`);
-  drag={id,el,x:event.clientX,y:event.clientY,pointer:event.pointerId,origin:b,preview:state,events:[],offsetX:0,offsetY:0};el.setPointerCapture?.(event.pointerId);
+  const path=createDrag(state,id),cell=$('board').clientWidth/SIZE;
+  // Re-grabbing a settling block starts at the position currently under the pointer.
+  if(settleAnimation?.el===el&&cell>0){const rect=el.getBoundingClientRect(),board=$('board').getBoundingClientRect();path.x=(rect.left-board.left)/cell;path.y=(rect.top-board.top)/cell;}
+  cancelSettle();setText('instruction',`${COLORS[path.origin.color].name} 선택`);
+  drag={id,el,x:event.clientX,y:event.clientY,pointer:event.pointerId,path,cell,frame:null};el.setPointerCapture?.(event.pointerId);
+  paintDrag(drag);
 });
-function finishDrag(){
-  const current=drag,b=current.preview.blocks.find(b=>b.id===current.id);cancelDrag();
-  if(!b||b.x!==current.origin.x||b.y!==current.origin.y) {
-    // A whole pointer path is one undoable move; never restore the clock from its preview.
-    commit({ok:true,state:{...current.preview,moves:state.moves+1,time:state.time,frozen:state.frozen},events:current.events});
-  } else if(current.blocked)blockedMove(current.id);
+function settleBlock(current){
+  const block=state.blocks.find(b=>b.id===current.id),el=$('blocks').querySelector(`[data-block="${current.id}"]`);
+  if(!block||!el?.animate||!canAnimate())return;
+  const x=(current.path.x-block.x)*current.cell,y=(current.path.y-block.y)*current.cell;
+  if(Math.hypot(x,y)<.1)return;
+  const animation=el.animate([{transform:`translate(${x}px,${y}px)`},{transform:'translate(0px,0px)'}],{duration:100,easing:'cubic-bezier(.2,.8,.2,1)'});
+  settleAnimation={el,animation};animation.onfinish=()=>{if(settleAnimation?.animation===animation)settleAnimation=null;};
 }
-function dragOffset(b,axis,offset,across){
-  if(!offset)return 0;
-  const horizontal=axis==='x',size=horizontal?b.w:b.h,other=horizontal?'y':'x',otherSize=horizontal?b.h:b.w,sign=Math.sign(offset);
-  const step=move(drag.preview,b.id,horizontal?sign:0,horizontal?0:sign);
-  const exits=step.ok&&!step.state.blocks.some(block=>block.id===b.id)&&step.events.some(e=>e.type==='exit');
-  const merged=step.events.find(e=>e.type==='merge')?.block.id;
-  let limit=sign>0?SIZE-b[axis]-size:b[axis];if(exits)limit++;
-  for(const block of drag.preview.blocks){
-    if(block.id===b.id||block.id===merged||b[other]+across>=block[other]+(horizontal?block.h:block.w)||b[other]+across+otherSize<=block[other])continue;
-    const gap=sign>0?block[axis]-b[axis]-size:b[axis]-block[axis]-(horizontal?block.w:block.h);
-    if(gap>=0)limit=Math.min(limit,gap);
-  }
-  if(Math.abs(offset)>limit+.05)drag.blocked=true;
-  return sign*Math.min(Math.abs(offset),limit);
+function finishDrag(){
+  const current=drag,path=current.path,b=path.state.blocks.find(b=>b.id===current.id);cancelDrag();
+  if(!b||b.x!==path.origin.x||b.y!==path.origin.y) {
+    // A whole pointer path is one undoable move; never restore the clock from its preview.
+    commit({ok:true,state:{...path.state,moves:state.moves+1,time:state.time,frozen:state.frozen},events:path.events});
+  } else if(path.blocked)blockedMove(current.id);
+  settleBlock(current);
 }
 function updateDrag(event){
   if(!drag||event.pointerId!==drag.pointer)return;
   const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
-  if(!drag.el.classList.contains('dragging')&&Math.hypot(dx,dy)<8)return;
-  drag.el.classList.add('dragging');const cell=$('board').clientWidth/SIZE;if(cell<=0)return;
+  if(!dx&&!dy)return;
+  drag.el.classList.add('dragging');if(drag.cell<=0)return;
+  dragBy(drag.path,dx/drag.cell,dy/drag.cell);
   drag.x=event.clientX;drag.y=event.clientY;
-  // Sample the pointer segment so fast or diagonal input cannot skip an occupied cell.
-  const samples=Math.min(64,Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/(cell/4))));
-  for(let i=0;i<samples;i++){
-    drag.offsetX+=dx/cell/samples;drag.offsetY+=dy/cell/samples;
-    const axes=Math.abs(drag.offsetX)>=Math.abs(drag.offsetY)?['x','y']:['y','x'];
-    for(const axis of axes){
-      const key=axis==='x'?'offsetX':'offsetY',sign=Math.sign(drag[key]);
-      if(Math.abs(drag[key])<.5)continue;
-      const result=move(drag.preview,drag.id,axis==='x'?sign:0,axis==='y'?sign:0);
-      if(!result.ok){drag[key]=0;continue;}
-      drag.preview=result.state;drag.events.push(...result.events);drag[key]-=sign;
-      if(!result.state.blocks.some(b=>b.id===drag.id)){finishDrag();return;}
-    }
-    const b=drag.preview.blocks.find(b=>b.id===drag.id);
-    drag.offsetX=dragOffset(b,'x',drag.offsetX,0);drag.offsetY=dragOffset(b,'y',drag.offsetY,drag.offsetX);
-  }
-  const b=drag.preview.blocks.find(b=>b.id===drag.id);
-  const vx=Math.round((b.x-drag.origin.x+drag.offsetX)*cell*100)/100,vy=Math.round((b.y-drag.origin.y+drag.offsetY)*cell*100)/100;
-  drag.el.style.transform=`translate(${vx}px,${vy}px)`;
+  if(drag.path.terminal){finishDrag();return;}queueDragFrame();
 }
-listen($('blocks'),'pointermove',updateDrag);
+listen($('blocks'),'pointermove',event=>{
+  if(!drag||event.pointerId!==drag.pointer)return;
+  for(const point of event.getCoalescedEvents?.()||[]) {if(!drag)break;updateDrag({pointerId:event.pointerId,clientX:point.clientX,clientY:point.clientY});}
+  updateDrag(event);
+});
 function endDrag(event,cancel=false){
   if(!drag||event.pointerId!==drag.pointer)return;
   if(cancel){cancelDrag();return;}updateDrag(event);if(drag)finishDrag();
@@ -373,7 +370,7 @@ listen($('modal'),'close',()=>{lastFrame=performance.now();if(!document.hidden)s
 listen($('help'),'click',()=>openModal('help'));listen($('shop-open'),'click',()=>openModal('shop'));listen($('mode-open'),'click',()=>openModal('modes'));
 listen($('pause'),'click',()=>openModal(state.status!=='playing'?state.status:state.started===false?'ready':'pause'));
 reduced.addEventListener?.('change',syncPreferences,{signal:lifecycle.signal});
-function viewportChanged(){cancelDrag();layoutBoard();}
+function viewportChanged(){cancelDrag();cancelSettle();layoutBoard();}
 listen(window,'resize',viewportChanged);if(window.visualViewport)listen(window.visualViewport,'resize',viewportChanged);
 if(window.ResizeObserver){boardObserver=new ResizeObserver(layoutBoard);boardObserver.observe($('board-stage'));}
 function stopClock(){if(timerId!==null){clearInterval(timerId);timerId=null;}}

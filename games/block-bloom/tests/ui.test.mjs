@@ -5,12 +5,14 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { createLevel, GATES, COLORS } from '../rules.mjs';
 
 const root=new URL('../',import.meta.url),html=readFileSync(new URL('index.html',root),'utf8');
-const source=['rules.mjs','game.mjs'].map(file=>readFileSync(new URL(file,root),'utf8').replace(/^import .+;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
+const source=['rules.mjs','drag.mjs','game.mjs'].map(file=>readFileSync(new URL(file,root),'utf8').replace(/^import .+;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
 const KEY='block-bloom:v1';
 function app(saved=null,{brokenStorage=false,reduced=false,ready=false}={}) {
   const errors=[],notes=[],vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM(html,{url:'https://example.test/games/block-bloom/',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc}),w=dom.window;
-  let now=0,nextId=0;const timeouts=new Map(),intervals=new Map(),noop=()=>{};
+  let now=0,nextId=0;const timeouts=new Map(),intervals=new Map(),frames=new Map(),noop=()=>{};
+  w.requestAnimationFrame=fn=>{const id=++nextId;frames.set(id,fn);return id;};w.cancelAnimationFrame=id=>frames.delete(id);
+  function frame(){const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(now);}
   w.matchMedia=()=>({matches:reduced,addEventListener:noop});w.performance.now=()=>now;
   w.setTimeout=(fn,ms=0)=>{const id=++nextId;timeouts.set(id,{fn,at:now+ms});return id;};w.clearTimeout=id=>timeouts.delete(id);
   w.setInterval=(fn,ms)=>{const id=++nextId;intervals.set(id,{fn,ms,next:now+ms});return id;};w.clearInterval=id=>intervals.delete(id);
@@ -24,8 +26,8 @@ function app(saved=null,{brokenStorage=false,reduced=false,ready=false}={}) {
   function click(selector){const el=w.document.querySelector(selector);assert.ok(el,'missing '+selector);assert.equal(el.disabled,false,'disabled '+selector);el.click();}
   function advance(ms){const until=now+ms;while(now<until){now=Math.min(until,now+50);for(const item of intervals.values())if(now>=item.next){item.next=now+item.ms;item.fn();}for(const [id,item]of[...timeouts])if(now>=item.at){timeouts.delete(id);item.fn();}}}
   function solve(){const s=w.__qa.state,plan=createLevel(s.mode,s.level,s.seed).plan;for(const action of plan){click(`[data-block="${action.id}"]`);for(let i=0;i<Math.abs(action.dx+action.dy);i++)click(`[data-direction="${Math.sign(action.dx)},${Math.sign(action.dy)}"]`);}assert.equal(w.__qa.state.status,'won');advance(650);}
-  function pointer(el,type,props={}){const event=new w.Event(type,{bubbles:true});Object.assign(event,{pointerId:1,button:0,clientX:40,clientY:40,...props});el.dispatchEvent(event);}
-  return{dom,w,get,click,advance,solve,notes,errors,pointer,timerCount:()=>intervals.size,saved:()=>JSON.parse(w.localStorage.getItem(KEY)),close:()=>w.close()};
+  function pointer(el,type,props={},paint=true){const event=new w.Event(type,{bubbles:true});Object.assign(event,{pointerId:1,button:0,clientX:40,clientY:40,...props});el.dispatchEvent(event);if(paint)frame();}
+  return{dom,w,get,click,advance,solve,notes,errors,pointer,frame,frameCount:()=>frames.size,timerCount:()=>intervals.size,saved:()=>JSON.parse(w.localStorage.getItem(KEY)),close:()=>w.close()};
 }
 
 function dragBoard(a,blocks,mode='classic') {
@@ -34,6 +36,45 @@ function dragBoard(a,blocks,mode='classic') {
   return a.w.document.querySelector(`[data-block="${blocks[0].id}"]`);
 }
 const piece=(id,x,y,color='blue',extra={})=>({id,x,y,color,w:1,h:1,rank:1,...extra});
+
+test('tiny mouse and touch input follows immediately with one transform write per animation frame',()=>{
+  const a=app();try{const b=dragBoard(a,[piece(0,1,1),piece(1,5,5)]);
+    a.pointer(b,'pointerdown',{pointerType:'touch'});assert.equal(b.style.transform,'translate(0px,0px)');
+    a.pointer(b,'pointermove',{clientX:41,clientY:41,pointerType:'touch'},false);
+    a.pointer(b,'pointermove',{clientX:42,clientY:43,pointerType:'touch'},false);
+    assert.equal(a.frameCount(),1);assert.equal(b.style.transform,'translate(0px,0px)');a.frame();assert.equal(b.style.transform,'translate(2px,3px)');
+    a.pointer(b,'pointermove',{clientX:41,clientY:42});assert.equal(b.style.transform,'translate(1px,2px)');
+    a.pointer(b,'pointermove',{clientX:44,clientY:45},false);a.pointer(b,'pointercancel',{},false);assert.equal(a.frameCount(),0);a.frame();assert.equal(b.style.transform,'');assert.equal(a.w.__qa.state.moves,0);
+  }finally{a.close();}
+});
+
+test('moving beside an obstacle keeps fractional y when only pointer x changes',()=>{
+  const a=app();try{const b=dragBoard(a,[piece(0,1,1),piece(1,2,1),piece(2,5,5)]);a.pointer(b,'pointerdown');
+    for(const [clientX,clientY]of[[60,40],[60,60],[60,69],[60,70],[60,71],[60,80],[60,90],[61,90]])a.pointer(b,'pointermove',{clientX,clientY});
+    assert.equal(b.style.transform,'translate(0px,50px)');a.pointer(b,'pointermove',{clientX:61,clientY:100});a.pointer(b,'pointermove',{clientX:62,clientY:100});assert.equal(b.style.transform,'translate(1px,60px)');
+  }finally{a.close();}
+});
+
+test('coalesced pointer points preserve a turn, and pointerup flushes the final position before committing',()=>{
+  const a=app();try{let b=dragBoard(a,[piece(0,1,1),piece(1,2,1),piece(2,5,5)]);a.pointer(b,'pointerdown');
+    a.pointer(b,'pointermove',{clientX:100,clientY:100,getCoalescedEvents:()=>[{clientX:40,clientY:100},{clientX:100,clientY:100}]},false);
+    assert.equal(a.frameCount(),1);a.frame();assert.equal(b.style.transform,'translate(60px,60px)');a.pointer(b,'pointerup',{clientX:100,clientY:100});assert.deepEqual([a.w.__qa.state.blocks[0].x,a.w.__qa.state.blocks[0].y],[2,2]);
+    b=dragBoard(a,[piece(0,1,1),piece(1,5,5)]);a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:60},false);a.pointer(b,'pointerup',{clientX:80},false);
+    assert.equal(a.frameCount(),0);assert.equal(a.w.__qa.state.blocks[0].x,2);assert.equal(a.w.__qa.state.moves,1);a.frame();assert.equal(b.isConnected,false);
+  }finally{a.close();}
+});
+
+test('release settles briefly; re-grabbing preserves its displayed position and pause cancels animation',()=>{
+  const a=app();try{const animations=[];a.w.Element.prototype.animate=function(keyframes,options){const animation={cancelled:false,cancel(){this.cancelled=true;}};animations.push({keyframes,options,animation});return animation;};
+    const b=dragBoard(a,[piece(0,1,1),piece(1,5,5)]);a.pointer(b,'pointerdown');a.pointer(b,'pointermove',{clientX:60});a.pointer(b,'pointerup',{clientX:60});
+    assert.equal(animations.length,1);assert.ok(Math.abs(Number.parseFloat(animations[0].keyframes[0].transform.slice(10))-20)<.01);assert.equal(animations[0].options.duration,100);
+    b.getBoundingClientRect=()=>({left:75,top:60});a.get('board').getBoundingClientRect=()=>({left:0,top:0});
+    a.pointer(b,'pointerdown',{clientX:140,clientY:80});assert.equal(animations[0].animation.cancelled,true);assert.equal(b.style.transform,'translate(15px,0px)');
+    a.pointer(b,'pointermove',{clientX:141,clientY:80});assert.equal(b.style.transform,'translate(16px,0px)');a.pointer(b,'pointerup',{clientX:141,clientY:80});assert.equal(animations.length,2);
+    a.click('#pause');assert.equal(animations[1].animation.cancelled,true);assert.equal(a.frameCount(),0);
+  }finally{a.close();}
+  const quiet=app(null,{reduced:true});try{let animations=0;quiet.w.Element.prototype.animate=()=>{animations++;};const b=dragBoard(quiet,[piece(0,1,1),piece(1,5,5)]);quiet.pointer(b,'pointerdown');quiet.pointer(b,'pointerup',{clientX:60});assert.equal(animations,0);}finally{quiet.close();}
+});
 
 test('one held drag follows right, down, left and up, then undoes the entire path once',()=>{
   const a=app();try{const b=dragBoard(a,[piece(0,1,1),piece(1,5,5)]);
