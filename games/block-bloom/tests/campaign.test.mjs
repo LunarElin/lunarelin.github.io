@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MODES, createLevel, createStage, stageInfo, runInfo, hasGimmick, boardKey, move, guide, elevate, useItem, continueRun, newProfile, restoreProfile, validRun, migrateCampaignRun, winReward, lessonStep, tick, copyState } from '../rules.mjs';
 
-const curriculum = [[], ['key'], ['key','ice'], ['merge'], ['triple'], ['factory'], ['factory','lift'], ['triple','key'], ['merge','ice'], ['factory','lift','ice'], ['triple','key','ice'], ['factory','lift','key']];
+const curriculum = [[], ['key'], ['key','ice'], ['merge'], ['triple'], ['factory'], ['factory'], ['triple','key'], ['merge','ice'], ['factory','ice'], ['triple','key','ice'], ['factory','key']];
 const block=(id,color,x,y,extra={})=>({id,color,x,y,w:1,h:1,rank:1,...extra});
 function finish(state) {
   for (const action of state.plan) {
-    const before=boardKey(state),result=action.action==='lift'?elevate(state,action.id):move(state,action.id,action.dx,action.dy);
+    assert.equal(action.action,undefined,'construction paths contain ordinary moves only');
+    const before=boardKey(state),result=move(state,action.id,action.dx,action.dy);
     assert.ok(result.ok,`stage ${state.stage ?? state.mode}: ${JSON.stringify(action)}`);
     assert.equal(boardKey(state),before,'construction moves do not mutate the input');
     state=result.state;assert.ok(validRun(state),'each intermediate board remains saveable');
@@ -21,7 +22,7 @@ test('the first twelve stages teach one new gimmick or verified combination befo
   for(let number=1;number<=12;number++) {
     const info=stageInfo(number);assert.equal(info.number,number);assert.deepEqual(info.gimmicks,curriculum[number-1]);
     assert.ok(info.title&&info.shortTitle&&info.description);assert.ok(info.tips.length>=2&&info.tips.length<=3);
-    assert.equal(info.introLabel,number===1?'기본 규칙':number<=7?'새 기믹':'새 조합');
+    assert.equal(info.introLabel,number===1?'기본 규칙':number===7?'기믹 복습':number<=6?'새 기믹':'새 조합');
   }
   assert.equal(new Set(Array.from({length:12},(_,i)=>stageInfo(i+1).title)).size,12);
   for(let number=13;number<=27;number++) {
@@ -48,20 +49,21 @@ test('hints replay each campaign recipe and terminate instead of following a leg
     let state=createStage(number,59),steps=0;
     while(state.status==='playing'&&steps++<700) {
       const action=guide(state,3000);assert.ok(action,`stage ${number} has a legal hint`);
-      const result=action.action==='lift'?elevate(state,action.id):move(state,action.id,action.dx,action.dy);assert.ok(result.ok);state=result.state;
+      assert.equal(action.action,undefined);const result=move(state,action.id,action.dx,action.dy);assert.ok(result.ok);state=result.state;
     }
     assert.equal(state.status,'won',`stage ${number} hint path terminates`);
   }
 });
 
-test('factory introduction and elevator introduction are distinct while legacy factories retain the lift',()=>{
-  const factory=createStage(6,1),lift=createStage(7,1),legacy=createLevel('factory',1,1);
+test('factory lessons and all generated stages use no elevator, including old explicit flags',()=>{
+  const factory=createStage(6,1),practice=createStage(7,1),legacy=createLevel('factory',1,1);
   assert.equal(hasGimmick(factory,'factory'),true);assert.equal(hasGimmick(factory,'lift'),false);assert.equal(factory.queue.length,2);
-  assert.equal(hasGimmick(lift,'factory'),true);assert.equal(hasGimmick(lift,'lift'),true);assert.equal(hasGimmick(legacy,'lift'),true);
-  for(const state of [factory,lift,legacy]) {
+  assert.equal(hasGimmick(practice,'factory'),true);assert.equal(hasGimmick(practice,'lift'),false);assert.equal(hasGimmick(legacy,'lift'),false);
+  for(const state of [factory,practice,legacy,{...legacy,gimmicks:['factory','lift']}]) {
     const board=fixture(state,[block(0,'blue',2,2)]),result=elevate(board,0);
-    assert.equal(result.ok,hasGimmick(state,'lift'));if(result.ok)assert.equal(result.state.blocks[0].y,4);
+    assert.equal(result.ok,false);assert.equal(result.state,board);assert.equal(hasGimmick(state,'lift'),false);
   }
+  for(const number of [7,10,12,15,17,20,22,100,9999]){const s=createStage(number,7);assert.ok(!s.gimmicks.includes('lift'));assert.ok(s.plan.every(a=>a.action===undefined));finish(s);}
 });
 
 test('compound generators attach keys and frost without freezing the first required clears',()=>{
@@ -103,7 +105,7 @@ test('legacy runs preserve their actual board mechanics and require an explanati
     assert.equal(JSON.stringify(old),before);assert.ok(validRun(migrated));assert.equal(migrated.stage,expectedStage[mode]);
     assert.equal(migrated.campaignLegacy,true);assert.equal(migrated.started,false);assert.equal(migrated.time,57.5);assert.equal(migrated.moves,11);
     assert.deepEqual(migrated.blocks,old.blocks);assert.deepEqual(migrated.queue,old.queue);assert.equal(runInfo(migrated).shortTitle,MODES[mode].name);
-    assert.deepEqual(runInfo(migrated).gimmicks,mode==='classic'?[]:mode==='factory'?['factory','lift']:[mode]);
+    assert.deepEqual(runInfo(migrated).gimmicks,mode==='classic'?[]:[mode]);
     migrated.started=true;assert.deepEqual(migrateCampaignRun(migrated),migrated,'reload does not force an acknowledged introduction again');
   }
   const modern={...createStage(11,12),started:true};assert.deepEqual(migrateCampaignRun(modern),modern);
@@ -141,7 +143,7 @@ test('campaign saves reject mismatched recipes, unsafe combinations, malformed f
     {...stage,stage:0},{...stage,stage:10000},{...stage,stage:2},{...stage,level:2},{...stage,mode:'ice'},
     {...stage,gimmicks:['key']},{...stage,gimmicks:['key','ice','ice']},{...stage,gimmicks:['other']},
     {...stage,gimmicks:null},{...stage,campaignLegacy:'true'},{...stage,blocks:[null]},{...stage,reserve:undefined},{...stage,started:undefined},
-    {...createStage(6,1),gimmicks:['factory','lift']},{...migrateCampaignRun(createLevel('ice',1,1)),stage:2},
+    {...createStage(6,1),gimmicks:['factory','lift','ice']},{...migrateCampaignRun(createLevel('ice',1,1)),stage:2},
   ])assert.equal(validRun(corrupt),false,JSON.stringify(corrupt));
   for(const gimmicks of [['merge','triple'],['factory','triple'],['merge','factory'],['lift'],['unknown']])assert.throws(()=>createLevel('classic',1,1,{gimmicks}),RangeError);
   for(const mode of Object.keys(MODES))assert.ok(validRun(createLevel(mode,1,1)),'old saves remain accepted');
@@ -160,7 +162,7 @@ test('first lessons use sparse short boards and only real mechanic actions advan
         assert.equal(step.blockId,action.id);assert.equal(step.action,action.action||'move');assert.ok(step.text&&step.title);
         const invalid=move(state,999,1,0);assert.equal(invalid.state.lessonIndex,state.lessonIndex);
       }
-      const result=action.action==='lift'?elevate(state,action.id):move(state,action.id,action.dx,action.dy);assert.ok(result.ok);
+      const result=move(state,action.id,action.dx,action.dy);assert.ok(result.ok);
       state=result.state;if(step){completed++;assert.equal(state.lessonIndex,completed);}
       assert.equal(before.lessonIndex,completed-(step?1:0),'practice progress never mutates input snapshots');
       assert.ok(validRun(state));
@@ -207,4 +209,40 @@ test('first combinations keep short certified paths across 200 varied seeds and 
     assert.deepEqual(createStage(stage,seed),state);finish(state);
     if(stage===8)assert.ok(state.blocks.every(b=>b.w===1&&b.h===1),'first combination uses small, clearly separated pieces');
   }
+});
+
+test('old elevator practice and its completed snapshots migrate without resetting blocks, clock or progress',()=>{
+  const fresh=createStage(7,513),old={...fresh,gimmicks:['factory','lift'],liftDirection:1,time:197,plan:[{id:0,action:'lift',dx:0,dy:0},...fresh.plan.slice(1)]};
+  assert.ok(validRun(old),'older flags and construction action reach migration instead of discarding the save');
+  const before=JSON.stringify(old),migrated=migrateCampaignRun(old);
+  assert.equal(JSON.stringify(old),before);assert.deepEqual(migrated.blocks,old.blocks);assert.equal(migrated.time,197);assert.equal(migrated.lessonIndex,0);
+  assert.deepEqual(migrated.gimmicks,['factory']);assert.equal(migrated.liftDirection,undefined);assert.ok(migrated.plan.every(a=>a.action===undefined));
+  assert.equal(lessonStep(migrated).goal,'align');assert.equal(lessonStep(migrated).action,'move');finish(migrated);
+  const afterLift={...old,blocks:old.blocks.map(b=>b.id===0?{...b,y:4}:b),lessonIndex:1,moves:1,plan:[]};
+  const resumed=migrateCampaignRun(afterLift);assert.ok(validRun(resumed));assert.deepEqual(resumed.blocks,afterLift.blocks);assert.equal(resumed.lessonIndex,1);assert.equal(lessonStep(resumed).goal,'exit');
+  assert.deepEqual(guide(resumed),{id:0,dx:-3,dy:0},'old post-lift coordinates still follow the current ordinary lesson');
+  let guided=resumed,steps=0;while(guided.status==='playing'&&steps++<100){const action=guide(guided);assert.ok(action);const step=lessonStep(guided);if(step)assert.equal(action.id,step.blockId);guided=move(guided,action.id,action.dx,action.dy).state;}
+  assert.equal(guided.status,'won','restored practice can finish entirely through ordinary guides');
+  let cursor=move(resumed,0,-3,0).state;assert.equal(cursor.lessonIndex,2);
+  for(const action of fresh.plan.slice(2))cursor=move(cursor,action.id,action.dx,action.dy).state;
+  assert.equal(cursor.status,'won');
+  const independent={...afterLift,blocks:afterLift.blocks.filter(b=>b.id!==0),removed:1,lessonIndex:2,score:100};
+  const free=migrateCampaignRun(independent);assert.ok(validRun(free));assert.deepEqual(free.blocks,independent.blocks);assert.equal(lessonStep(free),null);assert.ok(guide(free));
+  assert.deepEqual(migrateCampaignRun(migrated),migrated,'normalization is idempotent for run and undo snapshots');
+});
+
+test('reversing an alignment drag restores its vertical lesson before the next gesture',()=>{
+  let state=createStage(7,17);state=move(state,0,0,2).state;assert.equal(state.lessonIndex,1);
+  state=move(state,0,0,-3).state;assert.equal(state.blocks.find(b=>b.id===0).y,1);assert.equal(state.lessonIndex,0);assert.equal(lessonStep(state).goal,'align');
+  const time=state.time;assert.equal(tick(state,60).time,time);
+  state=move(state,0,0,2).state;assert.equal(state.blocks.find(b=>b.id===0).y,3);assert.equal(state.lessonIndex,1);
+  state=move(state,0,-3,0).state;assert.equal(state.lessonIndex,2);assert.equal(lessonStep(state),null);
+});
+
+test('legacy factory saves keep an already moved board and use ordinary hints without teleporting through blockers',()=>{
+  const old=fixture(createLevel('factory',1,59),[block(0,'blue',2,4),block(1,'gold',2,3)],{gimmicks:['factory','lift'],liftDirection:-1,time:73,started:true});
+  assert.ok(validRun(old));let state=migrateCampaignRun(old);assert.deepEqual(state.blocks,old.blocks);assert.equal(state.time,73);assert.equal(hasGimmick(state,'lift'),false);
+  assert.equal(elevate(state,0).ok,false);assert.equal(move(state,0,0,-1).ok,false,'intervening blocker stays solid');
+  let count=0;while(state.status==='playing'&&count++<100){const action=guide(state,3000);assert.ok(action);assert.equal(action.action,undefined);const result=move(state,action.id,action.dx,action.dy);assert.ok(result.ok);state=result.state;}
+  assert.equal(state.status,'won');
 });

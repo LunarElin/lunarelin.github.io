@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
-import { createLevel, createStage, stageInfo, lessonStep, hasGimmick, newProfile, GATES, COLORS } from '../rules.mjs';
+import { createLevel, createStage, stageInfo, lessonStep, guide, hasGimmick, newProfile, GATES, COLORS } from '../rules.mjs';
 
 const root=new URL('../',import.meta.url),html=readFileSync(new URL('index.html',root),'utf8');
 const source=['rules.mjs','drag.mjs','game.mjs'].map(file=>readFileSync(new URL(file,root),'utf8').replace(/^import .+;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
@@ -26,7 +26,7 @@ function app(saved=null,{brokenStorage=false,reduced=false,ready=false,lessons=f
   const get=id=>w.document.getElementById(id);
   function click(selector){const el=w.document.querySelector(selector);assert.ok(el,'missing '+selector);assert.equal(el.disabled,false,'disabled '+selector);el.click();}
   function advance(ms){const until=now+ms;while(now<until){now=Math.min(until,now+50);for(const item of intervals.values())if(now>=item.next){item.next=now+item.ms;item.fn();}for(const [id,item]of[...timeouts])if(now>=item.at){timeouts.delete(id);item.fn();}}}
-  function solve(){const s=w.__qa.state,plan=(s.stage&&!s.campaignLegacy?createStage(s.stage,s.seed,{layoutVersion:s.layoutVersion||1}):createLevel(s.mode,s.level,s.seed)).plan;for(const action of plan){click(`[data-block="${action.id}"]`);if(action.action==='lift')click('#lift');else for(let i=0;i<Math.abs(action.dx+action.dy);i++)click(`[data-direction="${Math.sign(action.dx)},${Math.sign(action.dy)}"]`);}assert.equal(w.__qa.state.status,'won');advance(650);}
+  function solve(){const s=w.__qa.state,plan=(s.stage&&!s.campaignLegacy?createStage(s.stage,s.seed,{layoutVersion:s.layoutVersion||1}):createLevel(s.mode,s.level,s.seed)).plan;for(const action of plan){click(`[data-block="${action.id}"]`);for(let i=0;i<Math.abs(action.dx+action.dy);i++)click(`[data-direction="${Math.sign(action.dx)},${Math.sign(action.dy)}"]`);}assert.equal(w.__qa.state.status,'won');advance(650);}
   function pointer(el,type,props={},paint=true){const event=new w.Event(type,{bubbles:true});Object.assign(event,{pointerId:1,button:0,clientX:40,clientY:40,...props});el.dispatchEvent(event);if(paint)frame();}
   return{dom,w,get,click,advance,solve,notes,errors,pointer,frame,frameCount:()=>frames.size,timerCount:()=>intervals.size,saved:()=>JSON.parse(w.localStorage.getItem(KEY)),close:()=>w.close()};
 }
@@ -141,7 +141,7 @@ test('twelve stages progress through real buttons, preview each next gimmick and
     assert.equal(a.get('mode-open'),null);assert.equal(a.w.document.querySelector('[data-mode]'),null);assert.equal(a.get('items').children.length,5);
     for(let stage=1;stage<=12;stage++){
       const s=a.w.__qa.state;assert.equal(s.stage,stage);assert.equal(s.started,true);assert.equal(a.get('stage-number').textContent,String(stage));
-      assert.equal(a.get('dock').hidden,!hasGimmick(s,'triple'));assert.equal(a.get('factory-bar').hidden,!hasGimmick(s,'factory'));assert.equal(a.get('lift').hidden,!hasGimmick(s,'lift'));
+      assert.equal(a.get('dock').hidden,!hasGimmick(s,'triple'));assert.equal(a.get('factory-bar').hidden,!hasGimmick(s,'factory'));assert.equal(a.get('lift'),null);assert.equal(a.get('platforms'),null);assert.equal(hasGimmick(s,'lift'),false);
       if(hasGimmick(s,'key'))assert.ok(a.get('blocks').querySelectorAll('.block-key').length);
       if(hasGimmick(s,'ice'))assert.ok(a.get('blocks').querySelectorAll('.iced').length);
       a.solve();assert.equal(a.get('modal').open,true);assert.match(a.get('modal-content').textContent,/클리어/);assert.ok(a.saved().run.rewarded);assert.equal(a.saved().profile.stage,stage+1);
@@ -235,7 +235,7 @@ test('an unread stage briefing survives cancel, reload and tab restoration witho
 
 function practice(a){
   const step=lessonStep(a.w.__qa.state);assert.ok(step);a.click(`[data-block="${step.blockId}"]`);
-  if(step.action==='lift')a.click('#lift');else for(let i=0;i<Math.abs(step.dx+step.dy);i++)a.click(`[data-direction="${Math.sign(step.dx)},${Math.sign(step.dy)}"]`);
+  for(let i=0;i<Math.abs(step.dx+step.dy);i++)a.click(`[data-direction="${Math.sign(step.dx)},${Math.sign(step.dy)}"]`);
 }
 function lessonApp(stage=1){return app({profile:{...newProfile(),stage},run:createStage(stage,731),history:[]},{lessons:true});}
 
@@ -274,12 +274,19 @@ test('partial practice survives reload and tab return; undo reopens the real ste
   }finally{b.close();}
 });
 
-test('elevator practice requires selection and an actual lift; Space cannot bypass its next step',()=>{
+test('generator review uses ordinary alignment and Space never moves a block',()=>{
   const a=lessonApp(7);try{
-    a.click('#lift');assert.equal(a.w.__qa.state.lessonIndex,0);a.click('[data-block="1"]');a.click('#lift');assert.equal(a.w.__qa.state.lessonIndex,0);
-    const block=a.w.document.querySelector('[data-block="0"]');a.pointer(block,'pointerdown',{pointerType:'touch'});a.pointer(block,'pointermove',{clientX:180,clientY:100,pointerType:'touch'});a.pointer(block,'pointerup',{clientX:180,clientY:100,pointerType:'touch'});assert.equal(a.w.__qa.state.blocks[0].y,2);assert.equal(a.w.__qa.state.moves,0);
-    a.w.document.querySelector('[data-block="0"]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true}));assert.equal(a.w.__qa.state.lessonIndex,1);assert.equal(a.w.__qa.state.blocks[0].y,4);assert.equal(a.w.__qa.state.moves,1);
-    a.w.document.querySelector('[data-block="0"]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true}));assert.equal(a.w.__qa.state.blocks[0].y,4);assert.equal(a.w.__qa.state.moves,1);practice(a);assert.equal(lessonStep(a.w.__qa.state),null);
+    assert.equal(a.get('lift'),null);assert.equal(a.get('platforms'),null);assert.doesNotMatch(a.get('modal-content').textContent,/승강기/);a.click('[data-block="0"]');
+    a.w.document.querySelector('[data-block="0"]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true}));assert.equal(a.w.__qa.state.lessonIndex,0);assert.equal(a.w.__qa.state.blocks[0].y,2);assert.equal(a.w.__qa.state.moves,0);
+    practice(a);assert.equal(a.w.__qa.state.lessonIndex,1);assert.ok(a.w.__qa.state.blocks[0].y>=3);const moves=a.w.__qa.state.moves,y=a.w.__qa.state.blocks[0].y;
+    a.w.document.querySelector('[data-block="0"]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true}));assert.equal(a.w.__qa.state.blocks[0].y,y);assert.equal(a.w.__qa.state.moves,moves);practice(a);assert.equal(lessonStep(a.w.__qa.state),null);
+  }finally{a.close();}
+});
+
+test('reversing a single alignment drag before release keeps the matching practice step',()=>{
+  const a=lessonApp(7);try{Object.defineProperty(a.get('board'),'clientWidth',{value:360,configurable:true});const b=a.w.document.querySelector('[data-block="0"]');
+    a.pointer(b,'pointerdown',{pointerType:'touch'});a.pointer(b,'pointermove',{clientY:160});a.pointer(b,'pointermove',{clientY:-20});a.pointer(b,'pointerup',{clientY:-20});
+    assert.equal(a.w.__qa.state.blocks[0].y,1);assert.equal(a.w.__qa.state.lessonIndex,0);assert.match(a.get('lesson-text').textContent,/아래/);for(let i=0;i<3&&a.w.__qa.state.lessonIndex===0;i++)practice(a);assert.equal(a.w.__qa.state.lessonIndex,1);practice(a);assert.equal(lessonStep(a.w.__qa.state),null);
   }finally{a.close();}
 });
 
@@ -289,6 +296,28 @@ test('existing campaign layout and inventory survive reload and an identical ret
     assert.equal(a.w.__qa.state.layoutVersion,1);assert.equal(a.get('lesson-panel').hidden,true);assert.equal(JSON.stringify(a.w.__qa.state.blocks),JSON.stringify(run.blocks));assert.equal(a.w.__qa.profile.coins,987);
     a.click('#pause');a.click('#restart');a.click('[data-action="restart-confirm"]');assert.equal(a.w.__qa.state.layoutVersion,1);assert.equal(JSON.stringify(a.w.__qa.state.blocks),JSON.stringify(run.blocks));a.click('[data-action="start"]');assert.equal(a.get('lesson-panel').hidden,true);a.solve();
   }finally{a.close();}
+});
+
+function retiredLiftSave(index){
+  const run={...createStage(7,731),started:true,time:177.5,gimmicks:['factory','lift'],lessonIndex:index,liftDirection:1,plan:[{id:0,action:'lift',dx:0,dy:0}]};
+  run.blocks=run.blocks.map(b=>b.id===0?{...b,y:index?4:2}:b);if(index===2){run.blocks=run.blocks.filter(b=>b.id!==0);run.removed=1;}
+  return run;
+}
+function finishFromHere(a){
+  let steps=0;while(a.w.__qa.state.status==='playing'&&steps++<250){const action=guide(a.w.__qa.state,3000);assert.ok(action);assert.notEqual(action.action,'lift');a.click(`[data-block="${action.id}"]`);for(let i=0;i<Math.abs(action.dx+action.dy);i++)a.click(`[data-direction="${Math.sign(action.dx)},${Math.sign(action.dy)}"]`);}
+  assert.equal(a.w.__qa.state.status,'won');a.advance(650);
+}
+test('old elevator lessons keep positions and economy, then finish with movement only',()=>{
+  for(const index of [0,1,2]){const run=retiredLiftSave(index),a=app({profile:{...newProfile(),stage:7,coins:987},run,history:[]});try{
+    assert.equal(a.w.__qa.state.stage,7);assert.equal(a.w.__qa.state.layoutVersion,2);assert.equal(a.w.__qa.profile.coins,987);assert.equal(a.w.__qa.state.time,177.5);assert.equal(JSON.stringify(a.w.__qa.state.blocks),JSON.stringify(run.blocks));
+    assert.equal(a.get('lift'),null);assert.equal(a.get('platforms'),null);assert.equal(a.saved().run.gimmicks.includes('lift'),false);assert.doesNotMatch(a.get('lesson-text').textContent,/승강기/);finishFromHere(a);assert.equal(a.w.__qa.profile.stage,8);assert.deepEqual(a.errors,[]);
+  }finally{a.close();}}
+});
+test('undo and reload normalize old elevator history as well as the active board',()=>{
+  const a=app({profile:{...newProfile(),stage:7},run:retiredLiftSave(2),history:[retiredLiftSave(1)]});let saved;try{
+    a.click('[data-item="undo"]');assert.equal(a.w.__qa.state.lessonIndex,1);assert.equal(a.w.__qa.state.blocks.find(b=>b.id===0).y,4);assert.equal(a.w.__qa.profile.items.undo,4);saved=a.saved();assert.equal(saved.run.gimmicks.includes('lift'),false);
+  }finally{a.close();}
+  const b=app(saved);try{assert.equal(b.w.__qa.state.lessonIndex,1);assert.equal(b.get('lift'),null);finishFromHere(b);}finally{b.close();}
 });
 
 test('legacy mode saves keep their board and economy, explain actual mechanics, then join stage one',()=>{

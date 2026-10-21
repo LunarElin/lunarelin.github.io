@@ -1,5 +1,5 @@
-import { SIZE, COLORS, GATES, ITEMS, ITEM_COSTS, createLevel, createStage, stageInfo, runInfo, hasGimmick, lessonStep, migrateCampaignRun, move, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState } from './rules.mjs?v=4';
-import { createDrag, dragBy } from './drag.mjs?v=3';
+import { SIZE, COLORS, GATES, ITEMS, ITEM_COSTS, createLevel, createStage, stageInfo, runInfo, hasGimmick, lessonStep, migrateCampaignRun, move, useItem, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState } from './rules.mjs?v=5';
+import { createDrag, dragBy } from './drag.mjs?v=4';
 
 const $ = id => document.getElementById(id);
 const KEY = 'block-bloom:v1';
@@ -81,7 +81,7 @@ function sound(kind = 'move', strength = 1) {
   } catch { /* Sound is optional on browsers without Web Audio. */ }
 }
 function vibrate(strong = false) { if (profile.haptic && canAnimate()) try { navigator.vibrate?.(strong ? [16,12,25] : 8); } catch { /* Optional hardware. */ } }
-const gimmickNames={key:'열쇠',ice:'얼음',merge:'합성',triple:'수집함',factory:'생성기',lift:'승강기'};
+const gimmickNames={key:'열쇠',ice:'얼음',merge:'합성',triple:'수집함',factory:'생성기'};
 function gimmickTags(info){return `<div class="gimmick-tags">${(info.gimmicks.length?info.gimmicks:['classic']).map(id=>`<span>${gimmickNames[id]||'색상 탈출'}</span>`).join('')}</div>`;}
 function gimmickArt(info){
   const tile=(color,text)=>`<span class="intro-piece" style="${colorStyle(color)}">${text}</span>`,sign=text=>`<span class="intro-sign">${text}</span>`;
@@ -91,7 +91,6 @@ function gimmickArt(info){
   else if(focus==='ice')art=tile('blue','❄₂')+sign('←')+'<span class="intro-count">탈출<b>2번</b></span>';
   else if(focus==='triple')art='<span class="intro-match">'+tile('coral','●').repeat(3)+'</span>'+sign('→')+'<span class="intro-spark">✦</span>';
   else if(focus==='factory')art='<span class="intro-machine">⚙</span>'+sign('→')+tile('blue','◆');
-  else if(focus==='lift')art='<span class="intro-platform">'+tile('lime','✦')+'</span>'+sign('⇄')+'<span class="intro-platform empty-pad">⇅</span>';
   else art=tile('coral','●')+sign('→')+'<span class="intro-exit coral-exit">▴</span>';
   return `<div class="gimmick-art" data-gimmick-art="${focus}" aria-hidden="true">${art}</div>`;
 }
@@ -101,16 +100,15 @@ function stageIntroMarkup(ready){
 }
 function nextStageNumber(){return state.campaignLegacy?profile.stage:Math.min(9999,state.stage+1);}
 function currentLesson(){return state.started===false?null:lessonStep(state);}
-function lessonAllows(id,dx,dy,action='move'){
+function lessonAllows(id,dx,dy){
   const step=currentLesson();if(!step)return true;
-  const allowed=id===step.blockId&&action===step.action&&(action==='lift'||Math.sign(dx)===Math.sign(step.dx)&&Math.sign(dy)===Math.sign(step.dy));
+  const allowed=id===step.blockId&&Math.sign(dx)===Math.sign(step.dx)&&Math.sign(dy)===Math.sign(step.dy);
   if(!allowed)toast(step.text);return allowed;
 }
 function renderLesson(){
   const step=currentLesson();$('lesson-panel').hidden=!step;$('items').hidden=!!step;document.body.classList.toggle('lesson-active',!!step);
   if(step){setText('lesson-count',`${step.index+1}/${step.total}`);setText('lesson-text',step.text);stopClock();}
   for(const button of document.querySelectorAll('[data-direction]')){const [dx,dy]=button.dataset.direction.split(',').map(Number);button.classList.toggle('lesson-direction',!!step&&step.action==='move'&&Math.sign(step.dx)===dx&&Math.sign(step.dy)===dy);}
-  $('lift').classList.toggle('lesson-direction',step?.action==='lift');
 }
 function renderBlocks() {
   const lesson=currentLesson();
@@ -121,14 +119,13 @@ function renderBlocks() {
   }).join('');
   if (focusedId && $('blocks').querySelector(`[data-block="${focusedId}"]`)) $('blocks').querySelector(`[data-block="${focusedId}"]`).focus({ preventScroll: true });
   $('gates').innerHTML = GATES.map(g=>`<div class="gate ${g.side} ${hasGimmick(state,'key')&&!state.unlocked.includes(g.color)?'locked':''}" style="${colorStyle(g.color)}" aria-label="${COLORS[g.color].name} ${g.side} 출구"><span>${g.side==='top'?'▴':g.side==='right'?'▸':g.side==='bottom'?'▾':'◂'}</span><span class="gate-lock">${hasGimmick(state,'key')&&!state.unlocked.includes(g.color)?'⚿':hasGimmick(state,'merge')?'4+':COLORS[g.color].symbol}</span></div>`).join('');
-  $('platforms').innerHTML = hasGimmick(state,'lift') ? '<div class="platform">⇅</div><div class="platform second">⇅</div>' : '';
-  if(lesson?.goal==='exit'){const color=state.blocks.find(b=>b.id===lesson.blockId)?.color;const index=GATES.findIndex(g=>g.color===color);$('gates').children[index]?.classList.add('lesson-gate');}
+  if(lesson&&['exit','align'].includes(lesson.goal)){const color=state.blocks.find(b=>b.id===lesson.blockId)?.color;const index=GATES.findIndex(g=>g.color===color);$('gates').children[index]?.classList.add('lesson-gate');}
   renderHint();
 }
 function renderHint() {
   const lesson=currentLesson(),clue=lesson?{...lesson,id:lesson.blockId}:hint;
   const b = clue && state.blocks.find(b=>b.id===clue.id), arrow = $('hint-arrow'); arrow.hidden = !b;arrow.classList.toggle('lesson-cue',!!lesson);
-  if (b) { arrow.style.left = `${b.x / 6 * 100}%`; arrow.style.top = `${b.y / 6 * 100}%`; arrow.style.width = `${b.w/6*100}%`; arrow.style.height = `${b.h/6*100}%`;arrow.style.setProperty('--cue-x',`${Math.sign(clue.dx)*24}px`);arrow.style.setProperty('--cue-y',`${Math.sign(clue.dy)*24}px`);arrow.dataset.direction=clue.action==='lift'?'⇅':clue.dx>0?'→':clue.dx<0?'←':clue.dy>0?'↓':'↑';arrow.textContent=lesson?'☝':clue.action==='lift'?'⇅':clue.dx>0?'➜':clue.dx<0?'⬅':clue.dy>0?'⬇':'⬆'; }
+  if (b) { arrow.style.left = `${b.x / 6 * 100}%`; arrow.style.top = `${b.y / 6 * 100}%`; arrow.style.width = `${b.w/6*100}%`; arrow.style.height = `${b.h/6*100}%`;arrow.style.setProperty('--cue-x',`${Math.sign(clue.dx)*24}px`);arrow.style.setProperty('--cue-y',`${Math.sign(clue.dy)*24}px`);arrow.dataset.direction=clue.dx>0?'→':clue.dx<0?'←':clue.dy>0?'↓':'↑';arrow.textContent=lesson?'☝':clue.dx>0?'➜':clue.dx<0?'⬅':clue.dy>0?'⬇':'⬆'; }
 }
 function renderItems() {
   $('items').innerHTML = Object.entries(ITEMS).map(([id,item])=>`<button class="item-button ${armed===id?'active':''} ${profile.items[id]?'':'empty'}" style="--item-color:${itemColors[id]}" data-item="${id}" aria-label="${item.name}, ${item.description}, 보유 ${profile.items[id]}개" aria-pressed="${armed===id}" title="${item.description}"><span class="item-icon">${id==='undo'?'<img src="assets/icons/return.png" alt="" width="24" height="24">':item.icon}</span><b>${shortItems[id]}</b><small>${profile.items[id]||'+'}</small></button>`).join('');
@@ -146,7 +143,7 @@ function renderAux() {
   $('dock').hidden = !hasGimmick(state,'triple');
   setText('reserve-count', state.reserve?.length ? `구조 ${state.reserve.length}` : '수집');
   if (hasGimmick(state,'triple')) $('dock-slots').innerHTML = Array.from({length:7},(_,i)=>`<div class="dock-slot ${state.tray[i]?'filled':''} ${i===6&&state.tray.length>=5?'danger':''}" ${state.tray[i]?`style="${colorStyle(state.tray[i])}" data-symbol="${COLORS[state.tray[i]].symbol}"`:''}></div>`).join('');
-  $('factory-bar').hidden = !hasGimmick(state,'factory'); $('lift').hidden = !hasGimmick(state,'lift'); setText('queue-count', state.queue.length);
+  $('factory-bar').hidden = !hasGimmick(state,'factory'); setText('queue-count', state.queue.length);
   $('queue-preview').innerHTML = state.queue.map(b=>`<i style="${colorStyle(b.color)}"></i>`).join('');
 }
 function render() {
@@ -196,8 +193,7 @@ function react(events) {
     const label=$('combo-label');label.textContent=combo>=5?'블룸 피버!':combo>=2?`${combo}연속!`:'';label.classList.remove('pop');void label.offsetWidth;if(label.textContent)label.classList.add('pop');
     later(()=>{label.textContent='';label.classList.remove('pop');},750);
     sound(triple?'triple':clears.some(e=>e.type==='merge')?'merge':'exit',combo);vibrate(combo>=3);
-  } else if(events.some(e=>e.type==='lift')){sound('merge');toast('승강기 이동! 막힌 칸을 건너뛰었어요.');}
-  else sound('move');
+  } else sound('move');
   for(const event of events) {
     if(event.type==='unlock')toast(`${COLORS[event.color].name} 출구 잠금 해제!`);
     if(event.type==='thaw'&&event.block.ice===0)burst(event.block,'thaw',2);
@@ -338,7 +334,6 @@ function queueDragFrame(){
 listen($('blocks'),'pointerdown',event=>{
   const el=event.target.closest('[data-block]');if(!el||event.button>0||drag||state.status!=='playing'||state.started===false||$('modal').open||busy)return;
   const id=Number(el.dataset.block),lesson=currentLesson();if(lesson&&id!==lesson.blockId){toast(lesson.text);return;}if(armed){selectBlock(id);return;}
-  if(lesson?.action==='lift'){selected=id;renderBlocks();return;}
   selected=id;hint=null;
   $('blocks').querySelectorAll('.block').forEach(b=>{b.classList.toggle('selected',Number(b.dataset.block)===id);b.setAttribute('aria-pressed',String(Number(b.dataset.block)===id));});renderHint();
   const path=createDrag(state,id),cell=$('board').clientWidth/SIZE;
@@ -394,17 +389,11 @@ listen($('items'),'pointerup',cancelItemPress);listen($('items'),'pointercancel'
 listen($('items'),'contextmenu',event=>event.preventDefault());
 listen($('items'),'click',event=>{if(suppressItemClick){suppressItemClick=false;return;}const b=event.target.closest('[data-item]');if(b)activateItem(b.dataset.item);});
 for(const button of document.querySelectorAll('[data-direction]'))listen(button,'click',()=>{if(selected===null){toast('블록을 먼저 선택하세요');return;}const [dx,dy]=button.dataset.direction.split(',').map(Number);performMove(selected,dx,dy);});
-function performLift(){
-  if(busy||$('modal').open||state.status!=='playing'||state.started===false||!lessonAllows(selected,0,0,'lift'))return;
-  if(!commit(elevate(state,selected)))toast('발판 왼쪽 위에 블록을 맞춰 선택하세요. 도착 칸도 비워주세요.');
-}
 listen(document,'keydown',event=>{
   if($('modal').open||event.ctrlKey||event.metaKey||event.altKey||event.target.matches('input,select,textarea'))return;
   const directions={ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1],ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0]};
   if(directions[event.key]){event.preventDefault();if(selected===null){toast('블록을 먼저 선택하세요');return;}performMove(selected,...directions[event.key]);}
-  else if(event.code==='Space'&&hasGimmick(state,'lift')&&(!event.target.matches('button,a')||event.target.closest('[data-block]'))){event.preventDefault();performLift();}
 });
-listen($('lift'),'click',performLift);
 listen($('modal-content'),'click',event=>{
   const b=event.target.closest('[data-action]');if(b&&!b.disabled)onAction(b.dataset.action,b.dataset.value);
 });

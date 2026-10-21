@@ -1,4 +1,4 @@
-import { SIZE, GATES, move, hasGimmick } from './rules.mjs?v=4';
+import { SIZE, GATES, move, hasGimmick } from './rules.mjs?v=5';
 
 const EPS = 1e-8;
 export function createDrag(state, id) {

@@ -46,10 +46,10 @@ test('items respect targets, thaw and unlock; freeze only protects its actual du
   s=tick(s,25);assert.equal(s.frozen,0);assert.equal(s.time,time-5);assert.equal(tick(s,-10),s);
   const fail=tick({...s,time:1},2);assert.equal(fail.status,'lost');assert.equal(useItem(fail,'hammer',0).ok,false);
 });
-test('factory generates all queued blocks and elevator validates landing space',()=>{
+test('factory generates all queued blocks and removed elevator never moves a block',()=>{
   let s=fixture('factory',[block(0,'coral',0,0)],{queue:[block(100,'blue',5,1)],total:2});
   let r=move(s,0,0,-1);assert.ok(r.events.some(e=>e.type==='spawn'));assert.equal(r.state.blocks[0].id,100);assert.equal(move(r.state,100,1,0).state.status,'won');
-  s=fixture('factory',[block(0,'blue',2,2),block(1,'gold',2,3)]);r=elevate(s,0);assert.equal(r.ok,true);assert.equal(r.state.blocks[0].y,4,'passes intervening block');
+  s=fixture('factory',[block(0,'blue',2,2),block(1,'gold',2,3)]);r=elevate(s,0);assert.equal(r.ok,false);assert.equal(r.state,s);assert.equal(r.state.blocks[0].y,2,'cannot bypass the intervening block');
   assert.equal(elevate(fixture('factory',[block(0,'blue',2,2),block(1,'gold',2,4)]),0).ok,false);assert.equal(elevate({...s,mode:'classic'},0).ok,false);
 });
 test('hint follows a terminating path instead of looping through repeated shuffle states',()=>{
