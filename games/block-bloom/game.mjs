@@ -1,5 +1,5 @@
-import { SIZE, COLORS, GATES, ITEMS, ITEM_COSTS, createLevel, createStage, stageInfo, runInfo, hasGimmick, migrateCampaignRun, move, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState } from './rules.mjs?v=3';
-import { createDrag, dragBy } from './drag.mjs?v=2';
+import { SIZE, COLORS, GATES, ITEMS, ITEM_COSTS, createLevel, createStage, stageInfo, runInfo, hasGimmick, lessonStep, migrateCampaignRun, move, useItem, elevate, tick, continueRun, newProfile, restoreProfile, validRun, winReward, guide, copyState } from './rules.mjs?v=4';
+import { createDrag, dragBy } from './drag.mjs?v=3';
 
 const $ = id => document.getElementById(id);
 const KEY = 'block-bloom:v1';
@@ -17,7 +17,7 @@ try {
     profile = restoreProfile(saved.profile);
     if (validRun(saved.run)) {
       state = migrateCampaignRun(saved.run);
-      history = Array.isArray(saved.history) ? saved.history.filter(validRun).map(migrateCampaignRun).filter(s=>s.stage===state.stage&&s.mode===state.mode&&s.level===state.level&&s.seed===state.seed).slice(-30) : [];
+      history = Array.isArray(saved.history) ? saved.history.filter(validRun).map(migrateCampaignRun).filter(s=>s.stage===state.stage&&s.mode===state.mode&&s.level===state.level&&s.seed===state.seed&&s.layoutVersion===state.layoutVersion).slice(-30) : [];
     }
   }
 } catch { /* A private or unavailable store still allows a fresh game. */ }
@@ -100,27 +100,42 @@ function stageIntroMarkup(ready){
   return `<div class="stage-intro"><div class="intro-scroll"><p class="intro-stage">${heading}</p><h2 class="intro-title" id="modal-title">${info.title}</h2><span class="intro-badge">${ready?state.campaignLegacy?'진행 중인 퍼즐':info.introLabel:'이번 기믹'}</span>${gimmickTags(info)}${gimmickArt(info)}<p class="intro-description">${info.description}</p><ul class="intro-tips">${info.tips.map(tip=>`<li>${tip}</li>`).join('')}</ul></div><div class="intro-actions">${ready?'<a class="icon-button" href="../../" aria-label="포트폴리오로"><img src="assets/icons/home.png" alt="" width="24" height="24"></a>':'<button class="secondary intro-controls" data-action="controls">조작</button>'}<button class="primary" autofocus data-action="${ready?'start':'resume'}">${ready?'시작':'계속'}</button></div></div>`;
 }
 function nextStageNumber(){return state.campaignLegacy?profile.stage:Math.min(9999,state.stage+1);}
+function currentLesson(){return state.started===false?null:lessonStep(state);}
+function lessonAllows(id,dx,dy,action='move'){
+  const step=currentLesson();if(!step)return true;
+  const allowed=id===step.blockId&&action===step.action&&(action==='lift'||Math.sign(dx)===Math.sign(step.dx)&&Math.sign(dy)===Math.sign(step.dy));
+  if(!allowed)toast(step.text);return allowed;
+}
+function renderLesson(){
+  const step=currentLesson();$('lesson-panel').hidden=!step;$('items').hidden=!!step;document.body.classList.toggle('lesson-active',!!step);
+  if(step){setText('lesson-count',`${step.index+1}/${step.total}`);setText('lesson-text',step.text);stopClock();}
+  for(const button of document.querySelectorAll('[data-direction]')){const [dx,dy]=button.dataset.direction.split(',').map(Number);button.classList.toggle('lesson-direction',!!step&&step.action==='move'&&Math.sign(step.dx)===dx&&Math.sign(step.dy)===dy);}
+  $('lift').classList.toggle('lesson-direction',step?.action==='lift');
+}
 function renderBlocks() {
+  const lesson=currentLesson();
   const focusedId = document.activeElement?.dataset?.block;
   $('blocks').innerHTML = state.blocks.map(b => {
     const c = COLORS[b.color], label = `${c.name} ${b.w}×${b.h} 블록${hasGimmick(state,'merge') ? ' 숫자 '+2**b.rank : ''}${b.key?' 열쇠':''}${b.ice?' 얼음 '+b.ice+'겹':''}`;
-    return `<button class="block ${selected===b.id?'selected':''} ${b.ice?'iced':''}" data-block="${b.id}" data-ice="${b.ice||0}" aria-label="${label}" aria-pressed="${selected===b.id}" style="${colorStyle(b.color)};--w:${b.w};--h:${b.h};left:${b.x/SIZE*100}%;top:${b.y/SIZE*100}%;width:${b.w/SIZE*100}%;height:${b.h/SIZE*100}%"><span class="block-body">${'<i class="stud"></i>'.repeat(b.w*b.h)}<span class="block-symbol ${hasGimmick(state,'merge')?'block-number':''} ${b.key?'block-key':''}">${hasGimmick(state,'merge')?2**b.rank:b.key?'⚿':c.symbol}</span></span></button>`;
+    return `<button class="block ${selected===b.id?'selected':''} ${b.ice?'iced':''} ${lesson?.blockId===b.id?'lesson-target':''} ${lesson?.targetId===b.id?'lesson-merge-target':''}" data-block="${b.id}" data-ice="${b.ice||0}" aria-label="${label}${lesson?.blockId===b.id?' · 따라 할 블록':''}" aria-pressed="${selected===b.id}" style="${colorStyle(b.color)};--w:${b.w};--h:${b.h};left:${b.x/SIZE*100}%;top:${b.y/SIZE*100}%;width:${b.w/SIZE*100}%;height:${b.h/SIZE*100}%"><span class="block-body">${'<i class="stud"></i>'.repeat(b.w*b.h)}<span class="block-symbol ${hasGimmick(state,'merge')?'block-number':''} ${b.key?'block-key':''}">${hasGimmick(state,'merge')?2**b.rank:b.key?'⚿':c.symbol}</span></span></button>`;
   }).join('');
   if (focusedId && $('blocks').querySelector(`[data-block="${focusedId}"]`)) $('blocks').querySelector(`[data-block="${focusedId}"]`).focus({ preventScroll: true });
   $('gates').innerHTML = GATES.map(g=>`<div class="gate ${g.side} ${hasGimmick(state,'key')&&!state.unlocked.includes(g.color)?'locked':''}" style="${colorStyle(g.color)}" aria-label="${COLORS[g.color].name} ${g.side} 출구"><span>${g.side==='top'?'▴':g.side==='right'?'▸':g.side==='bottom'?'▾':'◂'}</span><span class="gate-lock">${hasGimmick(state,'key')&&!state.unlocked.includes(g.color)?'⚿':hasGimmick(state,'merge')?'4+':COLORS[g.color].symbol}</span></div>`).join('');
   $('platforms').innerHTML = hasGimmick(state,'lift') ? '<div class="platform">⇅</div><div class="platform second">⇅</div>' : '';
+  if(lesson?.goal==='exit'){const color=state.blocks.find(b=>b.id===lesson.blockId)?.color;const index=GATES.findIndex(g=>g.color===color);$('gates').children[index]?.classList.add('lesson-gate');}
   renderHint();
 }
 function renderHint() {
-  const b = hint && state.blocks.find(b=>b.id===hint.id), arrow = $('hint-arrow'); arrow.hidden = !b;
-  if (b) { arrow.style.left = `${b.x / 6 * 100}%`; arrow.style.top = `${b.y / 6 * 100}%`; arrow.style.width = `${b.w/6*100}%`; arrow.style.height = `${b.h/6*100}%`; arrow.textContent = hint.dx>0?'➜':hint.dx<0?'⬅':hint.dy>0?'⬇':'⬆'; }
+  const lesson=currentLesson(),clue=lesson?{...lesson,id:lesson.blockId}:hint;
+  const b = clue && state.blocks.find(b=>b.id===clue.id), arrow = $('hint-arrow'); arrow.hidden = !b;arrow.classList.toggle('lesson-cue',!!lesson);
+  if (b) { arrow.style.left = `${b.x / 6 * 100}%`; arrow.style.top = `${b.y / 6 * 100}%`; arrow.style.width = `${b.w/6*100}%`; arrow.style.height = `${b.h/6*100}%`;arrow.style.setProperty('--cue-x',`${Math.sign(clue.dx)*24}px`);arrow.style.setProperty('--cue-y',`${Math.sign(clue.dy)*24}px`);arrow.dataset.direction=clue.action==='lift'?'⇅':clue.dx>0?'→':clue.dx<0?'←':clue.dy>0?'↓':'↑';arrow.textContent=lesson?'☝':clue.action==='lift'?'⇅':clue.dx>0?'➜':clue.dx<0?'⬅':clue.dy>0?'⬇':'⬆'; }
 }
 function renderItems() {
   $('items').innerHTML = Object.entries(ITEMS).map(([id,item])=>`<button class="item-button ${armed===id?'active':''} ${profile.items[id]?'':'empty'}" style="--item-color:${itemColors[id]}" data-item="${id}" aria-label="${item.name}, ${item.description}, 보유 ${profile.items[id]}개" aria-pressed="${armed===id}" title="${item.description}"><span class="item-icon">${id==='undo'?'<img src="assets/icons/return.png" alt="" width="24" height="24">':item.icon}</span><b>${shortItems[id]}</b><small>${profile.items[id]||'+'}</small></button>`).join('');
 }
 function renderHud() {
-  const seconds = Math.ceil(state.time); setText('time', `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`);
-  $('timer').classList.toggle('urgent', seconds<=20 && state.frozen<=0); $('timer').classList.toggle('frozen', state.frozen>0);
+  const lesson=currentLesson(),seconds = Math.ceil(state.time); setText('time', lesson?'연습':`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`);
+  $('timer').classList.toggle('urgent', !lesson&&seconds<=20 && state.frozen<=0); $('timer').classList.toggle('frozen', !!lesson||state.frozen>0);
   setText('freeze-time', state.frozen>0 ? `❄ ${Math.ceil(state.frozen)}` : '');
   setText('cleared', `${state.removed} / ${state.total}`); setText('coins', profile.coins.toLocaleString('ko-KR'));
   const fever = activeTime < feverUntil;
@@ -137,7 +152,7 @@ function renderAux() {
 function render() {
   const info=runInfo(state);setText('stage-label',state.campaignLegacy?'이어서':'스테이지');setText('stage-number',state.campaignLegacy?'↻':state.stage);setText('stage-name',info.shortTitle);
   $('stage-display').setAttribute('aria-label',state.campaignLegacy?`이어서 ${info.title}`:`스테이지 ${state.stage} ${info.title}`);
-  renderBlocks(); renderItems(); renderHud(); renderAux(); syncPreferences(); layoutBoard();
+  renderBlocks(); renderItems(); renderHud(); renderAux();renderLesson(); syncPreferences(); layoutBoard();
 }
 
 function addFX(element, duration) { const layer = $('fx-layer'); while (layer.childElementCount >= 180) layer.firstElementChild.remove(); layer.append(element); later(()=>element.remove(),duration); }
@@ -198,14 +213,18 @@ function complete() {
 }
 function commit(result,{remember=true}={}) {
   if(!result.ok)return false;
+  const lesson=currentLesson();
   cancelDrag();cancelSettle();
   if(remember){history.push(snapshot(state));if(history.length>30)history.shift();}
   state=result.state;hint=null;armed=null;
   if(!state.blocks.some(b=>b.id===selected))selected=null;
-  react(result.events);render();save();complete();return true;
+  react(result.events);render();save();complete();
+  if(lesson&&!currentLesson()&&state.status==='playing'){lastFrame=performance.now();activeTime=0;combo=0;feverUntil=0;toast('연습 완료! 나머지 블록도 탈출시켜 보세요.');}
+  if(state.status==='playing')startClock();return true;
 }
 function performMove(id,dx,dy) {
   if(busy||$('modal').open||state.status!=='playing'||state.started===false)return;
+  if(!lessonAllows(id,dx,dy))return;
   if(!commit(move(state,id,dx,dy)))blockedMove(id);
 }
 function blockedMove(id) {
@@ -216,7 +235,8 @@ function blockedMove(id) {
   else if(hasGimmick(state,'key')&&b&&!b.key&&!state.unlocked.includes(b.color))toast('같은 색 열쇠 블록을 먼저 탈출시키세요.');
 }
 function selectBlock(id) {
-  if(state.status!=='playing'||$('modal').open)return;
+  if(state.status!=='playing'||state.started===false||$('modal').open)return;
+  const step=currentLesson();if(step&&id!==step.blockId){toast(step.text);return;}
   selected=id;
   const b=state.blocks.find(b=>b.id===id);if(!b)return;
   if(armed){activateItem(armed);return;}
@@ -224,7 +244,8 @@ function selectBlock(id) {
   renderBlocks();
 }
 function activateItem(id) {
-  if(state.status!=='playing'||$('modal').open)return;
+  if(state.status!=='playing'||state.started===false||$('modal').open)return;
+  if(currentLesson()){toast('먼저 빛나는 블록으로 연습해요. 아이템은 그대로예요.');return;}
   cancelDrag();
   if(profile.items[id]<=0){toast(`${ITEMS[id].name}을 충전해 주세요.`);openModal('shop');return;}
   if(id==='hint') {
@@ -251,7 +272,7 @@ function activateItem(id) {
 }
 function newRun(stage=profile.stage,retry=false,autoStart=false) {
   runEpoch++; clearEffects(); cancelDrag(); stopAudio();
-  const previous=state,next=retry&&previous.campaignLegacy?migrateCampaignRun(createLevel(previous.mode,previous.level,previous.seed)):createStage(stage,retry?previous.seed:seed());
+  const previous=state,next=retry&&previous.campaignLegacy?migrateCampaignRun(createLevel(previous.mode,previous.level,previous.seed)):createStage(stage,retry?previous.seed:seed(),retry?{layoutVersion:previous.layoutVersion||1}:{});
   state={...next,started:autoStart};history=[];selected=null;armed=null;hint=null;combo=0;feverUntil=0;lastClear=-100;activeTime=0;busy=false;
   closeModal();$('instruction').textContent=runInfo(state).description;render();save();if(!autoStart)openModal('ready');
 }
@@ -286,7 +307,7 @@ function openModal(kind) {
 }
 function claimDaily(){if(profile.daily===localDate())return;profile.coins+=100;profile.daily=localDate();save();renderHud();renderAux();toast('오늘의 100 코인을 받았어요!');}
 function onAction(action,value) {
-  if(action==='start'){if(state.started!==false||state.status!=='playing'||modalKind!=='ready')return;state.started=true;closeModal();save();}
+  if(action==='start'){if(state.started!==false||state.status!=='playing'||modalKind!=='ready')return;state.started=true;render();closeModal();save();}
   else if(action==='resume'){if(state.started===false)openModal('ready');else closeModal();}
   else if(['help','controls','settings','shop','restart'].includes(action))openModal(action);
   else if(action==='daily-open')openModal('daily');
@@ -316,14 +337,15 @@ function queueDragFrame(){
 }
 listen($('blocks'),'pointerdown',event=>{
   const el=event.target.closest('[data-block]');if(!el||event.button>0||drag||state.status!=='playing'||state.started===false||$('modal').open||busy)return;
-  const id=Number(el.dataset.block);if(armed){selectBlock(id);return;}
+  const id=Number(el.dataset.block),lesson=currentLesson();if(lesson&&id!==lesson.blockId){toast(lesson.text);return;}if(armed){selectBlock(id);return;}
+  if(lesson?.action==='lift'){selected=id;renderBlocks();return;}
   selected=id;hint=null;
   $('blocks').querySelectorAll('.block').forEach(b=>{b.classList.toggle('selected',Number(b.dataset.block)===id);b.setAttribute('aria-pressed',String(Number(b.dataset.block)===id));});renderHint();
   const path=createDrag(state,id),cell=$('board').clientWidth/SIZE;
   // Re-grabbing a settling block starts at the position currently under the pointer.
   if(settleAnimation?.el===el&&cell>0){const rect=el.getBoundingClientRect(),board=$('board').getBoundingClientRect();path.x=(rect.left-board.left)/cell;path.y=(rect.top-board.top)/cell;}
   cancelSettle();setText('instruction',`${COLORS[path.origin.color].name} 선택`);
-  drag={id,el,x:event.clientX,y:event.clientY,pointer:event.pointerId,path,cell,frame:null};el.setPointerCapture?.(event.pointerId);
+  drag={id,el,x:event.clientX,y:event.clientY,pointer:event.pointerId,path,cell,frame:null,lesson};el.setPointerCapture?.(event.pointerId);
   paintDrag(drag);
 });
 function settleBlock(current){
@@ -347,7 +369,7 @@ function updateDrag(event){
   const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
   if(!dx&&!dy)return;
   drag.el.classList.add('dragging');if(drag.cell<=0)return;
-  dragBy(drag.path,dx/drag.cell,dy/drag.cell);
+  dragBy(drag.path,drag.lesson&&!drag.lesson.dx?0:dx/drag.cell,drag.lesson&&!drag.lesson.dy?0:dy/drag.cell);
   drag.x=event.clientX;drag.y=event.clientY;
   if(drag.path.terminal){finishDrag();return;}queueDragFrame();
 }
@@ -372,13 +394,17 @@ listen($('items'),'pointerup',cancelItemPress);listen($('items'),'pointercancel'
 listen($('items'),'contextmenu',event=>event.preventDefault());
 listen($('items'),'click',event=>{if(suppressItemClick){suppressItemClick=false;return;}const b=event.target.closest('[data-item]');if(b)activateItem(b.dataset.item);});
 for(const button of document.querySelectorAll('[data-direction]'))listen(button,'click',()=>{if(selected===null){toast('블록을 먼저 선택하세요');return;}const [dx,dy]=button.dataset.direction.split(',').map(Number);performMove(selected,dx,dy);});
+function performLift(){
+  if(busy||$('modal').open||state.status!=='playing'||state.started===false||!lessonAllows(selected,0,0,'lift'))return;
+  if(!commit(elevate(state,selected)))toast('발판 왼쪽 위에 블록을 맞춰 선택하세요. 도착 칸도 비워주세요.');
+}
 listen(document,'keydown',event=>{
   if($('modal').open||event.ctrlKey||event.metaKey||event.altKey||event.target.matches('input,select,textarea'))return;
   const directions={ArrowUp:[0,-1],w:[0,-1],ArrowDown:[0,1],s:[0,1],ArrowLeft:[-1,0],a:[-1,0],ArrowRight:[1,0],d:[1,0]};
   if(directions[event.key]){event.preventDefault();if(selected===null){toast('블록을 먼저 선택하세요');return;}performMove(selected,...directions[event.key]);}
-  else if(event.code==='Space'&&hasGimmick(state,'lift')&&(!event.target.matches('button,a')||event.target.closest('[data-block]'))){event.preventDefault();commit(elevate(state,selected));}
+  else if(event.code==='Space'&&hasGimmick(state,'lift')&&(!event.target.matches('button,a')||event.target.closest('[data-block]'))){event.preventDefault();performLift();}
 });
-listen($('lift'),'click',()=>{if(!commit(elevate(state,selected)))toast('발판 왼쪽 위에 블록을 맞춰 선택하세요. 도착 칸도 비워주세요.');});
+listen($('lift'),'click',performLift);
 listen($('modal-content'),'click',event=>{
   const b=event.target.closest('[data-action]');if(b&&!b.disabled)onAction(b.dataset.action,b.dataset.value);
 });
@@ -392,10 +418,10 @@ function viewportChanged(){cancelDrag();cancelSettle();layoutBoard();}
 listen(window,'resize',viewportChanged);if(window.visualViewport)listen(window.visualViewport,'resize',viewportChanged);
 if(window.ResizeObserver){boardObserver=new ResizeObserver(layoutBoard);boardObserver.observe($('board-stage'));}
 function stopClock(){if(timerId!==null){clearInterval(timerId);timerId=null;}}
-function startClock(){if(!disposed&&timerId===null&&state.status==='playing'&&state.started!==false&&!$('modal').open){lastFrame=performance.now();timerId=setInterval(clockTick,200);}}
+function startClock(){if(!disposed&&timerId===null&&state.status==='playing'&&state.started!==false&&!lessonStep(state)&&!$('modal').open){lastFrame=performance.now();timerId=setInterval(clockTick,200);}}
 function clockTick(){
   const now=performance.now(),dt=Math.max(0,(now-lastFrame)/1000);lastFrame=now;
-  if(document.hidden||$('modal').open||busy||state.status!=='playing'||state.started===false)return;
+  if(document.hidden||$('modal').open||busy||state.status!=='playing'||state.started===false||lessonStep(state))return;
   activeTime+=dt;state=tick(state,dt);
   if(activeTime-lastClear>4&&activeTime>=feverUntil)combo=0;
   renderHud();if(now-lastSave>4000){save();lastSave=now;}if(state.status==='lost')complete();

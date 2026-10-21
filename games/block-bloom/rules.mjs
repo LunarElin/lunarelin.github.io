@@ -18,7 +18,7 @@ const LEGACY_STAGES = { classic: 1, key: 2, ice: 3, merge: 4, triple: 5, factory
 const STAGES = [
   { title: '첫 번째 탈출', shortTitle: '컬러 탈출', gimmicks: [], introLabel: '기본 규칙', description: '블록을 밀어 같은 색 출구로 보내세요.', tips: ['블록을 누른 채 상하좌우로 움직이세요.', '블록 전체 폭을 출구에 맞춘 뒤 밖으로 밀어요.'] },
   { title: '열쇠가 여는 길', shortTitle: '열쇠와 잠금', gimmicks: ['key'], introLabel: '새 기믹', description: '열쇠 블록을 먼저 탈출시키면 같은 색 출구가 열려요.', tips: ['열쇠 표시가 있는 블록부터 보내세요.', '잠금이 풀리면 나머지 같은 색 블록도 탈출해요.'] },
-  { title: '얼음을 녹이는 순서', shortTitle: '열쇠와 얼음', gimmicks: ['key', 'ice'], introLabel: '새 기믹', description: '다른 블록이 탈출할 때마다 얼음이 한 겹씩 깨져요.', tips: ['얼음 블록은 두 겹을 벗겨야 탈출해요.', '열쇠를 먼저 보내고 다른 블록 두 개를 탈출시키세요.'] },
+  { title: '얼음을 녹이는 순서', shortTitle: '열쇠와 얼음', gimmicks: ['key', 'ice'], introLabel: '새 기믹', description: '다른 블록이 탈출할 때마다 얼음이 한 겹씩 깨져요.', tips: ['얼음 블록은 두 겹을 벗겨야 탈출해요.', '얼지 않은 블록 두 개를 먼저 보내세요.'] },
   { title: '두 개를 하나로', shortTitle: '숫자 합성', gimmicks: ['merge'], introLabel: '새 기믹', description: '같은 색 2를 밀어 합치면 4가 되고 출구를 통과해요.', tips: ['같은 색·숫자·모양의 블록끼리 맞추세요.', '맞닿은 채 반 칸만큼 더 밀면 합성돼요.', '숫자 2는 탈출할 수 없어요.'] },
   { title: '세 개씩 모으기', shortTitle: '트리플 수집', gimmicks: ['triple'], introLabel: '새 기믹', description: '탈출한 블록을 수집함에 모아 같은 색 세 개씩 없애세요.', tips: ['수집함은 일곱 칸이에요.', '같은 색 세 개를 모으면 빈칸이 생겨요.', '새 색을 늘리기 전에 모아 둔 색을 먼저 완성해요.'] },
   { title: '끝나지 않은 보드', shortTitle: '블록 생성기', gimmicks: ['factory'], introLabel: '새 기믹', description: '보드를 비우면 생성기의 대기 블록이 하나씩 등장해요.', tips: ['먼저 지금 보드의 블록을 모두 탈출시키세요.', '생성기에 남은 블록까지 모두 보내면 클리어예요.'] },
@@ -134,7 +134,7 @@ export function move(s, id, dx, dy, { merge = true } = {}) {
     break;
   }
   if (!moved) return { ok: false, state: s, events: [] };
-  next.moves++; settle(next, events);
+  next.moves++; settle(next, events); advanceLesson(s, next, events, { id, dx, dy });
   return { ok: true, state: next, events };
 }
 
@@ -165,15 +165,16 @@ export function createLevel(mode = 'classic', level = 1, seed = Date.now(), opti
       { id: 4, color: 'lime', x: 4, y: 5 }, { id: 5, color: 'lime', x: 4, y: 3 },
       { id: 6, color: 'gold', x: 0, y: 4 }, { id: 7, color: 'gold', x: 2, y: 4 },
     ].map(b => ({ ...b, w: 1, h: 1, rank: 1 }));
-    rawShuffle(s, reverse, rng, 12 + Math.min(90, level * 5));
-    s.plan = [...reverse.reverse(), ...GATES.flatMap((g, i) => [{ id: i * 2 + 1, dx: g.dx * 2, dy: g.dy * 2 }, { id: i * 2, dx: g.dx, dy: g.dy }])];
+    s.blocks = s.blocks.slice(0, (options.recipe?.mergePairs ?? 4) * 2);
+    rawShuffle(s, reverse, rng, options.recipe?.shuffle ?? (12 + Math.min(90, level * 5)));
+    s.plan = [...reverse.reverse(), ...GATES.slice(0, options.recipe?.mergePairs ?? 4).flatMap((g, i) => [{ id: i * 2 + 1, dx: g.dx * 2, dy: g.dy * 2 }, { id: i * 2, dx: g.dx, dy: g.dy }])];
   } else {
-    const count = hasGimmick(s, 'triple') ? 12 : Math.min(12, 8 + Math.floor((level - 1) / 3));
+    const count = options.recipe?.blockCount ?? (hasGimmick(s, 'triple') ? 12 : Math.min(12, 8 + Math.floor((level - 1) / 3)));
     for (let id = 0; id < count; id++) {
       const color = colorList[hasGimmick(s, 'triple') ? Math.floor(id / 3) : id % 4], gate = GATES.find(g => g.color === color);
       let b;
       for (let attempt = 0; attempt < 1500; attempt++) {
-        const shapes = attempt > 100 ? [[1,1]] : hasGimmick(s, 'triple') ? [[1,1],[1,2],[2,1]] : [[1,2],[2,1],[2,2]];
+        const shapes = attempt > 100 || options.recipe?.singleCell ? [[1,1]] : options.recipe?.smallShapes || hasGimmick(s, 'triple') ? [[1,1],[1,2],[2,1]] : [[1,2],[2,1],[2,2]];
         const [w,h] = shapes[Math.floor(rng() * shapes.length)], across = gate.dx ? h : w;
         const slot = gate.start + Math.floor(rng() * (gate.span - across + 1));
         const x = gate.side === 'left' ? 0 : gate.side === 'right' ? SIZE - w : slot;
@@ -184,34 +185,124 @@ export function createLevel(mode = 'classic', level = 1, seed = Date.now(), opti
       }
       if (!b) return createLevel(mode, level, (seed + 7919) >>> 0, options);
       s.blocks.push(b); reverse.push({ id, dx: gate.dx, dy: gate.dy });
-      rawShuffle(s, reverse, rng, 3 + Math.min(10, level));
+      rawShuffle(s, reverse, rng, options.recipe?.insertShuffle ?? (3 + Math.min(10, level)));
     }
-    rawShuffle(s, reverse, rng, 10 + Math.min(50, level * 3));
+    rawShuffle(s, reverse, rng, options.recipe?.shuffle ?? (10 + Math.min(50, level * 3)));
     s.plan = reverse.reverse();
     if (hasGimmick(s, 'factory')) {
-      s.queue = GATES.map((g,i) => ({ id: 100 + i, color: g.color, x: g.side === 'left' ? 0 : g.side === 'right' ? 5 : g.start + 1, y: g.side === 'top' ? 0 : g.side === 'bottom' ? 5 : g.start + 1, w: 1, h: 1, rank: 1 }));
-      s.plan.push(...GATES.map((g,i) => ({ id: 100 + i, dx: g.dx, dy: g.dy })));
+      s.queue = GATES.slice(0, options.recipe?.queueCount ?? 4).map((g,i) => ({ id: 100 + i, color: g.color, x: g.side === 'left' ? 0 : g.side === 'right' ? 5 : g.start + 1, y: g.side === 'top' ? 0 : g.side === 'bottom' ? 5 : g.start + 1, w: 1, h: 1, rank: 1 }));
+      s.plan.push(...GATES.slice(0, options.recipe?.queueCount ?? 4).map((g,i) => ({ id: 100 + i, dx: g.dx, dy: g.dy })));
     }
   }
   if (hasGimmick(s, 'key')) for (const color of colorList) {
     const candidates = s.blocks.filter(b => b.color === color);
-    (hasGimmick(s, 'merge') ? candidates[0] : candidates.at(-1)).key = true;
+    if (candidates.length) (hasGimmick(s, 'merge') ? candidates[0] : candidates.at(-1)).key = true;
   }
-  if (hasGimmick(s, 'ice')) for (const b of s.blocks) if (hasGimmick(s, 'merge') ? b.id >= 6 : b.id < 2) b.ice = 2;
+  if (hasGimmick(s, 'ice')) for (const b of s.blocks) if (hasGimmick(s, 'merge') ? b.id >= s.blocks.length - 2 : b.id < 2) b.ice = 2;
   s.initial = s.blocks.length; s.total = s.initial + s.queue.length;
   return s;
 }
-export function createStage(number = 1, seed = Date.now()) {
+const LESSONS = [
+  [
+    { blockId: 0, action: 'move', dx: 0, dy: -1, goal: 'exit', title: '같은 색으로', text: '빛나는 코랄 블록을 위 출구 밖으로 밀어요.' },
+    { blockId: 1, action: 'move', dx: 1, dy: 0, goal: 'exit', title: '이번에는 오른쪽', text: '블루 블록을 오른쪽 출구 밖으로 밀어요.' },
+  ],
+  [
+    { blockId: 0, action: 'move', dx: 0, dy: -1, goal: 'exit', title: '열쇠부터', text: '열쇠 블록을 위로 밀어 잠금을 열어요.' },
+    { blockId: 1, action: 'move', dx: 0, dy: -3, goal: 'exit', title: '열린 길로', text: '같은 색 블록을 위로 밀어 탈출시켜요.' },
+  ],
+  [
+    { blockId: 0, action: 'move', dx: 0, dy: -1, goal: 'exit', title: '얼음 한 겹', text: '코랄 열쇠를 위로 보내 얼음을 한 겹 깨요.' },
+    { blockId: 1, action: 'move', dx: 1, dy: 0, goal: 'exit', title: '한 번 더', text: '블루 열쇠를 오른쪽으로 보내 남은 얼음을 깨요.' },
+    { blockId: 2, action: 'move', dx: 0, dy: 1, goal: 'exit', title: '이제 탈출', text: '얼음이 녹은 라임 블록을 아래로 보내요.' },
+  ],
+  [
+    { blockId: 1, targetId: 0, action: 'move', dx: 0, dy: -1, goal: 'merge', title: '2와 2를 합쳐요', text: '아래 2를 위 2에 맞대고 반 칸 더 밀어요.' },
+    { blockId: 0, action: 'move', dx: 0, dy: -1, goal: 'exit', title: '4부터 탈출', text: '합쳐진 4를 위 출구 밖으로 밀어요.' },
+  ],
+  [
+    { blockId: 0, action: 'move', dx: 0, dy: -1, goal: 'exit', title: '첫 번째 수집', text: '코랄 블록을 위로 보내 수집함에 모아요.' },
+    { blockId: 1, action: 'move', dx: 0, dy: -1, goal: 'exit', title: '같은 색 하나 더', text: '두 번째 코랄 블록도 위로 보내요.' },
+    { blockId: 2, action: 'move', dx: 0, dy: -1, goal: 'exit', title: '세 개가 모이면', text: '마지막 코랄을 보내 수집함을 비워요.' },
+  ],
+  [
+    { blockId: 0, action: 'move', dx: 0, dy: -1, goal: 'exit', title: '보드를 비워요', text: '코랄 블록을 위로 보내요.' },
+    { blockId: 1, action: 'move', dx: 1, dy: 0, goal: 'exit', title: '생성기 준비', text: '블루 블록을 보내면 새 블록이 등장해요.' },
+    { blockId: 100, action: 'move', dx: 0, dy: 1, goal: 'exit', title: '새 블록도 탈출', text: '새로 나온 라임 블록을 아래로 보내요.' },
+  ],
+  [
+    { blockId: 0, action: 'lift', dx: 0, dy: 0, goal: 'lift', title: '승강기 타기', text: '빛나는 골드 블록을 고르고 승강기를 눌러요.' },
+    { blockId: 0, action: 'move', dx: -3, dy: 0, goal: 'exit', title: '건너온 길로', text: '아래로 옮겨진 골드 블록을 왼쪽 출구로 보내요.' },
+  ],
+];
+export function lessonStep(s) {
+  if (s.layoutVersion !== 2 || s.campaignLegacy || !Number.isInteger(s.stage) || s.stage < 1 || s.stage > LESSONS.length || s.status !== 'playing') return null;
+  const steps = LESSONS[s.stage - 1], index = s.lessonIndex ?? 0, step = steps[index];
+  return step ? { ...step, index, total: steps.length } : null;
+}
+function advanceLesson(before, next, events, action) {
+  const step = lessonStep(before);
+  if (!step || action.id !== step.blockId || (action.action || 'move') !== step.action) return;
+  const done = step.goal === 'lift' ? events.some(e => e.type === 'lift' && e.block.id === step.blockId && e.block.y === 4) :
+    step.goal === 'merge' ? events.some(e => e.type === 'merge' && e.block.id === step.targetId && e.block.rank >= 2) :
+    events.some(e => e.type === 'exit' && e.block.id === step.blockId && !e.bypass);
+  if (done) next.lessonIndex = step.index + 1;
+}
+function teachingStage(number, seed) {
+  const piece = (id, color, x, y, w = 1, h = 1, extra = {}) => ({ id, color, x, y, w, h, rank: 1, ...extra });
+  const exit = (id, dx, dy) => ({ id, dx, dy });
+  const layouts = [
+    { blocks: [piece(0,'coral',0,0,2,1),piece(1,'blue',5,1,1,2)], plan: [exit(0,0,-1),exit(1,1,0)] },
+    { blocks: [piece(0,'coral',1,0,1,1,{key:true}),piece(1,'coral',1,2,1,2),piece(2,'blue',5,1,1,2,{key:true})], plan: [exit(0,0,-1),exit(1,0,-3),exit(2,1,0)] },
+    { blocks: [piece(0,'coral',0,0,2,1,{key:true}),piece(1,'blue',5,1,1,2,{key:true}),piece(2,'lime',4,5,1,1,{key:true,ice:2}),piece(3,'coral',1,2)], plan: [exit(0,0,-1),exit(1,1,0),exit(2,0,1),exit(3,0,-3)] },
+    { blocks: [piece(0,'coral',1,0),piece(1,'coral',1,1),piece(2,'blue',5,1),piece(3,'blue',4,1)], plan: [exit(1,0,-1),exit(0,0,-1),exit(3,1,0),exit(2,1,0)] },
+    { blocks: [piece(0,'coral',0,0),piece(1,'coral',1,0),piece(2,'coral',2,0),piece(3,'blue',5,0),piece(4,'blue',5,1),piece(5,'blue',5,2)], plan: [exit(0,0,-1),exit(1,0,-1),exit(2,0,-1),exit(3,1,0),exit(4,1,0),exit(5,1,0)] },
+    { blocks: [piece(0,'coral',1,0,2,1),piece(1,'blue',5,1,1,2)], queue: [piece(100,'lime',4,5),piece(101,'gold',0,4)], plan: [exit(0,0,-1),exit(1,1,0),exit(100,0,1),exit(101,-1,0)] },
+    { blocks: [piece(0,'gold',2,2),piece(1,'coral',1,0),piece(2,'blue',5,1,1,2)], queue: [piece(100,'lime',4,5),piece(101,'gold',0,4)], plan: [{id:0,action:'lift',dx:0,dy:0},exit(0,-3,0),exit(1,0,-1),exit(2,1,0),exit(100,0,1),exit(101,-1,0)] },
+  ];
+  const info = stageInfo(number), level = 1 + Math.floor((number - 1) / 5), layout = layouts[number - 1];
+  return { ...makeBase(modeFor(info.gimmicks), level, seed >>> 0), ...layout, queue: layout.queue || [], gimmicks: info.gimmicks, initial: layout.blocks.length, total: layout.blocks.length + (layout.queue?.length || 0), time: 240 };
+}
+function shortenPlan(state) {
+  // Removing an exact repeated board removes only detours, never a mechanic or prerequisite.
+  let cursor = state; const path = [], keys = [boardKey(state)], seen = new Map([[keys[0], 0]]);
+  for (const action of state.plan) {
+    cursor = (action.action === 'lift' ? elevate(cursor, action.id) : move(cursor, action.id, action.dx, action.dy)).state;
+    const key = boardKey(cursor), previous = seen.get(key);
+    if (previous !== undefined) {
+      for (const removed of keys.splice(previous + 1)) seen.delete(removed);
+      path.length = previous;
+    } else { path.push(action); keys.push(key); seen.set(key, path.length); }
+  }
+  return path;
+}
+export function createStage(number = 1, seed = Date.now(), { layoutVersion = 2 } = {}) {
+  if (![1,2].includes(layoutVersion)) throw new RangeError('Unsupported stage layout version');
   const info = stageInfo(number), level = 1 + Math.floor((info.number - 1) / 5);
-  return { ...createLevel(modeFor(info.gimmicks), level, seed, { gimmicks: info.gimmicks }), stage: info.number, started: false };
+  if (layoutVersion === 1) return { ...createLevel(modeFor(info.gimmicks), level, seed, { gimmicks: info.gimmicks }), stage: info.number, started: false, layoutVersion: 1 };
+  if (info.number <= 7) return { ...teachingStage(info.number, seed), stage: info.number, started: false, layoutVersion: 2, lessonIndex: 0 };
+  const cycle = Math.max(0, Math.floor((info.number - 8) / 5)), index = 7 + (info.number - 8) % 5;
+  const triple = info.gimmicks.includes('triple'), merge = info.gimmicks.includes('merge');
+  const blockCount = triple ? Math.min(12, (index === 10 ? 9 : 6) + cycle * 3) : Math.min(12, (index === 11 ? 8 : 6) + cycle);
+  const recipe = { blockCount, mergePairs: Math.min(4,3+cycle), queueCount: Math.min(4,2+cycle), insertShuffle: Math.min(5,1+Math.floor((info.number-8)/4)), shuffle: Math.min(50,4+(info.number-8)*2), smallShapes: info.number < 18, singleCell: info.number === 8 };
+  let state, bestCost = Infinity;
+  const budget = [30,30,40,45,50][info.number - 8], attempts = info.number <= 12 ? 24 : 1;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const candidate = createLevel(modeFor(info.gimmicks), level, (seed + attempt * 7919) >>> 0, { gimmicks: info.gimmicks, recipe });
+    if (info.number <= 12) candidate.plan = shortenPlan(candidate);
+    const cost = candidate.plan.reduce((total, action) => total + Math.abs(action.dx + action.dy), 0);
+    if (cost < bestCost) { state = candidate; bestCost = cost; }
+    if (cost <= budget) break;
+  }
+  return { ...state, seed: seed >>> 0, stage: info.number, started: false, layoutVersion: 2, time: info.number <= 12 ? 210 : 180 };
 }
 export function guide(s, limit = 16000) {
   // Replay the certified construction path first. It remains useful after arbitrary deviations.
-  let cursor = s.stage && !s.campaignLegacy ? createStage(s.stage, s.seed) : createLevel(s.mode, s.level, s.seed, s.gimmicks ? { gimmicks: s.gimmicks } : {});
+  let cursor = s.stage && !s.campaignLegacy ? createStage(s.stage, s.seed, { layoutVersion: s.layoutVersion || 1 }) : createLevel(s.mode, s.level, s.seed, s.gimmicks ? { gimmicks: s.gimmicks } : {});
   const wanted = boardKey(s); let recommended = null;
   for (const action of cursor.plan) {
-    if (boardKey(cursor) === wanted && move(s, action.id, action.dx, action.dy).ok) recommended = action;
-    const result = move(cursor, action.id, action.dx, action.dy); if (!result.ok) break; cursor = result.state;
+    if (boardKey(cursor) === wanted && (action.action === 'lift' ? elevate(s, action.id) : move(s, action.id, action.dx, action.dy)).ok) recommended = action;
+    const result = action.action === 'lift' ? elevate(cursor, action.id) : move(cursor, action.id, action.dx, action.dy); if (!result.ok) break; cursor = result.state;
   }
   if (recommended) return recommended;
   const queue = [{ s, first: null }], seen = new Set([wanted]);
@@ -249,10 +340,11 @@ export function elevate(s, id) {
   const y = b.y === 2 ? 4 : 2;
   if (!fits(s, b, b.x, y)) return { ok: false, state: s, events: [] };
   const next = copyState(s), target = next.blocks.find(b=>b.id===id); target.y = y; next.moves++;
-  return { ok: true, state: next, events: [{ type: 'lift', block: { ...target } }] };
+  const events = [{ type: 'lift', block: { ...target } }]; advanceLesson(s, next, events, { id, action: 'lift' });
+  return { ok: true, state: next, events };
 }
 export function tick(s, seconds) {
-  if (s.status !== 'playing' || !Number.isFinite(seconds) || seconds <= 0) return s;
+  if (s.status !== 'playing' || !Number.isFinite(seconds) || seconds <= 0 || lessonStep(s)) return s;
   const next = { ...s }, protectedTime = Math.min(s.frozen, seconds);
   next.frozen = Math.max(0, s.frozen - seconds); next.time = Math.max(0, s.time - (seconds - protectedTime));
   if (next.time <= 0) { next.status = 'lost'; next.reason = 'time'; }
@@ -280,7 +372,7 @@ export function migrateRun(s) {
 }
 export function migrateCampaignRun(s) {
   const next = migrateRun(s);
-  if (s.stage !== undefined) return next;
+  if (s.stage !== undefined) return s.campaignLegacy ? next : { ...next, layoutVersion: s.layoutVersion || 1 };
   return { ...next, stage: LEGACY_STAGES[s.mode] || 1, gimmicks: legacyGimmicks(s.mode), campaignLegacy: true, started: false };
 }
 export function newProfile() {
@@ -311,6 +403,9 @@ export function validRun(s) {
   if (s.gimmicks !== undefined && (!validGimmicks(s.gimmicks) || modeFor(s.gimmicks) !== s.mode)) return false;
   if (s.campaignLegacy !== undefined && typeof s.campaignLegacy !== 'boolean') return false;
   if (s.campaignLegacy && s.stage === undefined) return false;
+  if (s.layoutVersion !== undefined && (!s.stage || s.campaignLegacy || ![1,2].includes(s.layoutVersion))) return false;
+  if (s.lessonIndex !== undefined && (s.layoutVersion !== 2 || !Number.isInteger(s.stage) || !Number.isInteger(s.lessonIndex) || s.stage < 1 || s.stage > 7 || s.lessonIndex < 0 || s.lessonIndex > LESSONS[s.stage - 1].length)) return false;
+  if (s.layoutVersion === 2 && s.stage <= 7 && s.lessonIndex === undefined) return false;
   if (s.stage !== undefined) {
     if (!Number.isInteger(s.stage) || s.stage < 1 || s.stage > 9999 || !Array.isArray(s.gimmicks) || !Array.isArray(s.reserve) || typeof s.started !== 'boolean') return false;
     const expected = s.campaignLegacy ? legacyGimmicks(s.mode) : stageInfo(s.stage).gimmicks;
@@ -330,5 +425,5 @@ export function validRun(s) {
   if (s.blocks.some(b => !fits(s,b,b.x,b.y)) || s.tray.some(c=>!COLORS[c]) || s.unlocked.some(c=>!COLORS[c])) return false;
   if (s.removed + blocks.length !== s.total || s.total < 1 || s.total > 20 || s.initial > s.total || (!hasGimmick(s, 'triple') && s.tray.length)) return false;
   if (s.status === 'won' && (blocks.length || s.tray.length || s.reserve?.length)) return false;
-  return s.plan.every(a => a && Number.isInteger(a.id) && Number.isInteger(a.dx) && Number.isInteger(a.dy) && (!a.dx !== !a.dy) && Math.abs(a.dx+a.dy) <= SIZE);
+  return s.plan.every(a => a && Number.isInteger(a.id) && Number.isInteger(a.dx) && Number.isInteger(a.dy) && (a.action === 'lift' ? hasGimmick(s,'lift') && a.dx === 0 && a.dy === 0 : a.action === undefined && (!a.dx !== !a.dy) && Math.abs(a.dx+a.dy) <= SIZE));
 }

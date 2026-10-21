@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
-import { createLevel, createStage, stageInfo, hasGimmick, newProfile, GATES, COLORS } from '../rules.mjs';
+import { createLevel, createStage, stageInfo, lessonStep, hasGimmick, newProfile, GATES, COLORS } from '../rules.mjs';
 
 const root=new URL('../',import.meta.url),html=readFileSync(new URL('index.html',root),'utf8');
 const source=['rules.mjs','drag.mjs','game.mjs'].map(file=>readFileSync(new URL(file,root),'utf8').replace(/^import .+;\r?\n/gm,'').replace(/^export /gm,'')).join('\n');
 const KEY='block-bloom:v1';
-function app(saved=null,{brokenStorage=false,reduced=false,ready=false}={}) {
+function app(saved=null,{brokenStorage=false,reduced=false,ready=false,lessons=false}={}) {
   const errors=[],notes=[],vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM(html,{url:'https://example.test/games/block-bloom/',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc}),w=dom.window;
   let now=0,nextId=0;const timeouts=new Map(),intervals=new Map(),frames=new Map(),noop=()=>{};
@@ -19,13 +19,14 @@ function app(saved=null,{brokenStorage=false,reduced=false,ready=false}={}) {
   w.HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};w.HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');this.dispatchEvent(new w.Event('close'));};
   w.AudioContext=class{state='running';currentTime=0;destination={};resume(){return Promise.resolve();}createGain(){return{gain:{value:0,setValueAtTime:noop,linearRampToValueAtTime:noop,exponentialRampToValueAtTime:noop},connect:noop,disconnect:noop};}createOscillator(){return{type:'sine',frequency:{setValueAtTime:f=>notes.push(f),exponentialRampToValueAtTime:noop},connect:noop,disconnect:noop,start:noop,stop:noop};}};
   if(saved)w.localStorage.setItem(KEY,typeof saved==='string'?saved:JSON.stringify(saved));
+  else if(!lessons&&!brokenStorage)w.localStorage.setItem(KEY,JSON.stringify({profile:newProfile(),run:createStage(1,123,{layoutVersion:1}),history:[]}));
   if(brokenStorage)Object.defineProperty(w,'localStorage',{get(){throw Error('storage blocked');}});
   w.eval(source+'\nwindow.__qa={get state(){return state},get profile(){return profile},get combo(){return combo},get feverUntil(){return feverUntil},get activeTime(){return activeTime},setState(s){state=s;history=[];render();},newRun:stage=>newRun(stage,false,true),resources:()=>({timers:effectTimers.size,sounds:oscillators.size,outputs:outputs.size})};');
   if(!ready&&w.document.querySelector('[data-action="start"]'))w.document.querySelector('[data-action="start"]').click();
   const get=id=>w.document.getElementById(id);
   function click(selector){const el=w.document.querySelector(selector);assert.ok(el,'missing '+selector);assert.equal(el.disabled,false,'disabled '+selector);el.click();}
   function advance(ms){const until=now+ms;while(now<until){now=Math.min(until,now+50);for(const item of intervals.values())if(now>=item.next){item.next=now+item.ms;item.fn();}for(const [id,item]of[...timeouts])if(now>=item.at){timeouts.delete(id);item.fn();}}}
-  function solve(){const s=w.__qa.state,plan=(s.stage&&!s.campaignLegacy?createStage(s.stage,s.seed):createLevel(s.mode,s.level,s.seed)).plan;for(const action of plan){click(`[data-block="${action.id}"]`);for(let i=0;i<Math.abs(action.dx+action.dy);i++)click(`[data-direction="${Math.sign(action.dx)},${Math.sign(action.dy)}"]`);}assert.equal(w.__qa.state.status,'won');advance(650);}
+  function solve(){const s=w.__qa.state,plan=(s.stage&&!s.campaignLegacy?createStage(s.stage,s.seed,{layoutVersion:s.layoutVersion||1}):createLevel(s.mode,s.level,s.seed)).plan;for(const action of plan){click(`[data-block="${action.id}"]`);if(action.action==='lift')click('#lift');else for(let i=0;i<Math.abs(action.dx+action.dy);i++)click(`[data-direction="${Math.sign(action.dx)},${Math.sign(action.dy)}"]`);}assert.equal(w.__qa.state.status,'won');advance(650);}
   function pointer(el,type,props={},paint=true){const event=new w.Event(type,{bubbles:true});Object.assign(event,{pointerId:1,button:0,clientX:40,clientY:40,...props});el.dispatchEvent(event);if(paint)frame();}
   return{dom,w,get,click,advance,solve,notes,errors,pointer,frame,frameCount:()=>frames.size,timerCount:()=>intervals.size,saved:()=>JSON.parse(w.localStorage.getItem(KEY)),close:()=>w.close()};
 }
@@ -136,13 +137,13 @@ test('items and keyboard input cancel a pending drag instead of later committing
   }finally{a.close();}
 });
 test('twelve stages progress through real buttons, preview each next gimmick and wait for its explanation',()=>{
-  const a=app();try{
+  const a=app(null,{lessons:true});try{
     assert.equal(a.get('mode-open'),null);assert.equal(a.w.document.querySelector('[data-mode]'),null);assert.equal(a.get('items').children.length,5);
     for(let stage=1;stage<=12;stage++){
       const s=a.w.__qa.state;assert.equal(s.stage,stage);assert.equal(s.started,true);assert.equal(a.get('stage-number').textContent,String(stage));
       assert.equal(a.get('dock').hidden,!hasGimmick(s,'triple'));assert.equal(a.get('factory-bar').hidden,!hasGimmick(s,'factory'));assert.equal(a.get('lift').hidden,!hasGimmick(s,'lift'));
       if(hasGimmick(s,'key'))assert.ok(a.get('blocks').querySelectorAll('.block-key').length);
-      if(hasGimmick(s,'ice'))assert.equal(a.get('blocks').querySelectorAll('.iced').length,2);
+      if(hasGimmick(s,'ice'))assert.ok(a.get('blocks').querySelectorAll('.iced').length);
       a.solve();assert.equal(a.get('modal').open,true);assert.match(a.get('modal-content').textContent,/클리어/);assert.ok(a.saved().run.rewarded);assert.equal(a.saved().profile.stage,stage+1);
       assert.match(a.w.document.querySelector('.next-stage').textContent,new RegExp(stageInfo(stage+1).shortTitle));
       a.click('[data-action="next"]');assert.equal(a.w.__qa.state.stage,stage+1);assert.equal(a.w.__qa.state.started,false);assert.equal(a.get('modal').dataset.kind,'ready');
@@ -227,9 +228,67 @@ test('an unread stage briefing survives cancel, reload and tab restoration witho
   }finally{a.close();}
   const b=app(saved,{ready:true});try{
     assert.equal(b.w.__qa.state.stage,2);assert.equal(b.w.__qa.profile.wins,1);assert.equal(b.w.__qa.profile.coins,480);assert.equal(b.get('modal').dataset.kind,'ready');
-    b.advance(12000);assert.equal(b.w.__qa.state.time,saved.run.time);b.click('[data-action="start"]');b.advance(1000);assert.ok(b.w.__qa.state.time<saved.run.time);
+    b.advance(12000);assert.equal(b.w.__qa.state.time,saved.run.time);b.click('[data-action="start"]');b.advance(1000);assert.equal(b.w.__qa.state.time,saved.run.time,'new lessons protect time after the briefing too');
     b.click('#pause');b.click('#restart');b.click('[data-action="restart-confirm"]');assert.equal(b.w.__qa.state.stage,2);assert.equal(b.w.__qa.state.seed,saved.run.seed);assert.equal(b.w.__qa.state.started,false);assert.equal(b.w.__qa.profile.stage,2);assert.equal(b.get('modal').dataset.kind,'ready');
   }finally{b.close();}
+});
+
+function practice(a){
+  const step=lessonStep(a.w.__qa.state);assert.ok(step);a.click(`[data-block="${step.blockId}"]`);
+  if(step.action==='lift')a.click('#lift');else for(let i=0;i<Math.abs(step.dx+step.dy);i++)a.click(`[data-direction="${Math.sign(step.dx)},${Math.sign(step.dy)}"]`);
+}
+function lessonApp(stage=1){return app({profile:{...newProfile(),stage},run:createStage(stage,731),history:[]},{lessons:true});}
+
+test('every new mechanic highlights real steps and protects time, then releases independent play',()=>{
+  for(let stage=1;stage<=7;stage++){const a=lessonApp(stage);try{
+    let completed=0;const time=a.w.__qa.state.time;
+    while(lessonStep(a.w.__qa.state)){
+      const step=lessonStep(a.w.__qa.state);assert.equal(a.get('lesson-panel').hidden,false);assert.equal(a.get('items').hidden,true);assert.equal(a.get('lesson-count').textContent,`${step.index+1}/${step.total}`);assert.equal(a.get('lesson-text').textContent,step.text);
+      assert.equal(a.w.document.querySelector('.lesson-target').dataset.block,String(step.blockId));assert.equal(a.get('time').textContent,'연습');assert.equal(a.timerCount(),0);
+      a.advance(15000);assert.equal(a.w.__qa.state.time,time);assert.equal(a.w.__qa.activeTime,0);practice(a);completed++;
+    }
+    assert.ok(completed>=2&&completed<=3);assert.equal(a.get('lesson-panel').hidden,true);assert.equal(a.get('items').hidden,false);assert.equal(a.w.document.querySelector('.lesson-target'),null);
+    if(a.w.__qa.state.status==='playing'){assert.equal(a.timerCount(),1);a.advance(1000);assert.ok(a.w.__qa.state.time>=time-1.01&&a.w.__qa.state.time<time);}
+    else assert.equal(a.w.__qa.state.status,'won');assert.deepEqual(a.errors,[]);
+  }finally{a.close();}}
+});
+
+test('practice blocks wrong pieces, keyboard axes and item spending; touch cancellation keeps progress',()=>{
+  const a=lessonApp();try{
+    const items=JSON.stringify(a.w.__qa.profile.items),moves=a.w.__qa.state.moves;Object.defineProperty(a.get('board'),'clientWidth',{value:360,configurable:true});
+    a.click('[data-block="1"]');assert.equal(a.w.document.querySelector('.selected'),null);const wrong=a.w.document.querySelector('[data-block="1"]');a.pointer(wrong,'pointerdown',{pointerType:'touch'});a.pointer(wrong,'pointermove',{clientX:200});a.pointer(wrong,'pointerup',{clientX:200});assert.equal(a.w.__qa.state.moves,moves);
+    a.click('[data-block="0"]');a.click('[data-direction="1,0"]');a.w.document.querySelector('[data-block="0"]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));assert.equal(a.w.__qa.state.blocks[0].x,0);
+    for(const id of ['hammer','magnet','hint','freeze','undo'])a.click(`[data-item="${id}"]`);a.advance(100);assert.equal(JSON.stringify(a.w.__qa.profile.items),items);
+    const b=a.w.document.querySelector('[data-block="0"]');a.pointer(b,'pointerdown',{pointerType:'touch'});a.pointer(b,'pointermove',{clientX:160,clientY:20,pointerType:'touch'});assert.equal(b.style.transform,'translate(0px,-20px)');a.pointer(b,'pointercancel');
+    assert.equal(a.w.__qa.state.lessonIndex,0);assert.equal(a.w.__qa.state.moves,moves);assert.equal(a.saved().history.length,0);assert.equal(b.style.transform,'');
+    a.pointer(b,'pointerdown',{pointerType:'touch'});a.pointer(b,'pointermove',{clientY:-40,pointerType:'touch'});a.pointer(b,'pointerup',{clientY:-40,pointerType:'touch'});assert.equal(a.w.__qa.state.lessonIndex,1);assert.equal(a.w.__qa.state.removed,1);assert.equal(a.get('lesson-count').textContent,'2/2');
+  }finally{a.close();}
+});
+
+test('partial practice survives reload and tab return; undo reopens the real step and retry resets it',()=>{
+  const a=lessonApp(4);let saved;try{practice(a);assert.equal(a.w.__qa.state.lessonIndex,1);a.w.dispatchEvent(new a.w.PageTransitionEvent('pagehide',{persisted:true}));saved=a.saved();}finally{a.close();}
+  const b=app(saved,{lessons:true});try{
+    assert.equal(b.w.__qa.state.lessonIndex,1);assert.equal(b.get('lesson-panel').hidden,false);assert.equal(b.w.document.querySelector('.lesson-target').dataset.block,'0');b.w.dispatchEvent(new b.w.PageTransitionEvent('pageshow',{persisted:true}));b.advance(10000);assert.equal(b.w.__qa.state.time,saved.run.time);
+    practice(b);assert.equal(b.w.__qa.state.lessonIndex,2);assert.equal(b.get('items').hidden,false);b.advance(1000);const time=b.w.__qa.state.time;b.click('[data-item="undo"]');assert.equal(b.w.__qa.state.lessonIndex,1);assert.equal(b.get('items').hidden,true);b.advance(5000);assert.equal(b.w.__qa.state.time,time);practice(b);assert.equal(b.timerCount(),1);
+    b.click('#pause');b.click('#restart');b.click('[data-action="restart-confirm"]');assert.equal(b.w.__qa.state.layoutVersion,2);assert.equal(b.w.__qa.state.lessonIndex,0);assert.equal(b.w.__qa.state.seed,saved.run.seed);b.click('[data-action="start"]');assert.equal(b.get('lesson-count').textContent,'1/2');
+  }finally{b.close();}
+});
+
+test('elevator practice requires selection and an actual lift; Space cannot bypass its next step',()=>{
+  const a=lessonApp(7);try{
+    a.click('#lift');assert.equal(a.w.__qa.state.lessonIndex,0);a.click('[data-block="1"]');a.click('#lift');assert.equal(a.w.__qa.state.lessonIndex,0);
+    const block=a.w.document.querySelector('[data-block="0"]');a.pointer(block,'pointerdown',{pointerType:'touch'});a.pointer(block,'pointermove',{clientX:180,clientY:100,pointerType:'touch'});a.pointer(block,'pointerup',{clientX:180,clientY:100,pointerType:'touch'});assert.equal(a.w.__qa.state.blocks[0].y,2);assert.equal(a.w.__qa.state.moves,0);
+    a.w.document.querySelector('[data-block="0"]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true}));assert.equal(a.w.__qa.state.lessonIndex,1);assert.equal(a.w.__qa.state.blocks[0].y,4);assert.equal(a.w.__qa.state.moves,1);
+    a.w.document.querySelector('[data-block="0"]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true}));assert.equal(a.w.__qa.state.blocks[0].y,4);assert.equal(a.w.__qa.state.moves,1);practice(a);assert.equal(lessonStep(a.w.__qa.state),null);
+  }finally{a.close();}
+});
+
+test('existing campaign layout and inventory survive reload and an identical retry without introducing a lesson',()=>{
+  const run={...createStage(4,887,{layoutVersion:1}),started:true};delete run.layoutVersion;
+  const a=app({profile:{...newProfile(),stage:4,coins:987},run,history:[]});try{
+    assert.equal(a.w.__qa.state.layoutVersion,1);assert.equal(a.get('lesson-panel').hidden,true);assert.equal(JSON.stringify(a.w.__qa.state.blocks),JSON.stringify(run.blocks));assert.equal(a.w.__qa.profile.coins,987);
+    a.click('#pause');a.click('#restart');a.click('[data-action="restart-confirm"]');assert.equal(a.w.__qa.state.layoutVersion,1);assert.equal(JSON.stringify(a.w.__qa.state.blocks),JSON.stringify(run.blocks));a.click('[data-action="start"]');assert.equal(a.get('lesson-panel').hidden,true);a.solve();
+  }finally{a.close();}
 });
 
 test('legacy mode saves keep their board and economy, explain actual mechanics, then join stage one',()=>{
@@ -259,7 +318,7 @@ test('bfcache restores one clock; final page exit releases timers, effects, audi
 });
 test('long press explains an item without spending it and a new run cancels a pending hint',()=>{
   const a=app();try{const b=a.w.document.querySelector('[data-item="hammer"]');a.pointer(b,'pointerdown');a.advance(550);a.pointer(b,'pointerup');b.click();assert.equal(a.w.__qa.profile.items.hammer,3);assert.match(a.get('toast').textContent,/선택 블록/);
-    a.click('[data-item="hint"]');a.w.__qa.newRun(4);a.advance(100);assert.equal(a.w.__qa.profile.items.hint,5);assert.equal(a.w.__qa.state.mode,'merge');assert.equal(a.get('hint-arrow').hidden,true);
+    a.click('[data-item="hint"]');a.w.__qa.newRun(4);a.advance(100);assert.equal(a.w.__qa.profile.items.hint,5);assert.equal(a.w.__qa.state.mode,'merge');assert.ok(a.get('hint-arrow').classList.contains('lesson-cue'));
   }finally{a.close();}
 });
 test('idle HUD ticks avoid rewriting unchanged numbers',()=>{
