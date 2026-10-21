@@ -83,6 +83,22 @@ h2 { font-size: 38px; font-weight: 650; letter-spacing: -1.8px; }
 .profile-list > div { display: grid; grid-template-columns: 112px 1fr; gap: 16px; padding-block: 13px; border-top: 1px solid var(--line); }
 .profile-list dt { color: #7a6589; font-size: 14px; padding-top: 2px; }
 .profile-list dd { margin: 0; font-size: 16px; color: #51405f; }
+.profile-email { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 44px; color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+.profile-list > div:has(.profile-email) dt { align-self: center; }
+.network-case { margin-top: 62px; padding-top: 45px; border-top: 1px solid var(--line); scroll-margin-top: 110px; }
+.network-case .eyebrow { margin-bottom: 12px; }
+.network-case h3 { font-size: 30px; font-weight: 600; letter-spacing: -1px; }
+.network-lead { max-width: 880px; margin-top: 22px; color: var(--muted); font-size: 17px; }
+.network-flow { list-style: none; margin: 30px 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.network-flow li { padding: 24px; border: 1px solid var(--line); border-radius: 6px; background: #ede5f580; }
+.network-flow li > span { display: block; font-size: 14px; color: var(--accent); margin-bottom: 8px; }
+.network-flow strong { display: block; font-size: 20px; font-weight: 600; }
+.network-flow p { margin-top: 12px; font-size: 16px; color: var(--muted); }
+.network-terms { margin: 0; }
+.network-terms > div { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 30px; padding-block: 20px; border-top: 1px solid var(--line); }
+.network-terms dt { font-size: 18px; font-weight: 600; }
+.network-terms dd { margin: 0; font-size: 16px; color: var(--muted); }
+.closing-links { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 32px; }
 .section-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; margin-bottom: 38px; }
 .section-heading p { color: var(--muted); font-size: 16px; margin-top: 12px; }
 .source-link { color: #80569e; white-space: nowrap; }
@@ -297,6 +313,12 @@ details[open] > summary .detail-toggle::after { transform: rotate(0); }
   .about-copy .lead { font-size: 22px; }
   .profile-list { margin-top: 24px; }
   .profile-list > div { grid-template-columns: 96px 1fr; gap: 12px; }
+  .network-case { margin-top: 42px; padding-top: 34px; }
+  .network-case h3 { font-size: 26px; }
+  .network-lead { font-size: 16px; }
+  .network-flow { grid-template-columns: 1fr; gap: 16px; }
+  .network-flow li { padding: 22px; }
+  .network-terms > div { grid-template-columns: 1fr; gap: 12px; }
   .section-heading { display: block; margin-bottom: 24px; }
   .source-link { margin-top: 12px; }
   .career-layout { grid-template-columns: 1fr; gap: 32px; }
