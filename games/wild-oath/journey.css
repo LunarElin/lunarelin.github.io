@@ -1,0 +1,129 @@
+/* Journey choices are part of the game board, with every offer visible at once. */
+.journey-view{flex:1;min-height:0;width:min(1000px,100%);margin:auto;display:flex;flex-direction:column;gap:16px;padding:20px 0 9px}
+.journey-banner{display:flex;align-items:center;justify-content:center;gap:20px;flex-shrink:0}
+.journey-mascot{width:94px;height:94px;flex-shrink:0;border:3px solid #50877b;border-radius:35%;background-color:#e3f5bf;box-shadow:inset 0 3px #fff9,0 6px #82ad89,0 10px #6d9a7920;transform:rotate(-4deg)}
+.journey-heading{min-width:0}
+.journey-heading>span{display:block;font-size:16px;color:#497568;margin-bottom:4px}
+.journey-heading h2{font-size:36px;line-height:1.1;color:#2e655e;text-shadow:0 2px #fffcd9}
+.journey-heading p{font-size:18px;line-height:1.3;color:#426d61;margin-top:7px}
+.draft-progress{display:flex;align-items:center;justify-content:center;gap:18px;flex-shrink:0;min-height:36px}
+.draft-progress>strong{font-size:28px;line-height:1;color:#2d695f;white-space:nowrap}
+.draft-dots{display:flex;align-items:center;gap:7px}
+.draft-dots i{display:block;width:17px;height:17px;border:2px solid #81a88b;border-radius:50%;background:#eaf3d4;box-shadow:inset 0 2px #fff9,0 2px #aac29d}
+.draft-dots i.done{background:#7dd7ab;border-color:#4a8b75;box-shadow:inset 0 2px #b6ffcf,0 2px #6ba78b}
+.draft-dots i.current{background:#ffda72;border-color:#9b8e4b;box-shadow:inset 0 2px #fff6b1,0 2px #b2ad72;transform:scale(1.15)}
+.draft-options{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-content:center;gap:22px;padding:4px 8px 10px}
+.draft-option{position:relative;min-width:0;height:300px;padding:12px 13px 35px;border:3px solid #547e73;border-radius:27px;background:linear-gradient(#fffeed,#ffe3b1);box-shadow:inset 0 4px #fff,0 7px #85a17c,0 11px #507d6a26;text-align:center;transition:transform .15s,filter .15s}
+.draft-option[data-type=defense]{background:linear-gradient(#edfaff,#bfe1ef)}
+.draft-option[data-type=form]{background:linear-gradient(#f5efff,#d6c9f6)}
+.draft-option[data-type=heal]{background:linear-gradient(#f3ffdc,#cbe9a6)}
+.draft-option[data-type=energy]{background:linear-gradient(#fff9d2,#ffda7d)}
+.draft-option:before{content:'';position:absolute;inset:6px;border:2px solid #fff8;border-radius:19px;pointer-events:none}
+.draft-option .card-art{height:146px;margin:0;border-radius:20px}
+.draft-option .card-name{font-size:26px;margin:14px 0 9px;line-height:1.15}
+.draft-option .card-text{font-size:18px;line-height:1.25}
+.draft-option .card-cost{width:45px;height:47px;font-size:34px;top:-8px;left:-8px;border-radius:18px}
+.draft-option .card-bottom{font-size:16px;bottom:12px;left:16px;right:16px}
+.draft-option:active{transform:translateY(5px) scale(.99);box-shadow:inset 0 3px #fff,0 2px #85a17c,0 5px #507d6a20}
+.draft-owned{display:flex;align-items:center;gap:14px;min-height:43px;flex-shrink:0;padding:3px 9px}
+.draft-owned>span{font-size:16px;color:#446d5e;flex-shrink:0}
+.draft-preview{display:flex;align-items:center;gap:7px;min-width:0;overflow:auto;overscroll-behavior:contain;padding:3px 2px 6px;scrollbar-width:thin;scrollbar-color:#84b29b transparent}
+.picked-card{display:block;flex-shrink:0;padding:6px 11px;border:2px solid #87ae93;border-radius:13px;background:linear-gradient(#fffce7,#e9edc6);box-shadow:inset 0 2px #fff,0 2px #a6bd94;font-size:16px;color:#426c5c;white-space:nowrap}
+.draft-preview:empty:before{content:'선택한 카드가 여기에 모여요';display:block;font-size:16px;color:#527967;white-space:nowrap}
+.journey-note{flex-shrink:0;text-align:center;font-size:16px;line-height:1.35;color:#436e5e}
+.explore-supplies{display:flex;justify-content:center;gap:18px;flex-shrink:0}
+.explore-supplies>span{display:flex;align-items:baseline;gap:10px;min-width:130px;justify-content:center;padding:8px 15px;border:2px solid #88b097;border-radius:19px;background:linear-gradient(#fffde7,#edf1c9);box-shadow:inset 0 2px #fff,0 3px #a6bd94;font-size:16px;color:#4a725f}
+.explore-supplies b{font-size:30px;line-height:1;color:#2f685b}
+.explore-options{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:center;gap:24px;padding:5px 9px 12px}
+.encounter-option{position:relative;min-width:0;min-height:305px;padding:20px 20px 56px;border:3px solid #628977;border-radius:29px;background:linear-gradient(#fffde7,#e5eac0);box-shadow:inset 0 4px #fff,0 7px #8da77c,0 11px #507d6a26;text-align:center;transition:transform .15s,filter .15s}
+.encounter-option:before{content:'';position:absolute;inset:7px;border:2px solid #fff8;border-radius:20px;pointer-events:none}
+.encounter-art{display:block;width:105px;height:105px;margin:0 auto 16px;border:3px solid #8aac89;border-radius:34%;background-color:#d9efb6;box-shadow:inset 0 3px #fff8,0 4px #b0bf8e;transform:rotate(-3deg)}
+.encounter-option[data-event=thicket]{background:linear-gradient(#fff2dc,#f6d0ad);border-color:#ad8b69;box-shadow:inset 0 4px #fff7e8,0 7px #b5a17d,0 11px #507d6a26}
+.encounter-option[data-event=merchant]{background:linear-gradient(#fff2cd,#f4dd91)}
+.encounter-option[data-event=spring]{background:linear-gradient(#edfcff,#c9e9df)}
+.encounter-copy{display:flex;flex-direction:column;align-items:center;gap:9px}
+.encounter-copy>strong{font-size:28px;line-height:1.15;color:#35695e}
+.encounter-copy>.description{font-size:18px;line-height:1.3;color:#4d6e5c}
+.encounter-reward{font-size:21px;color:#386c54}
+.encounter-cost{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:block;width:max-content;padding:5px 15px;border:2px solid #9eb087;border-radius:13px;background:#fff5cb;box-shadow:inset 0 2px #fff;font-size:16px;line-height:1.2;color:#687647;white-space:nowrap}
+.encounter-option[data-event=thicket] .encounter-cost,.encounter-option[data-event=merchant] .encounter-cost{color:#8a5b36;border-color:#c4a37e;background:#ffe9bd}
+.encounter-option:active{transform:translateY(5px) scale(.99);box-shadow:inset 0 3px #fff,0 2px #8da77c,0 5px #507d6a20}
+@media(hover:hover){.draft-option:hover,.encounter-option:hover{transform:translateY(-4px);filter:brightness(1.025)}}
+@media(max-width:700px){
+  .journey-view{gap:12px;padding:14px 0 5px}
+  .journey-banner{justify-content:flex-start;gap:12px;padding-inline:5px}
+  .journey-mascot{width:70px;height:70px;border-radius:27px;box-shadow:inset 0 3px #fff9,0 4px #82ad89}
+  .journey-heading>span{font-size:14px;margin-bottom:3px}
+  .journey-heading h2{font-size:28px;line-height:1.1}
+  .journey-heading p{font-size:16px;line-height:1.25;margin-top:5px}
+  .draft-progress{min-height:31px;gap:13px}
+  .draft-dots{gap:6px}.draft-dots i{width:15px;height:15px}
+  .draft-options{grid-template-columns:1fr;align-content:center;gap:13px;padding:2px 6px 8px}
+  .draft-option{display:grid;grid-template-columns:78px minmax(0,1fr);grid-template-rows:auto auto auto;align-content:center;column-gap:13px;row-gap:3px;height:auto;min-height:115px;padding:9px 11px;border-radius:23px;text-align:left;box-shadow:inset 0 3px #fff,0 5px #85a17c,0 8px #507d6a20}
+  .draft-option:before{inset:5px;border-radius:16px}
+  .draft-option .card-art{grid-column:1;grid-row:1/4;height:87px;align-self:center;border-radius:17px;background-size:300% 200%}
+  .draft-option .card-art.art-druid{background-position:0 100%}
+  .draft-option .card-art.art-forest{background-position:100% 100%}
+  .draft-option .card-art.art-wolf,.draft-option .card-art.art-bear,.draft-option .card-art.art-wyvern{background-position-y:0}
+  .draft-option .card-name{grid-column:2;font-size:22px;margin:0;padding-right:35px;align-self:end;min-width:0;line-height:1.12}
+  .draft-option .card-text{grid-column:2;font-size:16px;line-height:1.2;align-self:center;white-space:normal}
+  .draft-option .card-bottom{grid-column:2;position:static;font-size:14px;align-self:start;justify-content:flex-start;gap:10px;line-height:1.15}
+  .draft-option .card-cost{top:7px;right:7px;left:auto;width:32px;height:34px;font-size:28px;border-radius:13px;box-shadow:inset 0 2px #eaffff,0 2px #467f8e}
+  .draft-owned{display:block;padding:0 6px;min-height:49px}
+  .draft-owned>span{display:block;font-size:14px;line-height:1.15;margin-bottom:2px}
+  .draft-preview{gap:6px;padding:2px 1px 5px}
+  .picked-card{padding:4px 8px;font-size:14px;border-radius:11px}
+  .draft-preview:empty:before{font-size:14px;padding:4px 0}
+  .journey-note{font-size:14px;line-height:1.25;padding-inline:6px}
+  .explore-supplies{gap:8px;padding:0 5px}
+  .explore-supplies>span{flex:1;min-width:0;padding:8px 6px;gap:7px;font-size:16px;border-radius:16px}
+  .explore-supplies b{font-size:28px}
+  .explore-options{grid-template-columns:1fr;align-content:center;gap:17px;padding:3px 6px 10px}
+  .encounter-option{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:12px;min-height:168px;padding:13px 13px 43px;border-radius:25px;text-align:left;box-shadow:inset 0 4px #fff,0 5px #8da77c,0 8px #507d6a20}
+  .encounter-art{width:76px;height:83px;margin:0;border-radius:25px}
+  .encounter-copy{align-items:flex-start;gap:6px}
+  .encounter-copy>strong{font-size:24px}
+  .encounter-copy>.description{font-size:16px;line-height:1.2}
+  .encounter-reward{font-size:18px;line-height:1.2}
+  .encounter-cost{bottom:10px;left:auto;right:13px;transform:none;font-size:14px;padding:4px 12px}
+  .encounter-option:before{inset:6px;border-radius:17px}
+}
+@media(max-width:350px){
+  .journey-banner{gap:10px;padding-inline:3px}.journey-mascot{width:58px;height:58px;border-radius:23px}
+  .journey-heading h2{font-size:26px}.journey-heading p{font-size:16px}
+  .draft-option{grid-template-columns:64px minmax(0,1fr);column-gap:10px;padding-inline:9px}
+  .draft-option .card-art{height:77px;border-radius:15px}.draft-option .card-name{font-size:20px;padding-right:32px}
+  .draft-option .card-cost{right:6px;width:29px;height:31px;font-size:27px}
+  .encounter-option{grid-template-columns:62px minmax(0,1fr);gap:10px;padding-inline:10px}
+  .encounter-art{width:62px;height:73px;border-radius:23px}.encounter-copy>strong{font-size:22px}
+}
+@media(max-height:680px) and (max-width:700px){
+  .journey-view{gap:8px;padding-top:9px;padding-bottom:2px}
+  .journey-banner{gap:10px}.journey-mascot{width:55px;height:55px;border-radius:22px}
+  .journey-heading>span{margin-bottom:2px}.journey-heading h2{font-size:26px}.journey-heading p{margin-top:3px}
+  .draft-progress{min-height:29px}.draft-options{gap:10px;padding-bottom:6px}
+  .draft-option{min-height:98px;padding-block:6px;row-gap:2px;grid-template-columns:65px minmax(0,1fr);column-gap:10px}
+  .draft-option .card-art{height:75px;border-radius:15px}.draft-option .card-name{font-size:20px}
+  .draft-owned{min-height:45px}.picked-card{padding-block:3px}.journey-note{font-size:14px}
+  .explore-supplies>span{padding-block:6px}
+  .explore-options{gap:13px;padding-bottom:8px}
+  .encounter-option{min-height:145px;padding-top:9px;padding-bottom:37px;grid-template-columns:63px minmax(0,1fr);gap:10px}
+  .encounter-art{width:63px;height:72px;border-radius:23px}.encounter-copy{gap:4px}.encounter-copy>strong{font-size:22px}
+  .encounter-cost{bottom:8px;padding-block:3px}
+}
+@media(max-height:500px) and (min-width:701px){
+  .journey-view{gap:6px;padding:7px 0 1px}.journey-banner{gap:12px}
+  .journey-mascot{width:46px;height:46px;border-radius:19px}.journey-heading>span{display:none}
+  .journey-heading h2{font-size:25px}.journey-heading p{font-size:16px;margin-top:3px}
+  .draft-progress{min-height:28px}.draft-options{gap:16px;padding:2px 8px 6px}
+  .draft-option{height:181px;padding:7px 10px 25px;border-radius:22px}.draft-option .card-art{height:60px;border-radius:15px}
+  .draft-option .card-name{font-size:21px;margin:7px 0 5px}.draft-option .card-text{font-size:16px;line-height:1.15}
+  .draft-option .card-cost{width:32px;height:34px;font-size:28px;border-radius:14px;top:-5px;left:-5px}
+  .draft-option .card-bottom{font-size:14px;bottom:7px}.draft-owned{min-height:35px}.picked-card{font-size:14px;padding-block:4px}
+  .journey-note{font-size:14px}.explore-supplies{gap:12px}.explore-supplies>span{padding:5px 12px;font-size:14px;min-width:120px}
+  .explore-supplies b{font-size:28px}.explore-options{gap:18px;padding:2px 8px 6px}
+  .encounter-option{display:grid;grid-template-columns:65px minmax(0,1fr);align-items:center;gap:12px;min-height:175px;padding:12px 15px 40px;text-align:left;border-radius:24px}
+  .encounter-art{width:65px;height:75px;margin:0;border-radius:23px}.encounter-copy{align-items:flex-start;gap:5px}
+  .encounter-copy>strong{font-size:23px}.encounter-copy>.description{font-size:16px}.encounter-reward{font-size:18px}
+  .encounter-cost{font-size:14px;bottom:9px;padding-block:3px}
+}

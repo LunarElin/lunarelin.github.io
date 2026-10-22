@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#bfe8f5">
+  <meta name="description" content="야생의 서약의 모든 카드를 찾아보고, 기력 비용과 강화 효과를 비교하세요. 플레이어와 적이 함께 사용하는 카드 도감.">
+  <title>카드 도감 · 야생의 서약</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="catalog.css">
+  <script type="module" src="catalog.mjs"></script>
+</head>
+<body>
+<main class="catalog-shell">
+  <header class="catalog-header">
+    <a class="back-button" href="./" aria-label="게임으로 돌아가기">‹ 게임</a>
+    <div><p>야생의 서약</p><h1>카드 도감</h1></div>
+    <a class="home-button" href="../../" aria-label="홈으로">⌂</a>
+  </header>
+  <section class="catalog-controls" aria-label="카드 찾기">
+    <label class="search-label"><span class="visually-hidden">카드 이름이나 효과 검색</span><input id="card-search" type="search" placeholder="이름·효과 검색" autocomplete="off" maxlength="60"></label>
+    <div class="filter-row">
+      <label><span>종류</span><select id="type-filter"><option value="all">모든 종류</option></select></label>
+      <label><span>기력</span><select id="cost-filter"><option value="all">모든 비용</option></select></label>
+    </div>
+    <div class="catalog-toolbar"><div class="tier-control" role="group" aria-label="강화 등급"><button type="button" data-tier="1" aria-pressed="true">1등급</button><button type="button" data-tier="2" aria-pressed="false">2등급</button><button type="button" data-tier="3" aria-pressed="false">3등급</button></div><span id="card-count" role="status" aria-live="polite"></span></div>
+    <p class="pool-note">나와 적이 함께 쓰는 카드 · 눌러서 연계 확인</p>
+  </section>
+  <section id="card-list" class="card-list" aria-label="카드 목록" tabindex="0"></section>
+</main>
+<dialog id="card-detail" class="card-detail" aria-labelledby="detail-name">
+  <div class="detail-heading"><span id="detail-kind"></span><button id="close-detail" class="close-button" type="button" aria-label="상세 보기 닫기">×</button></div>
+  <div id="detail-art" class="detail-art art"></div>
+  <div class="detail-body"><div class="detail-title"><h2 id="detail-name" tabindex="-1"></h2><span class="detail-cost">기력 <b id="detail-cost"></b></span></div><p id="detail-tier" class="detail-tier"></p><ul id="detail-effects" class="detail-effects"></ul><p id="detail-form" class="detail-form" hidden></p><section id="detail-link" class="detail-link" aria-label="카드 연계" hidden><h3>카드 연계</h3><p id="detail-link-text"></p><div id="detail-partners" class="detail-partners" aria-label="함께 쓰기 좋은 카드"></div></section><div id="detail-keywords" class="detail-keywords"></div><p class="detail-note">기력 비용만큼 충전되면 자동 사용합니다.<br>충전이 부족하면 다음 덱 순환에 이어집니다.</p><button id="done-detail" class="done-button" type="button">목록으로</button></div>
+</dialog>
+<noscript>카드 도감을 보려면 JavaScript를 활성화해 주세요. <a href="./">게임으로</a></noscript>
+</body>
+</html>

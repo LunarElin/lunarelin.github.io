@@ -1,0 +1,252 @@
+{
+  "policy": "themed-priorities-v1; seeds 1..N; natural choices/API only; best 10 cards plus heal/defense/energy; own form top; heal bottom",
+  "seeds": 100,
+  "summary": [
+    {
+      "form": "wolf",
+      "runs": 100,
+      "wins": 71,
+      "winPercent": 71,
+      "meanVictories": 3.95,
+      "meanReached": 4.24,
+      "meanWinnerHp": 52.225352112676056,
+      "lossStages": {
+        "1": 12,
+        "2": 2,
+        "3": 9,
+        "4": 4,
+        "5": 2
+      },
+      "battles": 424,
+      "events": 15693,
+      "saveChecks": 18359,
+      "resumeChecks": 1250,
+      "reactionHeal": 0,
+      "enemyReactionHeal": 246,
+      "playerFormLinks": {
+        "wolf": 405,
+        "bear": 0,
+        "wyvern": 0
+      },
+      "enemyFormLinks": {
+        "wolf": 59,
+        "bear": 487,
+        "wyvern": 123
+      }
+    },
+    {
+      "form": "bear",
+      "runs": 100,
+      "wins": 68,
+      "winPercent": 68,
+      "meanVictories": 3.72,
+      "meanReached": 4.04,
+      "meanWinnerHp": 54.955882352941174,
+      "lossStages": {
+        "1": 14,
+        "2": 9,
+        "3": 5,
+        "4": 3,
+        "5": 1
+      },
+      "battles": 404,
+      "events": 14008,
+      "saveChecks": 16588,
+      "resumeChecks": 1092,
+      "reactionHeal": 0,
+      "enemyReactionHeal": 271,
+      "playerFormLinks": {
+        "wolf": 0,
+        "bear": 836,
+        "wyvern": 0
+      },
+      "enemyFormLinks": {
+        "wolf": 75,
+        "bear": 280,
+        "wyvern": 131
+      }
+    },
+    {
+      "form": "wyvern",
+      "runs": 100,
+      "wins": 66,
+      "winPercent": 66,
+      "meanVictories": 3.79,
+      "meanReached": 4.13,
+      "meanWinnerHp": 56.92424242424242,
+      "lossStages": {
+        "1": 12,
+        "2": 7,
+        "3": 5,
+        "4": 8,
+        "5": 2
+      },
+      "battles": 413,
+      "events": 12104,
+      "saveChecks": 14714,
+      "resumeChecks": 932,
+      "reactionHeal": 4629,
+      "enemyReactionHeal": 188,
+      "playerFormLinks": {
+        "wolf": 0,
+        "bear": 0,
+        "wyvern": 1802
+      },
+      "enemyFormLinks": {
+        "wolf": 61,
+        "bear": 0,
+        "wyvern": 108
+      }
+    }
+  ],
+  "comparison": {
+    "baseline": "reaction healing disabled only; identical starting seeds and decision policy",
+    "summary": [
+      {
+        "form": "wolf",
+        "runs": 100,
+        "wins": 70,
+        "winPercent": 70,
+        "meanVictories": 3.93,
+        "meanReached": 4.23,
+        "meanWinnerHp": 52.114285714285714,
+        "lossStages": {
+          "1": 12,
+          "2": 2,
+          "3": 9,
+          "4": 5,
+          "5": 2
+        },
+        "battles": 423,
+        "events": 15663,
+        "saveChecks": 18324,
+        "resumeChecks": 1249,
+        "reactionHeal": 0,
+        "enemyReactionHeal": 0,
+        "playerFormLinks": {
+          "wolf": 399,
+          "bear": 0,
+          "wyvern": 0
+        },
+        "enemyFormLinks": {
+          "wolf": 59,
+          "bear": 483,
+          "wyvern": 123
+        }
+      },
+      {
+        "form": "bear",
+        "runs": 100,
+        "wins": 72,
+        "winPercent": 72,
+        "meanVictories": 3.89,
+        "meanReached": 4.17,
+        "meanWinnerHp": 54.77777777777778,
+        "lossStages": {
+          "1": 12,
+          "2": 8,
+          "3": 4,
+          "4": 3,
+          "5": 1
+        },
+        "battles": 417,
+        "events": 14261,
+        "saveChecks": 16901,
+        "resumeChecks": 1110,
+        "reactionHeal": 0,
+        "enemyReactionHeal": 0,
+        "playerFormLinks": {
+          "wolf": 0,
+          "bear": 852,
+          "wyvern": 0
+        },
+        "enemyFormLinks": {
+          "wolf": 74,
+          "bear": 294,
+          "wyvern": 131
+        }
+      },
+      {
+        "form": "wyvern",
+        "runs": 100,
+        "wins": 51,
+        "winPercent": 51,
+        "meanVictories": 3.32,
+        "meanReached": 3.81,
+        "meanWinnerHp": 42.549019607843135,
+        "lossStages": {
+          "1": 15,
+          "2": 12,
+          "3": 7,
+          "4": 9,
+          "5": 6
+        },
+        "battles": 381,
+        "events": 10938,
+        "saveChecks": 13392,
+        "resumeChecks": 836,
+        "reactionHeal": 0,
+        "enemyReactionHeal": 0,
+        "playerFormLinks": {
+          "wolf": 0,
+          "bear": 0,
+          "wyvern": 1633
+        },
+        "enemyFormLinks": {
+          "wolf": 55,
+          "bear": 0,
+          "wyvern": 99
+        }
+      }
+    ],
+    "paired": [
+      {
+        "form": "wolf",
+        "gainedWins": [
+          54
+        ],
+        "lostWins": [],
+        "sharedWinners": 70,
+        "sharedWinnerHpBefore": 52.114285714285714,
+        "sharedWinnerHpAfter": 51.97142857142857
+      },
+      {
+        "form": "bear",
+        "gainedWins": [],
+        "lostWins": [
+          5,
+          8,
+          12,
+          62
+        ],
+        "sharedWinners": 68,
+        "sharedWinnerHpBefore": 54.955882352941174,
+        "sharedWinnerHpAfter": 54.955882352941174
+      },
+      {
+        "form": "wyvern",
+        "gainedWins": [
+          12,
+          25,
+          38,
+          45,
+          56,
+          57,
+          70,
+          71,
+          72,
+          82,
+          83,
+          84,
+          91,
+          95,
+          98
+        ],
+        "lostWins": [],
+        "sharedWinners": 51,
+        "sharedWinnerHpBefore": 42.549019607843135,
+        "sharedWinnerHpAfter": 59.529411764705884
+      }
+    ]
+  }
+}

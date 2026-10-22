@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#bfe8f5">
+  <meta name="description" content="무작위 카드 선택으로 첫 덱을 만들고, 탐험과 전투 보상으로 키우는 드루이드 로그라이크 덱 빌딩 오토배틀. 야생의 서약.">
+  <title>야생의 서약 · 로그라이크 덱 빌딩 오토배틀</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/characters-pop.webp" as="image">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="journey.css">
+  <link rel="stylesheet" href="synergy.css">
+  <script type="module" src="game.mjs"></script>
+</head>
+<body>
+<main id="game" class="game-shell" data-form="wolf" data-phase="draft">
+  <header class="topbar"><a class="icon-button" href="../../" aria-label="홈으로">⌂</a><div class="wordmark"><span>WILD OATH</span><h1>야생의 서약</h1></div><div class="top-actions"><button id="sound" class="icon-button" aria-label="효과음 켜기" aria-pressed="false">♪</button><button id="help" class="icon-button" aria-label="도움말">?</button><button id="pause" class="icon-button" aria-label="메뉴">Ⅱ</button></div></header>
+  <nav id="journey" class="journey" aria-label="시련 진행"></nav>
+  <section id="draft-view" class="journey-view draft-view" aria-label="무작위 카드 선택" hidden>
+    <div class="journey-banner"><div class="journey-mascot art art-druid"></div><div class="journey-heading"><span id="draft-kicker">첫 서약</span><h2 id="draft-title">첫 덱을 골라요</h2><p id="draft-subtitle">세 장 중 한 장을 선택하세요</p></div></div>
+    <div class="draft-progress"><strong id="draft-count" aria-live="polite">0 / 8장</strong><div id="draft-dots" class="draft-dots" aria-hidden="true"></div></div>
+    <div id="draft-options" class="draft-options"></div>
+    <div class="draft-owned"><span id="draft-deck-count">모은 카드 0장</span><div id="draft-preview" class="draft-preview" aria-label="지금까지 모은 카드"></div></div>
+    <p id="draft-note" class="journey-note">선택한 카드로 이번 탐험을 시작합니다</p>
+  </section>
+  <section id="explore-view" class="journey-view explore-view" aria-label="탐험 갈림길" hidden>
+    <div class="journey-banner"><div class="journey-mascot art art-forest"></div><div class="journey-heading"><span id="explore-kicker">숲의 갈림길</span><h2 id="explore-title">어디로 갈까요?</h2><p id="explore-subtitle">길 하나를 골라 덱을 키우세요</p></div></div>
+    <div id="explore-supplies" class="explore-supplies"></div>
+    <div id="explore-options" class="explore-options"></div>
+    <p class="journey-note">탐험 → 덱 정비 → 자동 전투</p>
+  </section>
+  <section id="camp-view" class="camp-view" aria-label="전투 전 덱 구성" hidden>
+    <div class="camp-top"><div class="camp-portrait art art-druid"></div><div class="camp-title"><span id="camp-stage">첫 번째 시련</span><h2>덱을 꾸미고, 출전.</h2><p>전투는 뽑힌 순서대로 자동 진행</p></div><div class="camp-currency"><span>생명 <b id="camp-hp">70</b></span><span>골드 <b id="gold">10</b></span></div></div>
+    <div class="camp-tabs" role="tablist" aria-label="덱 관리"><button id="tab-deck" role="tab" aria-selected="true" aria-controls="collection" data-tab="deck">덱 <span id="deck-size">10</span></button><button id="tab-bench" role="tab" aria-selected="false" aria-controls="collection" data-tab="bench">보관함 <span id="bench-size">4</span></button><button id="tab-shop" role="tab" aria-selected="false" aria-controls="collection" data-tab="shop">상점</button></div>
+    <div class="collection-heading"><span id="collection-hint">눌러서 카드 관리</span><span id="deck-limit">6~18장</span><button id="upgrade-all" class="bulk-upgrade" disabled>일괄 합성 <span id="upgrade-count">0회</span></button><button id="deck-links" class="deck-links">연계 ›</button><a href="cards.html" class="catalog-link"><span class="catalog-long">카드 </span>도감 ›</a></div>
+    <div id="collection" class="collection" role="tabpanel" aria-labelledby="tab-deck"></div>
+    <div class="camp-footer"><button id="inspect-opponent" class="next-enemy" aria-label="상대 덱 살펴보기"><span class="art art-enemy"></span><span><small>다음 상대</small><strong id="next-enemy-name">가시숲 파수꾼</strong><small id="next-enemy-info">덱 살펴보기 ›</small></span></button><button id="launch" class="primary-button launch">출전 <span>자동 전투 <img class="ui-inline" src="assets/kenney-pop/play.svg" alt=""></span></button></div>
+  </section>
+  <section id="battle-view" class="battle-view" aria-label="자동 전투" hidden>
+    <div class="battle-heading"><span id="battle-stage">첫 번째 시련</span><span id="battle-turn">1턴</span></div>
+    <div id="battlefield" class="battlefield">
+      <section id="enemy-lane" class="battle-lane enemy-lane" data-side="enemy" aria-label="상대 진영">
+        <div class="lane-heading"><strong>상대</strong><span id="enemy-form-rule" class="lane-rule">변신 카드로 모습 변경</span><span id="enemy-turn-label" class="lane-turn">대기</span></div>
+        <div class="lane-body"><article id="enemy" class="combatant enemy"><div class="portrait-ring"><div id="enemy-art" class="portrait art art-druid"></div></div><h2 id="enemy-name">상대 드루이드</h2><div class="healthbar"><div id="enemy-health-fill"></div><span><b id="enemy-hp">70</b><small id="enemy-max"> / 70</small></span></div><div id="enemy-status" class="combatant-status"></div><div class="resource-row"><span class="energy">✦ <b id="enemy-energy">4</b></span></div></article>
+          <div class="side-play"><div id="enemy-draw-pile" class="side-draw-pile"><strong>상대 덱</strong><div class="card-back" aria-hidden="true"></div><small id="enemy-deck">덱 8<br>버림 0</small></div><div id="enemy-active-card" class="active-card" data-owner="enemy" aria-label="상대가 낸 카드"><span class="await-card">상대 카드<br>사용 대기</span></div></div>
+        </div>
+      </section>
+      <section id="player-lane" class="battle-lane player-lane" data-side="player" aria-label="내 진영">
+        <div class="lane-heading"><strong>나</strong><span id="player-form-rule" class="lane-rule">변신 카드로 모습 변경</span><span id="player-turn-label" class="lane-turn">대기</span></div>
+        <div class="lane-body"><article id="hero" class="combatant hero"><div class="portrait-ring"><div id="hero-art" class="portrait art art-druid"></div></div><h2 id="hero-name">드루이드</h2><div class="healthbar"><div id="hero-health-fill"></div><span><b id="hero-hp">70</b><small id="hero-max"> / 70</small></span></div><div id="hero-status" class="combatant-status"></div><div class="resource-row"><span class="energy">✦ <b id="hero-energy">4</b></span></div></article>
+          <div class="side-play"><div id="player-draw-pile" class="side-draw-pile"><strong>내 덱</strong><div class="card-back" aria-hidden="true"></div><small id="hero-deck">덱 10<br>버림 0</small></div><div id="player-active-card" class="active-card" data-owner="player" aria-label="내가 낸 카드"><span class="await-card">내 카드<br>사용 대기</span></div></div>
+        </div>
+      </section>
+      <div id="effects" class="effects" aria-hidden="true"></div>
+    </div>
+    <div id="battle-caption" class="battle-caption" role="status" aria-live="polite">덱을 섞는 중입니다</div>
+    <div class="battle-history"><span>최근 발동</span><div id="history" class="history"></div></div>
+    <div class="battle-footer"><span class="auto-badge"><i></i> 자동 전투</span><button id="speed" class="secondary-button" aria-label="전투 속도 변경">속도 ×1</button><button id="battle-pause" class="secondary-button">일시 정지 Ⅱ</button></div>
+  </section>
+  <div id="toast" class="toast" role="status"></div><div id="save-warning" class="save-warning" hidden>자동 저장을 사용할 수 없습니다</div>
+</main>
+<dialog id="welcome-dialog" class="game-dialog welcome-dialog"><div class="welcome-art art art-druid"></div><div class="dialog-content"><p class="overline">로그라이크 덱 빌딩 오토배틀</p><h2>한 장의 선택에서,<br>나만의 야생으로.</h2><p>무작위 카드에서 첫 덱을 고르고,<br>탐험과 전투 보상으로 키워가세요.</p><div class="welcome-forms"><span>늑대 <b>연타</b></span><span>곰 <b>수호</b></span><span>와이번 <b>맹독</b></span></div><p class="dialog-note">전투는 기력이 허락하는 만큼 자동 진행됩니다.</p><button id="begin" class="primary-button">첫 카드 선택 →</button></div></dialog>
+<dialog id="card-dialog" class="game-dialog card-dialog"><div class="dialog-content"><p id="detail-overline" class="overline">MY DECK</p><div id="detail-card" class="detail-card"></div><h2 id="detail-title">카드</h2><p id="detail-text"></p><div id="detail-link" class="detail-link" hidden></div><div id="detail-actions" class="detail-actions"></div><button class="secondary-button" data-close="card-dialog">닫기</button></div></dialog>
+<dialog id="links-dialog" class="game-dialog links-dialog"><div class="dialog-content"><h2>내 덱의 연계</h2><p class="dialog-note">변신 규칙과 카드 조건을 확인하세요.</p><div id="deck-forms" class="deck-forms"></div><div id="deck-combos" class="deck-combos"></div><button class="primary-button" data-close="links-dialog">돌아가기</button></div></dialog>
+<dialog id="help-dialog" class="game-dialog help-dialog"><div class="dialog-content"><p class="overline">로그라이크 덱 빌딩 오토배틀</p><h2>기력이 허락하는 만큼,<br>덱에서 연속 사용.</h2><ol class="instructions"><li><b>무작위 첫 덱</b><span>시작 이벤트에서 세 장 중 한 장씩 8번 고릅니다. 매 탐험의 갈림길과 전투 보상으로 카드를 얻고 덱을 키웁니다. 쓰러지면 새 덱으로 다시 시작합니다.</span></li><li><b>같은 카드 풀</b><span>나와 적 모두 카드 도감의 카드로 6~18장 덱을 꾸립니다. 등급·변신·정렬 표식과 전투 규칙도 같습니다. 야영지에서 상대 덱을 미리 보세요.</span></li><li><b>한 턴에 여러 장</b><span>덱이 두꺼운 쪽이 선공합니다. 맨 위 카드의 비용을 충전해 자동 사용하고, 기력이 남으면 같은 턴에 다음 카드를 이어 사용합니다.</span></li><li><b>기력과 턴 종료</b><span>기력 4로 시작합니다. 기력을 다 쓰거나 충전이 부족하면 턴을 마칩니다. 부족한 카드는 충전을 보존한 채 버립니다. 턴 종료 때만 기력 +1, 카드마다 회복하지 않습니다.</span></li><li><b>빈 덱은 재섞기</b><span>덱을 다 쓰면 현재 턴을 마치고, 다음 자기 턴은 다시 섞는 데 씁니다. 재섞은 턴에는 카드를 사용하지 않습니다. 40턴 이후 피로 피해가 늘어납니다.</span></li></ol><div class="help-rules"><p><b>늑대</b> 기력 카드는 연타를 유지합니다. 세 번째 공격 카드마다 추가 타격으로 추격합니다.</p><p><b>곰</b> 방어 카드의 보호막 +3. 보호막으로 막은 공격량의 절반을 최대 6까지 한 번 반격합니다.</p><p><b>와이번</b> 공격이 관통하며 맹독을 쌓습니다. 맹독 적에게 화상·감전을 걸면 기존 맹독 최대 4를 소모해 두 배의 관통 피해로 폭발하고 소모량만큼 생명을 최대 4 회복합니다.</p><p><b>집중</b> 최대 12. 다음 성공한 공격의 첫 타격에 추가 피해를 주고 소모됩니다. 충전 실패로는 사라지지 않습니다.</p><p><b>화상</b> 충전 부족으로 카드를 버릴 때 피해를 받습니다.</p><p><b>맹독</b> 덱을 다시 섞을 때 피해를 받고 수치가 절반으로 줄어듭니다. 보호막에는 두 배로 작용합니다.</p><p><b>감전</b> 상대가 기력을 얻을 때 피해를 받고 1 감소합니다.</p></div><a href="cards.html" class="catalog-link">전체 카드 도감 ›</a><p class="dialog-note">진행은 자동 저장됩니다. 전투를 멈추거나 탭을 나가면 진행도 멈춥니다.</p><button class="primary-button" data-close="help-dialog">알겠어요</button></div></dialog>
+<dialog id="opponent-dialog" class="game-dialog opponent-dialog"><div class="dialog-content"><p class="overline">RIVAL DECK</p><h2 id="opponent-title">상대 덱</h2><p id="opponent-info"></p><p class="dialog-note">같은 카드 풀 · 같은 충전·연속 사용·변신 규칙</p><div id="opponent-cards" class="opponent-cards"></div><a href="cards.html" class="catalog-link">전체 카드 도감 ›</a><button class="primary-button" data-close="opponent-dialog">돌아가기</button></div></dialog>
+<dialog id="pause-dialog" class="game-dialog"><div class="dialog-content"><p class="overline">THE FOREST CAN WAIT</p><h2>잠시, 숨 고르기.</h2><p>자동 전투도 함께 멈췄습니다.</p><button class="primary-button" data-close="pause-dialog">계속하기 ▶</button><button id="pause-opponent" class="secondary-button">상대 덱 보기</button><button id="restart" class="secondary-button">새 탐험</button><a class="dialog-home" href="cards.html">카드 도감</a><a class="dialog-home" href="../../">홈으로 돌아가기</a></div></dialog>
+<dialog id="restart-dialog" class="game-dialog"><div class="dialog-content"><h2>새 탐험을 시작할까요?</h2><p>현재 덱과 탐험 진행은 사라집니다.</p><button id="confirm-restart" class="primary-button">새 탐험 시작</button><button class="secondary-button" data-close="restart-dialog">돌아가기</button></div></dialog>
+<dialog id="reward-dialog" class="game-dialog reward-dialog"><div class="dialog-content"><p class="overline">A GIFT FROM THE WILD</p><h2>숲이 건넨 카드</h2><p>한 장을 골라 덱을 성장시키세요.</p><div id="rewards" class="rewards"></div><p id="reward-note" class="dialog-note">카드 1장 · 골드 +6 · 생명 +18</p></div></dialog>
+<dialog id="result-dialog" class="game-dialog result-dialog"><div class="result-art art art-druid"></div><div class="dialog-content"><p id="result-overline" class="overline">WILD OATH</p><h2 id="result-title">서약의 완성</h2><p id="result-description"></p><div id="result-stats" class="result-stats"></div><button id="play-again" class="primary-button">새 덱으로 도전 ↻</button><a class="dialog-home" href="../../">홈으로 돌아가기</a></div></dialog>
+<noscript>게임을 실행하려면 JavaScript를 활성화해 주세요. <a href="../../">홈으로</a></noscript>
+</body>
+</html>
