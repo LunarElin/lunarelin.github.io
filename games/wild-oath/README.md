@@ -7,10 +7,12 @@
 - 진입: [index.html](index.html). 게임에서 홈으로 돌아가는 상대 경로는 `../../`다.
 - 카드 도감: [cards.html](cards.html), 목록·검색·등급 비교: [catalog.mjs](catalog.mjs), 스타일: [catalog.css](catalog.css).
 - 화면·입력·타이밍·저장: [game.mjs](game.mjs), 전투·야영지 스타일: [styles.css](styles.css), 시작 선택·탐험 스타일: [journey.css](journey.css), 연계 안내·발동 연출: [synergy.css](synergy.css).
+- 카드 사용·타격 연출: [combat-fx.css](combat-fx.css), 순수 타이밍·타격 순서: [combat-presentation.mjs](combat-presentation.mjs), 회귀 테스트: [tests/combat-presentation.test.mjs](tests/combat-presentation.test.mjs).
 - 순수 규칙·상태: [rules.mjs](rules.mjs), 규칙 테스트: [tests/rules.test.mjs](tests/rules.test.mjs).
 - 이미지 생성 프롬프트·글꼴·음원 출처와 라이선스: [assets/ART.md](assets/ART.md).
 - 카드 구성과 참고 자료의 적용 범위: [CARD-REFERENCE.md](CARD-REFERENCE.md).
 - 실제 검증 범위와 자체 평가: [VERIFICATION.md](VERIFICATION.md).
+- 2026-10-24 카드 가시성·타격감 개선과 검증: [COMBAT-FEEDBACK.md](COMBAT-FEEDBACK.md).
 - 런타임 외부 의존성·빌드·패키지 설치 없음. 로컬 이미지·글꼴·효과음을 사용한다.
 
 저장소 루트에서 실행한다. 기존 서버와 8765 포트를 먼저 확인하고 재사용한다.
@@ -26,6 +28,10 @@ node games/wild-oath/tests/serve.mjs
 ## 전투 화면·그래픽
 
 상대 진영은 위쪽 코랄색, 내 진영은 아래쪽 민트색으로 고정한다. 각 진영에 캐릭터·생명·기력, 자기 덱과 사용 카드 자리가 따로 있다. 카드는 자기 덱에서 자기 사용 영역으로 이동하고, 공격은 그 자리에서 상대 캐릭터를 향한다. 상대가 행동해도 다른 쪽의 마지막 카드는 남는다. 낮은 가로 화면에서는 두 진영을 좌우로 나누며 같은 색과 역할 표시를 유지한다.
+
+사용할 카드는 자기 자리에서 확대·강조한 뒤 효과를 발사한다. 4배속에서도 뽑기 140ms·카드 제시 260ms·발사 180ms를 확보한다. 공격·화상·감전·독·방어·회복·기력·변신을 다른 형태와 색으로 표시하며, 연타·반격·독성 폭발은 실제 규칙 순서대로 160ms 간격으로 나온다. 큰 피해 숫자와 생명바가 타격마다 함께 바뀌고, 막은 피해는 별도로 표시한다. 효과음은 로컬 Kenney 타격음과 직접 합성한 준비·속성음을 조합한다. 음원 로딩이나 실패는 전투 진행을 기다리게 하지 않는다.
+
+모션 감소 설정에서는 이동·반동·흔들림을 끄고 대상별 피해를 합산하여 정적인 강조와 숫자를 유지한다. 연출은 저장된 결과를 표시할 뿐 규칙을 다시 실행하지 않는다. 카드 처리 도중 정지하면 표시를 이미 확정된 생명으로 맞추고, 재개 시 다음 행동으로 이어간다. 사용 전 제시 단계에서 정지하면 아직 해당 카드를 소비하지 않는다.
 
 둥근 형태·밝은 색·두꺼운 테두리·입체 그림자를 사용하고 캐릭터·카드·시작 선택·탐험·야영지·도감·팝업에 같은 스타일을 적용한다. Kenney UI Pack 2.0의 CC0 별·화살표·재생·재섞기 SVG를 실제 화면에 사용한다. 캐릭터 아틀라스의 생성 프롬프트, 리소스 원본 경로와 라이선스는 [assets/ART.md](assets/ART.md)에 기록한다.
 
@@ -136,9 +142,10 @@ node games/wild-oath/tests/serve.mjs
 ```powershell
 node --check games/wild-oath/rules.mjs
 node --check games/wild-oath/game.mjs
+node --check games/wild-oath/combat-presentation.mjs
 node --check games/wild-oath/catalog.mjs
 node --check games/wild-oath/tests/serve.mjs
-node --test games/wild-oath/tests/rules.test.mjs
+node --test games/wild-oath/tests/rules.test.mjs games/wild-oath/tests/combat-presentation.test.mjs
 node games/wild-oath/tests/balance-campaigns.mjs --seeds 100 --compare-baseline
 git diff --check -- games/wild-oath index.html portfolio/style.css
 ```

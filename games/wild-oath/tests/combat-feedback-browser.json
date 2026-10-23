@@ -1,0 +1,249 @@
+{
+  "date": "2026-10-24",
+  "environment": "Desktop Chromium; real UI actions; separate localhost progress; no state injection",
+  "screens": [
+    {
+      "name": "PC impact",
+      "viewport": [
+        1280,
+        720
+      ],
+      "observation": {
+        "caption": "상대 · 대지 강타\n총 피해 9",
+        "caster": "enemy",
+        "effects": [
+          {
+            "kind": "hit-burst kind-claw",
+            "text": ""
+          },
+          {
+            "kind": "effect-ripple kind-claw",
+            "text": ""
+          },
+          {
+            "kind": "spark wolf",
+            "text": ""
+          },
+          {
+            "kind": "spark wolf",
+            "text": ""
+          },
+          {
+            "kind": "spark wolf",
+            "text": ""
+          },
+          {
+            "kind": "spark wolf",
+            "text": ""
+          },
+          {
+            "kind": "spark wolf",
+            "text": ""
+          },
+          {
+            "kind": "damage-float ",
+            "text": "−9"
+          },
+          {
+            "kind": "effect-chip kind-shield",
+            "text": "보호막 −4"
+          }
+        ],
+        "hp": [
+          "39",
+          "23"
+        ],
+        "phase": "impact"
+      }
+    },
+    {
+      "name": "320px chip",
+      "viewport": [
+        320,
+        568
+      ],
+      "observation": {
+        "caption": "상대 · 야생의 신호\n집중 준비 · 집중 +4",
+        "chips": [
+          {
+            "box": {
+              "bottom": 120.53596496582033,
+              "height": 24.544349670410156,
+              "left": 39.71109390258789,
+              "right": 116.28891372680664,
+              "top": 95.99161529541016,
+              "width": 76.57781982421875,
+              "x": 39.71109390258789,
+              "y": 95.99161529541016
+            },
+            "overlapsHealth": false,
+            "text": "다음 충전 +1"
+          }
+        ],
+        "effects": [
+          {
+            "class": "effect-chip kind-energy",
+            "text": "다음 충전 +1"
+          }
+        ],
+        "footer": 563,
+        "overflow": false
+      }
+    },
+    {
+      "name": "390px cast",
+      "viewport": [
+        390,
+        640
+      ],
+      "observation": {
+        "caption": "상대 카드 · 맹독 송곳니\n공격 · 기력 2",
+        "caster": "enemy",
+        "footer": 632,
+        "orb": [
+          {
+            "class": "effect-orb kind-poison",
+            "dx": "-208.5px",
+            "dy": "166.21874237060547px"
+          }
+        ],
+        "overflow": false,
+        "phase": "cast",
+        "viewport": [
+          390,
+          640
+        ]
+      }
+    },
+    {
+      "name": "landscape",
+      "observation": {
+        "caption": "내 카드 · 숲의 양분\n기력 · 기력 1",
+        "effects": [],
+        "footer": 383,
+        "hp": [
+          "29",
+          "70"
+        ],
+        "overflow": false,
+        "viewport": [
+          844,
+          390
+        ]
+      }
+    }
+  ],
+  "continuedWyvernCampaign": {
+    "victoryHealthByStage": {
+      "2": 39,
+      "3": 34,
+      "4": 51,
+      "5": 56
+    },
+    "result": {
+      "caption": "내 독성 폭발\n맹독 −4 · 피해 0 · 회복 4",
+      "hp": [
+        "56",
+        "0"
+      ],
+      "overflow": false,
+      "result": "THE WILD IS YOURS\n\n서약의 완성\n\n다섯 시련을 모두 넘었습니다.\n\n넘은 시련\n5 / 5\n자동 변신\n5\n총 피해\n390\n새 덱으로 도전 ↻홈으로 돌아가기",
+      "viewport": [
+        390,
+        640
+      ]
+    },
+    "reloadPreserved": true
+  },
+  "newMultiHitRun": {
+    "draftChoices": [
+      "달빛 늑대",
+      "서리 발톱",
+      "불타는 가시",
+      "생명의 수액",
+      "쌍발톱",
+      "생명의 고리",
+      "비취 와이번",
+      "굳은 가죽"
+    ],
+    "event": "Merchant offered Pounce tier 2; selected it and set its top sorting mark through UI",
+    "secondImpact": {
+      "beat": "2",
+      "caption": "내 · 쌍발톱\n맹독 사냥 · 타격마다 피해 +3",
+      "effects": [
+        {
+          "class": "hit-burst kind-shield",
+          "text": ""
+        },
+        {
+          "class": "effect-ripple kind-shield",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "hit-burst kind-claw",
+          "text": ""
+        },
+        {
+          "class": "effect-ripple kind-claw",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "spark wolf",
+          "text": ""
+        },
+        {
+          "class": "damage-float ",
+          "text": "−9"
+        }
+      ],
+      "enemyClass": "combatant enemy hit",
+      "hp": [
+        "1",
+        "14"
+      ]
+    },
+    "firstBattleVictoryHealth": 1
+  },
+  "unverified": [
+    "Physical iOS Safari and Android Chrome",
+    "Speaker/headphone listening",
+    "Low-end device frame rate and memory",
+    "Browser reduced-motion media mode"
+  ]
+}

@@ -231,7 +231,7 @@ function hit(target,amount,{pierce=false,poison=false}={}) {
 }
 function gainEnergy(fighter,target,amount,event) {
   if(!amount)return; const gain=Math.min(30-fighter.energy,amount); fighter.energy+=gain; event.energyGained+=gain;
-  if(gain>0 && target.shock>0) { const result=hit(target,target.shock); event.shockDamage+=result.damage; event.shockAbsorbed+=result.shieldLost; target.shock=Math.max(0,target.shock-1); }
+  if(gain>0 && target.shock>0) { const amount=target.shock,result=hit(target,amount); event.shockDamage+=result.damage; event.shockAbsorbed+=result.shieldLost; event.impacts.push({kind:'shock',damage:result.damage,absorbed:result.shieldLost,rawDamage:amount}); target.shock=Math.max(0,target.shock-1); }
 }
 function finishBattle(state) {
   const {player,enemy}=state.battle;
@@ -251,12 +251,12 @@ function finishBattle(state) {
 export function stepBattle(state) {
   if(state.phase!=='battle' || !state.battle) return {type:'idle'};
   const battle=state.battle, actor=battle.actor, other=actor==='player'?'enemy':'player', source=battle[actor], target=battle[other];
-  const event={type:'card',actor,target:other,turn:battle.turn,turnCard:battle.turnCard,turnEnded:false,formBefore:source.form,formAfter:source.form,damage:0,rawDamage:0,absorbed:0,shield:0,heal:0,poison:0,burn:0,shock:0,energySpent:0,energyGained:0,energyRecovered:0,charged:0,cost:0,nextCharged:0,deenergized:0,poisonDamage:0,burnDamage:0,shockDamage:0,shockAbsorbed:0,focusGained:0,focusSpent:0,extraHits:0,counterDamage:0,counterAbsorbed:0,counterRawDamage:0,reactionDamage:0,reactionRawDamage:0,reactionConsumed:0,reactionHeal:0,links:[],fatigue:0,critical:false};
+  const event={type:'card',actor,target:other,turn:battle.turn,turnCard:battle.turnCard,turnEnded:false,formBefore:source.form,formAfter:source.form,damage:0,rawDamage:0,absorbed:0,strikes:[],impacts:[],shield:0,heal:0,poison:0,burn:0,shock:0,energySpent:0,energyGained:0,energyRecovered:0,charged:0,cost:0,nextCharged:0,deenergized:0,poisonDamage:0,burnDamage:0,shockDamage:0,shockAbsorbed:0,focusGained:0,focusSpent:0,extraHits:0,counterDamage:0,counterAbsorbed:0,counterRawDamage:0,reactionDamage:0,reactionRawDamage:0,reactionConsumed:0,reactionHeal:0,links:[],fatigue:0,critical:false};
   const link=(name,text,kind='card',owner=actor)=>event.links.push({name,text,kind,actor:owner});
   if(!source.draw.length) {
     source.draw=ordered(state,source.discard); source.discard=[]; source.combo=0;
     event.type='shuffle'; event.turnEnded=true; state.stats.shuffles++;
-    if(source.poison>0) { const result=hit(source,source.poison,{poison:true}); event.poisonDamage=result.damage; event.poisonAbsorbed=result.shieldLost; source.poison=Math.floor(source.poison/2); }
+    if(source.poison>0) { const amount=source.poison,result=hit(source,amount,{poison:true}); event.poisonDamage=result.damage; event.poisonAbsorbed=result.shieldLost; event.impacts.push({kind:'poison',damage:result.damage,absorbed:result.shieldLost,rawDamage:amount}); source.poison=Math.floor(source.poison/2); }
   } else {
     const instance=source.draw.shift(), card=describeCard(instance);
     Object.assign(event,{cardId:card.id,uid:instance.uid,name:card.name,cardType:card.type,cost:card.cost,tier:instance.tier,turnCard:++battle.turnCard});
@@ -265,7 +265,7 @@ export function stepBattle(state) {
     source.discard.push(instance);
     if(instance.charge<card.cost) {
       event.type='charge'; event.turnEnded=true; source.combo=0; state.stats.charged++;
-      if(source.burn>0) { const result=hit(source,source.burn); event.burnDamage=result.damage; event.burnAbsorbed=result.shieldLost; source.burn--; }
+      if(source.burn>0) { const amount=source.burn,result=hit(source,amount); event.burnDamage=result.damage; event.burnAbsorbed=result.shieldLost; event.impacts.push({kind:'burn',damage:result.damage,absorbed:result.shieldLost,rawDamage:amount}); source.burn--; }
     } else {
       instance.charge=0;
       const before={shield:source.shield,poison:target.poison,burn:target.burn,shock:target.shock,combo:source.combo};
@@ -287,6 +287,7 @@ export function stepBattle(state) {
         const amount=damage+(i===0?shieldBonus+focusBonus:0);
         const result=hit(target,amount,{pierce:card.pierce||(attack&&source.form==='wyvern')});
         event.damage+=result.damage; event.absorbed+=result.shieldLost; event.rawDamage+=amount;
+        if(amount>0){const strike={damage:result.damage,absorbed:result.shieldLost,rawDamage:amount};event.strikes.push(strike);event.impacts.push({kind:'strike',...strike});}
       }
       let shield=card.shield+(card.type==='defense'&&source.form==='bear'?3:0);
       event.shield=shield; source.shield+=shield;
@@ -312,6 +313,7 @@ export function stepBattle(state) {
         event.reactionConsumed=Math.min(4,before.poison);target.poison-=event.reactionConsumed;
         event.reactionRawDamage=event.reactionConsumed*2;
         event.reactionDamage=hit(target,event.reactionRawDamage,{pierce:true}).damage;
+        event.impacts.push({kind:'reaction',damage:event.reactionDamage,absorbed:0,rawDamage:event.reactionRawDamage});
         event.reactionHeal=source.hp>0?Math.min(source.maxHp-source.hp,event.reactionConsumed):0;
         source.hp+=event.reactionHeal;
         link('독성 폭발',`맹독 −${event.reactionConsumed} · 피해 ${event.reactionDamage}${event.reactionHeal?` · 회복 ${event.reactionHeal}`:''}`,'form');
@@ -319,6 +321,7 @@ export function stepBattle(state) {
       if(attack&&target.form==='bear'&&event.absorbed>0&&source.hp>0&&target.hp>0){
         event.counterRawDamage=Math.min(6,Math.ceil(event.absorbed/2));
         const counter=hit(source,event.counterRawDamage);event.counterDamage=counter.damage;event.counterAbsorbed=counter.shieldLost;
+        event.impacts.push({kind:'counter',damage:counter.damage,absorbed:counter.shieldLost,rawDamage:event.counterRawDamage});
         link('곰 반격',`반격 ${event.counterRawDamage}${event.counterAbsorbed?` · 보호막 피해 ${event.counterAbsorbed}`:` · 생명 피해 ${event.counterDamage}`}`,'form',other);
       }
       event.critical=attack&&(event.rawDamage>=18||event.extraHits>0||event.reactionDamage>=6);
@@ -332,6 +335,7 @@ export function stepBattle(state) {
   if(event.turnEnded && source.hp>0 && target.hp>0) {const before=source.energy;gainEnergy(source,target,1,event);event.energyRecovered=source.energy-before;}
   if(event.turnEnded && source.hp>0 && target.hp>0 && battle.turn>40) {
     event.fatigue=Math.min(source.hp,Math.floor((battle.turn-41)/2)+1); source.hp-=event.fatigue;
+    event.impacts.push({kind:'fatigue',damage:event.fatigue,absorbed:0,rawDamage:event.fatigue});
   }
   if(event.turnEnded) state.stats.turns++;
   if(actor==='player') {state.stats.damage+=event.damage+event.shockDamage+event.reactionDamage;state.stats.blocked+=(event.poisonAbsorbed||0)+(event.burnAbsorbed||0)+event.counterAbsorbed;}

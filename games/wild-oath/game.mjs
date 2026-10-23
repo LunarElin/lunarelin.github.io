@@ -1,4 +1,5 @@
 import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs';
+import { presentationTiming, effectKind, impactBeats, impactTotals } from './combat-presentation.mjs';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'wild-oath:v5';
@@ -13,6 +14,7 @@ let mainTimer = null, toastTimer = null, audioContext = null, master = null, aud
 let audioBuffers = {}, activeSources = new Set();
 let lastJourneyChoiceAt = 0;
 const effectTimers = new Set();
+const effectClasses = new WeakMap();
 try {
   state = restoreRun(localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(LEGACY_SAVE_KEY));
   hadSave = Boolean(state);
@@ -34,10 +36,11 @@ function clearEffects() {
   for (const timer of effectTimers) clearTimeout(timer);
   effectTimers.clear(); $('effects').replaceChildren();
   document.querySelectorAll('.flying-card').forEach(node => node.remove());
-  document.querySelectorAll('.side-draw-pile,.active-card').forEach(node=>node.classList.remove('drawing','dealing'));
-  for (const id of ['hero','enemy','battlefield']) $(id).classList.remove('hit','lunge','shake','shake-heavy','flash','morph','countering','reacting');
+  document.querySelectorAll('.side-draw-pile,.active-card').forEach(node=>node.classList.remove('drawing','dealing','is-playing'));
+  for (const id of ['hero','enemy','battlefield']) $(id).classList.remove('hit','heavy-hit','casting','lunge','shake','shake-heavy','flash','morph','countering','reacting');
+  delete $('battlefield').dataset.presentation; delete $('battlefield').dataset.caster; delete $('battlefield').dataset.beat;
 }
-function stopLoop() { clearTimeout(mainTimer); mainTimer = null; clearEffects(); }
+function stopLoop() { clearTimeout(mainTimer); mainTimer = null; clearEffects(); if(state.battle)renderHealth(state.battle); }
 function showDialog(id) { stopLoop(); stopAudio(); if (!$(id).open) $(id).showModal(); }
 function closeDialog(id) { $(id).close(); if (!modalOpen()) resume(); }
 function resume() {
@@ -47,7 +50,13 @@ function resume() {
   if (state.phase === 'battle') later(beginStep, 280 / speed);
   else showPhase();
 }
-function playClass(element, name, duration = 500) { element.classList.remove(name); void element.offsetWidth; element.classList.add(name); effectLater(() => element.classList.remove(name), duration); }
+function playClass(element, name, duration = 500) {
+  let classes=effectClasses.get(element);
+  if(!classes){classes=new Map();effectClasses.set(element,classes);}
+  const token=Symbol(name);classes.set(name,token);
+  element.classList.remove(name);void element.offsetWidth;element.classList.add(name);
+  effectLater(()=>{if(classes.get(name)===token){element.classList.remove(name);classes.delete(name);}},duration);
+}
 
 async function enableAudio() {
   if (!soundEnabled) return;
@@ -69,14 +78,18 @@ async function enableAudio() {
 function track(source) { activeSources.add(source); source.onended = () => { activeSources.delete(source); source.disconnect(); }; }
 function sound(kind, strength = 1) {
   if (!soundEnabled || !audioContext || audioContext.state !== 'running' || document.hidden) return;
-  if (audioBuffers[kind]) { const source = audioContext.createBufferSource(); source.buffer = audioBuffers[kind]; source.playbackRate.value = kind === 'heavy' ? .83 : 1; source.connect(master); track(source); source.start(); }
-  const now = audioContext.currentTime, oscillator = audioContext.createOscillator(), envelope = audioContext.createGain();
-  oscillator.type = kind === 'shield' ? 'triangle' : 'sine';
-  oscillator.frequency.setValueAtTime(kind === 'soft' ? 420 : 125 * strength, now);
-  oscillator.frequency.exponentialRampToValueAtTime(kind === 'soft' ? 700 : 38, now + .16);
-  envelope.gain.setValueAtTime(.001, now); envelope.gain.exponentialRampToValueAtTime(kind === 'soft' ? .13 : .45, now + .008); envelope.gain.exponentialRampToValueAtTime(.001, now + .22);
-  oscillator.connect(envelope); envelope.connect(master); track(oscillator); oscillator.start(now); oscillator.stop(now + .24);
-  oscillator.addEventListener('ended', () => envelope.disconnect(), { once:true });
+  const sample={claw:'hit',counter:'heavy',heavy:'heavy',shield:'shield',form:'soft'}[kind];
+  if(audioBuffers[sample]) { const source=audioContext.createBufferSource();source.buffer=audioBuffers[sample];source.playbackRate.value=kind==='heavy'?.83:kind==='counter'?.94:1;source.connect(master);track(source);source.start(); }
+  const voices={draw:[180,420,.09,.055,'triangle'],cast:[260,95,.13,.08,'triangle'],claw:[135,42,.18,.32,'sine'],heavy:[95,28,.24,.42,'sine'],counter:[170,55,.18,.28,'triangle'],shield:[520,180,.22,.15,'triangle'],heal:[520,840,.28,.10,'sine'],energy:[640,1040,.20,.10,'triangle'],form:[220,660,.32,.13,'sine'],poison:[190,75,.22,.13,'triangle'],fire:[150,45,.20,.14,'sawtooth'],shock:[880,160,.12,.12,'square']};
+  const [from,to,duration,gain,wave]=voices[kind]||voices.heal,now=audioContext.currentTime;
+  const layers=['heal','energy','form'].includes(kind)?2:1;
+  for(let i=0;i<layers;i++){
+    const oscillator=audioContext.createOscillator(),envelope=audioContext.createGain(),at=now+i*.065;
+    oscillator.type=wave;oscillator.frequency.setValueAtTime(from*(i?1.5:1)*strength,at);oscillator.frequency.exponentialRampToValueAtTime(to*(i?1.5:1),at+duration);
+    envelope.gain.setValueAtTime(.001,at);envelope.gain.exponentialRampToValueAtTime(gain/(i+1),at+.008);envelope.gain.exponentialRampToValueAtTime(.001,at+duration);
+    oscillator.connect(envelope);envelope.connect(master);track(oscillator);oscillator.start(at);oscillator.stop(at+duration+.015);
+    oscillator.addEventListener('ended',()=>envelope.disconnect(),{once:true});
+  }
 }
 function stopAudio() { for (const source of activeSources) { try { source.stop(); } catch {} } activeSources.clear(); if (audioContext?.state === 'running') audioContext.suspend().catch(() => {}); }
 
@@ -165,6 +178,13 @@ function renderCamp() {
 function fighterStatus(fighter) {
   return `${fighter.shield ? `<span>보호막 ${fighter.shield}</span>` : ''}${fighter.poison ? `<span class="poison">맹독 ${fighter.poison}</span>` : ''}${fighter.burn ? `<span class="burn">화상 ${fighter.burn}</span>` : ''}${fighter.shock ? `<span class="shock">감전 ${fighter.shock}</span>` : ''}`;
 }
+function renderHealth(battle) {
+  for(const [actor,id] of [['player','hero'],['enemy','enemy']]){
+    const fighter=battle[actor];
+    $(`${id}-hp`).textContent=fighter.hp;$(`${id}-max`).textContent=` / ${fighter.maxHp}`;
+    $(`${id}-health-fill`).style.width=`${fighter.hp/fighter.maxHp*100}%`;
+  }
+}
 function renderBattle() {
   if (!state.battle) return;
   const battle = state.battle, player = battle.player, enemy = battle.enemy;
@@ -190,9 +210,7 @@ function renderBattle() {
   $('hero-name').textContent = FORMS[player.form].name; $('enemy-name').textContent = FORMS[enemy.form].name;
   $('enemy-name').title = enemy.name;
   $('enemy-art').className = `portrait art art-${enemy.form}`;
-  $('hero-hp').textContent = player.hp; $('hero-max').textContent = ` / ${player.maxHp}`;
-  $('enemy-hp').textContent = enemy.hp; $('enemy-max').textContent = ` / ${enemy.maxHp}`;
-  $('hero-health-fill').style.width = `${player.hp/player.maxHp*100}%`; $('enemy-health-fill').style.width = `${enemy.hp/enemy.maxHp*100}%`;
+  renderHealth(battle);
   $('hero-status').innerHTML = fighterStatus(player); $('enemy-status').innerHTML = fighterStatus(enemy);
   $('hero-energy').textContent = player.energy; $('enemy-energy').textContent = enemy.energy;
   $('hero-deck').textContent = `덱 ${player.draw.length}\n버림 ${player.discard.length}`;
@@ -262,86 +280,155 @@ function showOpponent() {
 }
 
 function point(element) { const r = element.getBoundingClientRect(), f = $('battlefield').getBoundingClientRect(); return { x:r.left+r.width/2-f.left, y:r.top+r.height/2-f.top }; }
-function floatText(text, id, kind = '') {
-  const p = point($(id).querySelector('.portrait-ring')), node = document.createElement('span');
-  node.className = `damage-float ${kind}`; node.textContent = text; node.style.left = `${p.x}px`; node.style.top = `${p.y}px`; $('effects').append(node); effectLater(()=>node.remove(),900);
+function fxNode(className, p, duration=800, extra='') {
+  const node=document.createElement('i');node.className=className;
+  node.style.cssText=`left:${p.x}px;top:${p.y}px;${extra}`;
+  if($('effects').childElementCount>=56)$('effects').firstElementChild.remove();
+  $('effects').append(node);effectLater(()=>node.remove(),duration);return node;
 }
-function impact(id, heavy, form = 'enemy') {
-  playClass($(id),'hit'); playClass($('battlefield'),heavy ? 'shake-heavy' : 'shake'); playClass($('battlefield'),'flash');
-  if (reducedMotion) return;
-  const p = point($(id).querySelector('.portrait-ring'));
-  for (const className of ['slash','impact-ring']) { const n = document.createElement('i'); n.className = `${className} ${form}`; n.style.left = `${p.x}px`; n.style.top = `${p.y}px`; $('effects').append(n); effectLater(()=>n.remove(),500); }
-  for (let i=0;i<(heavy?10:6);i++) { const n=document.createElement('i'), angle=i/8*Math.PI*2, distance=30+(i%4)*16; n.className=`spark ${form}`; n.style.cssText=`left:${p.x}px;top:${p.y}px;--sx:${Math.cos(angle)*distance}px;--sy:${Math.sin(angle)*distance}px`; $('effects').append(n); effectLater(()=>n.remove(),550); }
+function floatText(text, id, kind='', index=0) {
+  const p=point($(id).querySelector('.portrait-ring')), width=$('battlefield').clientWidth;
+  p.x=Math.max(68,Math.min(width-68,p.x+(index%3-1)*18));p.y-=Math.floor(index/3)*12;
+  const node=fxNode(`damage-float ${kind}`,p,1050);node.textContent=text;
 }
-function flyCard(instance, actor, fromDeck = false) {
-  if (reducedMotion) return;
-  const target = actor === 'player' ? 'enemy' : 'hero';
-  const origin=(fromDeck?$(`${actor}-draw-pile`).querySelector('.card-back'):$(`${actor}-active-card`)).getBoundingClientRect();
-  const dest=(fromDeck?$(`${actor}-active-card`):$(target).querySelector('.portrait-ring')).getBoundingClientRect(), card=describeCard(instance), node=document.createElement('div');
-  node.className=`flying-card ${fromDeck?'dealt-card':'attack-flight'} art art-${card.art}`;
-  node.dataset.owner=actor;
-  node.style.cssText=`left:${origin.x+origin.width/2}px;top:${origin.y+origin.height/2}px;--dx:${dest.x+dest.width/2-origin.x-origin.width/2}px;--dy:${dest.y+dest.height/2-origin.y-origin.height/2}px`;
-  const duration=Math.max(70,(fromDeck?220:260)/speed);
-  node.style.animationDuration=`${duration}ms`;
-  node.innerHTML=`<span>${card.name}</span>`; document.body.append(node); effectLater(()=>node.remove(),duration+20);
+function effectChip(text,id,kind,index=0) {
+  const p=point($(id).querySelector('.portrait-ring')),width=$('battlefield').clientWidth;
+  const slot=`${id}-${Math.min(index,1)}`;
+  $('effects').querySelectorAll('.effect-chip').forEach(node=>{if(node.dataset.slot===slot)node.remove();});
+  p.x=Math.max(70,Math.min(width-70,p.x));p.y-=16;
+  const node=fxNode(`effect-chip kind-${kind}`,p,1050,`--chip-index:${Math.min(index,1)};`);node.dataset.slot=slot;node.textContent=text;
+}
+function aura(id,kind) {fxNode(`support-aura kind-${kind}`,point($(id).querySelector('.portrait-ring')),900);}
+function impact(id,heavy,kind='claw',form='wolf') {
+  playClass($(id),heavy?'heavy-hit':'hit',heavy?460:380);
+  if(!reducedMotion)playClass($('battlefield'),heavy?'shake-heavy':'shake',heavy?320:240);
+  const p=point($(id).querySelector('.portrait-ring'));
+  fxNode(`hit-burst kind-${kind}`,p,560,`--fx-size:${heavy?130:90}px;`);
+  fxNode(`effect-ripple kind-${kind}`,p,600);
+  if(reducedMotion)return;
+  for(let i=0;i<(heavy?8:5);i++){
+    const angle=i/8*Math.PI*2,distance=25+(i%3)*13;
+    fxNode(`spark ${form}`,p,550,`--sx:${Math.cos(angle)*distance}px;--sy:${Math.sin(angle)*distance}px;`);
+  }
+}
+function flyCard(instance,actor) {
+  if(reducedMotion)return;
+  const origin=$(`${actor}-draw-pile`).querySelector('.card-back').getBoundingClientRect(),dest=$(`${actor}-active-card`).getBoundingClientRect(),card=describeCard(instance),node=document.createElement('div');
+  const duration=presentationTiming(speed).draw;
+  node.className=`flying-card dealt-card art art-${card.art}`;node.dataset.owner=actor;
+  node.style.cssText=`left:${origin.x+origin.width/2}px;top:${origin.y+origin.height/2}px;--dx:${dest.x+dest.width/2-origin.x-origin.width/2}px;--dy:${dest.y+dest.height/2-origin.y-origin.height/2}px;animation-duration:${duration}ms;`;
+  node.innerHTML=`<span>${card.name}</span>`;document.body.append(node);effectLater(()=>node.remove(),duration+30);
+}
+function castEffect(actor,kind,travel) {
+  const source=actor==='player'?'hero':'enemy',target=actor==='player'?'enemy':'hero';
+  playClass($(source),'casting',340);
+  if(reducedMotion)return;
+  const from=point($(`${actor}-active-card`)),to=point($(target).querySelector('.portrait-ring')),dx=to.x-from.x,dy=to.y-from.y;
+  const extra=`--dx:${dx}px;--dy:${dy}px;--distance:${Math.hypot(dx,dy)}px;--angle:${Math.atan2(dy,dx)*180/Math.PI}deg;--travel-ms:${travel}ms;`;
+  fxNode(`cast-trail kind-${kind}`,from,travel+30,extra);fxNode(`effect-orb kind-${kind}`,from,travel+30,extra);
 }
 function beginStep() {
-  if (state.phase !== 'battle' || modalOpen() || document.hidden) return;
-  $('battle-caption').classList.remove('has-link');
-  const actor=state.battle.actor, fighter=state.battle[actor], instance=fighter.draw[0];
-  if (instance) {
-    const card=describeCard(instance), charged=Math.min(card.cost,instance.charge+fighter.energy);
-    renderActive({cardId:instance.id,tier:instance.tier,name:card.name,actor,charged});
-    $(`${actor}-turn-label`).textContent = `${(state.battle.turnCard || 0)+1}장째${fighter.form==='wolf' ? ` · 연타 ${fighter.combo%3}/3` : ''}`;
-    $('battle-caption').textContent=`${actor === 'player' ? '내' : '상대'} 기력 ${fighter.energy} · ${card.name}`;
-    const dealTime=reducedMotion?30:Math.max(70,220/speed);
-    playClass($(`${actor}-draw-pile`),'drawing',dealTime);
-    flyCard(instance,actor,true);
+  if(state.phase!=='battle'||modalOpen()||document.hidden)return;
+  clearEffects();renderBattle();
+  const actor=state.battle.actor,fighter=state.battle[actor],instance=fighter.draw[0],timing=presentationTiming(speed,reducedMotion);
+  $('battlefield').dataset.caster=actor;$('battlefield').dataset.presentation='draw';
+  $('battle-caption').classList.remove('has-link');$('battle-caption').classList.add('card-cast-title');
+  if(!instance){renderActive({actor});$('battle-caption').textContent=`${actor==='player'?'내':'상대'} 덱 재섞기 · 한 턴 휴식`;later(resolveStep,timing.reveal);return;}
+  const card=describeCard(instance),charged=Math.min(card.cost,instance.charge+fighter.energy),ready=charged>=card.cost;
+  renderActive({cardId:instance.id,tier:instance.tier,name:card.name,actor,charged});
+  $(`${actor}-active-card`).classList.add('is-playing');
+  $(`${actor}-turn-label`).textContent=`${(state.battle.turnCard||0)+1}장째${fighter.form==='wolf'?` · 연타 ${fighter.combo%3}/3`:''}`;
+  $('battle-caption').innerHTML=`<strong>${actor==='player'?'내 카드':'상대 카드'} · ${card.name}</strong><span class="link-caption-detail">${ready?`${typeNames[card.type]} · 기력 ${card.cost}`:`충전 ${charged}/${card.cost} · 이번에는 버림`}</span>`;
+  playClass($(`${actor}-draw-pile`),'drawing',timing.draw);flyCard(instance,actor);sound('draw');
+  later(()=>{
+    $('battlefield').dataset.presentation='showcase';playClass($(`${actor}-active-card`),'dealing',300);
     later(()=>{
-      if (state.phase !== 'battle' || modalOpen() || document.hidden) return;
-      if (card.type === 'attack' && charged >= card.cost) flyCard(instance,actor);
-      playClass($(`${actor}-active-card`),'dealing',Math.max(90,260/speed));
-      later(resolveStep,reducedMotion?30:Math.max(90,260/speed));
-    },dealTime);
-    return;
-  } else {
-    renderActive({actor}); $('battle-caption').textContent=`${actor === 'player' ? '내' : '상대'} 덱 재섞기 · 한 턴 휴식`;
+      $('battlefield').dataset.presentation='cast';
+      if(ready){
+        const hostile=card.type==='attack'?effectKind(card):card.shock?'shock':card.burn?'fire':card.poison?'poison':null;
+        if(hostile)castEffect(actor,hostile,timing.travel);
+        else playClass($(actor==='player'?'hero':'enemy'),'casting',340);
+        sound('cast');
+      }
+      later(resolveStep,timing.travel);
+    },timing.reveal);
+  },timing.draw);
+}
+function showImpactBeat(beat,event,health) {
+  const targetId=beat.target==='player'?'hero':'enemy',sourceId=beat.actor==='player'?'hero':'enemy';
+  const kind={counter:'counter',reaction:'poison',shock:'shock',poison:'poison',burn:'fire',fatigue:'claw'}[beat.kind]||effectKind(CARDS[event.cardId]);
+  const heavy=beat.rawDamage>=14||beat.kind==='reaction'&&beat.rawDamage>=6;
+  health[beat.target].hp=Math.max(0,health[beat.target].hp-beat.damage);
+  if(beat.kind==='reaction')health[beat.actor].hp=Math.min(health[beat.actor].maxHp,health[beat.actor].hp+event.reactionHeal);
+  renderHealth(health);
+  $('battlefield').dataset.presentation='impact';$('battlefield').dataset.beat=String(beat.index+1);
+  if(beat.damage||beat.absorbed)impact(targetId,heavy,beat.damage?kind:'shield',beat.kind==='counter'?'bear':event.formAfter);
+  if(!reducedMotion&&(beat.damage||beat.absorbed)){
+    $('effects').querySelectorAll('.damage-float[data-damage-target]').forEach(node=>{if(node.dataset.damageTarget===targetId)node.remove();});
+    if(beat.damage){floatText(`−${beat.damage}`,targetId,heavy?'critical':kind==='poison'?'poison':'',beat.index);$('effects').lastElementChild.dataset.damageTarget=targetId;}
+    else if(beat.absorbed){floatText(`방어 ${beat.absorbed}`,targetId,'block',beat.index);$('effects').lastElementChild.dataset.damageTarget=targetId;}
+    if(beat.damage&&beat.absorbed)effectChip(`보호막 −${beat.absorbed}`,targetId,'shield');
   }
-  later(resolveStep, reducedMotion ? 50 : Math.max(90,260/speed));
+  if(beat.kind==='counter')playClass($(sourceId),'countering',600);
+  if(beat.kind==='reaction'){
+    playClass($(sourceId),'reacting',600);
+    if(event.reactionHeal){aura(sourceId,'heal');floatText(`+${event.reactionHeal}`,sourceId,'heal');sound('heal');}
+  }
+  if(beat.damage||beat.absorbed)sound(beat.absorbed&&!beat.damage?'shield':heavy?'heavy':kind);
 }
 function resolveStep() {
-  if (state.phase !== 'battle' || modalOpen() || document.hidden) return;
+  if(state.phase!=='battle'||modalOpen()||document.hidden)return;
   clearEffects();
-  const before=structuredClone(state.battle), event=stepBattle(state);
-  lastCards[event.actor]=event; history.push(event); if(history.length>5)history.shift();
-  render(); save();
-  const sourceId=event.actor === 'player' ? 'hero' : 'enemy', targetId=event.actor === 'player' ? 'enemy' : 'hero';
-  for (const [actor,id] of [['player','hero'],['enemy','enemy']]) {
-    const old=before[actor], current=state.battle[actor], lost=old.hp-current.hp;
-    if (lost>0) { floatText(`−${lost}`,id,event.poisonDamage && actor===event.actor ? 'poison' : event.critical ? 'critical' : ''); impact(id,event.critical||lost>=16,current.form); }
-    else if (current.hp>old.hp) floatText(`+${current.hp-old.hp}`,id,'heal');
+  const before=state.battle,health={player:{hp:before.player.hp,maxHp:before.player.maxHp},enemy:{hp:before.enemy.hp,maxHp:before.enemy.maxHp}};
+  const event=stepBattle(state),timing=presentationTiming(speed,reducedMotion);
+  lastCards[event.actor]=event;history.push(event);if(history.length>5)history.shift();
+  render();save();
+  health[event.actor].hp=Math.min(health[event.actor].maxHp,health[event.actor].hp+event.heal);renderHealth(health);
+  const sourceId=event.actor==='player'?'hero':'enemy',targetId=event.actor==='player'?'enemy':'hero';
+  $('battlefield').dataset.caster=event.actor;$('battlefield').dataset.presentation='impact';
+  $(`${event.actor}-active-card`).classList.add('is-playing');
+  for(const side of ['player','enemy']){
+    $(`${side}-lane`).dataset.active=String(side===event.actor);
+    $(side==='player'?'hero':'enemy').dataset.active=String(side===event.actor);
+    $(`${side}-turn-label`).textContent=side===event.actor?'효과 발동':'대기';
   }
-  if (event.type === 'card') {
-    if (event.rawDamage && !event.damage) { floatText('방어',targetId,'block'); impact(targetId,false,event.formAfter); }
-    if (event.shield && !event.rawDamage) floatText(`+${event.shield}`,sourceId,'block');
-    if (event.formBefore !== event.formAfter) { playClass($(sourceId),'morph'); sound('soft'); }
-    else sound(event.critical ? 'heavy' : event.rawDamage ? 'hit' : event.shield ? 'shield' : 'soft');
-    $('battle-caption').textContent=`${event.actor === 'player' ? '내' : '상대'} · ${event.name}${event.damage ? ` · 피해 ${event.damage}` : event.shield ? ` · 보호막 +${event.shield}` : ''}${event.poison ? ` · 맹독 +${event.poison}` : ''}`;
-  } else if (event.type === 'charge') {
-    $('battle-caption').textContent=`${event.actor === 'player' ? '내' : '상대'} · ${event.name} 충전 ${event.charged}/${event.cost} · 버림`;
-  } else $('battle-caption').textContent=`${event.actor === 'player' ? '내' : '상대'} 재섞기 · 한 턴 휴식${event.poisonDamage ? ` · 맹독 피해 ${event.poisonDamage}` : ''}`;
-  $('battle-caption').classList.toggle('has-link',Boolean(event.links?.length));
-  if(event.links?.length) {
-    const lead=event.links.find(link=>link.kind==='form')||event.links[0];
-    $('battle-caption').innerHTML=`<strong class="link-caption">${lead.actor==='player'?'내':'상대'} ${lead.name}</strong><span class="link-caption-detail">${lead.kind==='form' ? lead.text : `${event.name} · ${lead.text}`}</span>`;
-    if(lead.kind==='form')floatText(lead.name,lead.actor==='player'?'hero':'enemy','synergy');
-    if(event.extraHits) {flyCard({id:event.cardId,tier:event.tier},event.actor);effectLater(()=>impact(targetId,false,'wolf'),Math.max(60,130/speed));}
-    if(event.counterRawDamage) {playClass($(targetId),'countering',600);if(event.counterAbsorbed&&!event.counterDamage){floatText(`반격 ${event.counterAbsorbed}`,sourceId,'block');impact(sourceId,false,'bear');}}
-    if(event.reactionRawDamage) {playClass($(sourceId),'reacting',600);sound('heavy');}
-  } else if (state.phase === 'battle') $('battle-caption').textContent += event.turnEnded ? ' · 턴 종료' : ' · 연속 사용';
-  if (event.fatigue) $('battle-caption').textContent += ` · 피로 ${event.fatigue}`;
-  if (state.phase === 'battle') {const formLink=event.links?.some(link=>link.kind==='form');later(beginStep,Math.max(formLink?650:150,(formLink?1450:event.critical?1060:event.turnEnded?900:600)/speed));}
-  else later(showPhase,750);
+  $('battle-turn').textContent=`${event.turn}턴 · ${event.actor==='player'?'내':'상대'} 카드`;
+  const beats=impactBeats(event,timing.impactGap);
+  for(const beat of beats)if(beat.delay)effectLater(()=>showImpactBeat(beat,event,health),beat.delay);else showImpactBeat(beat,event,health);
+  if(reducedMotion)for(const total of impactTotals(beats)){
+    const id=total.target==='player'?'hero':'enemy';
+    if(total.damage)floatText(`−${total.damage}`,id,total.damage>=18?'critical':'');
+    else if(total.absorbed)floatText(`방어 ${total.absorbed}`,id,'block');
+    if(total.damage&&total.absorbed)effectChip(`보호막 −${total.absorbed}`,id,'shield');
+  }
+  const lastBeat=beats.at(-1)?.delay||0;
+  const directSupport=event.type==='card';
+  if(directSupport){
+    let ownChip=0;
+    if(event.cardType==='form'){aura(sourceId,'form');if(event.formBefore!==event.formAfter)playClass($(sourceId),'morph',800);sound('form');}
+    if(event.shield){aura(sourceId,'shield');effectChip(`보호막 +${event.shield}`,sourceId,'shield',ownChip++);if(!beats.length)sound('shield');}
+    if(event.heal){aura(sourceId,'heal');floatText(`+${event.heal}`,sourceId,'heal');if(!beats.length)sound('heal');}
+    const supplied=event.energyGained-event.energyRecovered;
+    if(supplied>0){aura(sourceId,'energy');effectChip(`기력 +${supplied}`,sourceId,'energy',ownChip++);if(!beats.length)sound('energy');}
+    if(event.nextCharged)effectChip(`다음 충전 +${event.nextCharged}`,sourceId,'energy',ownChip++);
+    let targetChip=0;
+    for(const [key,label] of [['poison','맹독'],['burn','화상'],['shock','감전']])if(event[key])effectChip(`${label} +${event[key]}`,targetId,key,targetChip++);
+  }
+  const lead=event.links?.find(link=>link.kind==='form')||event.links?.[0];
+  $('battle-caption').classList.toggle('has-link',Boolean(lead));$('battle-caption').classList.add('card-cast-title');
+  if(event.type==='card'){
+    const values=[event.strikes.length>1?`${event.strikes.length}연격`:'',event.damage?`총 피해 ${event.damage}`:'',event.shield?`보호막 +${event.shield}`:'',event.heal?`회복 +${event.heal}`:''].filter(Boolean).join(' · ')||'효과 발동';
+    $('battle-caption').innerHTML=`<strong class="link-caption">${lead?.kind==='form'?`${lead.actor==='player'?'내':'상대'} ${lead.name}`:`${event.actor==='player'?'내':'상대'} · ${event.name}`}</strong><span class="link-caption-detail">${lead?`${lead.name} · ${lead.text}`:values}</span>`;
+    if(lead?.kind==='form'){
+      effectLater(()=>floatText(lead.name,lead.actor==='player'?'hero':'enemy','synergy'),lastBeat);
+      $('battle-caption').querySelector('.link-caption-detail').textContent=lead.text;
+    }
+  }else $('battle-caption').textContent=event.type==='charge'?`${event.actor==='player'?'내':'상대'} · ${event.name} 충전 ${event.charged}/${event.cost} · 버림`:`${event.actor==='player'?'내':'상대'} 재섞기 · 한 턴 휴식${event.poisonDamage?` · 맹독 피해 ${event.poisonDamage}`:''}`;
+  if(event.fatigue)$('battle-caption').textContent+=` · 피로 ${event.fatigue}`;
+  const duration=lastBeat;
+  effectLater(()=>{renderHealth(state.battle);$('battlefield').dataset.presentation='settle';},duration+160);
+  const hold=lead?.kind==='form'||event.cardType==='form'?timing.formSettle:timing.settle;
+  later(state.phase==='battle'?beginStep:showPhase,duration+hold);
 }
 function showPhase() {
   if (document.hidden || modalOpen()) return;
@@ -423,7 +510,7 @@ listen($('launch'),'click',()=>{
   later(beginStep,600/speed);
 });
 listen($('speed'),'click',()=>{speed=speed===1?2:speed===2?4:1;savePrefs();$('speed').textContent=`속도 ×${speed}`;});
-listen($('sound'),'click',async()=>{soundEnabled=!soundEnabled;savePrefs();if(soundEnabled){await enableAudio();sound('soft');}else stopAudio();render();});
+listen($('sound'),'click',()=>{const fighting=state.phase==='battle';if(fighting)stopLoop();soundEnabled=!soundEnabled;savePrefs();if(soundEnabled){void enableAudio();sound('soft');}else stopAudio();render();if(fighting)resume();});
 listen($('help'),'click',()=>showDialog('help-dialog'));
 listen($('inspect-opponent'),'click',showOpponent);
 listen($('pause-opponent'),'click',()=>{$('pause-dialog').close();showOpponent();});
