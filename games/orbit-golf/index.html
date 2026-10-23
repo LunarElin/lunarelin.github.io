@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#090e23">
-  <meta name="description" content="한 타로 궤도 너머. 우주 원형 트랙을 달리고, 공과 슈트를 강화하는 3D 스페이스 골프.">
+  <meta name="description" content="수직 우주 쳇바퀴를 달리는 3D 골프. 짧은 훈련을 마치고 공과 슈트를 강화해 다음 기록에 도전하세요.">
   <title>오빗 골프 · ORBIT GOLF</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
@@ -13,7 +13,7 @@
 </head>
 <body>
   <main id="game" aria-label="오빗 골프">
-    <canvas id="space" aria-label="우주 속 3차원 원형 골프 트랙"></canvas>
+    <canvas id="space" aria-label="수직 쳇바퀴 안쪽을 구르는 3차원 우주 골프"></canvas>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
       <a href="../../" class="home icon-button" aria-label="홈페이지로">⌂</a>
@@ -23,8 +23,8 @@
     </header>
 
     <section id="lobby" class="lobby">
-      <div class="lobby-title"><p class="kicker">무중력 궤도 챌린지</p><h1>한 타로,<br><em>궤도 너머.</em></h1><p class="tagline">치고, 피하고, 더 멀리.</p></div>
-      <div class="orbit-caption"><span class="live-dot"></span>제1궤도 · 코발트 링<span class="caption-line"></span></div>
+      <div class="lobby-title"><p class="kicker">우주 쳇바퀴 챌린지</p><h1>한 바퀴 더,<br><em>어제보다 멀리.</em></h1><p class="tagline">짧게 도전하고, 강해져서 다시.</p></div>
+      <div class="orbit-caption"><span class="live-dot"></span>코발트 휠 · 안쪽을 달려요<span class="caption-line"></span></div>
       <div class="lobby-dock">
         <div class="wallet-row"><span>최고 기록 <strong id="best">0 <small>m</small></strong></span><span class="gold-pill"><i aria-hidden="true">◆</i><b id="gold">0</b> G</span></div>
         <form id="name-form"><label for="pilot-name">파일럿 이름</label><div class="name-row"><input id="pilot-name" name="pilot" maxlength="12" placeholder="이름을 입력하세요" autocomplete="nickname" required aria-describedby="name-error"><button class="primary" type="submit">출발 <span aria-hidden="true">↗</span></button></div><p id="name-error" class="form-error" aria-live="polite"></p></form>
@@ -36,6 +36,7 @@
       <div class="run-heading"><span id="track-label">제1궤도</span><span id="pilot-label"></span></div>
       <div class="distance"><b id="distance">0</b><span>m</span></div>
       <div class="run-stats"><span><i>◆</i> <b id="run-gold">0</b> G</span><span>속도 <b id="speed">0</b></span></div>
+      <p id="run-goal" class="run-goal"></p>
       <div class="orbit-progress" aria-label="궤도 진행"><div id="orbit-fill"></div></div>
       <div id="warning" class="warning" hidden></div>
     </section>

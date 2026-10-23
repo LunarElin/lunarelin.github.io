@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  TRACK_LENGTH, DISTANCE_PER_GOLD, UPGRADE_DEFS,
+  TRACK_LENGTH, DISTANCE_PER_GOLD, UPGRADE_DEFS, TUTORIAL_DURATION, RUN_DURATION,
   newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade,
   generateTrack, newRun, changeLane, resolveEvent, stepRun,
   collectRunGold, canContinue, continueRun, settleRun,
@@ -19,6 +19,17 @@ test('profile input is bounded and names are safe plain text', () => {
   assert.deepEqual(profile.rankings, []);
   assert.equal(cleanName(null), '');
   assert.deepEqual(sanitizeProfile(null), newProfile());
+});
+
+test('tutorial migration keeps version-one progress and accepts only a real completion flag', () => {
+  const old = { version: 1, name: '기존 골퍼', gold: 345, upgrades: { pilot: 2, ball: 3 }, rankings: [{ name: '기존 골퍼', distance: 900 }] };
+  const profile = sanitizeProfile(old);
+  assert.equal(profile.tutorialComplete, false);
+  assert.equal(profile.gold, 345);
+  assert.deepEqual(profile.upgrades, old.upgrades);
+  assert.equal(profile.rankings[0].distance, 900);
+  assert.equal(sanitizeProfile({ ...old, tutorialComplete: 'true' }).tutorialComplete, false);
+  assert.equal(sanitizeProfile({ ...old, tutorialComplete: true }).tutorialComplete, true);
 });
 
 test('upgrades charge the displayed cost and reject invalid, poor, or maxed purchases', () => {
@@ -48,23 +59,33 @@ test('track events are seeded, ordered, and remain inside their track', () => {
   }
 });
 
-test('every track has six spaced, diverse events with hazards and lucky rewards', () => {
+test('tracks contain three different hazards and occasional special events', () => {
   const hazards = new Set(['comet', 'alien', 'trap']);
   const rewards = new Set(['coins', 'boost', 'ufo', 'hole']);
+  let warpTracks = 0;
   for (let seed = 0; seed < 80; seed++) {
     for (let track = 0; track < 3; track++) {
       const events = generateTrack(track, seed);
       assert.equal(events.length, 6);
-      assert.equal(new Set(events.map(event => event.type)).size, 6);
-      assert.ok(events.some(event => hazards.has(event.type)));
-      assert.ok(events.some(event => rewards.has(event.type)));
-      assert.ok(events.some(event => event.type === 'ufo' || event.type === 'hole'));
+      assert.deepEqual(events.filter(event => hazards.has(event.type)).map(event => event.type).sort(), ['alien', 'comet', 'trap']);
+      assert.equal(events.filter(event => rewards.has(event.type)).length, 3);
+      if (events.some(event => event.type === 'ufo' || event.type === 'hole')) warpTracks++;
       assert.ok(events[0].at >= track * TRACK_LENGTH + 60);
       for (let index = 1; index < events.length; index++) {
         assert.ok(events[index].at - events[index - 1].at >= 47);
       }
     }
   }
+  assert.ok(warpTracks > 0 && warpTracks < 240);
+});
+
+test('launch speed stays unchanged while power and upgrades reward later shots', () => {
+  const profile = newProfile();
+  assert.equal(newRun(profile, 0, 1).speed, 48);
+  assert.equal(newRun(profile, 1, 1).speed, 110);
+  assert.equal(newRun(profile, -1, 1).speed, 48);
+  profile.upgrades.ball = 5;
+  assert.equal(newRun(profile, 1, 1).speed, 145);
 });
 
 test('lanes stay bounded and cannot move after stopping', () => {
@@ -108,7 +129,7 @@ test('physics and event outcomes agree across fast and slow rendering rates', ()
   assert.equal(fast.earned, slow.earned);
 });
 
-test('lucky holes and UFOs immediately jump to another track', () => {
+test('lucky holes and UFOs alone move the ball to a different physical wheel', () => {
   const profile = newProfile();
   for (const type of ['hole', 'ufo']) {
     const run = newRun(profile, 0.2, 5);
@@ -116,10 +137,31 @@ test('lucky holes and UFOs immediately jump to another track', () => {
     const result = resolveEvent(run, { type }, profile);
     assert.equal(result.kind, 'warp');
     assert.equal(run.track, 1);
+    assert.equal(run.wheel, 1);
     assert.ok(run.distance >= TRACK_LENGTH);
     assert.ok(run.events.every(event => event.at > run.distance || event.used));
-    assert.ok(run.speed >= 92);
+    assert.ok(run.speed >= 65);
+    assert.equal(run.speed, 65);
+    const fast = newRun(profile, 1, 5);
+    resolveEvent(fast, { type }, profile);
+    assert.equal(fast.speed, 110);
   }
+  for (const type of ['coins', 'boost', 'trap', 'comet', 'alien']) {
+    const run = newRun(profile, 1, 5);
+    resolveEvent(run, { type }, profile);
+    assert.equal(run.wheel, 0);
+  }
+});
+
+test('ordinary full laps keep the same physical wheel', () => {
+  const profile = newProfile();
+  const run = newRun(profile, 1, 5);
+  run.distance = TRACK_LENGTH - 1;
+  run.events = [];
+  run.eventTrack = 0;
+  stepRun(run, profile, 0.1);
+  assert.equal(run.track, 1);
+  assert.equal(run.wheel, 0);
 });
 
 test('suit protection and ball upgrades improve actual gameplay', () => {
@@ -137,6 +179,7 @@ test('suit protection and ball upgrades improve actual gameplay', () => {
 
 test('one paid continuation preserves the exact stopped distance and lane', () => {
   const profile = newProfile();
+  profile.tutorialComplete = true;
   profile.gold = 12;
   const run = newRun(profile, 1, 3);
   run.phase = 'stopped';
@@ -149,6 +192,7 @@ test('one paid continuation preserves the exact stopped distance and lane', () =
   assert.equal(run.distance, 321.12345);
   assert.equal(run.lane, -1);
   assert.equal(run.phase, 'rolling');
+  assert.equal(run.speed, 86);
   assert.equal(run.continued, true);
   run.phase = 'stopped';
   profile.gold = 9999;
@@ -159,6 +203,7 @@ test('one paid continuation preserves the exact stopped distance and lane', () =
 
 test('unaffordable continuation leaves wallet and state unchanged', () => {
   const profile = newProfile();
+  profile.tutorialComplete = true;
   const run = newRun(profile, 0, 5);
   run.phase = 'stopped';
   run.earned = 39;
@@ -170,6 +215,7 @@ test('unaffordable continuation leaves wallet and state unchanged', () => {
 
 test('gold collection and final settlement are idempotent, including after continuation', () => {
   const profile = newProfile();
+  profile.tutorialComplete = true;
   profile.name = '별골퍼';
   const run = newRun(profile, 1, 5);
   assert.equal(settleRun(profile, run), false);
@@ -180,6 +226,7 @@ test('gold collection and final settlement are idempotent, including after conti
   assert.equal(continueRun(profile, run), true);
   run.phase = 'stopped';
   run.distance = 802;
+  run.elapsed = 10;
   run.earned = 110;
   assert.equal(settleRun(profile, run), true);
   assert.equal(profile.gold, 70);
@@ -210,4 +257,82 @@ test('invalid frame durations cannot move a run or create earnings', () => {
   stepRun(run, profile, 60);
   assert.ok(Number.isFinite(run.distance));
   assert.ok(Number.isFinite(run.speed));
+});
+
+test('tutorial completion gives one training reward and makes the first ball upgrade affordable', () => {
+  const profile = newProfile();
+  const run = newRun(profile, 0, 12);
+  assert.equal(run.tutorial, true);
+  while (run.phase === 'rolling') stepRun(run, profile, 0.1);
+  assert.ok(run.stopReason === 'natural' || run.stopReason === 'time');
+  assert.equal(canContinue(profile, run), false);
+  assert.equal(settleRun(profile, run), true);
+  assert.ok(run.trainingBonus >= 80);
+  assert.ok(profile.gold >= upgradeCost(profile, 'ball'));
+  assert.equal(profile.tutorialComplete, true);
+  const gold = profile.gold;
+  assert.equal(settleRun(profile, run), false);
+  assert.equal(profile.gold, gold);
+  const next = newRun(profile, 0, 12);
+  assert.equal(next.tutorial, false);
+  stepRun(next, profile, 0.02);
+  next.phase = 'stopped';
+  settleRun(profile, next);
+  assert.equal(next.trainingBonus, 0);
+});
+
+test('manually abandoning a moving tutorial banks only earned gold without completing training', () => {
+  for (const elapsed of [0.02, 2]) {
+    const profile = newProfile();
+    const run = newRun(profile, 0, 12);
+    stepRun(run, profile, elapsed);
+    assert.equal(run.phase, 'rolling');
+    const earned = run.earned;
+    run.phase = 'stopped';
+    assert.equal(settleRun(profile, run), true);
+    assert.equal(profile.tutorialComplete, false);
+    assert.equal(run.trainingBonus, 0);
+    assert.equal(profile.gold, earned);
+    assert.equal(newRun(profile, 0, 12).tutorial, true);
+  }
+});
+
+test('cancelling before the shot gives no tutorial reward or ranking', () => {
+  const profile = newProfile();
+  const run = newRun(profile, 1, 12);
+  run.phase = 'stopped';
+  assert.equal(settleRun(profile, run), true);
+  assert.equal(profile.tutorialComplete, false);
+  assert.equal(profile.gold, 0);
+  assert.deepEqual(profile.rankings, []);
+  assert.equal(run.trainingBonus, 0);
+});
+
+test('tutorial duration ends within 75 seconds even under endless boosts, independent of frame rate', () => {
+  for (const dt of [1 / 60, 1 / 10, 1]) {
+    const profile = newProfile();
+    const run = newRun(profile, 1, 21);
+    let calls = 0;
+    while (run.phase === 'rolling' && calls++ < TUTORIAL_DURATION / dt + 2) {
+      run.speed = 185;
+      stepRun(run, profile, dt);
+    }
+    assert.equal(run.phase, 'stopped');
+    assert.equal(run.elapsed, TUTORIAL_DURATION);
+    assert.equal(run.stopReason, 'time');
+    assert.equal(canContinue(profile, run), false);
+  }
+});
+
+test('ordinary no-input sessions always end within the two-minute session limit', () => {
+  const profile = newProfile();
+  profile.tutorialComplete = true;
+  for (let seed = 1; seed <= 100; seed++) {
+    const run = newRun(profile, 0.85, seed);
+    for (let frame = 0; frame < RUN_DURATION * 10 + 1 && run.phase === 'rolling'; frame++) {
+      stepRun(run, profile, 0.1);
+    }
+    assert.equal(run.phase, 'stopped');
+    assert.ok(run.elapsed <= RUN_DURATION);
+  }
 });

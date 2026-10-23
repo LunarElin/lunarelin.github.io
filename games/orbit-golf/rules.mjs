@@ -2,6 +2,8 @@ export const TRACK_LENGTH = 360;
 export const DISTANCE_PER_GOLD = 8;
 export const CONTINUE_COST = 40;
 export const MAX_UPGRADE_LEVEL = 5;
+export const TUTORIAL_DURATION = 75;
+export const RUN_DURATION = 120;
 
 export const UPGRADE_DEFS = Object.freeze({
   pilot: Object.freeze({
@@ -24,7 +26,7 @@ export function cleanName(value) {
 }
 
 export function newProfile() {
-  return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [] };
+  return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [], tutorialComplete: false };
 }
 
 function rankRows(rows) {
@@ -51,6 +53,7 @@ export function sanitizeProfile(raw) {
   profile.upgrades.pilot = level(raw, 'pilot');
   profile.upgrades.ball = level(raw, 'ball');
   profile.rankings = rankRows(Array.isArray(raw.rankings) ? raw.rankings.slice(0, 200) : []);
+  profile.tutorialComplete = raw.tutorialComplete === true;
   return profile;
 }
 
@@ -82,12 +85,13 @@ function randomFor(seed) {
 export function generateTrack(track, seed = 1) {
   track = Math.max(0, Math.floor(finite(track)));
   const random = randomFor((finite(seed, 1) ^ Math.imul(track + 1, 0x9E3779B1)) >>> 0);
-  const types = ['coins', 'comet', 'boost', 'trap', 'alien', 'ufo', 'hole'];
+  const special = random() < 0.25 ? (random() < 0.5 ? 'ufo' : 'hole') : 'coins';
+  const types = ['comet', 'alien', 'trap', 'coins', 'boost', special];
   for (let index = types.length - 1; index > 0; index--) {
     const other = Math.floor(random() * (index + 1));
     [types[index], types[other]] = [types[other], types[index]];
   }
-  return types.slice(0, 6).map((type, index) => ({
+  return types.map((type, index) => ({
     id: `${track}:${index}`,
     at: track * TRACK_LENGTH + 60 + index * 55 + Math.floor(random() * 9),
     lane: Math.floor(random() * 3) - 1,
@@ -114,8 +118,10 @@ export function newRun(profile, power01, seed = Date.now()) {
   const run = {
     phase: 'rolling', name: cleanName(profile?.name) || '우주 골퍼',
     distance: 0, speed: 48 + power * 62 + level(profile, 'ball') * 7,
-    lane: 0, targetLane: 0, track: 0, continued: false, finished: false,
+    lane: 0, targetLane: 0, track: 0, wheel: 0, continued: false, finished: false,
     earned: 0, banked: 0, bonusGold: 0, seed: finite(seed, 1) >>> 0,
+    tutorial: !profile?.tutorialComplete, elapsed: 0, trainingBonus: 0,
+    durationLimit: profile?.tutorialComplete ? RUN_DURATION : TUTORIAL_DURATION,
     eventTrack: -1, events: [],
   };
   refreshEvents(run);
@@ -161,12 +167,14 @@ export function resolveEvent(run, event, profile) {
       break;
     case 'ufo':
       run.distance = (Math.floor(run.distance / TRACK_LENGTH) + 1) * TRACK_LENGTH + 18;
-      run.speed = Math.max(run.speed, 92);
+      run.wheel += 1;
+      run.speed = Math.max(run.speed, 65);
       feedback = { text: '우주선 워프!', kind: 'warp', type: 'ufo' };
       break;
     case 'hole':
       run.distance = (Math.floor(run.distance / TRACK_LENGTH) + 1) * TRACK_LENGTH + 12;
-      run.speed = Math.max(run.speed, 105);
+      run.wheel += 1;
+      run.speed = Math.max(run.speed, 65);
       run.bonusGold += 20;
       feedback = { text: '홀인원! 다음 궤도', kind: 'warp', type: 'hole' };
       break;
@@ -181,7 +189,7 @@ export function resolveEvent(run, event, profile) {
 export function stepRun(run, profile, dt) {
   const feedback = [];
   if (run?.phase !== 'rolling' || !Number.isFinite(dt) || dt <= 0) return feedback;
-  let remaining = Math.min(dt, 60);
+  let remaining = Math.min(dt, 60, Math.max(0, run.durationLimit - run.elapsed));
   const drag = 3.15 - level(profile, 'ball') * 0.16;
   refreshEvents(run);
   // Solve the time of each crossed event so slow frames cannot skip collisions.
@@ -195,6 +203,7 @@ export function stepRun(run, profile, dt) {
       run.distance = event.at;
       run.speed = Math.max(0, run.speed - drag * elapsed);
       remaining = Math.max(0, remaining - elapsed);
+      run.elapsed += elapsed;
       event.used = true;
       if (event.lane === run.lane) {
         const result = resolveEvent(run, event, profile);
@@ -204,14 +213,23 @@ export function stepRun(run, profile, dt) {
       run.distance += travel;
       run.speed = Math.max(0, run.speed - drag * duration);
       remaining = Math.max(0, remaining - duration);
+      run.elapsed += duration;
     }
     refreshEvents(run);
     refreshEarnings(run);
     if (run.speed < 0.00001 || run.distance >= MAX_DISTANCE) {
       run.speed = 0;
       run.phase = 'stopped';
+      run.stopReason = 'natural';
       feedback.push({ text: '이번 비행 종료', kind: 'stop', type: 'stop' });
     }
+  }
+  if (run.phase === 'rolling' && run.elapsed >= run.durationLimit - 0.000001) {
+    run.elapsed = run.durationLimit;
+    run.speed = 0;
+    run.phase = 'stopped';
+    run.stopReason = 'time';
+    feedback.push({ text: run.tutorial ? '훈련 비행 완료' : '비행 시간 종료', kind: 'stop', type: 'stop' });
   }
   return feedback;
 }
@@ -229,7 +247,8 @@ export function continueCost() {
 }
 
 export function canContinue(profile, run) {
-  return Boolean(run && run.phase === 'stopped' && !run.finished && !run.continued
+  return Boolean(run && run.phase === 'stopped' && !run.finished && !run.continued && !run.tutorial
+    && run.elapsed < run.durationLimit
     && profile.gold + Math.max(0, run.earned - run.banked) >= CONTINUE_COST);
 }
 
@@ -245,6 +264,18 @@ export function continueRun(profile, run) {
 
 export function settleRun(profile, run) {
   if (!profile || !run || run.finished || run.phase !== 'stopped') return false;
+  if (run.distance <= 0) {
+    run.finished = true;
+    run.phase = 'ended';
+    return true;
+  }
+  if (run.tutorial && !profile.tutorialComplete && run.distance > 0 && run.elapsed > 0
+    && (run.stopReason === 'natural' || run.stopReason === 'time')) {
+    run.trainingBonus = Math.max(80, 90 - run.earned);
+    run.bonusGold += run.trainingBonus;
+    run.earned += run.trainingBonus;
+    profile.tutorialComplete = true;
+  }
   collectRunGold(profile, run);
   profile.rankings = rankRows([...profile.rankings, {
     name: run.name, distance: run.distance, date: new Date().toISOString(),

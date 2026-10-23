@@ -22,17 +22,17 @@ const sceneSource = `
     render(dt, run, mode, power, upgrades) {
       this.mode = mode; this.power = power;
       this.snapshot = run ? Object.fromEntries(
-        ['distance','speed','earned','banked','lane','phase','track','continued','finished','name'].map(key => [key,run[key]])
+        ['distance','speed','earned','banked','lane','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit'].map(key => [key,run[key]])
       ) : null;
     }
   }
 `;
 
 function profile(overrides = {}) {
-  return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [], ...overrides };
+  return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [], tutorialComplete: true, ...overrides };
 }
 
-async function game(t, { stored = null, blockRead = false, blockWrite = false } = {}) {
+async function game(t, { stored = JSON.stringify(profile()), blockRead = false, blockWrite = false } = {}) {
   const dom = new JSDOM(html, {
     url: 'https://orbit-golf.test/games/orbit-golf/',
     runScripts: 'outside-only', pretendToBeVisual: true,
@@ -178,7 +178,7 @@ test('name, touch shot, one paid continuation, banking, upgrades and ranking use
   [...$('panel-content').querySelectorAll('.upgrade-card button')][1].click();
   assert.equal(app.saved().upgrades.ball, 1);
   assert.equal(app.saved().gold, earnedBalance - 160);
-  panelButton('계속 준비하기').click();
+  $('close-panel').click();
   $('open-ranks').click();
   assert.equal($('panel-content').querySelectorAll('.rank-row').length, 1);
   assert.equal($('panel-content').querySelector('.rank-row strong').textContent, '별파일럿');
@@ -209,6 +209,7 @@ test('visibility pause freezes progress, banks once, and resumes only through th
   assert.equal(app.scene.mode, 'paused');
   assert.equal(app.scene.snapshot.distance, before.distance);
   assert.equal(app.scene.snapshot.speed, before.speed);
+  assert.equal(app.scene.snapshot.elapsed, before.elapsed, 'Paused wall time must not consume the active-play limit');
   app.panelButton('계속').click(); app.tick();
   assert.equal(app.scene.mode, 'rolling');
   assert.ok(app.scene.snapshot.distance > before.distance);
@@ -219,6 +220,109 @@ test('visibility pause freezes progress, banks once, and resumes only through th
   assert.equal(settled.gold, app.scene.snapshot.earned);
   assert.equal(settled.rankings.length, 1);
 });
+
+test('a new zero-gold pilot finishes a short first run, buys a ball upgrade, and flies faster next round', async t => {
+  const app = await game(t, { stored: null });
+  assert.equal(app.$('gold').textContent, '0');
+  app.submit('첫 우주인');
+  assert.equal(app.saved().tutorialComplete, false);
+  app.$('cancel-run').click();
+  assert.equal(app.saved().gold, 0, 'Leaving before the first shot must not award a training grant');
+  assert.equal(app.saved().tutorialComplete, false);
+  assert.equal(app.saved().rankings.length, 0);
+  app.submit('첫 우주인');
+  app.launch();
+  const initialSpeed = app.scene.snapshot.speed;
+  assert.equal(app.scene.snapshot.tutorial, true);
+  assert.equal(app.scene.snapshot.durationLimit, 75);
+  const first = app.stop();
+  assert.ok(first.elapsed > 0 && first.elapsed <= 75.000001,
+    'The first flight must reach its result within 75 seconds of active play');
+  assert.equal(first.finished, true, 'The tutorial result must settle its grant before showing upgrade actions');
+  assert.equal(app.saved().tutorialComplete, true);
+  assert.ok(app.saved().gold >= 90, 'A new player must afford the first ball upgrade immediately');
+  assert.ok(first.trainingBonus >= 80);
+  assert.ok(first.earned >= first.trainingBonus, 'First-flight earnings include the training grant');
+  assert.equal(app.saved().gold, first.earned);
+  assert.equal(app.saved().rankings.length, 1);
+  assert.ok(![...app.$('panel-content').querySelectorAll('button')]
+    .some(button => /이어 달리기/.test(button.textContent) && !button.disabled),
+  'The first result must lead into growth without selling a continuation');
+
+  const balance = app.saved().gold;
+  const upgrade = app.panelButton('첫 강화하기');
+  assert.ok(upgrade.classList.contains('primary'));
+  upgrade.click();
+  assert.equal(app.$('panel').dataset.type, 'upgrades');
+  assert.equal(app.saved().gold, balance, 'Opening the shop must not settle the first-run grant twice');
+  const ball = [...app.$('panel-content').querySelectorAll('.upgrade-card button')][1];
+  assert.equal(ball.disabled, false);
+  assert.match(ball.textContent, /90/);
+  ball.click();
+  assert.equal(app.saved().upgrades.ball, 1);
+  assert.equal(app.saved().gold, balance - 90);
+  assert.equal(app.saved().tutorialComplete, true);
+  assert.match([...app.$('panel-content').querySelectorAll('.upgrade-title')][1].textContent, /Lv\.1/);
+  app.panelButton('다음 비행').click();
+  assert.equal(app.$('panel').open, false);
+  assert.equal(app.$('launch-controls').hidden, false);
+  app.launch();
+  assert.equal(app.scene.snapshot.tutorial, false);
+  assert.equal(app.scene.snapshot.durationLimit, 120);
+  assert.ok(app.scene.snapshot.speed > initialSpeed + 6,
+    'The purchased ball must increase actual next-shot speed at the same charge');
+  const second = app.stop();
+  app.panelButton('기록 저장').click();
+  assert.equal(app.saved().gold, balance - 90 + second.earned,
+    'Later rounds must not receive the first-flight grant again');
+  assert.equal(second.trainingBonus, 0);
+  const reloaded = await game(t, { stored: app.raw });
+  reloaded.submit('첫 우주인'); reloaded.launch();
+  assert.equal(reloaded.scene.snapshot.tutorial, false, 'Tutorial completion survives reloading');
+  assert.equal(reloaded.saved().upgrades.ball, 1);
+});
+
+test('a legacy save without the tutorial flag retains its wallet and upgrades when onboarding starts', async t => {
+  const legacy = profile({ name: '이전 파일럿', gold: 37, upgrades: { pilot: 2, ball: 1 } });
+  delete legacy.tutorialComplete;
+  const app = await game(t, { stored: JSON.stringify(legacy) });
+  assert.equal(app.$('gold').textContent, '37');
+  assert.equal(app.$('pilot-name').value, '이전 파일럿');
+  app.submit('이전 파일럿'); app.launch();
+  assert.equal(app.scene.snapshot.tutorial, true);
+  assert.equal(app.saved().tutorialComplete, false);
+  assert.equal(app.saved().gold, 37);
+  assert.deepEqual(app.saved().upgrades, { pilot: 2, ball: 1 });
+});
+
+for (const frameMilliseconds of [100, 1000]) {
+  test(`first flight respects real foreground time at ${1000 / frameMilliseconds} fps and excludes hidden time`, async t => {
+    const app = await game(t, { stored: null });
+    app.submit('느린 화면'); app.launch();
+    const startElapsed = app.scene.snapshot.elapsed;
+    app.tick(5, frameMilliseconds);
+    let activeMilliseconds = 5 * frameMilliseconds;
+    assert.ok(Math.abs(app.scene.snapshot.elapsed - startElapsed - activeMilliseconds / 1000) < 0.000001,
+      'Physics and the first-flight timer must use actual foreground delta at a low frame rate');
+    const beforePause = { ...app.scene.snapshot };
+    app.visibility(true); app.tick(120, 1000);
+    app.visibility(false); app.tick(5, frameMilliseconds);
+    assert.equal(app.scene.mode, 'paused');
+    assert.equal(app.scene.snapshot.elapsed, beforePause.elapsed);
+    assert.equal(app.scene.snapshot.distance, beforePause.distance);
+    app.panelButton('계속').click();
+    while ((!app.$('panel').open || app.$('panel').dataset.type !== 'result') && activeMilliseconds < 75000) {
+      app.tick(1, frameMilliseconds);
+      activeMilliseconds += frameMilliseconds;
+    }
+    assert.equal(app.$('panel').dataset.type, 'result', 'A low frame rate must not stretch the first flight beyond 75 foreground seconds');
+    assert.ok(activeMilliseconds <= 75000);
+    assert.ok(app.scene.snapshot.elapsed <= 75.000001);
+    assert.equal(app.saved().tutorialComplete, true);
+    assert.ok(app.saved().gold >= 90);
+    assert.equal(app.panelButton('첫 강화하기').disabled, false);
+  });
+}
 
 test('retry from the result settles the old round and creates a fresh shot without duplicate rewards', async t => {
   const app = await game(t);
@@ -251,7 +355,7 @@ test('malformed storage recovers to a playable profile and the next save contain
 });
 
 test('denied storage keeps names, round rewards and ranking usable in memory', async t => {
-  const app = await game(t, { blockRead: true, blockWrite: true });
+  const app = await game(t, { stored: null, blockRead: true, blockWrite: true });
   assert.equal(app.$('save-warning').hidden, false);
   app.submit('방문자'); app.launch(4);
   const stopped = app.stop();

@@ -9,7 +9,7 @@
 - 상세 페이지: <https://kenney.nl/assets/space-kit>
 - 원본 다운로드: <https://kenney.nl/media/pages/assets/space-kit/20874c75ac-1677698978/kenney_space-kit.zip>
 - 라이선스: **CC0 1.0**. 팩 동봉 문서를 [models/LICENSE-Kenney.txt](models/LICENSE-Kenney.txt)에 보관했다. 공식 사용 안내: <https://kenney.nl/support>.
-- 전체 팩은 임시 폴더에만 추출하고 다음 GLB 네 개만 반입했다. 원본 GLB의 기하·색상·재질은 변경하지 않았다. 게임에서 크기·위치·회전과 조명만 조정한다.
+- 전체 팩은 임시 폴더에만 추출하고 다음 GLB 네 개만 반입했다. 원본 GLB 파일의 기하·색상·재질은 변경하지 않았다. 게임에서 크기·위치·회전과 조명을 조정하고, 우주인 몸체의 재질 색상은 슈트 강화 단계에 따라 곱색으로 조정한다.
 
 | 실제 파일 | 용도 | 크기 |
 | --- | --- | ---: |
