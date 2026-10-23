@@ -43,6 +43,33 @@ test('the chase camera keeps a fast ball large and below center while following 
   }
 });
 
+test('ready mode clears the launch area before the camera settles into the rolling chase view',()=>{
+  for(const [width,height] of [[320,568],[390,844]]) {
+    const scene=sceneHarness(width,height),run=newRun(newProfile(),1,42);
+    const frame=mode=>{
+      scene.render(1/60,run,mode);scene.camera.updateMatrixWorld();
+      return scene.ball.position.clone().project(scene.camera);
+    };
+    scene.render(1/60,null,'lobby');run.phase='ready';
+    let ready;
+    for(let i=0;i<60;i++)ready=frame('ready');
+    assert.ok(Math.abs(ready.x)<.1&&Math.abs(ready.y)<.15,`ready ball must stay near center at ${width}`);
+    const up=new THREE.Vector3().setFromMatrixColumn(scene.camera.matrixWorld,1);
+    const edge=scene.ball.position.clone().addScaledVector(up,1.05).project(scene.camera);
+    const radiusPixels=Math.abs(edge.y-ready.y)*height/2;
+    const readyBottom=(1-ready.y)*height/2+radiusPixels;
+    assert.ok(readyBottom<height*.6,`ready ball overlaps the lower launch area at ${width}`);
+    run.phase='rolling';let previous=ready,rolling;
+    for(let i=0;i<60;i++) {
+      rolling=frame('rolling');
+      assert.ok(Math.abs(rolling.y-previous.y)<.1,'launch camera must move without a sudden jump');
+      previous=rolling;
+    }
+    assert.ok(rolling.y<-.25&&rolling.y>-.55,`rolling ball must settle below center at ${width}`);
+    assert.ok(rolling.y<ready.y-.2,'launch must reveal more track ahead');
+  }
+});
+
 test('logical left and right stay on the matching side of the screen throughout a loop',()=>{
   const scene=sceneHarness(),run=newRun(newProfile(),1,42);
   for(let distance=0;distance<360;distance+=5) {

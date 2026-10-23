@@ -175,9 +175,11 @@ export class OrbitScene {
     }
     // The chase frame travels with the ball; the wheel's inward normal is its up.
     // Keep the angular position exact so fast loops never outrun the camera.
+    const aim=mode==='ready'?0:18;
+    this.cameraAim??=aim;this.cameraAim+=(aim-this.cameraAim)*Math.min(1,dt*7);
     const fit=this.mobile?Math.max(1,1/this.camera.aspect/1.7):1;
     const target=active?this.position(this.distance-60,this.lane*.45,9):this.center.clone().add(new THREE.Vector3((this.mobile?76:69)*fit,10,25));
-    const look=active?this.position(this.distance+18,this.lane*.2,1):this.center.clone().add(new THREE.Vector3(this.mobile?0:-8,this.mobile?2:1,this.mobile?0:8));
+    const look=active?this.position(this.distance+this.cameraAim,this.lane*.2,1):this.center.clone().add(new THREE.Vector3(this.mobile?0:-8,this.mobile?2:1,this.mobile?0:8));
     if(active||this.frame<3){this.camera.position.copy(target);this.look.copy(look);}else{this.camera.position.lerp(target,Math.min(1,dt*4));this.look.lerp(look,Math.min(1,dt*4));}
     const up=active?new THREE.Vector3(0,Math.cos(a),-Math.sin(a)):new THREE.Vector3(0,1,0);
     this.impact=Math.max(0,this.impact-dt*3);if(this.impact&&rolling&&!this.reducedMotion)this.camera.position.addScaledVector(up,Math.sin(this.time*92)*this.impact*.08);
