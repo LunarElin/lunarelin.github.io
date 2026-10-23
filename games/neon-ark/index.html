@@ -2,21 +2,21 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080c19">
-<meta name="description" content="탐사대 3명, 탐사정 1대, 행성 1개. 제한된 도크와 회항으로 9개 항로를 완주하는 로그라이크 탐사 퍼즐.">
-<title>NEON ARK · 네온 아크</title><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="styles.css">
-</head><body class="game-page">
+<meta name="description" content="앞줄 색을 보고 같은 색 셔틀을 터치하세요. 3명 만석이면 출발! 제한된 탑승장과 누적 강화로 9개 항로를 완주하는 우주 수송 퍼즐.">
+<title>NEON ARK · 네온 아크</title><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="transport.css">
+</head><body class="game-page transport-mode">
 <div class="starfield" aria-hidden="true"></div>
 <main class="game-app">
 
 <section class="game-shell" aria-label="네온 아크 게임">
 <div class="game-top"><h1 id="sector-label">항로 1/9</h1><span id="sector-name" class="sr-only">첫 번째 신호</span><div class="controls"><button id="help" aria-label="플레이 방법">?</button><button id="pause" aria-label="일시 정지">Ⅱ</button><button id="menu" aria-label="원정 메뉴 열기">≡</button></div></div>
 <div id="arena" class="arena">
-<div class="survey-scene"><div class="survey-copy"><span>탐사</span><b id="survey-count">0 / 9</b><div class="survey-track"><i id="survey-bar"></i></div></div><div id="planet" class="survey-planet" aria-hidden="true"><img id="planet-sprite" src="assets/kenney/planet-cyan.png" width="384" height="384" alt="" decoding="async"><span class="orbit-track"></span></div><span id="planet-label" class="planet-label">행성 01</span><div class="survey-chain"><div class="hull-readout"><span>선체</span><strong id="hull">3 / 3</strong><div id="hull-pips" class="hull-pips" aria-label="현재 선체 3, 최대 3"></div></div></div><span class="sr-only" id="risk-label">도크 포화 → 선체 −1</span></div>
+<div class="survey-scene"><div class="survey-copy"><span>출발</span><b id="survey-count">0 / 9</b><div class="survey-track"><i id="survey-bar"></i></div></div><div id="planet" class="survey-planet" aria-hidden="true"><img id="planet-sprite" src="assets/kenney/planet-cyan.png" width="384" height="384" alt="" decoding="async"><span class="orbit-track"></span></div><span id="planet-label" class="planet-label">목적지</span><div class="survey-chain"><div class="hull-readout"><span>선체</span><strong id="hull">3 / 3</strong><div id="hull-pips" class="hull-pips" aria-label="현재 선체 3, 최대 3"></div></div></div><span class="sr-only" id="risk-label">도크 포화 → 선체 −1</span></div>
 <div id="puzzle-area">
-<div class="crew-line"><div class="crew-label"><span>탑승</span><b id="crew-count">27</b></div><div id="crew" class="crew" aria-label="관측 가능한 탐사대 대기열"></div><span id="queue-hidden" class="queue-end">+21</span></div>
+<div class="crew-line"><div class="crew-label"><span>앞줄</span><b id="next-color">파랑</b><span id="crew-count" class="sr-only">27</span></div><div id="crew" class="crew" aria-label="앞줄부터 차례로 탑승하는 대기열"></div><span id="queue-hidden" class="queue-end">+21</span></div>
 <p id="queue-forecast" class="sr-only">앞 6명 관측 · 순서대로 탑승</p>
-<div class="dock-row"><span class="dock-caption">도크</span><span id="dock-free" class="sr-only">빈 도크 3칸</span><div id="docks" class="docks" aria-label="탐사대 탑승 도크"></div></div><p id="dock-warning" class="sr-only" hidden>마지막 도크 · 포화 시 선체 −1</p>
-<div class="hangar-label"><span>격납고 <b id="ships-left">09</b></span><span>화살표 방향으로</span></div>
+<div class="dock-row"><span class="dock-caption">탑승장</span><span id="dock-free" class="dock-free">빈칸 3</span><div id="docks" class="docks" aria-label="탐사대 탑승 도크"></div></div><p id="dock-warning" class="sr-only" hidden>마지막 도크 · 포화 시 선체 −1</p>
+<div class="hangar-label"><span>셔틀 <b id="ships-left">09</b></span><span id="move-hint">화살표 쪽으로 출차</span></div>
 <div class="hangar"><div id="board" class="board" role="group" aria-label="격납고 탐사정 퍼즐"></div></div>
 </div>
 <section id="upgrade-choice" class="upgrade-choice" aria-label="항로 클리어와 강화 선택" hidden></section>

@@ -64,3 +64,41 @@ test('corrupt dock placeholders cannot restore a board that has no usable dockin
  }
  assert.ok(validState(JSON.parse(JSON.stringify(createStage(1,1)))));
 });
+
+test('one move reports boarding and full-ship departures in their exact cross-dock order',()=>{
+ const s=createStage(3,1);sendShip(s,'s14');sendShip(s,'s13');
+ const r=sendShip(s,'s12');assert.ok(r.ok);
+ assert.deepEqual(r.events.map(e=>e.type==='dock'?`dock:${e.shipId}`:e.type==='board'?`board:${e.shipId}:${e.loaded}`:`launch:${e.shipId}`),[
+  'dock:s12','board:s12:1','board:s14:1','board:s14:2','board:s12:2','board:s14:3','launch:s14','board:s13:1','board:s12:3','launch:s12','board:s13:2','board:s13:3','launch:s13',
+ ]);
+ assert.deepEqual(r.events.filter(e=>e.type==='launch').map(({type,shipId,...launch})=>launch),r.launches);
+ assert.equal(s.launched,3);assert.equal(s.score,3300);assert.equal(s.queue.length,36);assert.ok(validState(s));
+ r.launches[0].origin={x:1,y:2};assert.equal(r.events.find(e=>e.type==='launch').origin,undefined);
+});
+
+test('ordered move events replay every explorer and dock without changing immediate v3 commits',()=>{
+ for(const seed of [1,7,44])for(let stage=1;stage<=9;stage++){
+  const s=createStage(stage,seed);
+  for(const id of s.solution){
+   const before=clone(s),r=sendShip(s,id),view=clone(before);assert.ok(r.ok);assert.equal(r.events[0].type,'dock');
+   const moving=before.ships.find(ship=>ship.id===id),first=r.events[0];
+   assert.equal(first.shipId,id);assert.equal(first.color,moving.color);assert.equal(first.dir,moving.dir);assert.deepEqual(first.from,{x:moving.x,y:moving.y});
+   const expectedExit=[{x:moving.x,y:-1},{x:6,y:moving.y},{x:moving.x,y:5},{x:-1,y:moving.y}][moving.dir];assert.deepEqual(first.exit,expectedExit);
+   let boarded=0;
+   r.events.forEach((event,i)=>{
+    if(event.type==='dock'){
+     assert.equal(view.docks[event.dock],null);view.ships=view.ships.filter(ship=>ship.id!==event.shipId);view.docks[event.dock]={...moving};return;
+    }
+    const ship=view.docks[event.dock];assert.ok(ship);assert.equal(ship.id,event.shipId);assert.equal(ship.color,event.color);
+    if(event.type==='board'){
+     assert.equal(view.queue.shift(),event.color);ship.loaded++;boarded++;assert.equal(ship.loaded,event.loaded);
+     if(event.loaded===3){assert.equal(r.events[i+1].type,'launch');assert.equal(r.events[i+1].shipId,event.shipId);}
+    }else{
+     assert.equal(event.type,'launch');assert.equal(ship.loaded,3);assert.equal(event.crew,3);view.launched++;assert.equal(event.planet,view.launched);view.score+=event.score;view.docks[event.dock]=null;
+    }
+   });
+   assert.equal(boarded,before.queue.length-s.queue.length);assert.deepEqual(view.ships,s.ships);assert.deepEqual(view.queue,s.queue);assert.deepEqual(view.docks,s.docks);assert.equal(view.launched,s.launched);assert.equal(view.score,s.score);assert.ok(validState(JSON.parse(JSON.stringify(s))));
+  }
+  assert.equal(s.status,'won');
+ }
+});

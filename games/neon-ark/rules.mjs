@@ -2,10 +2,10 @@ export const SIZE = 6;
 export const ROWS = 5;
 export const FINAL_STAGE = 9;
 export const COLORS = [
-  { name: '시안', hex: '#55edff', symbol: '◆' },
-  { name: '핑크', hex: '#ff70c6', symbol: '♥' },
-  { name: '라임', hex: '#c5fb67', symbol: '✦' },
-  { name: '오렌지', hex: '#ffb36b', symbol: '▲' },
+  { name: '파랑', hex: '#55edff', symbol: '◆' },
+  { name: '분홍', hex: '#ff70c6', symbol: '♥' },
+  { name: '초록', hex: '#c5fb67', symbol: '✦' },
+  { name: '주황', hex: '#ffb36b', symbol: '▲' },
 ];
 export const DIRECTIONS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 export const UPGRADES = {
@@ -54,17 +54,19 @@ export function failStage(state, reason = 'abort') {
   if (state.status !== 'playing' || !['jam', 'abort'].includes(reason)) return false;
   state.hull--; state.hullDamage = 1; state.score = 0; state.failureReason = reason; state.status = state.hull ? 'failed' : 'lost'; return true;
 }
-export function dockAndLaunch(state) {
+export function dockAndLaunch(state, events = []) {
   const launches = [];
   while (state.queue.length) {
     const index = state.docks.findIndex(ship => ship && ship.color === state.queue[0]);
     if (index < 0) break;
     const ship = state.docks[index]; ship.loaded++; state.queue.shift();
+    events.push({ type: 'board', dock: index, shipId: ship.id, color: ship.color, loaded: ship.loaded });
     if (ship.loaded === 3) {
       state.combo++; state.launched++;
       const score = 1000 + Math.min(state.combo - 1, 4) * 100;
       state.score += score;
-      launches.push({ dock: index, color: ship.color, planet: state.launched, crew: 3, combo: state.combo, score });
+      const launch = { dock: index, color: ship.color, planet: state.launched, crew: 3, combo: state.combo, score };
+      launches.push(launch); events.push({ type: 'launch', shipId: ship.id, ...launch });
       state.docks[index] = null;
     }
   }
@@ -78,9 +80,13 @@ export function sendShip(state, id) {
   if (!ship) return { ok: false, reason: '탐사정을 선택하세요.' };
   if (slot < 0) return { ok: false, reason: '도크가 포화되어 탐사가 중단되었습니다.' };
   if (!pathClear(state.ships, ship)) return { ok: false, reason: '앞이 막혔어요.' };
+  const [dx, dy] = DIRECTIONS[ship.dir];
+  const events = [{ type: 'dock', dock: slot, shipId: ship.id, color: ship.color, from: { x: ship.x, y: ship.y }, dir: ship.dir,
+    exit: { x: dx ? dx > 0 ? SIZE : -1 : ship.x, y: dy ? dy > 0 ? ROWS : -1 : ship.y } }];
   state.ships = state.ships.filter(other => other.id !== id); state.docks[slot] = { ...ship }; state.moves++;
-  const launches = dockAndLaunch(state); if (!launches.length) state.combo = 0;
-  return { ok: true, ship, slot, launches };
+  // Commit immediately; ordered events let the renderer replay this result without changing it.
+  const launches = dockAndLaunch(state, events); if (!launches.length) state.combo = 0;
+  return { ok: true, ship, slot, launches, events };
 }
 export function undoMove(state, previous) {
   if (state.status !== 'playing' || state.undoUsed >= buildStats(state.build).undoLimit || !validState(previous) || previous.status !== 'playing') return null;

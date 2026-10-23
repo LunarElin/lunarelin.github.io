@@ -1,0 +1,55 @@
+/* Transport art and direction badges; stage layout remains in styles.css. */
+.transport-mode .shuttle-art{isolation:isolate;overflow:visible}
+.transport-mode .shuttle-body{position:absolute;inset:0;display:block;width:100%;height:100%;filter:none;z-index:1;overflow:visible}
+.transport-mode .shuttle-art .engine-flame{left:50%;top:81%;width:18%;height:24%;transform:translateX(-50%) rotate(180deg);filter:none;animation:none;opacity:.55;z-index:0}
+.transport-mode .shuttle-art .engine-aura{left:38%;top:80%;width:24%;height:24%;opacity:.2;z-index:0}
+.transport-mode .ship .shuttle-art{position:absolute;left:0;bottom:-1px;width:62%;height:72%;transform:rotate(var(--angle,0deg));transform-origin:50% 50%;filter:drop-shadow(0 3px 1px #0009)}
+.transport-mode .ship-symbol{left:2px;top:2px;bottom:auto;padding:0 2px;z-index:2;font-size:11px;line-height:1.2;background:#06182bee;color:var(--color);border-color:var(--color)}
+.transport-mode .ship-direction{position:absolute;top:1px;right:1px;width:28px;height:28px;display:grid;place-items:center;padding:1px;border:1.5px solid var(--color);border-radius:50%;background:linear-gradient(135deg,#294b65,#06182b 75%);box-shadow:inset 0 1px #ffffff50,0 2px 2px #000b;z-index:3;pointer-events:none;text-shadow:none;line-height:1}
+.transport-mode .direction-glyph{display:block;width:100%;height:100%;transform:rotate(var(--angle,0deg));transform-origin:50% 50%;filter:drop-shadow(0 1px #0008)}
+.transport-mode .ship.blocked .shuttle-body{filter:brightness(.82)}
+.transport-mode .ship.blocked .engine-flame,.transport-mode .ship.blocked .engine-aura{opacity:0}
+.transport-mode .ship.can-exit .ship-direction{border-color:#efffff;box-shadow:0 0 0 1px var(--color),inset 0 1px #ffffff50,0 2px 2px #000b}
+.transport-mode .ship.front-match{outline:2px solid var(--color);outline-offset:1px}
+.transport-mode .ship.tutorial-target{outline:3px solid #fff5b2;outline-offset:2px;animation:transport-guide .9s ease-in-out 3}
+.transport-mode .dock .shuttle-art{position:relative;left:auto;bottom:auto;width:38px;height:52px;max-height:100%;transform:none;filter:drop-shadow(0 3px 1px #0008)}
+.transport-mode .docks.expanded .dock .shuttle-art{width:32px;height:42px;max-height:100%}
+.transport-mode .survey-flight .shuttle-art{position:relative;left:auto;bottom:auto;width:100%;height:100%;transform:rotate(var(--heading,0rad));filter:none}
+.transport-mode .survey-flight .engine-flame{opacity:1;height:32%;filter:drop-shadow(0 0 4px var(--color))}
+.transport-mode .survey-flight .engine-aura{opacity:.65}
+@keyframes transport-guide{0%,100%{outline-color:#fff5b2;filter:none}50%{outline-color:#fff;filter:brightness(1.2)}}
+@media(max-width:350px){.transport-mode .ship-direction{width:26px;height:26px;padding:1px}.transport-mode .ship .shuttle-art{left:-1px;bottom:-1px}}
+@media(prefers-reduced-motion:reduce){.transport-mode .ship.tutorial-target{animation:none}}
+/* A visible front of queue, seats, and a continuous boarding path. */
+.transport-mode .crew-line{position:relative;border-color:#6687a4}
+.transport-mode .crew-label{min-width:42px;line-height:1.1}
+.transport-mode .crew-label>span:not(.sr-only){font-size:14px;color:#bdd7ed}
+.transport-mode .crew-label>b{font-size:20px;text-shadow:0 2px #06162b}
+.transport-mode .queue-front{outline:3px solid #fff7ba;outline-offset:2px;box-shadow:0 0 0 5px #0a2038,inset -3px -3px #0005}
+.transport-mode .queue-front:after{content:'▼';position:absolute;top:-13px;left:50%;transform:translateX(-50%);color:#fff1a3;font:12px Arial,sans-serif}
+.transport-mode .crew.extended .queue-front:after{top:-12px}
+.transport-mode .boarding-away{opacity:.2}
+.transport-mode .dock-caption{font-size:16px}
+.transport-mode .dock-free{position:absolute;right:5px;top:-5px;padding:0 5px;font-size:16px;line-height:1.15;background:#203b55;color:#c8fa9b;z-index:1}
+.transport-mode .dock-free.last-slot{color:#ffcc9f}
+.transport-mode .dock.full{border-color:#e7ff96;box-shadow:0 0 14px #c6ff7c80,inset 0 2px #fff5}
+.transport-mode .dock.full .dock-info b{color:#eaffb9}
+.transport-mode .dock{position:relative}
+.transport-mode .dock-symbol{position:absolute;left:3px;top:2px;font-size:14px;line-height:1;text-shadow:0 1px #06182b;pointer-events:none}
+.transport-mode .ship.obstacle{outline:3px solid #ff9683;outline-offset:1px;filter:brightness(1.3)}
+.transport-mode .park-flight,.transport-mode .boarding-flight{position:absolute;display:block;width:42px;height:50px;margin:-25px -21px;pointer-events:none}
+.transport-mode .park-flight{animation:park-shuttle .24s linear forwards;filter:drop-shadow(0 4px 2px #0009)}
+.transport-mode .park-flight .shuttle-art{width:100%;height:100%}
+.transport-mode .boarding-flight{width:24px;height:30px;margin:-15px -12px;animation:board-passenger .13s ease-in forwards;z-index:2}
+.transport-mode .boarding-flight .explorer{opacity:1;outline:0;box-shadow:0 0 8px var(--color);margin:0}
+.transport-mode .boarding-flight .explorer:after{display:none}
+.transport-mode .drive-route{position:absolute;height:4px;border-radius:4px;background:var(--color);box-shadow:0 0 0 2px #07192bd0,0 0 9px var(--color);transform-origin:0 50%;animation:route-fade .85s ease-out forwards}
+.transport-mode .drive-route:after{content:'';position:absolute;right:-1px;top:-5px;border-left:12px solid var(--color);border-top:7px solid transparent;border-bottom:7px solid transparent}
+.transport-mode .survey-flight{animation-duration:.42s}
+.transport-mode .survey-pop{transform:translateX(-50%);font-size:18px;text-align:center}
+@keyframes park-shuttle{0%{translate:0 0;rotate:var(--angle)}50%{translate:var(--ex) var(--ey);rotate:var(--angle)}100%{translate:var(--dx) var(--dy);rotate:0deg}}
+@keyframes board-passenger{0%{translate:0 0;scale:1}100%{translate:var(--dx) var(--dy);scale:.55}}
+@keyframes route-fade{0%,50%{opacity:.85}100%{opacity:0}}
+@media(max-width:350px){.transport-mode .crew-label{min-width:40px}.transport-mode .crew-line{gap:6px}.transport-mode .crew.extended{grid-template-columns:repeat(8,19px)}}
+@media(max-height:600px) and (orientation:portrait){.transport-mode .crew-label{display:grid;gap:0;min-width:40px}.transport-mode .crew-label>span:not(.sr-only){font-size:14px;line-height:1}.transport-mode .crew-label>b{font-size:18px;line-height:1}.transport-mode .survey-scene{height:46px}.transport-mode .survey-copy,.transport-mode .hull-readout{display:flex;align-items:center;gap:4px}.transport-mode .survey-copy{min-width:0}.transport-mode .survey-planet{width:26px;height:26px;top:50%}.transport-mode .long-queue .survey-scene{height:27px}}
+@media(orientation:landscape) and (max-height:540px){.transport-mode .crew-label{display:grid;min-width:38px;gap:0}.transport-mode .crew-label>b{font-size:18px}.transport-mode .dock-free{font-size:14px;top:-8px}.transport-mode .dock-caption{display:none}.transport-mode .crew.extended{grid-template-columns:repeat(8,14px)}}
