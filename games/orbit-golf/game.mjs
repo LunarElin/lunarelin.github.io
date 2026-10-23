@@ -3,11 +3,12 @@ import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upg
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
+const PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
 const fmt = value => Math.floor(value).toLocaleString('ko-KR');
 const aborter = new AbortController();
 const on = (element,event,fn,options={}) => element.addEventListener(event,fn,{...options,signal:aborter.signal});
 let profile=newProfile(), storageOK=true;
-try { profile=sanitizeProfile(JSON.parse(localStorage.getItem(KEY)||'null')); } catch { storageOK=false; }
+try { profile=sanitizeProfile(JSON.parse(PREVIEW?'null':localStorage.getItem(KEY)||'null')); } catch { storageOK=false; }
 let run=null, mode='lobby', previousMode='lobby', charging=false, charge=0, power=0, seed=0;
 let audio=null, audioEnabled=true, raf=0, last=0, hudTime=0, saveTime=0, toastLife=0, disposed=false;
 let scene;
@@ -20,7 +21,7 @@ function prepareRun(powerValue) {
   next.goalDistance=Math.max(360,Math.ceil(Math.min(next.previousBest+360,basicRange)/360)*360);
   return next;
 }
-function save() { try { localStorage.setItem(KEY,JSON.stringify(profile)); storageOK=true; } catch { storageOK=false; } $('save-warning').hidden=storageOK; }
+function save() { if(PREVIEW)return;try { localStorage.setItem(KEY,JSON.stringify(profile)); storageOK=true; } catch { storageOK=false; } $('save-warning').hidden=storageOK; }
 function refreshLobby(){
   $('gold').textContent=fmt(profile.gold);
   const best=profile.rankings[0];

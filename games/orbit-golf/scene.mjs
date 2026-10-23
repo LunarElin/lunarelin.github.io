@@ -50,7 +50,7 @@ export class OrbitScene {
   resize() {
     const w=this.renderer.domElement.clientWidth,h=this.renderer.domElement.clientHeight;
     this.renderer.setSize(w,h,false);this.camera.aspect=w/h;this.mobile=w<650;
-    this.camera.fov=this.mobile?60:47;this.camera.updateProjectionMatrix();
+    this.camera.fov=this.mobile?70:60;this.camera.updateProjectionMatrix();
   }
   mesh(geometry, material, parent=this.track) { const m=new THREE.Mesh(geometry,material); parent.add(m); return m; }
   cylinder(radius,width,material,parent=this.track) {
@@ -132,7 +132,7 @@ export class OrbitScene {
   }
   position(distance,lane=0,height=.1) {
     const a=distance/360*TAU,r=R-height;
-    return new THREE.Vector3(lane*LANE,-Math.cos(a)*r,Math.sin(a)*r).add(this.center||new THREE.Vector3());
+    return new THREE.Vector3(-lane*LANE,-Math.cos(a)*r,Math.sin(a)*r).add(this.center||new THREE.Vector3());
   }
   createEvent(event) {
     const g=new THREE.Group(),type=event.type;
@@ -173,14 +173,15 @@ export class OrbitScene {
       const body=this.astronaut.getObjectByName('body')||this.astronaut;
       body.traverse(part=>{if(part.isMesh&&!Array.isArray(part.material)&&part.material?.color)part.material.color.setHex(BALL_COLORS[upgrades.pilot||0]);});
     }
-    // A fixed three-quarter view shows the ball climbing, crossing the ceiling and
-    // descending inside the wheel. The camera never rolls with the ball.
+    // The chase frame travels with the ball; the wheel's inward normal is its up.
+    // Keep the angular position exact so fast loops never outrun the camera.
     const fit=this.mobile?Math.max(1,1/this.camera.aspect/1.7):1;
-    const target=this.center.clone().add(new THREE.Vector3((this.mobile?76:69)*fit,10,25));
-    const look=this.center.clone().add(new THREE.Vector3(this.mobile?0:-8,this.mobile?2:1,this.mobile?0:8));
+    const target=active?this.position(this.distance-60,this.lane*.45,9):this.center.clone().add(new THREE.Vector3((this.mobile?76:69)*fit,10,25));
+    const look=active?this.position(this.distance+18,this.lane*.2,1):this.center.clone().add(new THREE.Vector3(this.mobile?0:-8,this.mobile?2:1,this.mobile?0:8));
     if(active||this.frame<3){this.camera.position.copy(target);this.look.copy(look);}else{this.camera.position.lerp(target,Math.min(1,dt*4));this.look.lerp(look,Math.min(1,dt*4));}
-    this.impact=Math.max(0,this.impact-dt*3);if(this.impact&&rolling&&!this.reducedMotion)this.camera.position.y+=Math.sin(this.time*92)*this.impact*.16;
-    this.camera.up.set(0,1,0);this.camera.lookAt(this.look);const fov=this.mobile?60:47;
+    const up=active?new THREE.Vector3(0,Math.cos(a),-Math.sin(a)):new THREE.Vector3(0,1,0);
+    this.impact=Math.max(0,this.impact-dt*3);if(this.impact&&rolling&&!this.reducedMotion)this.camera.position.addScaledVector(up,Math.sin(this.time*92)*this.impact*.08);
+    this.camera.up.copy(up);this.camera.lookAt(this.look);const fov=active?(this.mobile?70:60):(this.mobile?60:47);
     this.camera.fov+=(fov-this.camera.fov)*Math.min(1,dt*5);this.camera.updateProjectionMatrix();
     for(let i=0;i<this.trail.length;i++){const t=this.trail[i];t.material.opacity=rolling?(.5-i*.028):0;t.material.color.setHex(BALL_COLORS[upgrades.ball||0]);t.position.copy(this.position(this.distance-i*1.1,this.lane,.82));t.scale.setScalar(1.6-i*.075);}
     for(const m of this.eventMeshes.values()) {

@@ -32,9 +32,9 @@ function profile(overrides = {}) {
   return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [], tutorialComplete: true, ...overrides };
 }
 
-async function game(t, { stored = JSON.stringify(profile()), blockRead = false, blockWrite = false } = {}) {
+async function game(t, { stored = JSON.stringify(profile()), blockRead = false, blockWrite = false, url = 'https://orbit-golf.test/games/orbit-golf/' } = {}) {
   const dom = new JSDOM(html, {
-    url: 'https://orbit-golf.test/games/orbit-golf/',
+    url,
     runScripts: 'outside-only', pretendToBeVisual: true,
   });
   const { window } = dom;
@@ -45,6 +45,7 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   let hidden = false;
   const frames = new Map();
   const errors = [];
+  const storageAccess = { reads: 0, writes: 0 };
   window.console.error = (...args) => errors.push(args.join(' '));
   window.requestAnimationFrame = callback => { const id = ++nextFrame; frames.set(id, callback); return id; };
   window.cancelAnimationFrame = id => frames.delete(id);
@@ -55,8 +56,8 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
     value: values => { values.fill(0xffffffff); return values; },
   });
   Object.defineProperty(window, 'localStorage', { value: {
-    getItem(key) { if (blockRead) throw new window.DOMException('Blocked', 'SecurityError'); return key === KEY ? raw : null; },
-    setItem(key, value) { if (blockWrite) throw new window.DOMException('Full', 'QuotaExceededError'); if (key === KEY) raw = String(value); },
+    getItem(key) { storageAccess.reads++; if (blockRead) throw new window.DOMException('Blocked', 'SecurityError'); return key === KEY ? raw : null; },
+    setItem(key, value) { storageAccess.writes++; if (blockWrite) throw new window.DOMException('Full', 'QuotaExceededError'); if (key === KEY) raw = String(value); },
   } });
   window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   window.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new window.Event('close')); };
@@ -110,7 +111,7 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   const visibility = value => { hidden = value; document.dispatchEvent(new window.Event('visibilitychange')); };
   t.after(() => { dom.window.close(); });
   return {
-    window, document, $, tick, pointer, submit, launch, stop, visibility, panelButton, frames, errors,
+    window, document, $, tick, pointer, submit, launch, stop, visibility, panelButton, frames, errors, storageAccess,
     get scene() { return window.__testScene; },
     get raw() { return raw; },
     saved() { return raw === null ? null : JSON.parse(raw); },
@@ -191,6 +192,55 @@ test('name, touch shot, one paid continuation, banking, upgrades and ranking use
   assert.equal(reloaded.$('pilot-name').value, '별파일럿');
   assert.equal(reloaded.saved().rankings.length, 1);
   assert.equal(reloaded.saved().upgrades.ball, 1);
+  assert.equal(app.storageAccess.reads, 1);
+  assert.ok(app.storageAccess.writes > 0, 'Normal gameplay must still use its persistent profile');
+  assert.deepEqual(app.errors, []);
+});
+
+test('preview plays and upgrades in memory without reading or writing the existing user save', async t => {
+  const stored = JSON.stringify(profile({
+    name: '실제 파일럿', gold: 9876, upgrades: { pilot: 4, ball: 5 },
+    rankings: [{ name: '실제 파일럿', distance: 12345, date: '2026-10-24T00:00:00.000Z' }],
+  }));
+  const options = { stored, blockRead: true, blockWrite: true, url: 'https://orbit-golf.test/games/orbit-golf/?preview=1' };
+  const app = await game(t, options);
+  assert.equal(app.$('pilot-name').value, '');
+  assert.equal(app.$('gold').textContent, '0');
+  assert.equal(app.$('save-warning').hidden, true, 'Preview must not probe blocked storage and report a spurious failure');
+  app.$('open-ranks').click();
+  assert.equal(app.$('panel-content').querySelectorAll('.rank-row').length, 0);
+  app.panelButton('확인').click();
+  app.submit('미리보기'); app.launch();
+  const initialSpeed = app.scene.snapshot.speed;
+  assert.equal(app.scene.snapshot.tutorial, true);
+  const first = app.stop();
+  assert.ok(first.earned >= 90);
+  assert.equal(first.finished, true);
+  app.panelButton('첫 강화하기').click();
+  assert.equal(Number(app.$('gold').textContent.replaceAll(',', '')), first.earned);
+  const ball = [...app.$('panel-content').querySelectorAll('.upgrade-card button')][1];
+  assert.equal(ball.disabled, false);
+  ball.click();
+  assert.equal(Number(app.$('gold').textContent.replaceAll(',', '')), first.earned - 90);
+  assert.match([...app.$('panel-content').querySelectorAll('.upgrade-title')][1].textContent, /Lv\.1/);
+  app.panelButton('다음 비행').click(); app.launch();
+  assert.equal(app.scene.snapshot.tutorial, false, 'Preview keeps tutorial completion in RAM during this visit');
+  assert.ok(app.scene.snapshot.speed > initialSpeed + 6, 'Preview purchases must affect the actual next shot');
+  app.$('pause').click(); app.panelButton('비행 마치기').click();
+  app.$('open-ranks').click();
+  const rows = [...app.$('panel-content').querySelectorAll('.rank-row strong')];
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].textContent, '미리보기');
+  assert.equal(app.raw, stored, 'Preview must preserve the original serialized save byte for byte');
+  assert.deepEqual(app.storageAccess, { reads: 0, writes: 0 });
+  app.window.dispatchEvent(new app.window.PageTransitionEvent('pagehide', { persisted: false }));
+  assert.deepEqual(app.storageAccess, { reads: 0, writes: 0 }, 'Background and exit saves must also skip storage');
+  assert.equal(app.raw, stored);
+  const reloaded = await game(t, options);
+  assert.equal(reloaded.$('gold').textContent, '0');
+  assert.equal(reloaded.$('pilot-name').value, '');
+  assert.equal(reloaded.raw, stored);
+  assert.deepEqual(reloaded.storageAccess, { reads: 0, writes: 0 });
   assert.deepEqual(app.errors, []);
 });
 
