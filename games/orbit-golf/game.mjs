@@ -1,4 +1,4 @@
-import { OrbitScene } from './scene.mjs';
+import { OrbitScene } from './scene.mjs?v=20261024-chase2';
 import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, newRun, stepRun, changeLane, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs';
 
 const $ = id => document.getElementById(id);

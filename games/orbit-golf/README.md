@@ -10,6 +10,7 @@
 - 로컬 경로: `http://127.0.0.1:8123/games/orbit-golf/`
 - 저장 없는 QA 경로: `/games/orbit-golf/?preview=1`. 새 프로필을 메모리에서 시작하며 기존 저장을 읽거나 쓰지 않는다. 훈련·강화·랭킹을 임시로 검증할 수 있고, 새로고침하면 QA 진행은 초기화된다.
 - 진입 파일: `index.html` → `game.mjs`(입력·HUD·저장·오디오), `scene.mjs`(Three.js 3D 화면), `rules.mjs`(진행·경제·이벤트 규칙).
+- 배포 캐시: 진입 모듈과 3D 모듈 URL에 같은 버전을 붙인다. 두 모듈의 변경을 공개할 때 `index.html`의 `game.mjs?v=…`와 `game.mjs`의 `scene.mjs?v=…`를 함께 갱신해 기존 방문자도 새 코드를 받게 한다.
 - 저장소 루트를 정적 서버로 제공한다. 기존 서버·포트를 먼저 확인하고 재사용한다. 새 서버가 필요하면 저장소 루트에서 `node games/orbit-golf/tests/serve.mjs`를 실행한다. 별도 의존성이 없는 이 도우미는 로컬 8123 포트에서 `.mjs`의 JavaScript MIME 타입을 포함해 제공한다. `file://` 직접 열기는 지원하지 않는다.
 - WebGL을 지원하는 브라우저가 필요하다. Three.js 0.160.1, 글꼴, 사용 에셋을 게임 폴더에 보관하므로 런타임 패키지 설치와 외부 CDN은 필요 없다. 파일·출처·라이선스는 [assets/ASSETS.md](assets/ASSETS.md)를 참조한다.
 - 홈페이지의 게임 링크로 들어가거나 게임 왼쪽 위 홈 버튼(`../../`)으로 돌아간다.

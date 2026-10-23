@@ -39,6 +39,9 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   });
   const { window } = dom;
   const { document } = window;
+  const entryURL = new URL(document.querySelector('script[type="module"][src]').src);
+  assert.equal(entryURL.pathname, '/games/orbit-golf/game.mjs');
+  assert.ok(entryURL.searchParams.get('v'), 'The HTML entry must include a cache version');
   let raw = stored;
   let now = 1000;
   let nextFrame = 0;
@@ -70,8 +73,13 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   ]);
   const entry = new vm.SourceTextModule(gameSource, { context, identifier: 'game.mjs' });
   await entry.link(specifier => {
-    assert.ok(modules.has(specifier), `Unexpected runtime import: ${specifier}`);
-    return modules.get(specifier);
+    const localSpecifier = specifier.startsWith('./') ? specifier.replace(/\?[^#]*/, '') : specifier;
+    assert.ok(modules.has(localSpecifier), `Unexpected runtime import: ${specifier}`);
+    if (localSpecifier === './scene.mjs') {
+      assert.equal(new URL(specifier, entryURL).searchParams.get('v'), entryURL.searchParams.get('v'),
+        'The scene import and HTML entry must share their cache version');
+    }
+    return modules.get(localSpecifier);
   });
   await entry.evaluate();
   const $ = id => document.getElementById(id);
