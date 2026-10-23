@@ -1,0 +1,592 @@
+{
+  "version": 1,
+  "models": {
+    "human": {
+      "url": "models/mini-dungeon/character-human.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/character-human.glb",
+      "sha256": "6a149b22f52f5ea6b2983dd38cb164b112be66bad5a51d640d089aafd2647a7b",
+      "bytes": 218072,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.3902820944786072,
+          0.0,
+          -0.15786103904247284
+        ],
+        "max": [
+          0.3902820944786072,
+          0.7553249597549438,
+          0.20264668762683868
+        ],
+        "size": [
+          0.7805641889572144,
+          0.7553249597549438,
+          0.3605077266693115
+        ]
+      },
+      "recommendedHeight": 0.82,
+      "recommendedScale": 1.085625,
+      "animations": [
+        "static",
+        "idle",
+        "walk",
+        "sprint",
+        "jump",
+        "fall",
+        "crouch",
+        "sit",
+        "drive",
+        "die",
+        "pick-up",
+        "emote-yes",
+        "emote-no",
+        "holding-right",
+        "holding-left",
+        "holding-both",
+        "holding-right-shoot",
+        "holding-left-shoot",
+        "holding-both-shoot",
+        "attack-melee-right",
+        "attack-melee-left",
+        "attack-kick-right",
+        "attack-kick-left",
+        "interact-right",
+        "interact-left",
+        "wheelchair-sit",
+        "wheelchair-look-left",
+        "wheelchair-look-right",
+        "wheelchair-move-forward",
+        "wheelchair-move-back",
+        "wheelchair-move-left",
+        "wheelchair-move-right"
+      ],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "orc": {
+      "url": "models/mini-dungeon/character-orc.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/character-orc.glb",
+      "sha256": "e0b021c98b34a633567ca79f7c129cca48fd7919aa9e959464deba226767c284",
+      "bytes": 199616,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.3902819752693176,
+          0.0,
+          -0.15786103904247284
+        ],
+        "max": [
+          0.3902819752693176,
+          0.7803249955177307,
+          0.17460525035858154
+        ],
+        "size": [
+          0.7805639505386353,
+          0.7803249955177307,
+          0.3324662894010544
+        ]
+      },
+      "recommendedHeight": 0.88,
+      "recommendedScale": 1.127735,
+      "animations": [
+        "static",
+        "idle",
+        "walk",
+        "sprint",
+        "jump",
+        "fall",
+        "crouch",
+        "sit",
+        "drive",
+        "die",
+        "pick-up",
+        "emote-yes",
+        "emote-no",
+        "holding-right",
+        "holding-left",
+        "holding-both",
+        "holding-right-shoot",
+        "holding-left-shoot",
+        "holding-both-shoot",
+        "attack-melee-right",
+        "attack-melee-left",
+        "attack-kick-right",
+        "attack-kick-left",
+        "interact-right",
+        "interact-left",
+        "wheelchair-sit",
+        "wheelchair-look-left",
+        "wheelchair-look-right",
+        "wheelchair-move-forward",
+        "wheelchair-move-back",
+        "wheelchair-move-left",
+        "wheelchair-move-right"
+      ],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "barrel": {
+      "url": "models/mini-dungeon/barrel.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/barrel.glb",
+      "sha256": "ca735e8eb8f9170b3d9413ee9e30a51cb275e9597b87e0b70dd5c02f404cea4d",
+      "bytes": 14096,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.25881338119506836,
+          0.0,
+          -0.25881338119506836
+        ],
+        "max": [
+          0.25881338119506836,
+          0.4761904180049896,
+          0.25881338119506836
+        ],
+        "size": [
+          0.5176267623901367,
+          0.4761904180049896,
+          0.5176267623901367
+        ]
+      },
+      "recommendedHeight": 0.46,
+      "recommendedScale": 0.966,
+      "animations": [],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "chest": {
+      "url": "models/mini-dungeon/chest.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/chest.glb",
+      "sha256": "64cc6c44786a0833bbe53c694cbad9f10d4fdd9e99d4b5ec03fcb3b8b5dd71e0",
+      "bytes": 34048,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.2500000037252983,
+          0.0,
+          -0.25000000074505807
+        ],
+        "max": [
+          0.25,
+          0.45,
+          0.25
+        ],
+        "size": [
+          0.5000000037252983,
+          0.45,
+          0.500000000745058
+        ]
+      },
+      "recommendedHeight": 0.36,
+      "recommendedScale": 0.8,
+      "animations": [
+        "open",
+        "close",
+        "open-close"
+      ],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "cauldron": {
+      "url": "models/mini-dungeon/pot.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/pot.glb",
+      "sha256": "bf432a42383ec5066a4eb682dc15ed33daaee6780ff505fb0ab1432baa4c9fac",
+      "bytes": 26516,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.29980921745300293,
+          0.0,
+          -0.20295000076293945
+        ],
+        "max": [
+          0.29980921745300293,
+          0.43050000071525574,
+          0.20295000076293945
+        ],
+        "size": [
+          0.5996184349060059,
+          0.43050000071525574,
+          0.4059000015258789
+        ]
+      },
+      "recommendedHeight": 0.43,
+      "recommendedScale": 0.998839,
+      "animations": [],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "potion": {
+      "url": "models/mini-dungeon/potion.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/potion.glb",
+      "sha256": "7c2718bdf15517da87032cb3dfe26c9f47c9235dbd278e6704d81b89f92ea61f",
+      "bytes": 12860,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.16402000188827515,
+          0.0,
+          -0.16402000188827515
+        ],
+        "max": [
+          0.16402000188827515,
+          0.40208500623703003,
+          0.16402000188827515
+        ],
+        "size": [
+          0.3280400037765503,
+          0.40208500623703003,
+          0.3280400037765503
+        ]
+      },
+      "recommendedHeight": 0.25,
+      "recommendedScale": 0.621759,
+      "animations": [],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "table": {
+      "url": "models/mini-dungeon/table.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/table.glb",
+      "sha256": "533dcb6447d90ff4dd8137e77e8d51e16162cc773f1b9ce49e60ab5e58bd3e16",
+      "bytes": 15312,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.4375,
+          -3.0055600860376765e-32,
+          -0.32499998807907104
+        ],
+        "max": [
+          0.4375,
+          0.3145950138568878,
+          0.32499998807907104
+        ],
+        "size": [
+          0.875,
+          0.3145950138568878,
+          0.6499999761581421
+        ]
+      },
+      "recommendedHeight": 0.5,
+      "recommendedScale": 1.589345,
+      "animations": [],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "chair": {
+      "url": "models/mini-dungeon/chair.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/chair.glb",
+      "sha256": "caf1bb3daf5287699477a111cce05fad789d6d0228707238df1aff0b98bebce3",
+      "bytes": 20464,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.1732500046491623,
+          0.0,
+          -0.18754369020462036
+        ],
+        "max": [
+          0.1732500046491623,
+          0.4773392677307129,
+          0.18754370510578156
+        ],
+        "size": [
+          0.3465000092983246,
+          0.4773392677307129,
+          0.3750873953104019
+        ]
+      },
+      "recommendedHeight": 0.58,
+      "recommendedScale": 1.215069,
+      "animations": [],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "sword": {
+      "url": "models/mini-dungeon/weapon-sword.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/weapon-sword.glb",
+      "sha256": "8e69eb27977f8c84a9b7cd423cd5830eddcf0d07ac1d7fed1969931387015b28",
+      "bytes": 9284,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.11648000031709671,
+          -0.10000000149011612,
+          -0.054096002131700516
+        ],
+        "max": [
+          0.11648000031709671,
+          0.3480460047721863,
+          0.054096002131700516
+        ],
+        "size": [
+          0.23296000063419342,
+          0.4480460062623024,
+          0.10819200426340103
+        ]
+      },
+      "recommendedHeight": 0.55,
+      "recommendedScale": 1.227553,
+      "animations": [],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "shield": {
+      "url": "models/mini-dungeon/shield-round.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/shield-round.glb",
+      "sha256": "1527cc9a27891efe1019e22cf68d99c98f6fce9a45b3d6e1e4cf034956e08e54",
+      "bytes": 15512,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.18984000384807587,
+          -0.18984000384807587,
+          -0.05324999988079071
+        ],
+        "max": [
+          0.18984000384807587,
+          0.18984000384807587,
+          0.05324999988079071
+        ],
+        "size": [
+          0.37968000769615173,
+          0.37968000769615173,
+          0.10649999976158142
+        ]
+      },
+      "recommendedHeight": 0.45,
+      "recommendedScale": 1.185209,
+      "animations": [],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "coin": {
+      "url": "models/mini-dungeon/coin.glb",
+      "sourcePack": "mini-dungeon",
+      "sourceMember": "Models/GLB format/coin.glb",
+      "sha256": "5e108e4b013961a60fa1b92b2b55248f19ac56e48771ce9ccbb74adb3a335455",
+      "bytes": 22124,
+      "textures": [
+        "models/mini-dungeon/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.20750004053115845,
+          -5.504856006898265e-16,
+          -0.08333336561918259
+        ],
+        "max": [
+          0.20750004053115845,
+          0.4166666567325592,
+          0.08333336561918259
+        ],
+        "size": [
+          0.4150000810623169,
+          0.41666665673255976,
+          0.16666673123836517
+        ]
+      },
+      "recommendedHeight": 0.18,
+      "recommendedScale": 0.432,
+      "animations": [],
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt"
+    },
+    "bookshelf": {
+      "url": "models/furniture/bookcaseClosed.glb",
+      "sourcePack": "furniture",
+      "sourceMember": "Models/GLTF format/bookcaseClosed.glb",
+      "sha256": "9d210448de5e1179541da895450bbc7a39f4cd673d677654cd6b134e4ea0e047",
+      "bytes": 23132,
+      "textures": [],
+      "nativeBounds": {
+        "min": [
+          0.0,
+          0.0,
+          -0.25
+        ],
+        "max": [
+          0.4,
+          0.849999964,
+          0
+        ],
+        "size": [
+          0.4,
+          0.849999964,
+          0.25
+        ]
+      },
+      "recommendedHeight": 1.05,
+      "recommendedScale": 1.235294,
+      "animations": [],
+      "licenseFile": "licenses/kenney-furniture-CC0.txt"
+    },
+    "bed": {
+      "url": "models/furniture/bedSingle.glb",
+      "sourcePack": "furniture",
+      "sourceMember": "Models/GLTF format/bedSingle.glb",
+      "sha256": "ca00c63f9a12da3138d902b2f5f18e0360fb6e8a5ac42ccb4bc3f185724b65d1",
+      "bytes": 18636,
+      "textures": [],
+      "nativeBounds": {
+        "min": [
+          0.38500000250536454,
+          3.31176872e-14,
+          -1.125
+        ],
+        "max": [
+          0.9560000358323065,
+          0.375,
+          0.0
+        ],
+        "size": [
+          0.571000033326942,
+          0.37499999999996686,
+          1.125
+        ]
+      },
+      "recommendedHeight": 0.48,
+      "recommendedScale": 1.28,
+      "animations": [],
+      "licenseFile": "licenses/kenney-furniture-CC0.txt"
+    },
+    "lantern": {
+      "url": "models/fantasy-town/lantern.glb",
+      "sourcePack": "fantasy-town",
+      "sourceMember": "Models/GLB format/lantern.glb",
+      "sha256": "f270637e3083d6e84a30626ee05df2b09597a642985a7f5c3e4ab5bb1c7a8d55",
+      "bytes": 14984,
+      "textures": [
+        "models/fantasy-town/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.10822424292564392,
+          0.0,
+          -0.11215999722480774
+        ],
+        "max": [
+          0.10822424292564392,
+          1.555999994277954,
+          0.11215999722480774
+        ],
+        "size": [
+          0.21644848585128784,
+          1.555999994277954,
+          0.22431999444961548
+        ]
+      },
+      "recommendedHeight": 1.35,
+      "recommendedScale": 0.867609,
+      "animations": [],
+      "licenseFile": "licenses/kenney-fantasy-town-CC0.txt"
+    },
+    "marketStall": {
+      "url": "models/fantasy-town/stall-red.glb",
+      "sourcePack": "fantasy-town",
+      "sourceMember": "Models/GLB format/stall-red.glb",
+      "sha256": "aa20a630f417032c46aaefbc779fd2b3355b451bf05d31acc36fd664146866b1",
+      "bytes": 24304,
+      "textures": [
+        "models/fantasy-town/Textures/colormap.png"
+      ],
+      "nativeBounds": {
+        "min": [
+          -0.5,
+          0.0,
+          -0.5
+        ],
+        "max": [
+          0.5,
+          1.236982822418213,
+          0.5
+        ],
+        "size": [
+          1.0,
+          1.236982822418213,
+          1.0
+        ]
+      },
+      "recommendedHeight": 1.45,
+      "recommendedScale": 1.172207,
+      "animations": [],
+      "licenseFile": "licenses/kenney-fantasy-town-CC0.txt"
+    }
+  },
+  "icons": {
+    "upgrade": {
+      "url": "icons/burger-upgrade.png",
+      "sourceApp": "Burger Please! 31.6.0 / io.supercent.burgeridle",
+      "sourceExport": "upgrade_arrow__416382b5__1.png",
+      "sha256": "ea3c79b2d7b04372d05b40649c195d07ec6d3a10726eb8eccdf5978114106227",
+      "license": "Original game rights; no redistribution license identified; user explicitly requested reuse of supplied extracted assets",
+      "modification": "None: exact exported PNG bytes preserved",
+      "licenseFile": "licenses/Burger-Please-provenance.txt"
+    },
+    "star": {
+      "url": "icons/burger-star.png",
+      "sourceApp": "Burger Please! 31.6.0 / io.supercent.burgeridle",
+      "sourceExport": "Icon_Star_128__0a477a10__1821.png",
+      "sha256": "f59ad6a14715474b0e3dc0339ebe1c8ae0b62116217b288be68528f99b999460",
+      "license": "Original game rights; no redistribution license identified; user explicitly requested reuse of supplied extracted assets",
+      "modification": "None: exact exported PNG bytes preserved",
+      "licenseFile": "licenses/Burger-Please-provenance.txt"
+    }
+  },
+  "font": {
+    "family": "Jua",
+    "url": "fonts/Jua-Regular.woff2",
+    "style": "normal",
+    "weight": 400,
+    "license": "OFL-1.1",
+    "licenseFile": "licenses/Jua-OFL.txt",
+    "source": "https://github.com/google/fonts/tree/main/ofl/jua",
+    "sourceSha256": "769677aef240bfc3b9965f2b50748075bff885e6c6992fc591a3fb268279f898",
+    "sha256": "5df25386951322109e7432c247b95ae40121ebc2a45170bf8eca83883a188112",
+    "modification": "Lossless TTF to WOFF2 container compression; no glyph subset or outline changes"
+  },
+  "sources": {
+    "mini-dungeon": {
+      "name": "Mini Dungeon 2.0",
+      "url": "https://kenney.nl/assets/mini-dungeon",
+      "license": "CC0-1.0",
+      "licenseFile": "licenses/kenney-mini-dungeon-CC0.txt",
+      "archiveSha256": "19c4648680cb1d2e8836cade96cbf9781c0c1f45fbc6d2ce41cee8239a3ec4d8"
+    },
+    "fantasy-town": {
+      "name": "Fantasy Town Kit 2.0",
+      "url": "https://kenney.nl/assets/fantasy-town-kit",
+      "license": "CC0-1.0",
+      "licenseFile": "licenses/kenney-fantasy-town-CC0.txt",
+      "archiveSha256": "1a7530c09f4d2fa2cdee259876f089334f8b1f27fa86a0c4f54ef86cdd8676ef"
+    },
+    "furniture": {
+      "name": "Furniture Kit 2.0",
+      "url": "https://kenney.nl/assets/furniture-kit",
+      "license": "CC0-1.0",
+      "licenseFile": "licenses/kenney-furniture-CC0.txt",
+      "archiveSha256": "e67652d0932cee41683f74711c03d3e192a2af9979ef8e6b237711f5482d46b0"
+    }
+  },
+  "totalModelBytes": 668960
+}

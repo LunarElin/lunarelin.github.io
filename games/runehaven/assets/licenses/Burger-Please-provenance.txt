@@ -1,0 +1,5 @@
+Source: Burger Please! 31.6.0 (io.supercent.burgeridle), original game APK obtained and statically analyzed in this chat.
+The user explicitly requested reuse of the extracted resources in the new game.
+Selected exports: upgrade_arrow__416382b5__1.png; Icon_Star_128__0a477a10__1821.png.
+Only bytes exported from Sprite objects were copied; no modification was applied.
+No public redistribution license or CC0 grant was identified for these original commercial game resources. Rights remain with their original rightsholders. This record is provenance, not a new license grant.

@@ -1,0 +1,48 @@
+{
+  "name": "three",
+  "version": "0.170.0",
+  "source": "https://registry.npmjs.org/three/-/three-0.170.0.tgz",
+  "license": "MIT",
+  "files": [
+    {
+      "path": "three.module.js",
+      "sourceMember": "package/build/three.module.min.js",
+      "sourceSha256": "08fd7545d13d2c7fb65ab691530a802dafefd638596501854f267d0fb13c39e7",
+      "sha256": "08fd7545d13d2c7fb65ab691530a802dafefd638596501854f267d0fb13c39e7",
+      "bytes": 691648,
+      "modification": "Core minified distribution renamed; addon import paths localized; no algorithm changes"
+    },
+    {
+      "path": "GLTFLoader.js",
+      "sourceMember": "package/examples/jsm/loaders/GLTFLoader.js",
+      "sourceSha256": "45139faddd5aaf48ed2d62203d976e5cbd703db1a592de40527f9f6cf58abd44",
+      "sha256": "458b025b12213713958b07012b48aa5e84aebb562c92cfe53ea82d41bda2fd42",
+      "bytes": 110278,
+      "modification": "Core minified distribution renamed; addon import paths localized; no algorithm changes"
+    },
+    {
+      "path": "BufferGeometryUtils.js",
+      "sourceMember": "package/examples/jsm/utils/BufferGeometryUtils.js",
+      "sourceSha256": "c25b7930e570e9ec56173cd3b866ec8d2e10016630db3937efb439daf1cedbf6",
+      "sha256": "3de832095679e56578beddf70f3e90846a47ec8a886fa8eb21c973cdaef88922",
+      "bytes": 31780,
+      "modification": "Core minified distribution renamed; addon import paths localized; no algorithm changes"
+    },
+    {
+      "path": "SkeletonUtils.js",
+      "sourceMember": "package/examples/jsm/utils/SkeletonUtils.js",
+      "sourceSha256": "ee412be1aa05f3051c2bda8ea89612c1ba70c5c87de62b56040282120d5eb991",
+      "sha256": "cb9198ec0f435501dee55be135b3ec358b79e1479c65bf3d2f474f761cfdba7c",
+      "bytes": 8814,
+      "modification": "Core minified distribution renamed; addon import paths localized; no algorithm changes"
+    },
+    {
+      "path": "LICENSE-three.txt",
+      "sourceMember": "package/LICENSE",
+      "sourceSha256": "4c40a1ef62450b857c3b2aaf294936304cd552d965fbcd9d32d4c5bcf4ba4454",
+      "sha256": "4c40a1ef62450b857c3b2aaf294936304cd552d965fbcd9d32d4c5bcf4ba4454",
+      "bytes": 1081,
+      "modification": "Core minified distribution renamed; addon import paths localized; no algorithm changes"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "status": "pass",
+  "valueAndHashComparisons": 929,
+  "playerLevels": 21,
+  "stages": 11,
+  "staffs": 80,
+  "drawPacks": 4,
+  "facilities": 5,
+  "runtimeBytes": 16619,
+  "scope": "Static selected-value and provenance hash verification against exported APK analysis. Web mechanics and browser behavior require separate rules and UI tests."
+}

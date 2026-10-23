@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#302544">
+  <meta name="description" content="검을 팔고, 마법을 배우고, 단골들과 마을을 지키는 판타지 상점 경영 게임.">
+  <title>룬빛 상회</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="game" aria-label="룬빛 상회 게임">
+    <header class="hud">
+      <button class="brand region-button" id="regions" aria-label="지역 지도"><img src="icon.svg" width="42" height="42" alt=""><span><span id="district">햇살 장터</span><strong>룬빛 상회</strong></span></button>
+      <div class="gold-display" aria-label="보유 골드"><span class="coin" aria-hidden="true">●</span><strong id="gold">80</strong></div>
+      <button class="icon-button pause-button" id="pause" aria-label="메뉴">메뉴</button>
+    </header>
+    <section class="quest-hud" aria-label="현재 목표">
+      <div class="quest-copy"><span class="quest-symbol" id="quest-symbol">✦</span><div><strong id="quest-title">가게를 열어볼까요?</strong><span id="quest-detail">대장간에서 검을 가져와 진열하세요</span></div></div>
+      <div class="patron-count"><strong id="patrons">0</strong><span><img src="assets/icons/burger-star.png" width="16" height="16" alt=""> 단골</span></div>
+      <div class="raid-health" id="raid-health" hidden><span>상회</span><div><i id="health-fill"></i></div><strong id="health-value">100</strong></div>
+    </section>
+    <section id="world" aria-label="상점. 바닥을 누르면 이동합니다.">
+      <canvas id="scene" aria-label="3차원 상점 플레이 영역"></canvas>
+      <div id="station-labels" aria-label="작업장으로 이동"></div>
+      <div id="floaters" aria-hidden="true"></div>
+      <div class="world-caption" id="world-caption">달빛 골목 · 첫 번째 상회</div>
+      <div id="region-banner" class="region-banner" hidden><span>새 상권 개방</span><strong></strong></div>
+      <div id="toast" role="status" aria-live="polite"></div>
+      <div class="carry-hud"><span>머리 위 적재</span><strong id="carry">0 / 2</strong><span id="carry-kind">빈 가방</span><span class="work-progress"><i id="work-progress"></i></span></div>
+      <div class="joystick" id="joystick" role="group" aria-label="이동 조이스틱"><span class="joystick-ring"></span><span id="stick"></span><b>이동</b></div>
+      <button id="magic" class="magic-button"><span aria-hidden="true">✧</span><strong>마법</strong><small id="magic-level">수련 1 / 21</small></button>
+      <div id="loading" class="loading"><div class="loading-rune">✦</div><strong>상회 문을 열고 있어요</strong><span>룬과 물건을 준비하는 중…</span></div>
+      <div id="renderer-error" class="renderer-error" hidden><strong>3D 화면을 열 수 없어요</strong><p>브라우저의 하드웨어 가속을 켜고 다시 열어주세요.</p><button class="gold-button" onclick="location.reload()">다시 열기</button><a href="../../">홈으로</a></div>
+    </section>
+    <nav class="actions" aria-label="상점 관리">
+      <button id="upgrades"><span class="action-icon"><img src="assets/icons/burger-upgrade.png" width="28" height="28" alt=""></span><strong>강화</strong><small id="upgrade-hint">마법 수련</small></button>
+      <button id="workers"><span class="action-icon">♟</span><strong>고용</strong><small id="worker-hint">운반 도우미</small></button>
+      <button id="build"><span class="action-icon">⚒</span><strong>시설</strong><small id="build-hint">건설 · 강화</small></button>
+    </nav>
+  </main>
+  <dialog id="sheet" aria-labelledby="sheet-title">
+    <div class="sheet-heading"><h1 id="sheet-title"></h1><button id="close-sheet" class="icon-button" aria-label="닫기">×</button></div>
+    <div id="sheet-content"></div>
+  </dialog>
+  <script type="module" src="game.mjs"></script>
+</body>
+</html>
