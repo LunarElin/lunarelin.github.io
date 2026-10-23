@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090e23">
+  <meta name="description" content="한 타로 궤도 너머. 우주 원형 트랙을 달리고, 공과 슈트를 강화하는 3D 스페이스 골프.">
+  <title>오빗 골프 · ORBIT GOLF</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="game.mjs"></script>
+</head>
+<body>
+  <main id="game" aria-label="오빗 골프">
+    <canvas id="space" aria-label="우주 속 3차원 원형 골프 트랙"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+    <header class="topbar">
+      <a href="../../" class="home icon-button" aria-label="홈페이지로">⌂</a>
+      <div class="wordmark"><span class="orbit-mark" aria-hidden="true">◉</span><span>ORBIT <b>GOLF</b></span></div>
+      <button id="pause" class="icon-button" aria-label="일시 정지" hidden>Ⅱ</button>
+      <button id="sound" class="icon-button" aria-label="소리 끄기" aria-pressed="true">♪</button>
+    </header>
+
+    <section id="lobby" class="lobby">
+      <div class="lobby-title"><p class="kicker">무중력 궤도 챌린지</p><h1>한 타로,<br><em>궤도 너머.</em></h1><p class="tagline">치고, 피하고, 더 멀리.</p></div>
+      <div class="orbit-caption"><span class="live-dot"></span>제1궤도 · 코발트 링<span class="caption-line"></span></div>
+      <div class="lobby-dock">
+        <div class="wallet-row"><span>최고 기록 <strong id="best">0 <small>m</small></strong></span><span class="gold-pill"><i aria-hidden="true">◆</i><b id="gold">0</b> G</span></div>
+        <form id="name-form"><label for="pilot-name">파일럿 이름</label><div class="name-row"><input id="pilot-name" name="pilot" maxlength="12" placeholder="이름을 입력하세요" autocomplete="nickname" required aria-describedby="name-error"><button class="primary" type="submit">출발 <span aria-hidden="true">↗</span></button></div><p id="name-error" class="form-error" aria-live="polite"></p></form>
+        <div class="menu-row"><button id="open-upgrades" class="secondary"><span aria-hidden="true">✦</span> 강화</button><button id="open-ranks" class="secondary"><span aria-hidden="true">♜</span> 랭킹</button><button id="open-help" class="secondary" aria-label="게임 방법"><span aria-hidden="true">?</span> 방법</button></div>
+      </div>
+    </section>
+
+    <section id="hud" class="hud" hidden aria-label="플레이 상태">
+      <div class="run-heading"><span id="track-label">제1궤도</span><span id="pilot-label"></span></div>
+      <div class="distance"><b id="distance">0</b><span>m</span></div>
+      <div class="run-stats"><span><i>◆</i> <b id="run-gold">0</b> G</span><span>속도 <b id="speed">0</b></span></div>
+      <div class="orbit-progress" aria-label="궤도 진행"><div id="orbit-fill"></div></div>
+      <div id="warning" class="warning" hidden></div>
+    </section>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="warp-flash" class="warp-flash" aria-hidden="true"></div>
+
+    <section id="launch-controls" class="controls launch-controls" hidden aria-label="타격 조작">
+      <div class="shot-hint"><strong id="shot-title">첫 타를 준비하세요</strong><span>길게 누른 뒤, 초록에서 놓기</span></div>
+      <div class="power-meter" role="meter" aria-label="타격 세기" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="sweet-zone"></div><div id="power-fill"></div><span id="power-needle"></span></div>
+      <button id="shoot" class="primary shoot">누르고 → 놓기 <span aria-hidden="true">⛳</span></button>
+      <button id="cancel-run" class="text-button">대기실</button>
+    </section>
+    <section id="drive-controls" class="controls drive-controls" hidden aria-label="이동 조작">
+      <div class="lane-hint">좌우로 피하고 <span>빛나는 길을 타세요</span></div>
+      <div class="steer-row"><button id="left" class="steer" aria-label="왼쪽 레인">〈</button><div class="lane-indicator" aria-label="현재 레인"><i></i><i class="active"></i><i></i></div><button id="right" class="steer" aria-label="오른쪽 레인">〉</button></div>
+    </section>
+
+    <dialog id="panel" aria-labelledby="panel-title">
+      <div class="panel-heading"><h2 id="panel-title"></h2><button id="close-panel" class="icon-button" aria-label="닫기">×</button></div>
+      <div id="panel-content"></div>
+    </dialog>
+    <p id="save-warning" class="save-warning" role="status" hidden>저장을 사용할 수 없어 이번 방문에만 유지됩니다.</p>
+    <div id="load-error" class="load-error" hidden><h2>3D 화면을 열 수 없어요</h2><p>WebGL을 지원하는 최신 브라우저로 다시 열어주세요.</p><a href="../../" class="primary">홈페이지</a></div>
+    <noscript>오빗 골프를 플레이하려면 JavaScript를 켜주세요.</noscript>
+  </main>
+</body>
+</html>

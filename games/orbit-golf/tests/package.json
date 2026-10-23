@@ -1,0 +1,11 @@
+{
+  "name": "orbit-golf-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules --test rules.test.mjs scene.test.mjs integration.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}
