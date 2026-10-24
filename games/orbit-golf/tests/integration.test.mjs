@@ -22,7 +22,7 @@ const sceneSource = `
     render(dt, run, mode, power, upgrades) {
       this.mode = mode; this.power = power; this.current = run;
       this.snapshot = run ? Object.fromEntries(
-        ['s','distance','x','vx','height','vy','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit'].map(key => [key,run[key]])
+        ['s','distance','x','vx','height','vy','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit','guardiansBroken'].map(key => [key,run[key]])
       ) : null;
     }
   }
@@ -129,6 +129,43 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
     saved() { return raw === null ? null : JSON.parse(raw); },
   };
 }
+
+test('lap changes show the added mechanic and fifth-lap reinforcement in the live HUD',async t=>{
+  const app=await game(t,{stored:JSON.stringify(profile({tutorialComplete:false}))});app.submit('바퀴 검증');app.launch();
+  assert.match(app.$('track-label').textContent,/1바퀴/);
+  const run=app.scene.current;
+  Object.assign(run,{s:360,distance:360,eventTrack:-1,events:[]});app.tick(3);
+  assert.match(app.$('track-label').textContent,/2바퀴/);
+  assert.match(app.$('growth-readout').textContent,/추가/);
+  Object.assign(run,{s:1440,distance:1440,eventTrack:-1,events:[]});app.tick(3);
+  assert.match(app.$('track-label').textContent,/5바퀴/);
+  assert.match(app.$('growth-readout').textContent,/기믹 \+3/);
+  assert.ok(app.$('growth-readout').classList.contains('milestone'));
+});
+
+test('isolated guardian previews use the real weak and strong impact paths without accessing user storage',async t=>{
+  for(const strength of ['weak','strong']){
+    const app=await game(t,{url:`https://orbit-golf.test/games/orbit-golf/?preview=1&encounter=guardian-${strength}`});
+    app.submit('수문장 검증');app.tick();
+    assert.equal(app.scene.current.track,9);
+    assert.ok(app.scene.current.events.some(event=>event.type==='guardian'));
+    assert.equal(app.$('orbit-fill').parentElement.getAttribute('aria-label'),'수문장 충돌 힘');
+    assert.match(app.$('run-goal').textContent,strength==='strong'?/돌파 가능/:/힘 부족/);
+    app.launch();app.tick(24);
+    const feedback=app.scene.feedback.filter(event=>event.kind===`guardian-${strength==='strong'?'break':'block'}`);
+    assert.ok(feedback.length>0,`${strength} encounter must resolve through real guardian physics`);
+    assert.equal(app.scene.current.guardiansBroken,strength==='strong'?1:0);
+    if(strength==='strong')assert.ok(feedback[0].force>=feedback[0].requiredForce);
+    else assert.ok(app.scene.current.s<3570);
+    app.stop();
+    if(strength==='strong')assert.match(app.document.querySelector('.guardian-result')?.textContent||'',/수문장 .*체 돌파/);
+    else assert.match(app.document.querySelector('.growth-note').textContent,/공 강화 후 재도전/);
+    assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);
+    assert.equal(app.$('toast').classList.contains('visible'),false);
+  }
+  const ordinary=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?encounter=guardian-strong'});
+  ordinary.submit('일반 비행');ordinary.tick();assert.equal(ordinary.scene.current.track,0);
+});
 
 test('name, touch shot, one paid continuation, banking, upgrades and ranking use the real controller', async t => {
   const app = await game(t, { stored: JSON.stringify(profile({ gold: 250 })) });

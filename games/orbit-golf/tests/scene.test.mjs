@@ -85,6 +85,18 @@ test('static props share their collider poses across the expanded width',()=>{
   for(const elapsed of [0,.37,1.4,2.9]){run.elapsed=elapsed;frame(scene,run);for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,elapsed);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.ok(mesh.userData.visual.children.length>0);}}
 });
 
+test('adjacent track changes reuse shared event geometry and cues while disposing only departed objects',()=>{
+  const scene=harness(),run=runFixture(),old={id:'old',type:'bumper',at:690,x:0},shared={id:'shared',type:'alien',at:735,x:1,direction:1},next={id:'next',type:'spring',at:780,x:-1};
+  run.track=1;run.s=710;run.events=[old,shared];frame(scene,run);scene.burst({type:'alien',kind:'bounce',eventId:shared.id,effectDuration:1.8});frame(scene,run,'rolling',.1);
+  const oldMesh=scene.eventMeshes.get(old.id),sharedMesh=scene.eventMeshes.get(shared.id),cue=sharedMesh.userData.cue,hit=scene.hitAnimations.get(shared.id),geometry=oldMesh.userData.visual.children[0].geometry;let disposed=0;geometry.addEventListener('dispose',()=>disposed++);
+  run.track=2;run.s=730;run.events=[shared,next];frame(scene,run,'rolling',0);
+  assert.equal(scene.eventMeshes.get(shared.id),sharedMesh);assert.equal(sharedMesh.userData.cue,cue);assert.equal(cue.visible,true);assert.equal(scene.hitAnimations.get(shared.id),hit,'an active shared cue must keep its elapsed reaction');
+  assert.equal(scene.eventMeshes.has(old.id),false);assert.equal(oldMesh.parent,null);assert.equal(disposed,1);assert.equal(scene.eventMeshes.get(next.id).parent,scene.eventGroup);assert.equal(scene.eventGroup.children.length,2);
+  const newReference={...shared,variant:2};run.events=[newReference,next];frame(scene,run,'rolling',0);assert.notEqual(scene.eventMeshes.get(shared.id),sharedMesh,'matching IDs from a new run or variant cannot reuse stale models');
+  const beforeReset=scene.eventMeshes.get(shared.id),nextBefore=scene.eventMeshes.get(next.id);scene.lastTrack=-1;frame(scene,run,'rolling',0);
+  assert.notEqual(scene.eventMeshes.get(shared.id),beforeReset);assert.notEqual(scene.eventMeshes.get(next.id),nextBefore,'an explicit model-load reset must still rebuild every event');assert.equal(scene.eventGroup.children.length,2);
+});
+
 test('obstacle silhouettes contain broad mechanical direction marks before contact',()=>{
   const scene=harness(320,568),run=runFixture();run.s=0;
   run.events=['bumper','spring','punch','alien','comet','trap','boost'].map(type=>({id:type,type,at:30,x:0,radius:.85,height:1.05,direction:1,used:false}));
@@ -161,6 +173,96 @@ test('the ball shows actual imposed spin without rotating while paused',()=>{
   frame(scene,run,'rolling',.1);const angle=scene.ballBody.rotation.y;assert.ok(angle<-.5);
   frame(scene,run,'paused',1);assert.equal(scene.ballBody.rotation.y,angle);
   run.curveSpin=-18;frame(scene,run,'rolling',.1);assert.ok(Math.abs(scene.ballBody.rotation.y)<1e-8);
+});
+
+const guardianFixture=()=>({id:'guardian:10',type:'guardian',at:3570,x:0,width:20,height:5,barrierHeight:10,radius:10,requiredForce:170,broken:false,used:false});
+test('the guardian has a full-width armored silhouette and responds locally to insufficient impact',()=>{
+  const scene=harness(),run=runFixture(),event=guardianFixture();run.s=3540;run.events=[event];frame(scene,run);scene.scene.updateMatrixWorld(true);
+  const mesh=scene.eventMeshes.get(event.id),guardian=mesh.userData.mechanism.guardian,local=new THREE.Box3();
+  mesh.traverse(part=>{const positions=part.geometry?.attributes.position;if(!positions)return;for(let i=0;i<positions.count;i++){const point=part.localToWorld(new THREE.Vector3().fromBufferAttribute(positions,i));local.expandByPoint(mesh.worldToLocal(point));}});
+  assert.ok(local.min.x< -9.5&&local.max.x>9.5&&local.max.y>9.8,'the guardian must visually cover its physical width and height');
+  assert.equal(guardian.eyes.length,2);assert.equal(mesh.userData.visual.getObjectsByProperty('name','guardian-fracture').length,6);
+  scene.burst({type:'guardian',kind:'guardian-block',eventId:event.id,s:event.at,x:2,height:0,force:80,requiredForce:170});
+  const contact=scene.position(event.at,2,BALL_HEIGHT);assert.ok(scene.effects.every(effect=>effect.mesh.position.distanceTo(contact)<1e-8),'shield sparks must start at the actual ball contact');
+  frame(scene,run,'rolling',.2);assert.ok(guardian.halves.every(half=>half.position.z<0));assert.ok(guardian.eyes.every(material=>material.emissiveIntensity>1.5));
+  const z=guardian.halves[0].position.z,life=scene.hitAnimations.get(event.id).life;frame(scene,run,'paused',1);assert.equal(guardian.halves[0].position.z,z);assert.equal(scene.hitAnimations.get(event.id).life,life);
+  frame(scene,run,'rolling',1);assert.equal(event.broken,false);assert.ok(guardian.halves.every(half=>Math.abs(half.position.x)===5&&half.position.z===0));
+});
+
+test('a broken guardian leaves permanent open wreckage after its hit animation and cache rebuild',()=>{
+  const scene=harness(),run=runFixture(),event=guardianFixture();run.s=event.at+5;run.events=[event];frame(scene,run);
+  event.broken=true;event.used=true;scene.burst({type:'guardian',kind:'guardian-break',eventId:event.id,s:event.at,x:0,height:0,force:200,requiredForce:170});frame(scene,run,'rolling',.1);
+  let mesh=scene.eventMeshes.get(event.id),guardian=mesh.userData.mechanism.guardian;assert.equal(mesh.visible,true);assert.ok(guardian.halves.every(half=>Math.abs(half.position.x)>16));
+  const before=guardian.halves[0].position.clone();frame(scene,run,'paused',1);assert.ok(guardian.halves[0].position.equals(before));
+  frame(scene,run,'rolling',2);assert.equal(scene.hitAnimations.has(event.id),false);assert.equal(mesh.visible,true);assert.ok(guardian.eyes.every(material=>material.emissiveIntensity<.1));
+  run.events=[{...event}];scene.lastTrack=-1;frame(scene,run);mesh=scene.eventMeshes.get(event.id);guardian=mesh.userData.mechanism.guardian;
+  assert.equal(mesh.visible,true);assert.ok(guardian.halves.every(half=>Math.abs(half.position.x)>17),'revisiting cannot close a previously broken gate');
+  for(let i=0;i<12;i++)scene.burst({type:'guardian',kind:'guardian-break',eventId:event.id,s:event.at,x:0,height:0});assert.equal(scene.effects.length,48);
+});
+
+test('guardian armor sparks use the struck front face even when its event mesh exists',()=>{
+  for(const kind of ['guardian-block','guardian-break']) {
+    const scene=harness(),run=runFixture(),event=guardianFixture();event.depth=3.2;run.s=event.at-8;run.events=[event];frame(scene,run);
+    const contactS=3566.014,contactX=6,contactHeight=3.998;
+    scene.burst({type:'guardian',kind,eventId:event.id,s:contactS,x:contactX,height:contactHeight,force:kind==='guardian-break'?210:80,requiredForce:170});
+    const actualContact=scene.position(contactS,contactX,BALL_HEIGHT+contactHeight),wrongCenter=scene.position(event.at,contactX,BALL_HEIGHT+contactHeight);
+    assert.ok(actualContact.distanceTo(wrongCenter)>1,'the armor front must be measurably separate from its center');
+    assert.ok(scene.effects.length>0&&scene.effects.every(effect=>effect.mesh.position.distanceTo(actualContact)<1e-8),'fragments must originate at feedback.s on the struck armor face');
+  }
+});
+
+test('guardian break throws visible metallic armor chunks while block keeps small sparks',()=>{
+  for(const [width,height] of [[320,568],[390,844]]) {
+    const samples={};
+    for(const kind of ['guardian-block','guardian-break']) {
+      const scene=harness(width,height),run=runFixture(),event=guardianFixture();run.s=event.at-8;run.events=[event];frame(scene,run);
+      scene.burst({type:'guardian',kind,eventId:event.id,s:3566.014,x:0,height:0});
+      const effect=scene.effects[0],right=new THREE.Vector3().setFromMatrixColumn(scene.camera.matrixWorld,0),radius=.14*effect.scale;
+      const left=project(scene,effect.mesh.position.clone().addScaledVector(right,-radius)),edge=project(scene,effect.mesh.position.clone().addScaledVector(right,radius));
+      samples[kind]=Math.abs(edge.x-left.x)*width/2;
+      if(kind==='guardian-break') {
+        assert.ok(scene.effects.every(part=>part.mesh.material.isMeshStandardMaterial&&part.total<1),'broken armor must be shaded metal that clears within a second');
+        assert.equal(new Set(scene.effects.map(part=>part.mesh.material.color.getHex())).size,2);
+        const position=effect.mesh.position.clone(),angle=effect.mesh.rotation.clone(),life=effect.life;frame(scene,run,'paused',1);
+        assert.ok(effect.mesh.position.equals(position));assert.ok(effect.mesh.rotation.equals(angle));assert.equal(effect.life,life);
+        frame(scene,run,'rolling',.4);assert.equal(scene.effects.length,14);assert.notEqual(effect.mesh.rotation.x,angle.x);
+        frame(scene,run,'rolling',.5);assert.equal(scene.effects.length,0,'large armor chunks must not linger across the chase view');
+      } else assert.ok(scene.effects.every(part=>part.mesh.material.isMeshBasicMaterial));
+      scene.dispose();
+    }
+    assert.ok(samples['guardian-break']>=6&&samples['guardian-break']>samples['guardian-block']*4,'armor pieces must be visibly larger than shield sparks on a real mobile projection');
+  }
+});
+
+test('guardian wreckage never covers the chased ball across the full width and airborne height',()=>{
+  for(const [width,height] of [[320,568],[390,844],[1280,720]])for(const offset of [-12,0,3,30])for(const x of [-SIDE_LIMIT,0,SIDE_LIMIT])for(const air of [0,7.5])for(const progress of [0,.3,1.7]) {
+    const scene=harness(width,height),run=runFixture(),event=guardianFixture();event.broken=true;event.used=true;run.events=[event];run.s=event.at+offset;run.x=x;run.height=air;
+    frame(scene,run,'rolling',0);scene.burst({type:'guardian',kind:'guardian-break',eventId:event.id,s:event.at,x,height:air});frame(scene,run,'rolling',progress);scene.scene.updateMatrixWorld(true);scene.camera.updateMatrixWorld(true);
+    const mesh=scene.eventMeshes.get(event.id),ray=new THREE.Raycaster(),direction=scene.ball.position.clone().sub(scene.camera.position),front=direction.length()-1.05;
+    ray.set(scene.camera.position,direction.normalize());assert.ok(!ray.intersectObject(mesh,true).some(hit=>hit.distance<front-1e-6),`guardian wreck occlusion ${width}px, offset ${offset}, x ${x}, air ${air}, progress ${progress}`);
+    scene.dispose();
+  }
+});
+
+test('the approaching intact guardian remains ahead of the ball around the curved wheel',()=>{
+  for(const [width,height] of [[320,568],[390,844],[1280,720]])for(const ahead of [5,12,30,60,90,120,180])for(const x of [-SIDE_LIMIT,0,SIDE_LIMIT])for(const air of [0,7.5]) {
+    const scene=harness(width,height),run=runFixture(),event=guardianFixture();run.events=[event];run.s=event.at-ahead;run.x=x;run.height=air;frame(scene,run);scene.scene.updateMatrixWorld(true);scene.camera.updateMatrixWorld(true);
+    const mesh=scene.eventMeshes.get(event.id),direction=scene.ball.position.clone().sub(scene.camera.position),front=direction.length()-1.05,ray=new THREE.Raycaster();ray.set(scene.camera.position,direction.normalize());
+    assert.ok(!ray.intersectObject(mesh,true).some(hit=>hit.distance<front),`intact guardian covers ball ${width}px, ahead ${ahead}, x ${x}, air ${air}`);scene.dispose();
+  }
+});
+
+test('compound wave marks describe the actual object motion instead of inventing a second effect',()=>{
+  const scene=harness(),run=runFixture();run.s=0;
+  run.events=[
+    {id:'moving',type:'bumper',at:30,x:0,gimmick:'sweep',motion:'sweep',amplitude:3.8,frequency:1.4},
+    {id:'boost',type:'boost',at:45,x:0,gimmick:'boost-ramp'},
+    {id:'piston',type:'punch',at:60,x:0,gimmick:'piston-bank'},
+    {id:'recovery',type:'punch',at:75,x:0,gimmick:'brake-gauntlet'},
+  ];frame(scene,run);run.elapsed=1;frame(scene,run);
+  const moving=scene.eventMeshes.get('moving'),pose=eventPose(run.events[0],run.elapsed);assert.ok(moving.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);
+  for(const id of ['boost','piston'])for(const arrow of scene.eventMeshes.get(id).userData.mechanism.gimmick.children.filter(part=>part.geometry?.type==='ExtrudeGeometry'))assert.ok(new THREE.Vector3(0,1,0).applyQuaternion(arrow.quaternion).z>.99,'propulsion arrows must remain forward');
+  assert.equal(scene.eventMeshes.get('recovery').userData.mechanism.gimmick.children.length,0,'a recovery piston must not wear braking jaws');
 });
 
 test('flying props follow actual body position and orientation through a chain without cosmetic teleporting',()=>{

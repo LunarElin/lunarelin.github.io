@@ -1,14 +1,17 @@
-import { OrbitScene } from './scene.mjs?v=20261024-devices2';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-devices2';
+import { OrbitScene } from './scene.mjs?v=20261024-guardian1';
+import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-guardian1';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
-const PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
+const pageParams = new URLSearchParams(location.search);
+const PREVIEW = pageParams.get('preview') === '1';
+const previewEncounter = PREVIEW && ['guardian-weak','guardian-strong'].includes(pageParams.get('encounter')) ? pageParams.get('encounter') : '';
 const fmt = value => Math.floor(value).toLocaleString('ko-KR');
 const aborter = new AbortController();
 const on = (element,event,fn,options={}) => element.addEventListener(event,fn,{...options,signal:aborter.signal});
 let profile=newProfile(), storageOK=true;
 try { profile=sanitizeProfile(JSON.parse(PREVIEW?'null':localStorage.getItem(KEY)||'null')); } catch { storageOK=false; }
+if(previewEncounter){profile.tutorialComplete=true;profile.upgrades.ball=previewEncounter==='guardian-strong'?2:0;}
 let run=null, mode='lobby', previousMode='lobby', charging=false, charge=0, power=0, seed=0;
 let audio=null, audioEnabled=true, raf=0, last=0, hudTime=0, saveTime=0, toastLife=0, disposed=false;
 let rollSound=null, rollGain=null, lastTone=-1, lastHaptic=-1000;
@@ -21,6 +24,10 @@ function prepareRun(powerValue) {
   next.previousBest=profile.rankings.find(r=>r.name.toLowerCase()===profile.name.toLowerCase())?.distance||0;
   const stats=ballStats(profile);
   next.goalDistance=Math.max(360,Math.ceil(Math.min(next.previousBest+360,stats.range)/180)*180);
+  if(previewEncounter){
+    next.s=10*TRACK_LENGTH-90;next.distance=next.s;next.track=9;next.eventTrack=9;next.goalDistance=10*TRACK_LENGTH;
+    next.events=[8,9,10].flatMap(track=>generateTrack(track,seed));
+  }
   return next;
 }
 function save() { if(PREVIEW)return;try { localStorage.setItem(KEY,JSON.stringify(profile)); storageOK=true; } catch { storageOK=false; } $('save-warning').hidden=storageOK; }
@@ -51,20 +58,22 @@ function tone(kind='good'){
     }
     if(audio.currentTime-lastTone<.065&&kind!=='shot')return;lastTone=audio.currentTime;
     const t=audio.currentTime,osc=audio.createOscillator(),gain=audio.createGain();
-    osc.type=['punch','comet','danger'].includes(kind)?'sawtooth':'triangle';
+    osc.type=['punch','comet','danger','guardian-block','guardian-break'].includes(kind)?'sawtooth':'triangle';
     const frequencies={shot:[160,40],good:[600,1100],danger:[180,55],warp:[320,1600],stop:[260,120],bumper:[420,120],spring:[140,980],punch:[110,42],alien:[550,180],trap:[80,380],comet:[160,44],landing:[220,65],rail:[680,210],coins:[880,1400],boost:[180,1200],ufo:[320,1600],hole:[800,1800]};
+    frequencies['guardian-block']=[140,45];frequencies['guardian-break']=[380,65];
     const [start,end]=frequencies[kind]||frequencies.good;
     osc.frequency.setValueAtTime(start,t);osc.frequency.exponentialRampToValueAtTime(end,t+.18);
     gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.14,t+.008);gain.gain.exponentialRampToValueAtTime(.0001,t+.24);
     osc.connect(gain);gain.connect(audio.destination);osc.start(t);osc.stop(t+.25);osc.onended=()=>{osc.disconnect();gain.disconnect();};
-    if(['shot','punch','comet','danger','landing'].includes(kind)){
+    if(['shot','punch','comet','danger','landing','guardian-block','guardian-break'].includes(kind)){
       const hit=audio.createOscillator(),volume=audio.createGain();hit.type='triangle';hit.frequency.setValueAtTime(210,t);hit.frequency.exponentialRampToValueAtTime(38,t+.09);volume.gain.setValueAtTime(.25,t);volume.gain.exponentialRampToValueAtTime(.0001,t+.11);hit.connect(volume);volume.connect(audio.destination);hit.start(t);hit.stop(t+.12);hit.onended=()=>{hit.disconnect();volume.disconnect();};
     }
   }catch{/* Sound is optional; a blocked AudioContext must not interrupt play. */}
 }
 function toast(text){$('toast').textContent=text;$('toast').className='notice visible';toastLife=2;}
 function impact(feedback){
-  scene.burst(feedback);tone(feedback.type||feedback.kind);
+  scene.burst(feedback);tone(feedback.kind?.startsWith('guardian-')?feedback.kind:feedback.type||feedback.kind);
+  if(run&&feedback.kind?.startsWith('guardian-'))run.guardianFeedback={...feedback,until:run.elapsed+1.8};
   const now=performance.now();
   if(!reducedMotion&&feedback.strength>.6&&now-lastHaptic>90){navigator.vibrate?.(feedback.type==='shot'?24:12);lastHaptic=now;}
   if(feedback.kind==='chain'&&run){
@@ -109,11 +118,30 @@ function updateHUD(){
   if(!run)return;$('distance').textContent=fmt(run.distance);$('speed').textContent=fmt(Math.abs(run.speed));$('run-gold').textContent=fmt(run.earned);
   const remaining=Math.max(0,Math.ceil(run.durationLimit-run.elapsed));
   const compact=window.innerWidth<=600&&window.innerHeight<=680;
-  $('track-label').textContent=compact?`${run.tutorial?'훈련':`${run.track+1}바퀴`} · ${remaining}초`:run.tutorial?'첫 훈련':`${run.track+1}바퀴`;$('pilot-label').textContent=run.name;
+  $('track-label').textContent=compact?`${run.track+1}바퀴 · ${remaining}초`:`${run.track+1}바퀴${run.tutorial?' · 훈련':''}`;$('pilot-label').textContent=run.name;
   $('run-goal').textContent=compact?`목표 ${fmt(run.goalDistance)}m`:`${run.tutorial?'훈련':'비행'} ${remaining}초 · 목표 ${fmt(run.goalDistance)}m`;
   $('orbit-fill').style.width=`${run.distance%TRACK_LENGTH/TRACK_LENGTH*100}%`;
   const stats=ballStats(profile),base=ballStats(0);
-  $('growth-readout').textContent=`공 Lv.${profile.upgrades.ball} · 타격 추진력 ${Math.round(stats.launchSpeed/base.launchSpeed*100)}%`;
+  const lap=lapConfig(run.track+1),features=lap.newGimmicks;
+  const featureText=lap.additions>1?`기믹 +${lap.additions} · 집중 배치`:features.length?`추가 · ${features[0].label}`:'기본 물리 기믹';
+  $('growth-readout').textContent=mode==='rolling'?featureText:`공 Lv.${profile.upgrades.ball} · 타격 추진력 ${Math.round(stats.launchSpeed/base.launchSpeed*100)}%`;
+  $('growth-readout').classList.toggle('milestone',mode==='rolling'&&lap.additions>1);
+  const guardian=run.events.find(event=>event.type==='guardian'&&!event.broken&&!event.used&&event.at-run.s>=-3&&event.at-run.s<175);
+  const recentBlock=run.guardianFeedback?.kind==='guardian-block'&&run.elapsed<run.guardianFeedback.until;
+  const force=recentBlock?run.guardianFeedback.force:guardianPower(run,profile),progress=$('orbit-fill').parentElement;
+  $('growth-readout').classList.toggle('guardian-force',Boolean(guardian));
+  $('run-goal').classList.toggle('force-short',Boolean(guardian)&&force<guardian.requiredForce);
+  progress.classList.toggle('guardian-power',Boolean(guardian));progress.classList.toggle('can-break',Boolean(guardian)&&force>=guardian.requiredForce);
+  progress.setAttribute('role','progressbar');progress.setAttribute('aria-valuemin','0');
+  progress.setAttribute('aria-label',guardian?'수문장 충돌 힘':'궤도 진행');
+  progress.setAttribute('aria-valuemax',String(guardian?guardian.requiredForce:TRACK_LENGTH));
+  progress.setAttribute('aria-valuenow',String(guardian?Math.min(force,guardian.requiredForce):run.distance%TRACK_LENGTH));
+  if(guardian){
+    $('growth-readout').classList.remove('milestone');
+    $('run-goal').textContent=`수문장 · ${force>=guardian.requiredForce?'돌파 가능':'힘 부족'}`;
+    $('growth-readout').textContent=`충격 ${fmt(force)} / 필요 ${fmt(guardian.requiredForce)}`;
+    $('orbit-fill').style.width=`${Math.min(100,force/guardian.requiredForce*100)}%`;
+  }else if(run.guardianFeedback?.passed&&run.elapsed<run.guardianFeedback.until)$('run-goal').textContent='수문장 돌파';
   const chainActive=run.displayChainDepth>=2&&run.elapsed<run.displayChainUntil;
   $('combo').hidden=mode!=='rolling'||(!chainActive&&(run.combo<2||run.elapsed-run.lastImpact>3.2));
   $('combo').textContent=chainActive?`연쇄 ${run.displayChainDepth}`:`연속 충돌 ${run.combo||0}`;
@@ -126,7 +154,9 @@ function stopped(){
   const distance=element('p','result-distance',fmt(run.distance));distance.append(element('small','',' m'));
   const summary=element('div','result-summary');summary.append(element('span','',`◆ +${fmt(run.earned)} G`),element('span','',`충돌 ${fmt(run.collisions||0)}회`));
   const chainSummary=element('p','chain-summary',run.chainHits?`장애물 ${fmt(run.chainHits)}번 연쇄 · 최대 ${run.maxChain}단계`:'');chainSummary.id='chain-summary';chainSummary.hidden=!run.chainHits;
-  const growth=element('p','growth-note',run.previousBest?run.distance>run.previousBest?`최고 기록 ${fmt(run.distance-run.previousBest)}m 경신`:`이전 최고 ${fmt(run.previousBest)}m · 강화 후 재도전`:'첫 비행 완료 · 공을 강화하세요.');
+  if(run.guardiansBroken)chainSummary.append(element('span','guardian-result',`수문장 ${fmt(run.guardiansBroken)}체 돌파`));
+  if(run.guardiansBroken)chainSummary.hidden=false;
+  const growth=element('p','growth-note',run.guardianFeedback?.passed===false?'충격 부족 · 공 강화 후 재도전':run.previousBest?run.distance>run.previousBest?`최고 기록 ${fmt(run.distance-run.previousBest)}m 경신`:`이전 최고 ${fmt(run.previousBest)}m · 강화 후 재도전`:'첫 비행 완료 · 공을 강화하세요.');
   const upgradeAction=()=>{finalize();run=null;mode='lobby';visibleMode();showUpgrades();};
   if(run.tutorial) {
     const reward=element('p','training-reward',`훈련 보상 +${fmt(run.trainingBonus)} G 포함`);
@@ -172,12 +202,12 @@ function showRanks(){
   openPanel('궤도 랭킹',[element('p','panel-intro','이 기기의 TOP 10 · 이름별 최고 기록'),profile.rankings.length?list:element('p','empty','아직 기록이 없습니다.'),button('확인','primary panel-action',closePanel)],'ranks');
 }
 function showHelp(){
-  const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 스핀을 누르고 있어도 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 추진력과 비거리가 증가합니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다.'].forEach(t=>list.append(element('li','',t)));
+  const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','한 바퀴를 지나면 새로운 배치 기믹이 추가됩니다. 5·10·15번째 바퀴처럼 5바퀴마다 한 번에 3개가 추가됩니다.','10번째 바퀴 끝에는 거대한 수문장이 길을 막습니다. 화면의 충격이 필요 힘 이상이면 부수고 통과하며 40G를 얻습니다. 공을 강화하면 같은 속도에서도 충격이 커집니다. 이후 수문장은 10바퀴마다 나타납니다.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 스핀을 누르고 있어도 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 추진력과 비거리가 증가합니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다. 수문장이 남아 있으면 그 앞에서 내려옵니다.'].forEach(t=>list.append(element('li','',t)));
   const key=element('div','event-key');[
     ['완충 링','낮고 강하게 반발'],['코일 · 위 화살표','높이 뛰어오르기'],
     ['피스톤 · 전진 화살표','앞으로 강하게 추진'],['회전날 · 곡선 화살표','표시 방향으로 휘기'],
     ['각진 혜성','충돌 면을 따라 반사'],['가로 제동 띠','속도와 스핀 감소'],
-    ['연속 전진 화살표','추진력 회복'],['홀 · 우주선','다른 트랙으로 이동']
+    ['연속 전진 화살표','추진력 회복'],['홀 · 우주선','다른 트랙으로 이동'],['거대한 갑옷 문','충격이 충분하면 파괴']
   ].forEach(([shape,effect])=>{const entry=element('div','');entry.append(element('b','',shape),element('span','',effect));key.append(entry);});
   openPanel('조작과 장치',[element('p','panel-intro','장치의 모양과 화살표가 충돌 효과를 알려줍니다.'),key,list,button('준비 완료','primary panel-action',closePanel)],'help');
 }

@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { availableParallelism } from 'node:os';
+import { Worker } from 'node:worker_threads';
 import {
   TRACK_LENGTH, TRACK_WIDTH, DISTANCE_PER_GOLD, SIDE_LIMIT, WORLD_PER_METER, MAX_PROP_BODIES, MAX_CHAIN_DEPTH,
-  UPGRADE_DEFS, COLLISION_EFFECTS, TUTORIAL_DURATION, RUN_DURATION,
+  UPGRADE_DEFS, COLLISION_EFFECTS, TUTORIAL_DURATION, RUN_DURATION, MAX_GIMMICK_WAVES, lapConfig, guardianPower,
   newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade,
   generateTrack, eventX, eventPose, ballStats, newRun, steerRun, resolveEvent, stepRun,
   collectRunGold, canContinue, continueRun, settleRun,
@@ -51,7 +53,7 @@ test('seeded tracks scatter continuous moving colliders with no lane field', () 
   let warps = 0;
   for (let seed = 1; seed <= 80; seed++) {
     const events = generateTrack(3, seed);
-    assert.equal(events.length, 22);
+    assert.equal(events.length, 22+lapConfig(4).activeWaves.length*2);
     assert.equal(new Set(events.map(event => event.id)).size, events.length);
     assert.ok(events.some(event => !Number.isInteger(event.x)));
     for (let index = 0; index < events.length; index++) {
@@ -66,6 +68,118 @@ test('seeded tracks scatter continuous moving colliders with no lane field', () 
     if (events.some(e => ['hole','ufo'].includes(e.type))) warps++;
   }
   assert.ok(warps > 0 && warps < 80);
+});
+
+test('every lap introduces another physical gimmick wave and fifth laps introduce three within a bounded track',()=>{
+  assert.equal(lapConfig(1).additions,0);
+  for(let lap=2;lap<=40;lap++){
+    const plan=lapConfig(lap),events=generateTrack(lap-1,42);
+    assert.equal(plan.additions,lap%5===0?3:1);assert.equal(plan.newGimmicks.length,plan.additions);
+    assert.ok(plan.activeWaves.length<=MAX_GIMMICK_WAVES);assert.ok(events.length<=55);
+    assert.ok(plan.newGimmicks.every(wave=>events.some(event=>event.gimmick===wave.id)));
+    assert.equal(events.some(event=>event.type==='guardian'),lap%10===0);
+    if(lap%10===0)assert.ok(events.filter(event=>event.type!=='guardian').every(event=>event.at<lap*TRACK_LENGTH-100));
+  }
+  const sweep=generateTrack(1,42).find(event=>event.motion==='sweep');
+  assert.ok(sweep&&Math.abs(eventX(sweep,.2)-eventX(sweep,.4))>.01);
+  const catchPad=generateTrack(2,42).find(event=>event.airborne);
+  assert.equal(catchPad.type,'spring');assert.equal(eventPose(catchPad).height,3.2);
+  assert.ok(generateTrack(15,42).length>generateTrack(6,42).length,'later formations must add actual physical props');
+  assert.ok(lapConfig(15).newGimmicks.every(wave=>wave.label.includes('형')));
+  for(const value of [Number.MAX_VALUE,-Infinity,Infinity,NaN]){
+    const plan=lapConfig(value);assert.ok(Number.isFinite(plan.lap)&&Number.isFinite(plan.additions));
+    assert.ok(plan.activeWaves.every(wave=>wave.id&&Number.isFinite(wave.tier)));
+  }
+});
+
+test('the elevated second spring catches an airborne ball and launches another actual arc',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0);
+  Object.assign(run,{s:100,distance:100,speed:70,rollSpeed:70,events:[],eventTrack:0});
+  resolveEvent(run,{id:'ground-spring',type:'spring',at:100,x:0,direction:1},profile,{s:-1,x:0});
+  run.events=[{id:'air-catch',type:'spring',at:120,x:0,elevation:3.2,airborne:true}];
+  const feedback=[];for(let frame=0;frame<120;frame++)feedback.push(...stepRun(run,profile,1/120));
+  assert.ok(feedback.some(event=>event.eventId==='air-catch'&&event.effect==='jump'));
+  assert.equal(run.maxHeight,7.5,'second aerial contact must create a higher arc than the first jump alone');
+});
+
+test('a ground-level flying prop cannot falsely hit an elevated spring through a phantom vertical sweep',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0),source={id:'low-prop',type:'bumper',at:100,x:0,radius:.85,height:1.05};
+  Object.assign(run,{speed:10,rollSpeed:10,events:[],eventTrack:0});
+  source.body={s:100,x:0,height:0,vs:50,vx:0,vy:0,rx:0,ry:0,rz:0,wx:0,wy:0,wz:0,active:true,life:4.2,wheel:0,depth:1,chainId:1,impacts:0,contacts:{}};
+  const target={id:'upper-spring',type:'spring',at:110,x:0,radius:.85,height:1.05,elevation:3.2,airborne:true};
+  run.events=[source,target];stepRun(run,profile,.4);
+  assert.equal(run.chainHits,0);assert.equal(target.body,undefined);
+});
+
+function guardianRun(profile,speed=100){
+  const run=newRun(profile,1,42,0);
+  Object.assign(run,{s:3558,distance:3558,speed,rollSpeed:speed,x:0,vx:0,height:0,vy:0,track:9,eventTrack:9,
+    events:[8,9,10].flatMap(track=>generateTrack(track,42))});
+  return run;
+}
+test('guardian power uses actual positive forward speed and upgraded mass rather than sideways motion or stored roll',()=>{
+  const run=guardianRun(ordinary(0),170);assert.equal(guardianPower(run,ordinary(0)),170);
+  run.vx=999;run.rollSpeed=999;run.speed=0;assert.equal(guardianPower(run,ordinary(5)),0);
+  run.speed=-200;assert.equal(guardianPower(run,ordinary(5)),0);
+  run.speed=100;assert.equal(guardianPower(run,ordinary(2)),140);
+});
+test('a weak shot cannot slip through the full width guardian while airborne or after repeated cooldown hits',()=>{
+  const profile=ordinary(0),run=guardianRun(profile,100),guardian=run.events.find(event=>event.type==='guardian');
+  Object.assign(run,{x:SIDE_LIMIT,vx:20,height:7.5,vy:0});Object.assign(guardian,{hits:99,cooldown:999});
+  const feedback=stepRun(run,profile,.3);
+  assert.ok(feedback.some(event=>event.kind==='guardian-block'&&!event.passed&&event.force<event.requiredForce));
+  const hit=feedback.find(event=>event.kind==='guardian-block');
+  assert.ok(hit.x>5&&hit.height>5,'wall contact effects must follow the real side and airborne height');
+  assert.ok(Math.abs(hit.s-(guardian.at-guardian.depth/2/WORLD_PER_METER))<1e-8);
+  assert.ok(run.s<guardian.at);assert.equal(guardian.used,false);assert.equal(guardian.broken,false);assert.equal(guardian.body,undefined);
+  steerRun(run,1);
+  for(let count=0;count<600&&run.phase==='rolling';count++){stepRun(run,profile,.1);assert.ok(run.s<guardian.at);}
+  assert.equal(run.phase,'stopped');assert.equal(run.stopReason,'natural');assert.equal(run.guardiansBroken,0);
+});
+test('the force threshold distinguishes nearby weak and strong forward impacts without a prop launch',()=>{
+  for(const [speed,passed] of [[169.9,false],[170.1,true]]){
+    const profile=ordinary(0),run=guardianRun(profile,speed);run.s=3566;
+    const feedback=stepRun(run,profile,1/120),hit=feedback.find(event=>event.type==='guardian');
+    assert.equal(hit?.passed,passed);assert.equal(hit.kind,passed?'guardian-break':'guardian-block');
+    assert.equal(run.guardiansBroken,passed?1:0);assert.equal(run.events.find(event=>event.type==='guardian').body,undefined);
+  }
+});
+test('a powerful guardian break persists across cache eviction and continuation and pays only once',()=>{
+  const profile=ordinary(2),run=guardianRun(profile,195),guardian=run.events.find(event=>event.type==='guardian');
+  const feedback=stepRun(run,profile,.2),hit=feedback.find(event=>event.kind==='guardian-break');
+  assert.ok(hit&&hit.force>=hit.requiredForce&&hit.passed);assert.ok(run.s>guardian.at);
+  assert.equal(guardian.broken,true);assert.equal(run.guardiansBroken,1);assert.ok(run.consumed.has(guardian.id));
+  const bonus=run.bonusGold;assert.equal(bonus,40);
+  Object.assign(run,{s:20,rollSpeed:50,speed:50});stepRun(run,profile,1/120);
+  assert.ok(!run.events.some(event=>event.id===guardian.id));
+  Object.assign(run,{s:3520,rollSpeed:195,speed:195});stepRun(run,profile,1/120);
+  assert.equal(run.events.find(event=>event.id===guardian.id).broken,true);
+  run.phase='stopped';profile.gold=100;assert.equal(continueRun(profile,run),true);
+  stepRun(run,profile,1);assert.equal(run.guardiansBroken,1);assert.equal(run.bonusGold,bonus);assert.ok(run.s>3570);
+});
+test('warps are clamped before the first unbroken guardian even outside the event cache',()=>{
+  const profile=ordinary(0),run=guardianRun(profile,30);
+  run.events=[];run.eventTrack=9;run.s=3560;
+  resolveEvent(run,{id:'warp',type:'ufo',at:3560,x:0},profile);
+  assert.ok(run.s<3570);assert.equal(run.guardiansBroken,0);assert.equal(run.consumed.has('guardian:10'),false);
+  const blocked=stepRun(run,profile,1);assert.ok(blocked.some(event=>event.kind==='guardian-block'));
+  assert.ok(run.s<3570);
+  run.consumed.add('guardian:10');run.s=7160;run.speed=30;run.rollSpeed=30;
+  resolveEvent(run,{id:'second-warp',type:'hole',at:7160,x:0},profile);
+  assert.ok(run.s<7170);assert.equal(run.nextGuardianLap,20);
+});
+
+test('flying props reflect from an intact guardian and pass only after the ball has broken it',()=>{
+  for(const broken of [false,true]){
+    const profile=ordinary(0),run=guardianRun(profile,10);run.s=3500;
+    const prop={id:'wall-prop',type:'bumper',at:3560,x:4,radius:1.15,height:1.05};
+    prop.body={s:3560,x:4,height:5,vs:120,vx:0,vy:0,rx:0,ry:0,rz:0,wx:0,wy:0,wz:0,active:true,life:4.2,wheel:0,depth:1,chainId:1,impacts:0,contacts:{}};
+    if(broken)run.consumed.add('guardian:10');run.events=[prop];
+    stepRun(run,profile,.2);
+    assert.equal(run.guardiansBroken,0);assert.equal(run.bonusGold,0);assert.equal(run.consumed.has('guardian:10'),broken);
+    if(broken){assert.ok(prop.body.s>3570);assert.ok(prop.body.vs>0);}
+    else {assert.ok(prop.body.s<3570);assert.ok(prop.body.vs<0);}
+  }
 });
 test('moving prop positions are continuous, bounded and shared with rendering', () => {
   const alien = { type: 'alien', x: 0, phase: .2 };
@@ -401,6 +515,20 @@ test('better suits preserve rolling momentum and heavier balls resist a prop imp
   assert.ok(runs[1].rollSpeed > runs[0].rollSpeed);
   assert.ok(runs[2].speed > runs[0].speed);
 });
+
+test('higher upgraded balls retain a material speed advantage after dense repeated thrusts',()=>{
+  const speeds=[];
+  for(const level of [2,3]){
+    const profile=ordinary(level),run=newRun(profile,1,1,0);
+    for(let index=0;index<40;index++){
+      Object.assign(run,{s:100,track:0,eventTrack:0,events:[]});
+      resolveEvent(run,{id:`thrust-${index}`,type:'boost',at:100,x:0},profile);
+      stepRun(run,profile,.05);
+    }
+    speeds.push(run.speed);
+  }
+  assert.ok(speeds[1]>speeds[0]*1.3,'a dense boost field must not flatten different ball upgrades to the same forward speed');
+});
 test('a free shot agrees with the unobstructed reference within integration tolerance', () => {
   for (const level of [0,1]) {
     const profile = ordinary(level), run = newRun(profile, 1, 1, 0);
@@ -410,23 +538,30 @@ test('a free shot agrees with the unobstructed reference within integration tole
     assert.ok(Math.abs(run.distance / ballStats(level).range - 1) < .025);
   }
 });
-test('100 paired seeds show a clear first upgrade and every later level increases the median', t => {
+test('100 paired seeds show a clear first upgrade and every later level increases the median', async t => {
   const medians = [], distances = [], calibration=[];
-  const median=values=>[...values].sort((a,b)=>a-b)[49];
-  for (let level = 0; level <= 5; level++) {
-    const profile = ordinary(level), values = [],times=[],chains=[],depths=[];let capped=0;
-    for (let seed = 1; seed <= 100; seed++) {
-      const { run } = finish(profile, seed);
-      values.push(run.distance);times.push(run.elapsed);chains.push(run.chainHits);depths.push(run.maxChain);if(run.stopReason==='time')capped++;
-      assert.ok(run.elapsed <= RUN_DURATION);
-    }
+  const workers=new Set(),results=[];let nextLevel=0;
+  t.after(async()=>{await Promise.all([...workers].map(worker=>worker.terminate()));});
+  const measure=level=>new Promise((resolve,reject)=>{
+    const worker=new Worker(new URL('./balance-worker.mjs',import.meta.url),{workerData:{level}});workers.add(worker);let result;
+    worker.on('message',message=>{
+      if(message.type==='progress')console.log(`growth calibration: level ${message.level}, ${message.seed}/100 seeds, ${message.seconds}s`);
+      else if(message.type==='result')result=message;
+    });
+    worker.once('error',reject);
+    worker.once('exit',code=>{workers.delete(worker);if(code===0&&result)resolve(result);else reject(new Error(`level ${level}: calibration worker exited ${code} without results`));});
+  });
+  const consume=async()=>{while(nextLevel<=5){const level=nextLevel++;results[level]=await measure(level);}};
+  await Promise.all(Array.from({length:Math.max(1,Math.min(6,availableParallelism()-2))},consume));
+  for (let level=0;level<=5;level++) {
+    const {values,calibration:row}=results[level];
     distances.push(values);
     medians.push([...values].sort((a,b) => a-b)[49]);
-    calibration.push({level,distance:Math.round(median(values)),seconds:Number(median(times).toFixed(1)),chains:median(chains),depth:median(depths),timeCaps:capped,chainsPresent:chains.filter(value=>value>0).length});
-    if (level) assert.ok(medians[level] > medians[level-1] * 1.25, `upgrade ${level} lacks a material median gain`);
+    calibration.push(row);
   }
   const paired = distances[0].map((value,index) => distances[1][index] / value).sort((a,b) => a-b);
   t.diagnostic(JSON.stringify({calibration,firstUpgrade:{p10:paired[9],median:paired[49],p90:paired[89],farther:paired.filter(value=>value>1).length,over145:paired.filter(value=>value>=1.45).length}}));
+  for(let level=1;level<=5;level++)assert.ok(medians[level]>medians[level-1]*1.25,`upgrade ${level} lacks a material median gain`);
   assert.ok(paired[49] >= 1.8);
   assert.ok(paired.filter(ratio => ratio > 1).length >= 95);
   assert.ok(paired.filter(ratio => ratio >= 1.45).length >= 75);

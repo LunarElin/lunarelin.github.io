@@ -88,6 +88,8 @@ export const TRACK_WIDTH = 20;
 export const SIDE_LIMIT = TRACK_WIDTH / 2 - BALL_RADIUS - .1;
 export const MAX_PROP_BODIES = 18;
 export const MAX_CHAIN_DEPTH = 6;
+export const MAX_GIMMICK_WAVES = 8;
+export const GUARDIAN_INTERVAL = 10;
 const FIXED_DT = 1 / 120;
 const GRAVITY = 19;
 const SOLIDS = new Set(['bumper','alien','comet','punch','spring','trap']);
@@ -108,6 +110,61 @@ export function ballStats(profileOrLevel = 0) {
   const launchSpeed = 106 * 1.35 ** ballLevel;
   const drag = 3.4 * .92 ** ballLevel;
   return { level: ballLevel, launchSpeed, drag, range: launchSpeed ** 2 / (2 * drag), rangeGain: 1.35 ** 2 / .92 - 1 };
+}
+
+const GIMMICKS = Object.freeze([
+  {id:'sweep',label:'이동 범퍼'}, {id:'double-spring',label:'공중 연속 도약'},
+  {id:'counter-spin',label:'교차 회전'}, {id:'pinball',label:'반발 연쇄'},
+  {id:'meteor-sweep',label:'횡단 혜성'}, {id:'boost-ramp',label:'가속 도약'},
+  {id:'brake-gauntlet',label:'제동·재추진'}, {id:'piston-bank',label:'쌍 추진 포대'},
+]);
+export function lapConfig(lap = 1) {
+  lap=Math.floor(clamp(finite(lap,1),1,Math.ceil(MAX_DISTANCE/TRACK_LENGTH)+1));
+  const total=(lap-1)+Math.floor(lap/5)*2,previous=lap===1?0:(lap-2)+Math.floor((lap-1)/5)*2;
+  const wave=index=>{const base=GIMMICKS[index%GIMMICKS.length],tier=Math.floor(index/GIMMICKS.length);
+    return {...base,label:tier?`${base.label} ${tier+1}형`:base.label,index,tier};};
+  return {lap,tier:Math.floor((lap-1)/5),additions:total-previous,
+    newGimmicks:Array.from({length:total-previous},(_,index)=>wave(previous+index)),
+    activeWaves:Array.from({length:Math.min(MAX_GIMMICK_WAVES,total)},(_,index)=>wave(Math.max(0,total-MAX_GIMMICK_WAVES)+index)),
+    guardian:lap%GUARDIAN_INTERVAL===0,requiredForce:170+Math.min(130,Math.max(0,Math.floor(lap/GUARDIAN_INTERVAL)-1)*24)};
+}
+export function guardianPower(run, profile) {return Math.max(0,finite(run?.speed))*(1+level(profile,'ball')*.2);}
+function guardianEvent(lap) {
+  return {id:`guardian:${lap}`,type:'guardian',at:lap*TRACK_LENGTH-30,x:0,width:TRACK_WIDTH,depth:3.2,height:5,barrierHeight:10,radius:TRACK_WIDTH/2,
+    requiredForce:170+Math.min(130,Math.max(0,lap/GUARDIAN_INTERVAL-1)*24),broken:false,used:false,hits:0,cooldown:0};
+}
+function nextGuardian(run) {
+  let lap=run.nextGuardianLap||GUARDIAN_INTERVAL;
+  while(run.consumed.has(`guardian:${lap}`))lap+=GUARDIAN_INTERVAL;
+  run.nextGuardianLap=lap;
+  const id=`guardian:${lap}`;
+  if(run.guardianGate?.id!==id)run.guardianGate=guardianEvent(lap);
+  if(run.track>=lap-2&&run.track<=lap)run.guardianGate=run.events.find(event=>event.id===id)||run.guardianGate;
+  return run.guardianGate;
+}
+function guardianContactS(event) {return event.at-(BALL_RADIUS+finite(event.depth,3.2)/2)/WORLD_PER_METER;}
+function guardianDestination(run,destination) {
+  const guardian=nextGuardian(run);
+  return Math.min(destination,guardianContactS(guardian)-2);
+}
+function collideGuardian(run,profile,feedback) {
+  const event=nextGuardian(run),contact=guardianContactS(event);
+  if(run.s<contact)return;
+  const force=guardianPower(run,profile);
+  if(force>=event.requiredForce) {
+    consumeEvent(run,event);event.broken=true;run.guardiansBroken=(run.guardiansBroken||0)+1;
+    run.speed*=.76;run.rollSpeed*=.8;run.vx*=.75;run.curveSpin*=.6;run.vy=Math.max(run.vy,2);run.restTime=0;
+    run.bonusGold+=40;refreshEarnings(run);
+    feedback.push({...feedbackFor(run,'guardian','guardian-break',event,1.5),s:event.at-finite(event.depth,3.2)/2/WORLD_PER_METER,force,requiredForce:event.requiredForce,passed:true});
+    nextGuardian(run);return;
+  }
+  run.s=contact;
+  const contacts=run.guardianContacts||(run.guardianContacts=new Map());
+  if((contacts.get(event.id)||-1)<=run.elapsed) {
+    run.speed=-Math.abs(run.speed)*.35;run.rollSpeed*=.28;run.vx*=.5;run.curveSpin*=.35;run.vy=Math.max(run.vy,2.5);
+    contacts.set(event.id,run.elapsed+.65);run.collisions++;run.lastImpact=run.elapsed;
+    feedback.push({...feedbackFor(run,'guardian','guardian-block',event,1.2),s:event.at-finite(event.depth,3.2)/2/WORLD_PER_METER,force,requiredForce:event.requiredForce,passed:false});
+  } else run.speed=Math.min(0,run.speed);
 }
 
 export function generateTrack(track, seed = 1) {
@@ -138,11 +195,49 @@ export function generateTrack(track, seed = 1) {
   }
   add('coins',track*TRACK_LENGTH+337,(random()-.5)*14);
   add(special,track*TRACK_LENGTH+350,(random()-.5)*14);
+  const config=lapConfig(track+1);
+  for(const [index,wave] of config.activeWaves.entries()) {
+    const at=track*TRACK_LENGTH+58+index*(config.guardian?22:31)+random(),x=(random()-.5)*9,sign=(wave.index+track)%2?1:-1;
+    const extra=(type,offset,side,options={})=>{
+      add(type,at+offset,side);Object.assign(events[events.length-1],{gimmick:wave.id,variant:wave.tier},options);
+    };
+    if(wave.id==='sweep'){extra('bumper',0,x,{motion:'sweep',amplitude:3.8,frequency:1.4+Math.min(.7,wave.tier*.1)});extra('boost',11,x);}
+    else if(wave.id==='double-spring'){extra('spring',0,x);extra('spring',20,x,{elevation:3.2,airborne:true});}
+    else if(wave.id==='counter-spin'){extra('alien',0,-2.3,{direction:sign});extra('alien',8,2.3,{direction:-sign});}
+    else if(wave.id==='pinball'){extra('bumper',0,-2.2);extra('bumper',7,2.2);}
+    else if(wave.id==='meteor-sweep'){extra('comet',0,x,{motion:'sweep',amplitude:3.6,frequency:1.7+Math.min(.6,wave.tier*.1)});extra('boost',12,x);}
+    else if(wave.id==='boost-ramp'){extra('boost',0,x);extra('spring',12,x);}
+    else if(wave.id==='brake-gauntlet'){extra('trap',0,x);extra('punch',9,x);}
+    else {extra('punch',0,-2.5);extra('punch',8,2.5);}
+    if(wave.tier>=1){
+      if(wave.id==='sweep')extra('bumper',6,-x,{motion:'sweep',amplitude:3.8,frequency:1.4,phase:Math.PI});
+      else if(wave.id==='double-spring')extra('boost',27,x);
+      else if(wave.id==='counter-spin'||wave.id==='pinball')extra('bumper',4,0);
+      else if(wave.id==='meteor-sweep')extra('spring',6,sign*3);
+      else if(wave.id==='boost-ramp')extra('punch',5,sign*2.5);
+      else extra('boost',4,x);
+    }
+    if(wave.tier>=2){
+      if(wave.id==='sweep')extra('boost',20,x);
+      else if(wave.id==='double-spring')extra('spring',5,-x);
+      else if(wave.id==='counter-spin')extra('punch',12,0);
+      else if(wave.id==='pinball')extra('spring',11,sign*2.2);
+      else if(wave.id==='meteor-sweep')extra('comet',15,-x,{motion:'sweep',amplitude:3.8,frequency:1.7,phase:Math.PI});
+      else if(wave.id==='boost-ramp')extra('spring',20,x,{elevation:3.2,airborne:true});
+      else if(wave.id==='brake-gauntlet')extra('trap',15,sign*4);
+      else extra('punch',14,0);
+    }
+  }
+  if(config.guardian){
+    for(let index=events.length-1;index>=0;index--)if(events[index].at>=config.lap*TRACK_LENGTH-100)events.splice(index,1);
+    events.push(guardianEvent(config.lap));
+  }
   return events.sort((a,b)=>a.at-b.at);
 }
 
 function idleX(event, elapsed = 0) {
   const base = finite(event?.x);
+  if(event?.motion==='sweep')return clamp(base+Math.sin(finite(elapsed)*finite(event.frequency,1.4)+finite(event.phase))*finite(event.amplitude,3.8),-7.9,7.9);
   if (event?.type === 'alien') return clamp(base+Math.sin(finite(elapsed)*1.5+finite(event.phase))*3.2,-7.9,7.9);
   if (event?.type === 'punch') return clamp(base+Math.sin(finite(elapsed)*2.8+finite(event.phase))*.8,-7.9,7.9);
   return clamp(base,-7.9,7.9);
@@ -153,7 +248,7 @@ export function eventPose(event, elapsed = 0) {
   if(event?.body) {
     const b=event.body;return {s:b.s,x:b.x,height:b.height,rx:b.rx,ry:b.ry,rz:b.rz};
   }
-  return {s:finite(event?.at),x:idleX(event,elapsed),height:0,rx:0,ry:0,rz:0};
+  return {s:finite(event?.at),x:idleX(event,elapsed),height:finite(event?.elevation),rx:0,ry:0,rz:0};
 }
 export function eventX(event, elapsed = 0) {
   return eventPose(event,elapsed).x;
@@ -165,7 +260,7 @@ function refreshEvents(run) {
   const old = new Map(run.events.map(event => [event.id, event]));
   run.events = [Math.max(0, run.track - 1), run.track, run.track + 1]
     .filter((value, index, all) => all.indexOf(value) === index)
-    .flatMap(track => generateTrack(track, run.seed).map(event => old.get(event.id) ?? {...event,used:run.consumed.has(event.id)}));
+    .flatMap(track => generateTrack(track, run.seed).map(event => old.get(event.id) ?? {...event,used:run.consumed.has(event.id),broken:event.type==='guardian'&&run.consumed.has(event.id)}));
   const ids=new Set(run.events.map(event=>event.id));
   for(const event of old.values())if(event.body?.active&&event.body.wheel===run.wheel&&!ids.has(event.id))run.events.push(event);
   run.eventTrack = run.track;
@@ -185,6 +280,7 @@ export function newRun(profile, power01, seed = Date.now(), aim = 8) {
     height: 0, vy: 0, speed: Math.cos(angle) * velocity, rollSpeed: velocity,
     aim: angle * 180 / Math.PI, steer: 0, spin: 0, curveSpin:0, slowTime:0, combo: 0, collisions: 0, maxHeight: 0,
     chainHits:0,maxChain:0,lastChain:-10,nextChainId:0,consumed:new Set(),
+    nextGuardianLap:10,guardiansBroken:0,guardianContacts:new Map(),
     lastImpact: -10, lastRail: -10, lastLanding: -10, accumulator: 0, restTime: 0,
     track: 0, wheel: 0, continued: false, finished: false,
     earned: 0, banked: 0, bonusGold: 0, seed: finite(seed, 1) >>> 0,
@@ -222,6 +318,7 @@ function launchProp(run,event,velocity,chainId,depth) {
 }
 
 function advanceProps(run,dt) {
+  const guardian=nextGuardian(run);
   for(const event of run.events) {
     const body=event.body;if(!body?.active)continue;
     if(body.wheel!==run.wheel){body.active=false;consumeEvent(run,event);continue;}
@@ -235,6 +332,8 @@ function advanceProps(run,dt) {
     if(body.height>8){body.height=8;body.vy=Math.min(0,body.vy);}
     const limit=TRACK_WIDTH/2-finite(event.radius,.85)-.1;
     if(Math.abs(body.x)>limit){body.x=Math.sign(body.x)*limit;body.vx=-Math.sign(body.x)*Math.abs(body.vx)*.7;}
+    const barrier=guardian.at-(finite(event.radius,.85)+finite(guardian.depth,3.2)/2)/WORLD_PER_METER;
+    if(body.vs>0&&body.s>=barrier){body.s=barrier;body.vs=-Math.abs(body.vs)*.5;body.vx*=.8;body.vy=Math.max(body.vy,1.8);}
     body.rx+=body.wx*dt;body.ry+=body.wy*dt;body.rz+=body.wz*dt;
   }
 }
@@ -256,13 +355,14 @@ function collideProps(run,feedback,dt) {
     const a=source.body;if(a.impacts>=4)continue;
     for(const target of run.events) {
       if(source===target||!SOLIDS.has(target.type)||target.used||target.body?.wheel!==undefined&&target.body.wheel!==run.wheel)continue;
-      const pair=source.id<target.id?`${source.id}|${target.id}`:`${target.id}|${source.id}`;
-      if(handled.has(pair)||(a.contacts[target.id]||0)>run.elapsed)continue;
+      if((a.contacts[target.id]||0)>run.elapsed)continue;
       const targetS=target.body?.s??finite(target.at);
       if(Math.abs((a.s-targetS)*WORLD_PER_METER)>8+Math.abs(a.vs*WORLD_PER_METER*dt))continue;
+      const pair=source.id<target.id?`${source.id}|${target.id}`:`${target.id}|${source.id}`;
+      if(handled.has(pair))continue;
       const pose=eventPose(target,run.elapsed),b=target.body?.active?target.body:null;
       const previous=b?{s:b.previousS,x:b.previousX,y:b.previousHeight+finite(target.height,1.05)}:
-        {s:pose.s,x:idleX(target,run.elapsed-dt),y:finite(target.height,1.05)};
+        {s:pose.s,x:idleX(target,run.elapsed-dt),y:finite(target.height,1.05)+pose.height};
       const normal=sweptContact(
         {s:a.previousS,x:a.previousX,y:a.previousHeight+finite(source.height,1.05)},
         {s:a.s,x:a.x,y:a.height+finite(source.height,1.05)},
@@ -299,7 +399,7 @@ function collideProps(run,feedback,dt) {
 export function resolveEvent(run, event, profile, normal) {
   if (!run || !event || run.phase !== 'rolling' || event.used || run.consumed.has(event.id) || (event.cooldown || 0) > run.elapsed || SOLIDS.has(event.type)&&(event.hits||0)>=3) return null;
   const type = event.type, ballLevel = level(profile, 'ball'), pilotLevel = level(profile, 'pilot');
-  const topSpeed = Math.max(340, ballStats(profile).launchSpeed * 1.35);
+  const topSpeed = Math.max(340, ballStats(profile).launchSpeed * 1.75);
   const side = event.direction || (eventX(event, run.elapsed) < run.x ? 1 : -1);
   if (type === 'coins') {
     consumeEvent(run,event);run.bonusGold += 12;refreshEarnings(run);
@@ -307,7 +407,7 @@ export function resolveEvent(run, event, profile, normal) {
   }
   if (type === 'ufo' || type === 'hole') {
     consumeEvent(run,event);
-    run.s = (Math.floor(Math.max(0, run.s) / TRACK_LENGTH) + 1) * TRACK_LENGTH + 12;
+    run.s = guardianDestination(run,(Math.floor(Math.max(0, run.s) / TRACK_LENGTH) + 1) * TRACK_LENGTH + 12);
     run.wheel++;run.height = type === 'ufo' ? 2.2 : 1.2;run.vy = 4;
     for(const prop of run.events)if(prop.body?.active){prop.body.active=false;consumeEvent(run,prop);}
     run.speed = Math.max(run.rollSpeed * .8, 48);run.rollSpeed = Math.max(run.rollSpeed, run.speed);
@@ -405,6 +505,9 @@ function physicsStep(run, profile, dt, feedback) {
       run.lastRail = run.elapsed;
     }
   }
+  // A guardian is a fixed full-width plane; unlike props it never loses collision
+  // because of an event cooldown, airborne height, side position or hit count.
+  collideGuardian(run,profile,feedback);
   advanceProps(run,dt);
   // Substeps cap travel below a ball diameter; segment tests also catch a glancing pass.
   for (const event of run.events) {
@@ -416,13 +519,13 @@ function physicsStep(run, profile, dt, feedback) {
       {s:previousS,x:previousX,y:BALL_RADIUS+previousHeight},
       {s:run.s,x:run.x,y:BALL_RADIUS+run.height},
       body?{s:body.previousS,x:body.previousX,y:finite(event.height,1.05)+body.previousHeight}:
-        {s:pose.s,x:idleX(event,run.elapsed-dt),y:finite(event.height,1.05)},
+        {s:pose.s,x:idleX(event,run.elapsed-dt),y:finite(event.height,1.05)+pose.height},
       {s:pose.s,x:pose.x,y:finite(event.height,1.05)+pose.height},BALL_RADIUS+finite(event.radius,.85));
     if(!normal)continue;
     const approaching=(run.vx-(body?.vx||0))*normal.x+(run.speed-(body?.vs||0))*WORLD_PER_METER*normal.s+(run.vy-(body?.vy||0))*normal.y;
     if(SOLIDS.has(event.type)&&approaching>=-.1)continue;
     // Pads and pickups require low contact; other props can be cleared with a high bounce.
-    if (!body&&['spring', 'trap', 'boost', 'hole'].includes(event.type) && run.height > 1.1) continue;
+    if (!body&&!event.airborne&&['spring', 'trap', 'boost', 'hole'].includes(event.type) && run.height > 1.1) continue;
     const result = resolveEvent(run, event, profile, normal);
     if (result) feedback.push(result);
     if (result?.kind === 'warp') break;

@@ -40,4 +40,4 @@ GLB는 외부 이미지나 버퍼 없이 독립 실행 가능하다. 모두 꼭�
 - `vendor/BufferGeometryUtils.js`: 같은 버전의 `examples/jsm/utils/BufferGeometryUtils.js`. <https://unpkg.com/three@0.160.1/examples/jsm/utils/BufferGeometryUtils.js>
 - 가공: 두 보조 모듈의 `three` import를 `./three.module.js`로, GLTFLoader의 유틸리티 import를 `./BufferGeometryUtils.js`로 바꿨다. 나머지 구현은 변경하지 않았다. 런타임 패키지 설치·외부 import map이 필요 없다.
 
-트랙·골프공·배경 별·이펙트는 게임 코드에서 기하 도형으로 생성한다. 효과음은 Web Audio로 생성하므로 별도의 외부 음원은 사용하지 않는다.
+트랙·골프공·범퍼와 장치 표식·거대한 갑옷 수문장과 파괴 잔해·배경 별·이펙트는 게임 코드에서 기하 도형으로 생성한다. 효과음은 Web Audio로 생성하므로 별도의 외부 음원은 사용하지 않는다.
