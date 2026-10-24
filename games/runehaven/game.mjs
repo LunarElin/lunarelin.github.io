@@ -3,7 +3,7 @@ import { BALANCE } from './balance.mjs';
 import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getStationApproach } from './rules.mjs';
 import { REGIONS, getRegion, getStations } from './maps.mjs';
 import { createMapScenery } from './map-scene.mjs';
-import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera } from './camera.mjs';
+import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera, followBattleCamera } from './camera.mjs';
 import { createProductVisuals } from './product-visuals.mjs';
 import { createActorMarkers } from './actor-markers.mjs';
 import { applyActorAppearance, getActorPalette } from './actor-appearance.mjs';
@@ -146,6 +146,7 @@ let shadowClock = 1;
 let animationUpdates = 0;
 const viewport = { width: 1, height: 1 };
 let cameraFrame;
+let battleCameraFrame;
 let cameraSnap = true;
 const scene = new THREE.Scene();
 const shopScene = new THREE.Group(); shopScene.name = 'shop-interior'; scene.add(shopScene);
@@ -566,11 +567,14 @@ function updateCamera(dt) {
   let framing = cameraFraming(viewport.width, viewport.height, state.player.bag);
   let focus = cameraFocus(state.player, framing, viewport.width, viewport.height, state.player.bag, BOUNDS);
   if (state.raid.location === 'outside') {
-    const layout = getBattleLayout(state);
-    const battle = battleCamera(viewport.width, viewport.height, { ...state.player, bag: {} }, [...state.raid.defenders, ...state.raid.enemies], layout.gate, layout.backdrop);
+    const battle = battleCamera(viewport.width, viewport.height, state.raid.defenders, state.raid.enemies, state.time, battleCameraFrame);
     framing = battle.framing; focus = battle.focus;
+    cameraFrame = followBattleCamera(battleCameraFrame, focus, framing, dt, cameraSnap);
+    battleCameraFrame = cameraFrame;
+  } else {
+    battleCameraFrame = null;
+    cameraFrame = followCamera(cameraFrame, focus, framing, dt, cameraSnap);
   }
-  cameraFrame = followCamera(cameraFrame, focus, framing, dt, cameraSnap);
   cameraSnap = false;
   const aspect = viewport.width / viewport.height, span = cameraFrame.span;
   camera.left = -span * aspect / 2; camera.right = span * aspect / 2;
@@ -820,6 +824,7 @@ function updateHud() {
     canvas.dataset.actorSizes = JSON.stringify([...actors.values()].map((actor) => ({
       id: actor.id, kind: actor.kind, palette: actor.appearance.key, scale: actor.root.scale.x, ready: actor.ready, visible: actor.root.visible,
       bodyPixels: projectXYZ(actor.x, 0, actor.z).y - projectXYZ(actor.x, 1.3 * actor.root.scale.y, actor.z).y,
+      screenX: projectXYZ(actor.x, 0, actor.z).x, screenTop: projectXYZ(actor.x, 2.1 * actor.root.scale.y, actor.z).y, screenBottom: projectXYZ(actor.x, 0, actor.z).y,
     })));
     const motions = [...actors.values()].filter((actor) => actor.combatRig).map((actor) => {
       const tip = actor.combatRig.weapon.getWorldPosition(new THREE.Vector3());
