@@ -3,7 +3,7 @@ import { BALANCE } from './balance.mjs';
 import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getStationApproach } from './rules.mjs';
 import { REGIONS, getRegion, getStations } from './maps.mjs';
 import { createMapScenery } from './map-scene.mjs';
-import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera, followBattleCamera } from './camera.mjs';
+import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, CAMERA_Y, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera, followBattleCamera } from './camera.mjs';
 import { createProductVisuals } from './product-visuals.mjs';
 import { createActorMarkers } from './actor-markers.mjs';
 import { applyActorAppearance, getActorPalette } from './actor-appearance.mjs';
@@ -147,6 +147,7 @@ let animationUpdates = 0;
 const viewport = { width: 1, height: 1 };
 let cameraFrame;
 let battleCameraFrame;
+let cameraSafety;
 let cameraSnap = true;
 const scene = new THREE.Scene();
 const shopScene = new THREE.Group(); shopScene.name = 'shop-interior'; scene.add(shopScene);
@@ -573,6 +574,7 @@ function updateCamera(dt) {
     battleCameraFrame = cameraFrame;
   } else {
     battleCameraFrame = null;
+    if (qaEnabled) cameraSafety = null;
     cameraFrame = followCamera(cameraFrame, focus, framing, dt, cameraSnap);
   }
   cameraSnap = false;
@@ -583,6 +585,53 @@ function updateCamera(dt) {
   camera.position.set(cameraFrame.x + CAMERA_OFFSET.x, cameraFrame.focusY + CAMERA_OFFSET.y, cameraFrame.z + CAMERA_OFFSET.z);
   camera.lookAt(cameraFrame.x, cameraFrame.focusY, cameraFrame.z);
   camera.updateMatrixWorld();
+  if (qaEnabled && dt > 0 && state.raid.phase === 'battle' && cameraFrame.subjectTarget) {
+    cameraSafety ||= { frames: 0, pairFrames: 0, targetOnlyFrames: 0, unfittableFrames: 0, transitions: 0, violations: 0,
+      left: Infinity, right: Infinity, top: Infinity, bottom: Infinity, lastSubject: null, worst: null };
+    const stats = cameraSafety; stats.frames++;
+    if (stats.lastSubject && stats.lastSubject !== cameraFrame.subjectId) stats.transitions++;
+    stats.lastSubject = cameraFrame.subjectId;
+    if (cameraFrame.subjectFits === false) stats.unfittableFrames++;
+    const targetPoint = { point: cameraFrame.subjectTarget, padding: .6, below: 0 };
+    const sourcePoint = { point: cameraFrame.subjectSource, padding: cameraFrame.subjectSourcePadding ?? .6, below: cameraFrame.subjectSourceBelow ?? 0 };
+    const points = cameraFrame.subjectFramedSource === false ? [targetPoint] : [sourcePoint, targetPoint];
+    if (points.length === 2) stats.pairFrames++; else stats.targetOnlyFrames++;
+    let left = Infinity, right = Infinity, top = Infinity, bottom = Infinity;
+    for (const { point, padding, below } of points) for (const side of [-padding, padding]) for (const y of [-below / CAMERA_Y, 2.6]) {
+      const projected = projectXYZ(point.x + side * CAMERA_RIGHT.x, y, point.z + side * CAMERA_RIGHT.z);
+      left = Math.min(left, projected.x); right = Math.min(right, viewport.width - projected.x);
+      top = Math.min(top, projected.y); bottom = Math.min(bottom, viewport.height - projected.y);
+    }
+    stats.left = Math.min(stats.left, left); stats.right = Math.min(stats.right, right);
+    stats.top = Math.min(stats.top, top); stats.bottom = Math.min(stats.bottom, bottom);
+    if (left < 24 - .001 || right < 24 - .001 || top < 38 - .001 || bottom < 42 - .001) {
+      stats.violations++;
+      if (!stats.worst || Math.min(left - 24, right - 24, top - 38, bottom - 42) < stats.worst.clearance)
+        stats.worst = { time: state.time, subject: cameraFrame.subjectId, left, right, top, bottom, clearance: Math.min(left - 24, right - 24, top - 38, bottom - 42) };
+    }
+  }
+}
+function inspectCombatWeapon() {
+  if (!qaEnabled || state.raid.phase !== 'battle' || !cameraSafety || !cameraFrame.subjectId) return;
+  const actor = actors.get(`${cameraFrame.subjectTeam === 'enemy' ? 'e-' : 'd-'}${cameraFrame.subjectId}`);
+  if (!actor?.ready || !actor.combatRig || cameraFrame.subjectFramedSource === false) return;
+  const stats = cameraSafety;
+  stats.weaponFrames = (stats.weaponFrames || 0) + 1;
+  const vertex = new THREE.Vector3();
+  let left = Infinity, right = Infinity, top = Infinity, bottom = Infinity;
+  for (const node of [actor.combatRig.weapon, actor.combatRig.arrow].filter((node) => node?.visible)) {
+    node.updateWorldMatrix(true, false);
+    const position = node.geometry.attributes.position;
+    for (let index = 0; index < position.count; index++) {
+      vertex.fromBufferAttribute(position, index).applyMatrix4(node.matrixWorld).project(camera);
+      const x = (vertex.x + 1) * viewport.width / 2, y = (1 - vertex.y) * viewport.height / 2;
+      left = Math.min(left, x); right = Math.min(right, viewport.width - x);
+      top = Math.min(top, y); bottom = Math.min(bottom, viewport.height - y);
+    }
+  }
+  stats.weaponLeft = Math.min(stats.weaponLeft ?? Infinity, left); stats.weaponRight = Math.min(stats.weaponRight ?? Infinity, right);
+  stats.weaponTop = Math.min(stats.weaponTop ?? Infinity, top); stats.weaponBottom = Math.min(stats.weaponBottom ?? Infinity, bottom);
+  if (left < 24 - .001 || right < 24 - .001 || top < 38 - .001 || bottom < 42 - .001) stats.weaponViolations = (stats.weaponViolations || 0) + 1;
 }
 function resize() {
   const rect = $('world').getBoundingClientRect();
@@ -749,6 +798,7 @@ function visuals(dt) {
     const id = `e-${e.id}`; present.add(id); updateActor(e, id, state.raid.kind === 'army' ? 'soldier' : 'orc', dt, state.raid.phase === 'battle');
   }
   for (const actor of actors.values()) if (!present.has(actor.id)) removeActor(actor);
+  if (qaEnabled) inspectCombatWeapon();
   markerEntries.length = 0;
   for (const actor of actors.values()) markerEntries.push(actor.marker);
   actorMarkers.update(markerEntries);
@@ -843,7 +893,7 @@ function updateHud() {
     const feet = projectXYZ(state.player.x, 0, state.player.z), head = projectXYZ(state.player.x, carryHeight(state.player.bag), state.player.z);
     const body = projectXYZ(state.player.x, 1.75, state.player.z);
     const samples = renderSamples.length || 1;
-    inspection.textContent = JSON.stringify({ state: JSON.parse(serialize(state)), visualFixture: previewRegion, cargoFixture: previewCargo, region: getRegion(state).theme, battle: { defenders: state.raid.defenders, enemies: state.raid.enemies }, paused, started, target, dining: { ...state.dining, layout: getDiningLayout(state), guests: state.customers.filter((c) => ["food-queue", "to-table", "eating"].includes(c.phase)) }, camera: { ...cameraFrame, width: viewport.width, height: viewport.height, feet, head, bodyPixels: feet.y - body.y }, quality: { mobile: mobileRender, pixelRatio: renderer.getPixelRatio(), shadowSize: sunlight.shadow.mapSize.x }, average: { calls: renderSamples.reduce((n, s) => n + s.calls, 0) / samples, triangles: renderSamples.reduce((n, s) => n + s.triangles, 0) / samples, animations: renderSamples.reduce((n, s) => n + s.animations, 0) / samples }, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, renderedFrames: renderer.info.render.frame, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, visibleActors: [...actors.values()].filter((a) => a.root.visible).length });
+    inspection.textContent = JSON.stringify({ state: JSON.parse(serialize(state)), visualFixture: previewRegion, cargoFixture: previewCargo, region: getRegion(state).theme, battle: { defenders: state.raid.defenders, enemies: state.raid.enemies }, paused, started, target, dining: { ...state.dining, layout: getDiningLayout(state), guests: state.customers.filter((c) => ["food-queue", "to-table", "eating"].includes(c.phase)) }, cameraSafety, camera: { ...cameraFrame, width: viewport.width, height: viewport.height, feet, head, bodyPixels: feet.y - body.y }, quality: { mobile: mobileRender, pixelRatio: renderer.getPixelRatio(), shadowSize: sunlight.shadow.mapSize.x }, average: { calls: renderSamples.reduce((n, s) => n + s.calls, 0) / samples, triangles: renderSamples.reduce((n, s) => n + s.triangles, 0) / samples, animations: renderSamples.reduce((n, s) => n + s.animations, 0) / samples }, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, renderedFrames: renderer.info.render.frame, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, visibleActors: [...actors.values()].filter((a) => a.root.visible).length });
   }
   $('gold').textContent = compact(state.gold);
   $('patrons').textContent = number(state.patrons?.length || 0);

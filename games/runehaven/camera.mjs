@@ -33,6 +33,13 @@ export function cameraFocus(player, framing, width, height, bag, bounds = { minX
   return { x: focusU * CAMERA_RIGHT.x + focusV * CAMERA_DOWN.x, z: focusU * CAMERA_RIGHT.z + focusV * CAMERA_DOWN.z };
 }
 
+function clampBattleFocus(point, bounds) {
+  const clamp = (value, min, max) => min <= max ? Math.max(min, Math.min(max, value)) : (min + max) / 2;
+  const u = clamp(point.x * CAMERA_RIGHT.x + point.z * CAMERA_RIGHT.z, bounds.minU, bounds.maxU);
+  const v = clamp(point.x * CAMERA_DOWN.x + point.z * CAMERA_DOWN.z, bounds.minV, bounds.maxV);
+  return { x: u * CAMERA_RIGHT.x + v * CAMERA_DOWN.x, z: u * CAMERA_RIGHT.z + v * CAMERA_DOWN.z };
+}
+
 export function battleCamera(width, height, defenders, enemies, time = 0, previousView) {
   // Keep the same readable scale as the front moves. A distant reinforcement,
   // shop facade or idle shopkeeper must never make every fighter smaller.
@@ -44,7 +51,9 @@ export function battleCamera(width, height, defenders, enemies, time = 0, previo
   // Hold the last clash for the result instead of panning to distant survivors.
   if (!allies.length || !foes.length) {
     if (previousView?.subjectId) framing.subject = { subjectId: previousView.subjectId, subjectTeam: previousView.subjectTeam,
-      subjectSource: previousView.subjectSource, subjectTarget: previousView.subjectTarget, shotUntil: previousView.shotUntil };
+      subjectSource: previousView.subjectSource, subjectTarget: previousView.subjectTarget, shotUntil: previousView.shotUntil,
+      subjectFits: previousView.subjectFits, subjectFramedSource: previousView.subjectFramedSource,
+      subjectSourcePadding: previousView.subjectSourcePadding, subjectSourceBelow: previousView.subjectSourceBelow };
     return { framing, focus: previous || { x: 0, z: 2.5 } };
   }
   const contacts = [];
@@ -86,46 +95,71 @@ export function battleCamera(width, height, defenders, enemies, time = 0, previo
     x += contact.x * weight; z += contact.z * weight; total += weight;
   }
   const focus = { x: x / total, z: z / total };
+  const groundY = CAMERA_OFFSET.y / Math.hypot(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
+  function sourceMargins(unit) {
+    if (unit.kind === 'mage' || unit.role === 'ranged' && unit.faction === 'monsters') return { padding: .9, below: .3 };
+    if (unit.kind === 'archer' || unit.role === 'ranged') return { padding: .8, below: .25 };
+    if (['warrior', 'soldier', 'orc', 'slime'].includes(unit.kind) || ['grunt', 'raider', 'elite'].includes(unit.role)) return { padding: 1.1, below: .45 };
+    return { padding: .6, below: 0 };
+  }
+  const anchorsFor = (contact) => [{ x: contact.source.x, z: contact.source.z, ...sourceMargins(contact.source) }, contact.target];
+  function guardFor(points, side, top, bottom) {
+    const halfWidth = (width / 2 - side) / pixels;
+    const up = (height / 2 - top + (framing.focusY - 2.6) * CAMERA_Y * pixels) / (groundY * pixels);
+    const down = (height / 2 - bottom - framing.focusY * CAMERA_Y * pixels) / (groundY * pixels);
+    let minU = -Infinity, maxU = Infinity, minV = -Infinity, maxV = Infinity;
+    for (const point of points) {
+      const u = point.x * CAMERA_RIGHT.x + point.z * CAMERA_RIGHT.z;
+      const v = point.x * CAMERA_DOWN.x + point.z * CAMERA_DOWN.z;
+      const padding = point.padding ?? .6;
+      minU = Math.max(minU, u + padding - halfWidth); maxU = Math.min(maxU, u - padding + halfWidth);
+      minV = Math.max(minV, v - down + (point.below || 0) / groundY); maxV = Math.min(maxV, v + up);
+    }
+    return { minU, maxU, minV, maxV };
+  }
+  const pairFits = (contact) => {
+    const bounds = guardFor(anchorsFor(contact), 24, 38, 42);
+    return bounds.minU <= bounds.maxU && bounds.minV <= bounds.maxV;
+  };
+  const canFrameSource = (contact) => contact.distance <= 4.6 && pairFits(contact);
   // A dense melee group must not push its firing archer or mage offscreen.
   // Keep one related real attack, rather than widening to every distant flank.
   const ranged = front.filter((contact) => contact.actualTarget && contact.striking && contact.source.range > 1.5
-    && Math.hypot(contact.x - seed.x, contact.z - seed.z) <= 2.8);
+    && Math.hypot(contact.x - seed.x, contact.z - seed.z) <= 2.8 && canFrameSource(contact));
   let subject = ranged.find((contact) => contact.id === previousView?.subjectId && time < previousView.shotUntil);
   if (!subject && ranged.length) subject = ranged.reduce((best, contact) => {
     const score = (item) => Math.hypot(item.x - seed.x, item.z - seed.z) - (item.id === previousView?.subjectId ? .4 : 0);
     return score(contact) < score(best) ? contact : best;
   });
   subject ||= front.filter((contact) => contact.actualTarget && contact.striking
-    && Math.hypot(contact.x - seed.x, contact.z - seed.z) <= 2.8)
-    .sort((a, b) => Math.hypot(a.x - seed.x, a.z - seed.z) - Math.hypot(b.x - seed.x, b.z - seed.z))[0] || seed;
-  const anchors = subject.distance <= 4.6 ? [subject.source, subject.target] : [subject.target];
-  const groundY = CAMERA_OFFSET.y / Math.hypot(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
-  const halfWidth = (width / 2 - 32) / pixels;
-  const up = (height / 2 - 44 + (framing.focusY - 2.6) * CAMERA_Y * pixels) / (groundY * pixels);
-  const down = (height / 2 - 48 - framing.focusY * CAMERA_Y * pixels) / (groundY * pixels);
-  let minU = -Infinity, maxU = Infinity, minV = -Infinity, maxV = Infinity;
-  for (const point of anchors) {
-    const u = point.x * CAMERA_RIGHT.x + point.z * CAMERA_RIGHT.z;
-    const v = point.x * CAMERA_DOWN.x + point.z * CAMERA_DOWN.z;
-    minU = Math.max(minU, u + .6 - halfWidth); maxU = Math.min(maxU, u - .6 + halfWidth);
-    minV = Math.max(minV, v - down); maxV = Math.min(maxV, v + up);
-  }
-  const clamp = (value, min, max) => min <= max ? Math.max(min, Math.min(max, value)) : (min + max) / 2;
-  const u = clamp(focus.x * CAMERA_RIGHT.x + focus.z * CAMERA_RIGHT.z, minU, maxU);
-  const v = clamp(focus.x * CAMERA_DOWN.x + focus.z * CAMERA_DOWN.z, minV, maxV);
-  framing.guard = { minU, maxU, minV, maxV };
+    && Math.hypot(contact.x - seed.x, contact.z - seed.z) <= 2.8 && canFrameSource(contact))
+    .sort((a, b) => Math.hypot(a.x - seed.x, a.z - seed.z) - Math.hypot(b.x - seed.x, b.z - seed.z))[0];
+  subject ||= front.filter(canFrameSource).sort((a, b) => Math.hypot(a.x - seed.x, a.z - seed.z) - Math.hypot(b.x - seed.x, b.z - seed.z))[0] || seed;
+  const framedSource = canFrameSource(subject);
+  const anchors = framedSource ? anchorsFor(subject) : [subject.target];
+  const minimum = guardFor(anchors, 24, 38, 42), preferred = guardFor(anchors, 40, 48, 52);
+  // A long shot may fit the required margin without fitting the preferred
+  // extra space. Fall back per axis without changing the readable body scale.
+  framing.guard = {
+    minU: preferred.minU <= preferred.maxU ? preferred.minU : minimum.minU,
+    maxU: preferred.minU <= preferred.maxU ? preferred.maxU : minimum.maxU,
+    minV: preferred.minV <= preferred.maxV ? preferred.minV : minimum.minV,
+    maxV: preferred.minV <= preferred.maxV ? preferred.maxV : minimum.maxV,
+  };
+  framing.safeGuard = minimum;
   framing.subject = { subjectId: subject.id, subjectTeam: subject.team,
     subjectSource: { x: subject.source.x, z: subject.source.z }, subjectTarget: { x: subject.target.x, z: subject.target.z },
-    shotUntil: subject.actualTarget ? subject.source.attackAt + .45 : 0 };
-  return { framing, focus: { x: u * CAMERA_RIGHT.x + v * CAMERA_DOWN.x, z: u * CAMERA_RIGHT.z + v * CAMERA_DOWN.z } };
+    shotUntil: subject.actualTarget ? subject.source.attackAt + .45 : 0,
+    subjectFits: pairFits(subject), subjectFramedSource: framedSource,
+    subjectSourcePadding: sourceMargins(subject.source).padding, subjectSourceBelow: sourceMargins(subject.source).below };
+  return { framing, focus: clampBattleFocus(focus, framing.guard) };
 }
 
 export function followBattleCamera(current, focus, framing, dt, snap = false) {
   if (!current || snap) return { ...focus, span: framing.span, focusY: framing.focusY, playerX: focus.x, playerZ: focus.z, ...framing.subject };
   const dx = focus.x - current.x, dz = focus.z - current.z;
   const distance = Math.hypot(dx, dz);
-  // Ignore tiny target changes, then ease and cap travel. Unlike player blink
-  // following, a changed combat target never snaps the camera across the yard.
+  // Ease ordinary tracking before the minimum safe-margin correction below.
   const guard = framing.guard;
   const u = current.x * CAMERA_RIGHT.x + current.z * CAMERA_RIGHT.z;
   const v = current.x * CAMERA_DOWN.x + current.z * CAMERA_DOWN.z;
@@ -136,10 +170,11 @@ export function followBattleCamera(current, focus, framing, dt, snap = false) {
   const speed = critical ? 36 : Math.min(18, 5 + outside * 10);
   const travel = Math.min(Math.max(0, distance - .12) * (1 - Math.exp(-response * dt)), speed * dt);
   const scale = distance ? travel / distance : 0;
-  const zoom = 1 - Math.exp(-3 * dt);
-  return { x: current.x + dx * scale, z: current.z + dz * scale,
-    span: current.span + (framing.span - current.span) * zoom,
-    focusY: current.focusY + (framing.focusY - current.focusY) * zoom,
+  const eased = { x: current.x + dx * scale, z: current.z + dz * scale };
+  // Enforce the margin on the rendered view, including the first frame of a
+  // changed clash. This is the nearest safe correction, not a full focus cut.
+  const position = framing.safeGuard ? clampBattleFocus(eased, framing.safeGuard) : eased;
+  return { ...position, span: framing.span, focusY: framing.focusY,
     playerX: focus.x, playerZ: focus.z, ...framing.subject };
 }
 
