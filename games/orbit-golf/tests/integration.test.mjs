@@ -22,7 +22,7 @@ const sceneSource = `
     render(dt, run, mode, power, upgrades) {
       this.mode = mode; this.power = power; this.current = run;
       this.snapshot = run ? Object.fromEntries(
-        ['s','distance','x','vx','height','vy','speed','steer','spin','combo','collisions','maxHeight','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit'].map(key => [key,run[key]])
+        ['s','distance','x','vx','height','vy','speed','steer','spin','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit'].map(key => [key,run[key]])
       ) : null;
     }
   }
@@ -267,6 +267,53 @@ test('an unsteered shot ricochets and becomes airborne while collision feedback 
   assert.deepEqual(app.errors, []);
 });
 
+test('a launched obstacle creates physical chain feedback in the live HUD and final result', async t => {
+  const app = await game(t);
+  app.submit('우주 볼링'); app.launch();
+  let chainHUD = false, pausedBody = false;
+  for (let frame = 0; frame < 2400 && app.scene.mode === 'rolling'; frame++) {
+    app.tick();
+    chainHUD ||= !app.$('combo').hidden && /연쇄/.test(app.$('combo').textContent);
+    const body = app.scene.current.events.find(event => event.body?.active)?.body;
+    if (body && !pausedBody) {
+      const pose = () => JSON.stringify(['s','x','height','rx','ry','rz','vs','vx','vy'].map(key => body[key]));
+      const before = pose();
+      app.$('pause').click(); app.tick(20);
+      assert.equal(pose(), before, 'Paused play must freeze knocked props as well as the ball');
+      app.panelButton('계속').click(); app.tick(4);
+      assert.notEqual(pose(), before, 'A launched prop must resume actual motion rather than a canned hit pose');
+      pausedBody = true;
+    }
+  }
+  const chains = app.scene.feedback.filter(event => event?.kind === 'chain');
+  assert.ok(chains.length > 0, 'A deterministic unsteered shot must make a prop strike another prop');
+  assert.ok(chains.some(event => event.sourceId && event.eventId && event.sourceId !== event.eventId
+    && event.chainDepth >= 2 && ['s','x','height','strength'].every(key => Number.isFinite(event[key]))),
+  'The scene must receive the source, struck prop, causal depth and actual impact pose');
+  assert.ok(chainHUD, 'A real prop collision must be visible as chain feedback during play');
+  assert.ok(pausedBody, 'The real controller must expose a moving obstacle during the shot');
+  assert.equal(app.$('panel').dataset.type, 'result');
+  assert.ok(app.scene.snapshot.chainHits >= chains.length);
+  assert.ok(app.scene.snapshot.maxChain >= 2);
+  assert.match(app.$('chain-summary').textContent, /연쇄/);
+  assert.deepEqual(app.errors, []);
+});
+
+test('the widened track permits free continuous travel beyond the former side rails', async t => {
+  const app = await game(t);
+  app.submit('넓게 튀자'); app.input('aim-control', 24); app.launch();
+  app.input('spin-control', 1);
+  let widest = Math.abs(app.scene.snapshot.x);
+  for (let frame = 0; frame < 180 && app.scene.mode === 'rolling'; frame++) {
+    app.tick(); widest = Math.max(widest, Math.abs(app.scene.snapshot.x));
+    assert.ok(Math.abs(app.scene.snapshot.x) <= 8.851, 'The ball must stay inside the widened physical rails');
+  }
+  app.pointer('spin-control', 'pointerup'); app.tick();
+  assert.ok(widest > 3.6, `The ball must use space beyond the former 3.05m side rail (${widest}m)`);
+  assert.equal(app.scene.snapshot.steer, 0);
+  assert.deepEqual(app.errors, []);
+});
+
 test('preview plays and upgrades in memory without reading or writing the existing user save', async t => {
   const stored = JSON.stringify(profile({
     name: '실제 파일럿', gold: 9876, upgrades: { pilot: 4, ball: 5 },
@@ -333,7 +380,10 @@ test('visibility pause freezes progress, banks once, and resumes only through th
   assert.equal(app.scene.snapshot.elapsed, before.elapsed, 'Paused wall time must not consume the active-play limit');
   app.panelButton('계속').click(); app.tick();
   assert.equal(app.scene.mode, 'rolling');
-  assert.ok(app.scene.snapshot.distance > before.distance);
+  assert.ok(app.scene.snapshot.elapsed > before.elapsed, 'Resume must restart the physical simulation');
+  assert.ok(['s','x','height'].some(key => app.scene.snapshot[key] !== before[key]),
+    'A resumed ball must move even when a collision sends it backwards below its best distance');
+  assert.ok(Math.abs(app.scene.snapshot.s - before.s) < 10, 'Hidden elapsed time must not jump the physical position');
   assert.ok(app.scene.snapshot.distance - before.distance < 10, 'Hidden elapsed time must not advance the run on resume');
   app.$('pause').click();
   app.panelButton('비행 마치기').click();

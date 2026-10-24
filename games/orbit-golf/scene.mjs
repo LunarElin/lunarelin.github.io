@@ -1,11 +1,12 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventX } from './rules.mjs?v=20261024-pinball1';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261024-chain1';
 
 const TAU = Math.PI * 2;
 export const WHEEL_RADIUS = 23;
 export const BALL_HEIGHT = 1.08;
 const R = WHEEL_RADIUS;
+const HALF_WIDTH = TRACK_WIDTH / 2;
 const THEMES = [0x64e8d6, 0xc29aff, 0xffb575, 0x9eff86];
 const CENTERS = [[0,0,0],[-72,8,12],[62,-12,-45]];
 const BALL_COLORS = [0xf6fbff,0x83ffe0,0xffda79,0xd4a1ff,0xffa3c0,0x9edcff];
@@ -48,7 +49,7 @@ export class OrbitScene {
     this.models = {}; this.loader = new GLTFLoader(); this.abort = false;
     this.astronaut = this.fallbackAstronaut(); this.scene.add(this.astronaut);
     this.loadModels();
-    this.previewEvents=[{id:'preview1',at:72,x:0,type:'bumper'},{id:'preview2',at:48,x:2,type:'coins'},{id:'preview3',at:105,x:-1.8,type:'spring'},{id:'preview4',at:155,x:0,type:'punch'},{id:'preview5',at:215,x:1.8,type:'alien'}];
+    this.previewEvents=[{id:'preview1',at:72,x:0,type:'bumper'},{id:'preview2',at:48,x:5,type:'coins'},{id:'preview3',at:82,x:-3.5,type:'alien'},{id:'preview4',at:92,x:2.2,type:'spring'},{id:'preview5',at:155,x:6,type:'punch'},{id:'preview6',at:215,x:-6,type:'alien'}];
     this.x = 0; this.distance = 0; this.lastTrack = -1; this.time = 0; this.impact = 0; this.frame = 0;
     this.look = new THREE.Vector3(); this.cameraTarget = new THREE.Vector3();
     this.resize();
@@ -71,9 +72,9 @@ export class OrbitScene {
   buildTrack() {
     // An open cylinder on its side: the ball runs on its inward-facing tread.
     const tread=mat(0x315c6c,.66,.35);tread.side=THREE.BackSide;
-    this.cylinder(R,8.4,tread).name='inner-tread';
-    this.cylinder(R+.6,8.4,mat(0x14283d,.55,.65)).name='outer-shell';
-    for(const x of [-4.3,4.3]) {
+    this.cylinder(R,TRACK_WIDTH,tread).name='inner-tread';
+    this.cylinder(R+.6,TRACK_WIDTH,mat(0x14283d,.55,.65)).name='outer-shell';
+    for(const x of [-HALF_WIDTH-.1,HALF_WIDTH+.1]) {
       this.rim(R+.25,x,.38,mat(0x456476,.45,.65));
       this.rim(R-.1,x,.11,this.railMaterial);
       const edgeMaterial=mat(0x527886,.5,.55);edgeMaterial.side=THREE.DoubleSide;
@@ -82,30 +83,31 @@ export class OrbitScene {
     }
     // The side cushions extend inward as a visible energy guard for airborne banks.
     this.guardMaterial=new THREE.MeshBasicMaterial({color:0x9dfff0,side:THREE.DoubleSide,transparent:true,opacity:.035,depthWrite:false});
-    for(const x of [-4.2,4.2]) {
+    for(const x of [-HALF_WIDTH,HALF_WIDTH]) {
       const guard=this.mesh(new THREE.RingGeometry(R-9,R+.25,96),this.guardMaterial);guard.rotation.y=Math.PI/2;guard.position.x=x;
       for(let i=0;i<12;i++){const angle=i/12*TAU,post=this.mesh(new THREE.BoxGeometry(.055,8.8,.055),glow(0x5ef3de,.35));post.position.set(x,-Math.cos(angle)*(R-4.4),Math.sin(angle)*(R-4.4));post.rotation.x=-angle;}
     }
     const instance=new THREE.Object3D();
-    const ribs=new THREE.InstancedMesh(new THREE.BoxGeometry(8.15,.09,.2),mat(0x477d87,.7,.4),72);this.track.add(ribs);
+    const ribs=new THREE.InstancedMesh(new THREE.BoxGeometry(TRACK_WIDTH-.25,.09,.2),mat(0x477d87,.7,.4),72);this.track.add(ribs);
     for(let i=0;i<72;i++) {
       const a=i/72*TAU;instance.position.set(0,-Math.cos(a)*(R-.04),Math.sin(a)*(R-.04));
       instance.rotation.set(-a,0,0);instance.updateMatrix();ribs.setMatrixAt(i,instance.matrix);
     }
     // Broad, staggered floor plates replace the old three-lane markings.
-    const plates=new THREE.InstancedMesh(new THREE.BoxGeometry(1.95,.035,1.9),mat(0x467e87,.72,.25),144);plates.name='staggered-floor-plates';this.track.add(plates);
+    const columns=10,tileWidth=TRACK_WIDTH/columns;
+    const plates=new THREE.InstancedMesh(new THREE.BoxGeometry(tileWidth-.08,.035,1.9),mat(0x467e87,.72,.25),36*columns);plates.name='staggered-floor-plates';this.track.add(plates);
     let plateIndex=0;
-    for(let i=0;i<36;i++)for(let j=0;j<4;j++) {
-      const a=(i+(j%2)*.5)/36*TAU;instance.position.set((j-1.5)*2.02,-Math.cos(a)*(R-.06),Math.sin(a)*(R-.06));
+    for(let i=0;i<36;i++)for(let j=0;j<columns;j++) {
+      const a=(i+(j%2)*.5)/36*TAU;instance.position.set((j-(columns-1)/2)*tileWidth,-Math.cos(a)*(R-.06),Math.sin(a)*(R-.06));
       instance.rotation.set(-a,0,0);instance.updateMatrix();plates.setMatrixAt(plateIndex++,instance.matrix);
     }
     // Rear spokes and a hub make the vertical hamster-wheel silhouette unmistakable.
     for(let i=0;i<3;i++) {
       const spoke=this.mesh(new THREE.BoxGeometry(.45,R*2,.48),mat(0x334e65,.6,.6));
-      spoke.position.x=-4.7;spoke.rotation.x=i*Math.PI/3;
+      spoke.position.x=-HALF_WIDTH-.5;spoke.rotation.x=i*Math.PI/3;
     }
     const hub=this.mesh(new THREE.CylinderGeometry(1.3,1.3,1.3,20),mat(0x9cb3bc,.35,.7));
-    hub.rotation.z=Math.PI/2;hub.position.x=-4.7;
+    hub.rotation.z=Math.PI/2;hub.position.x=-HALF_WIDTH-.5;
     for(let i=0;i<8;i++) {
       const a=i/8*TAU,pod=new THREE.Group();this.track.add(pod);
       pod.position.set(0,-Math.cos(a)*(R+1),Math.sin(a)*(R+1));pod.rotation.x=-a;
@@ -127,8 +129,8 @@ export class OrbitScene {
     for(let j=0;j<CENTERS.length;j++) {
       const distant=new THREE.Group();distant.position.fromArray(CENTERS[j]);this.scene.add(distant);
       const material=mat(j===1?0x4d396a:0x234f61,.6,.6);material.side=THREE.DoubleSide;
-      this.cylinder(R,8.4,material,distant);
-      for(const x of [-4.3,4.3])this.rim(R,x,.23,glow(j===1?0x9c7dff:0x51b4c9,.7),distant);
+      this.cylinder(R,TRACK_WIDTH,material,distant);
+      for(const x of [-HALF_WIDTH-.1,HALF_WIDTH+.1])this.rim(R,x,.23,glow(j===1?0x9c7dff:0x51b4c9,.7),distant);
       this.distantTracks.push(distant);
     }
     this.saturn=planet;
@@ -192,7 +194,11 @@ export class OrbitScene {
       const tray=this.mesh(new THREE.BoxGeometry(1.8,.12,1.3),mat(0xffcc7e,.55,.2),visual);tray.position.set(0,.5,-.6);
       for(const sign of [-1,1]){const foot=this.mesh(new THREE.SphereGeometry(.3,10,6),mat(0x6a8d67),visual);foot.scale.z=1.4;foot.position.set(sign*.45,.2,-.1);}
     }
-    g.position.copy(this.position(event.at,eventX(event,0),0));g.rotation.x=-event.at/360*TAU;g.userData={type,event,visual};return g;
+    // Rotate every flying object about its collider center, never its old floor anchor.
+    for(const child of visual.children)child.position.y-=h;
+    visual.position.y=h;
+    const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-pose.s/360*TAU;
+    g.userData={type,event,visual,centerHeight:h};return g;
   }
   syncEvents(events,track) {
     if(this.lastTrack===track&&this.lastEvents===events)return;this.lastTrack=track;this.lastEvents=events;
@@ -202,19 +208,25 @@ export class OrbitScene {
   }
   burst(feedback={type:'shot',strength:1}) {
     if(typeof feedback==='string')feedback={type:feedback==='bad'?'comet':'shot',strength:1};
-    const strength=Math.min(1.5,Math.max(.2,feedback.strength||1));this.impact=Math.max(this.impact||0,strength);this.squash=Math.max(this.squash||0,strength);
+    const strength=Math.min(1.5,Math.max(.2,feedback.strength||1)),chain=feedback.kind==='chain';
+    this.impact=Math.max(this.impact||0,strength*(chain?.4:1));if(!chain)this.squash=Math.max(this.squash||0,strength);
     if(feedback.type==='rail')this.railPulse=1;
     this.hitAnimations||=new Map();if(feedback.eventId)this.hitAnimations.set(feedback.eventId,{life:.9,total:.9,type:feedback.type,strength});
-    const color=feedback.type==='comet'?0xffa285:feedback.type==='landing'?0xc0dfe1:feedback.type==='punch'?0xff92c3:0xd7ff87;
+    const color=chain?0xffd86b:feedback.type==='comet'?0xffa285:feedback.type==='landing'?0xc0dfe1:feedback.type==='punch'?0xff92c3:0xd7ff87;
     const distance=Number.isFinite(feedback.s)?feedback.s:this.distance||0,a=distance/360*TAU;
     const origin=Number.isFinite(feedback.s)?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):this.ball.position.clone();
     const inward=new THREE.Vector3(0,Math.cos(a),-Math.sin(a)),forward=new THREE.Vector3(0,Math.sin(a),Math.cos(a));
     this.effectGeometry||=new THREE.OctahedronGeometry(.14);this.effects||=[];
-    const count=feedback.type==='landing'?10:feedback.type==='shot'?22:16;
+    const count=feedback.type==='landing'?10:feedback.type==='shot'?22:chain?20:16,palette=[0xffd86b,0xff8cc8,0x8fffe3,0xffffff];
     for(let i=0;i<count;i++) {
-      const mesh=new THREE.Mesh(this.effectGeometry,new THREE.MeshBasicMaterial({color,transparent:true,opacity:1}));mesh.position.copy(origin);this.scene.add(mesh);
+      const mesh=new THREE.Mesh(this.effectGeometry,new THREE.MeshBasicMaterial({color:chain?palette[i%palette.length]:color,transparent:true,opacity:1,depthWrite:false}));mesh.position.copy(origin);this.scene.add(mesh);
       const velocity=inward.clone().multiplyScalar(2+Math.random()*6*strength).addScaledVector(forward,(Math.random()-.5)*10*strength);velocity.x=(Math.random()-.5)*12*strength;
       this.effects.push({mesh,life:.6,total:.6,v:velocity,gravity:inward.clone().multiplyScalar(-10)});
+    }
+    if(chain){
+      this.chainGeometry||=new THREE.TorusGeometry(.5,.055,6,24);
+      const mesh=new THREE.Mesh(this.chainGeometry,new THREE.MeshBasicMaterial({color,transparent:true,opacity:1,depthWrite:false}));mesh.position.copy(origin);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),inward);this.scene.add(mesh);
+      this.effects.push({mesh,life:.45,total:.45,v:new THREE.Vector3(),gravity:new THREE.Vector3(),ring:true});
     }
     while(this.effects.length>80){const effect=this.effects.shift();this.scene.remove(effect.mesh);effect.mesh.material.dispose();}
   }
@@ -222,27 +234,26 @@ export class OrbitScene {
     this.hitAnimations||=new Map();
     for(const [id,hit] of this.hitAnimations){hit.life-=dt;if(hit.life<=0)this.hitAnimations.delete(id);}
     for(const mesh of this.eventMeshes.values()) {
-      const {event,visual,type}=mesh.userData,hit=this.hitAnimations.get(event.id),ahead=event.at-this.distance;
-      mesh.visible=(!event.used||Boolean(hit))&&(!active||(ahead>-45&&ahead<170));
-      mesh.position.copy(this.position(event.at,eventX(event,active?run.elapsed:this.time),0));mesh.rotation.x=-event.at/360*TAU;
-      visual.position.set(0,0,0);visual.rotation.set(0,0,0);visual.scale.setScalar(1);
+      const {event,visual,type,centerHeight}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=eventPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
+      const flying=Boolean(event.body?.active),sameWheel=!active||!event.body||event.body.wheel===run.wheel;
+      mesh.visible=sameWheel&&(flying||!event.used||Boolean(hit)&&!event.body)&&(!active||(ahead>-65&&ahead<190));
+      mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-pose.s/360*TAU;
+      visual.position.set(0,centerHeight,0);visual.rotation.set(pose.rx||0,pose.ry||0,pose.rz||0);visual.scale.setScalar(1);
       const wobble=Math.sin(this.time*3+event.at);
-      if(type==='alien'){visual.rotation.z=wobble*.12;visual.position.y=Math.abs(wobble)*.12;}
-      else if(type==='punch'){visual.rotation.z=wobble*.08;visual.position.z=Math.sin(this.time*4+(event.phase||0))*.12;}
-      else if(type==='spring')visual.scale.y=1+Math.sin(this.time*4+event.at)*.08;
-      else if(type==='ufo'){visual.position.y=wobble*.2;visual.rotation.y=this.time*.6;}
-      else if(type==='trap'){visual.scale.set(1+wobble*.08,1-wobble*.12,1);}
-      else if(type==='coins')visual.rotation.y=this.time*2;
+      if(!flying){
+        if(type==='alien')visual.rotation.z+=wobble*.12;
+        else if(type==='punch')visual.rotation.z+=wobble*.08;
+        else if(type==='spring')visual.scale.y=1+Math.sin(this.time*4+event.at)*.08;
+        else if(type==='ufo')visual.rotation.y+=this.time*.6;
+        else if(type==='trap')visual.scale.set(1+wobble*.08,1-wobble*.12,1);
+        else if(type==='coins')visual.rotation.y+=this.time*2;
+      }
       if(!hit)continue;
-      const progress=1-hit.life/hit.total,pulse=Math.sin(progress*Math.PI),direction=event.x>=0?1:-1;
-      if(type==='alien'||type==='comet') {
-        visual.position.set(direction*progress*3.2,pulse*(type==='alien'?4.2:2.8),progress*1.5);
-        visual.rotation.set(progress*TAU*1.5,progress*2,progress*TAU*direction);
-      }else if(type==='spring')visual.scale.set(1+pulse*.22,1-pulse*.55,1+pulse*.22);
-      else if(type==='punch'){visual.position.z=-pulse*1.7;visual.rotation.z=pulse*-.45;}
+      const progress=1-hit.life/hit.total,pulse=Math.sin(progress*Math.PI);
+      if(type==='spring')visual.scale.set(1+pulse*.22,1-pulse*.55,1+pulse*.22);
+      else if(type==='punch')visual.scale.set(1+pulse*.2,1-pulse*.1,1+pulse*.4);
       else if(type==='bumper'||type==='trap')visual.scale.set(1+pulse*.3,1-pulse*.38,1+pulse*.3);
-      else if(type==='coins'){visual.position.y=progress*3;visual.scale.setScalar(1-progress*.8);}
-      else if(type==='ufo')visual.position.y=progress*6;
+      else if(type==='coins')visual.scale.setScalar(1-progress*.8);
     }
   }
   render(dt,run,mode='lobby',power=0,upgrades={pilot:0,ball:0}) {
@@ -277,26 +288,27 @@ export class OrbitScene {
     // Keep the angular position exact so fast loops never outrun the camera.
     const aim=mode==='ready'?0:18;
     this.cameraAim??=aim;this.cameraAim+=(aim-this.cameraAim)*Math.min(1,dt*7);
-    this.cameraX??=this.x;this.cameraX+=(this.x-this.cameraX)*Math.min(1,dt*9);this.cameraX=Math.max(this.x-1,Math.min(this.x+1,this.cameraX));
+    this.cameraX??=this.x;this.cameraX+=(this.x-this.cameraX)*Math.min(1,dt*10);this.cameraX=Math.max(this.x-.75,Math.min(this.x+.75,this.cameraX));
     const fit=this.mobile?Math.max(1,1/this.camera.aspect/1.7):1;
-    const target=active?this.position(this.distance-60,this.cameraX*(.6+Math.min(.3,airborne*.06)),9+airborne*.55):this.center.clone().add(new THREE.Vector3((this.mobile?76:69)*fit,10,25));
-    const look=active?this.position(this.distance+this.cameraAim,this.cameraX*(.3+Math.min(.4,airborne*.06)),1+airborne*.85):this.center.clone().add(new THREE.Vector3(this.mobile?0:-8,this.mobile?2:1,this.mobile?0:8));
+    const ready=mode==='ready',behind=ready?60:72,camHeight=ready?9:10;
+    const target=active?this.position(this.distance-behind,this.cameraX*.9,camHeight+airborne*.55):this.center.clone().add(new THREE.Vector3((this.mobile?88:77)*fit,10,25));
+    const look=active?this.position(this.distance+this.cameraAim,this.cameraX*.9,1+airborne*.85):this.center.clone().add(new THREE.Vector3(this.mobile?0:-8,this.mobile?2:1,this.mobile?0:8));
     if(active||this.frame<3){this.camera.position.copy(target);this.look.copy(look);}else{this.camera.position.lerp(target,Math.min(1,dt*4));this.look.lerp(look,Math.min(1,dt*4));}
     const up=active?new THREE.Vector3(0,Math.cos(a),-Math.sin(a)):new THREE.Vector3(0,1,0);
     this.impact=Math.max(0,(this.impact||0)-animDt*4);if(this.impact&&rolling&&!this.reducedMotion){this.camera.position.addScaledVector(up,Math.sin(this.time*92)*this.impact*.2);this.camera.position.x+=Math.cos(this.time*75)*this.impact*.08;}
     this.railPulse=Math.max(0,(this.railPulse||0)-animDt*4);if(this.guardMaterial)this.guardMaterial.opacity=.035+this.railPulse*.12;
-    this.camera.up.copy(up);this.camera.lookAt(this.look);const fov=active?(this.mobile?70:60)+(this.reducedMotion?0:Math.min(9,speed*.055)):(this.mobile?60:47);
+    this.camera.up.copy(up);this.camera.lookAt(this.look);const fov=active?(this.mobile?(ready?70:74):(ready?60:62))+(this.reducedMotion?0:Math.min(9,speed*.055)):(this.mobile?60:47);
     this.camera.fov+=(fov-this.camera.fov)*Math.min(1,dt*5);this.camera.updateProjectionMatrix();
     this.trailHistory||=[];if(this.lastWheel!==orbit||!rolling)this.trailHistory.length=0;this.lastWheel=orbit;
     if(rolling){this.trailHistory.unshift(pos.clone());if(this.trailHistory.length>32)this.trailHistory.pop();}
     for(let i=0;i<this.trail.length;i++){const trail=this.trail[i],history=this.trailHistory[i*2];trail.material.opacity=rolling&&history?(.5-i*.028):0;trail.material.color.setHex(BALL_COLORS[upgrades.ball||0]);if(history)trail.position.copy(history);trail.scale.setScalar(1.6-i*.075);}
     if(this.streaks){const intensity=rolling&&!this.reducedMotion?Math.min(1,Math.max(0,(speed-28)/95)):0;this.streaks.material.opacity=intensity*.5;this.streaks.visible=intensity>0;
-      const positions=this.streakGeometry.attributes.position;for(let i=0;i<36;i++){const s=this.distance+((i*17.73-this.time*speed*1.6)%95+95)%95-8,x=(i%2?1:-1)*(5+(i%7)*.9),h=3+(i%9)*1.2;const start=this.position(s,x,h),end=this.position(s+3+intensity*5,x,h);positions.setXYZ(i*2,start.x,start.y,start.z);positions.setXYZ(i*2+1,end.x,end.y,end.z);}positions.needsUpdate=true;
+      const positions=this.streakGeometry.attributes.position;for(let i=0;i<36;i++){const s=this.distance+((i*17.73-this.time*speed*1.6)%95+95)%95-8,x=(i%2?1:-1)*(HALF_WIDTH+1+(i%7)*.9),h=3+(i%9)*1.2;const start=this.position(s,x,h),end=this.position(s+3+intensity*5,x,h);positions.setXYZ(i*2,start.x,start.y,start.z);positions.setXYZ(i*2+1,end.x,end.y,end.z);}positions.needsUpdate=true;
     }
     this.animateEvents(animDt,run,active);
-    for(let i=this.effects.length-1;i>=0;i--){const effect=this.effects[i];effect.life-=animDt;effect.mesh.position.addScaledVector(effect.v,animDt);effect.v.addScaledVector(effect.gravity,animDt);effect.mesh.material.opacity=Math.max(0,effect.life/effect.total);effect.mesh.scale.setScalar(1+(1-effect.life/effect.total)*1.5);if(effect.life<=0){this.scene.remove(effect.mesh);effect.mesh.material.dispose();this.effects.splice(i,1);}}
+    for(let i=this.effects.length-1;i>=0;i--){const effect=this.effects[i];effect.life-=animDt;effect.mesh.position.addScaledVector(effect.v,animDt);effect.v.addScaledVector(effect.gravity,animDt);effect.mesh.material.opacity=Math.max(0,effect.life/effect.total);effect.mesh.scale.setScalar(1+(1-effect.life/effect.total)*(effect.ring?5:1.5));if(effect.life<=0){this.scene.remove(effect.mesh);effect.mesh.material.dispose();this.effects.splice(i,1);}}
     this.renderer.render(this.scene,this.camera);
   }
   disposeObject(object,skipModels=false) {object.traverse(o=>{if(!o.isMesh&&!o.isLine&&!o.isPoints)return;if(skipModels&&Object.values(this.models||{}).some(m=>{let yes=false;m.traverse(n=>{if(n.geometry===o.geometry)yes=true;});return yes;}))return;o.geometry?.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material?.dispose();});}
-  dispose(){this.abort=true;this.disposeObject(this.scene);for(const model of Object.values(this.models))this.disposeObject(model);this.effectGeometry.dispose();this.hitAnimations?.clear();if(this.trailHistory)this.trailHistory.length=0;this.effects.length=0;this.renderer.dispose();}
+  dispose(){this.abort=true;this.disposeObject(this.scene);for(const model of Object.values(this.models))this.disposeObject(model);this.effectGeometry.dispose();this.chainGeometry?.dispose();this.hitAnimations?.clear();if(this.trailHistory)this.trailHistory.length=0;this.effects.length=0;this.renderer.dispose();}
 }

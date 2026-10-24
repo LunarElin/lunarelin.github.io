@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../assets/vendor/three.module.js';
 import { OrbitScene, WHEEL_RADIUS, BALL_HEIGHT } from '../scene.mjs';
-import { newProfile, newRun, eventX } from '../rules.mjs';
+import { newProfile, newRun, eventPose, TRACK_WIDTH, SIDE_LIMIT } from '../rules.mjs';
 
 // Actual Three.js geometry, camera and animation math; no GPU/device claims.
 function harness(width=390,height=844) {
@@ -10,7 +10,7 @@ function harness(width=390,height=844) {
   Object.assign(scene,{
     scene:new THREE.Scene(),camera:new THREE.PerspectiveCamera(width<650?70:60,width/height,.1,650),
     renderer:{render(){},dispose(){this.disposed=true;}},railMaterial:new THREE.MeshStandardMaterial(),
-    models:{},track:new THREE.Group(),ball:new THREE.Group(),
+    models:{},track:new THREE.Group(),distantTracks:[],ball:new THREE.Group(),
     ballBody:new THREE.Mesh(new THREE.SphereGeometry(1.05),new THREE.MeshStandardMaterial()),
     shadow:new THREE.Mesh(new THREE.CircleGeometry(.78),new THREE.MeshBasicMaterial()),
     astronaut:new THREE.Group(),eventGroup:new THREE.Group(),eventMeshes:new Map(),
@@ -26,7 +26,7 @@ const viewports=[[320,568],[320,844],[390,844],[1440,900]];
 
 test('continuous x and airborne height map directly without snapping to lanes',()=>{
   const scene=harness(),run=runFixture();
-  for(const s of [-13.2,0,53.7,180,381.4])for(const x of [-2.87,-.43,.27,1.615,2.93])for(const height of [0,2.7,6]) {
+  for(const s of [-13.2,0,53.7,180,381.4])for(const x of [-SIDE_LIMIT,-.43,.27,6.615,SIDE_LIMIT])for(const height of [0,2.7,6]) {
     const point=scene.position(s,x,BALL_HEIGHT+height);assert.equal(point.x,-x);
     assert.ok(Math.abs(Math.hypot(point.y,point.z)-(WHEEL_RADIUS-BALL_HEIGHT-height))<1e-8);
   }
@@ -39,7 +39,7 @@ test('continuous x and airborne height map directly without snapping to lanes',(
 test('chase framing retains the airborne ball around the whole wheel on mobile and desktop',()=>{
   for(const [width,height] of viewports) {
     const scene=harness(width,height),run=runFixture();run.speed=160;
-    for(const air of [0,2.5,6,8])for(const x of [-2.95,0,2.95])for(let s=0;s<360;s+=10) {
+    for(const air of [0,2.5,6,8])for(const x of [-SIDE_LIMIT,0,SIDE_LIMIT])for(let s=0;s<360;s+=10) {
       run.s=s;run.x=x;run.height=air;const point=frame(scene,run);
       assert.ok(Math.abs(point.x)<.8,'horizontal frame '+width+', x '+x+', air '+air);
       assert.ok(point.y>-.75&&point.y<.2,'vertical frame '+width+', air '+air+': '+point.y);
@@ -64,13 +64,13 @@ test('ready mode clears mobile launch controls and transitions without a sudden 
 
 test('arbitrary left and right positions retain screen direction through a full loop',()=>{
   const scene=harness(),run=runFixture();
-  for(let s=0;s<360;s+=15){const positions=[];for(const x of [-2.37,-.63,.49,2.64]){run.s=s;run.x=x;positions.push(frame(scene,run).x);}assert.ok(positions.every((x,i)=>i===0||x>positions[i-1]),'steering reverses at '+s);}
+  for(let s=0;s<360;s+=15){const positions=[];for(const x of [-8.37,-2.63,1.49,8.64]){run.s=s;run.x=x;positions.push(frame(scene,run).x);}assert.ok(positions.every((x,i)=>i===0||x>positions[i-1]),'steering reverses at '+s);}
 });
 
 test('actual wheel geometry never occludes ground or airborne balls across four viewports',()=>{
   for(const [width,height] of viewports) {
     const scene=harness(width,height),run=runFixture();scene.buildTrack();const ray=new THREE.Raycaster();
-    for(const x of [-2.95,0,2.95])for(const air of [0,3,7])for(let s=0;s<360;s+=15) {
+    for(const x of [-SIDE_LIMIT,0,SIDE_LIMIT])for(const air of [0,3,7])for(let s=0;s<360;s+=15) {
       run.x=x;run.height=air;run.s=s;frame(scene,run);scene.track.updateMatrixWorld(true);
       const direction=scene.ball.position.clone().sub(scene.camera.position),front=direction.length()-1.05;ray.set(scene.camera.position,direction.normalize());
       assert.ok(!ray.intersectObject(scene.track,true).some(hit=>hit.distance<front-1e-6),'occlusion '+width+'x'+height+', s '+s+', x '+x+', air '+air);
@@ -79,24 +79,48 @@ test('actual wheel geometry never occludes ground or airborne balls across four 
   }
 });
 
-test('animated props share exact moving collider x and used aliens cartwheel before disappearing',()=>{
+test('static props share their collider poses across the expanded width',()=>{
   const scene=harness(),run=runFixture();run.s=20;
   run.events=['alien','punch','bumper','spring','trap'].map((type,i)=>({id:type,type,at:40+i*20,x:.43,radius:.9,height:1.05,phase:.7,used:false}));
-  for(const elapsed of [0,.37,1.4,2.9]){run.elapsed=elapsed;frame(scene,run);for(const event of run.events){const mesh=scene.eventMeshes.get(event.id);assert.ok(Math.abs(mesh.position.x+eventX(event,elapsed))<1e-8);assert.ok(mesh.userData.visual.children.length>0);}}
-  const alien=run.events[0];alien.used=true;scene.burst({type:'alien',eventId:alien.id,s:35,x:.7,height:0,strength:1.1});frame(scene,run,'rolling',.2);
-  const mesh=scene.eventMeshes.get(alien.id);assert.equal(mesh.visible,true);assert.ok(mesh.userData.visual.position.y>1);assert.ok(Math.abs(mesh.userData.visual.rotation.x)>1);
-  frame(scene,run,'rolling',1);assert.equal(mesh.visible,false);assert.equal(scene.hitAnimations.size,0);
+  for(const elapsed of [0,.37,1.4,2.9]){run.elapsed=elapsed;frame(scene,run);for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,elapsed);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.ok(mesh.userData.visual.children.length>0);}}
 });
 
-test('gloves extend while rubber bumpers and springs physically squash on contact',()=>{
+test('flying props follow actual body position and orientation through a chain without cosmetic teleporting',()=>{
+  const scene=harness(),run=runFixture();run.s=70;
+  run.events=['alien','punch','bumper'].map((type,index)=>({id:type,type,at:80+index*5,x:0,height:1.05,used:true,body:{active:true,wheel:0,s:90+index*7,x:7-index*4,height:2+index,rx:.7+index,ry:1.3,rz:-.4,life:3}}));
+  for(const event of run.events)scene.burst({kind:'chain',type:event.type,eventId:event.id,s:event.body.s,x:event.body.x,height:event.body.height,strength:1.3,chainDepth:3});
+  frame(scene,run,'rolling',.2);scene.scene.updateMatrixWorld(true);
+  for(const event of run.events){
+    const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed),visual=mesh.userData.visual;
+    assert.equal(mesh.visible,true);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);
+    assert.ok(visual.getWorldPosition(new THREE.Vector3()).distanceTo(scene.position(pose.s,pose.x,pose.height+event.height))<1e-8,'tumble pivot must remain at collider center');
+    assert.ok(Math.abs(visual.rotation.x-pose.rx)<1e-8&&Math.abs(visual.rotation.y-pose.ry)<1e-8&&Math.abs(visual.rotation.z-pose.rz)<1e-8);
+    event.body.s+=9;event.body.x-=.7;event.body.height+=.6;event.body.rx+=2;
+  }
+  frame(scene,run,'rolling',1.1);
+  for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed);assert.equal(mesh.visible,true,'physical lifetime must outlast short hit effect');assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);}
+  run.events[0].body.active=false;frame(scene,run);assert.equal(scene.eventMeshes.get('alien').visible,false);
+  run.events[1].body.wheel=1;frame(scene,run);assert.equal(scene.eventMeshes.get('punch').visible,false,'warped wheels must not inherit flying bodies');
+});
+
+test('contact deformation leaves the body collider center fixed while gloves and rubber react',()=>{
   const scene=harness(),run=runFixture();run.s=20;run.events=['punch','bumper','spring'].map((type,i)=>({id:type,type,at:30+i*10,x:0,used:false}));frame(scene,run);
   for(const event of run.events)scene.burst({type:event.type,eventId:event.id,strength:1});frame(scene,run,'rolling',.2);
-  assert.ok(scene.eventMeshes.get('punch').userData.visual.position.z<-.5);assert.ok(scene.eventMeshes.get('bumper').userData.visual.scale.y<.9);assert.ok(scene.eventMeshes.get('spring').userData.visual.scale.y<.8);
+  assert.ok(scene.eventMeshes.get('punch').userData.visual.scale.z>1.1);assert.ok(scene.eventMeshes.get('bumper').userData.visual.scale.y<.9);assert.ok(scene.eventMeshes.get('spring').userData.visual.scale.y<.8);
+  for(const mesh of scene.eventMeshes.values()){assert.equal(mesh.userData.visual.position.z,0);assert.equal(mesh.userData.visual.position.x,0);assert.equal(mesh.userData.visual.position.y,mesh.userData.centerHeight);}
 });
 
 test('impact particles remain bounded, freeze while paused and expire promptly',()=>{
   const scene=harness(),run=runFixture();frame(scene,run);for(let i=0;i<10;i++)scene.burst({type:'punch',strength:1.4});assert.equal(scene.effects.length,80);
   const life=scene.effects[0].life;frame(scene,run,'paused',1);assert.equal(scene.effects[0].life,life);frame(scene,run,'rolling',1);assert.equal(scene.effects.length,0);
+});
+
+test('secondary collisions create colorful bounded shock rings without squashing the remote ball',()=>{
+  const scene=harness(),run=runFixture();frame(scene,run);scene.squash=0;
+  for(let index=0;index<8;index++)scene.burst({kind:'chain',type:'bumper',s:30+index,x:4,height:1,strength:1.4,chainDepth:4});
+  assert.equal(scene.effects.length,80);assert.equal(scene.squash,0);assert.ok(scene.effects.some(effect=>effect.ring));
+  const colors=new Set(scene.effects.filter(effect=>!effect.ring).map(effect=>effect.mesh.material.color.getHex()));assert.ok(colors.size>=3);
+  frame(scene,run,'rolling',1);assert.equal(scene.effects.length,0);
 });
 
 test('the trail records actual sideways airborne and backwards paths and clears on warp',()=>{
@@ -116,13 +140,20 @@ test('the open tread uses broad staggered plates and the lobby retains a complet
   for(const [width,height] of viewports) {
     const scene=harness(width,height);scene.buildTrack();scene.render(1/60,null,'lobby');scene.track.updateMatrixWorld(true);scene.camera.updateMatrixWorld(true);
     const tread=scene.track.getObjectByName('inner-tread');assert.equal(tread.geometry.type,'CylinderGeometry');assert.equal(tread.geometry.parameters.openEnded,true);assert.equal(tread.material.side,THREE.BackSide);
-    assert.equal(scene.track.getObjectByName('staggered-floor-plates').count,144);assert.ok(scene.camera.up.distanceTo(new THREE.Vector3(0,1,0))<1e-8);
+    assert.equal(tread.geometry.parameters.height,TRACK_WIDTH);assert.equal(TRACK_WIDTH,20);assert.equal(scene.track.getObjectByName('staggered-floor-plates').count,360);assert.ok(scene.camera.up.distanceTo(new THREE.Vector3(0,1,0))<1e-8);
     const vertex=new THREE.Vector3(),positions=tread.geometry.attributes.position;for(let i=0;i<positions.count;i++){vertex.fromBufferAttribute(positions,i).applyMatrix4(tread.matrixWorld).project(scene.camera);assert.ok(Math.abs(vertex.x)<=1&&Math.abs(vertex.y)<=1);}scene.disposeObject(scene.track);
   }
 });
 
+test('main and distant tread, side guards and rear frame all use the same expanded width',()=>{
+  const scene=harness();scene.buildTrack();scene.buildSpace();
+  for(const ring of scene.distantTracks){assert.equal(ring.children.find(child=>child.geometry.type==='CylinderGeometry').geometry.parameters.height,TRACK_WIDTH);const rims=ring.children.filter(child=>child.geometry.type==='TorusGeometry');assert.ok(rims.every(rim=>Math.abs(Math.abs(rim.position.x)-(TRACK_WIDTH/2+.1))<1e-8));}
+  const guards=scene.track.children.filter(child=>child.geometry?.type==='RingGeometry'&&child.material===scene.guardMaterial);assert.equal(guards.length,2);assert.ok(guards.every(guard=>Math.abs(guard.position.x)===TRACK_WIDTH/2));
+  const back=scene.track.children.filter(child=>child.geometry?.type==='BoxGeometry'&&child.geometry.parameters.height===WHEEL_RADIUS*2);assert.equal(back.length,3);assert.ok(back.every(spoke=>spoke.position.x===-TRACK_WIDTH/2-.5));scene.dispose();
+});
+
 test('reduced motion keeps the lens stable and graphics resources are released',()=>{
-  const scene=harness(),run=runFixture();run.speed=180;scene.reducedMotion=true;frame(scene,run);assert.equal(scene.camera.fov,70);
+  const scene=harness(),run=runFixture();run.speed=180;scene.reducedMotion=true;for(let index=0;index<60;index++)frame(scene,run);assert.ok(Math.abs(scene.camera.fov-74)<.1);
   const geometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(1,1,1)]),line=new THREE.Line(geometry,new THREE.LineBasicMaterial());scene.scene.add(line);
   let released=false;geometry.addEventListener('dispose',()=>{released=true;});scene.dispose();assert.equal(released,true);assert.equal(scene.renderer.disposed,true);assert.equal(scene.abort,true);
 });

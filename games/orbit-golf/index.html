@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#090e23">
-  <meta name="description" content="쿵! 뿅! 우주 쳇바퀴에서 튀어 다니는 물리 골프. 공을 강화하고 더 멀리 날아가세요.">
+  <meta name="description" content="넓은 우주 쳇바퀴에서 공도 외계인도 와장창! 장애물까지 날아가는 연쇄 충돌 물리 골프.">
   <title>오빗 골프 · ORBIT GOLF</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20261024-pinball2">
-  <script type="module" src="game.mjs?v=20261024-pinball1"></script>
+  <link rel="stylesheet" href="styles.css?v=20261024-chain1">
+  <script type="module" src="game.mjs?v=20261024-chain1"></script>
 </head>
 <body>
   <main id="game" aria-label="오빗 골프">
@@ -25,8 +25,8 @@
     </header>
 
     <section id="lobby" class="lobby">
-      <div class="lobby-title"><p class="kicker">우주 물리 골프</p><h1>쿵! 뿅!<br><em>어디까지 튈까?</em></h1><p class="tagline">한 방 날리고, 와장창 더 멀리.</p></div>
-      <div class="orbit-caption"><span class="live-dot"></span>벽도 외계인도, 전부 발사대!<span class="caption-line"></span></div>
+      <div class="lobby-title"><p class="kicker">우주 물리 골프</p><h1>쿵! 뿅!<br><em>어디까지 튈까?</em></h1><p class="tagline">공도 외계인도, 다 같이 와장창!</p></div>
+      <div class="orbit-caption"><span class="live-dot"></span>탁 트인 쳇바퀴 · 우당탕 연쇄 충돌<span class="caption-line"></span></div>
       <div class="lobby-dock">
         <div class="wallet-row"><span>최고 기록 <strong id="best">0 <small>m</small></strong></span><span class="gold-pill"><i aria-hidden="true">◆</i><b id="gold">0</b> G</span></div>
         <form id="name-form"><label for="pilot-name">파일럿 이름</label><div class="name-row"><input id="pilot-name" name="pilot" maxlength="12" placeholder="이름을 입력하세요" autocomplete="nickname" required aria-describedby="name-error"><button class="primary" type="submit">출발 <span aria-hidden="true">↗</span></button></div><p id="name-error" class="form-error" aria-live="polite"></p></form>
@@ -43,8 +43,7 @@
       <div class="orbit-progress" aria-label="궤도 진행"><div id="orbit-fill"></div></div>
       <div id="warning" class="warning" hidden></div>
     </section>
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <div id="combo" class="combo" aria-label="충돌 콤보" hidden></div>
+    <div class="reaction-feed"><div id="combo" class="combo" aria-label="충돌 콤보" hidden></div><div id="toast" class="toast" role="status" aria-live="polite"></div></div>
     <div id="warp-flash" class="warp-flash" aria-hidden="true"></div>
 
     <section id="launch-controls" class="controls launch-controls" hidden aria-label="타격 조작">

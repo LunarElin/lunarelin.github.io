@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  TRACK_LENGTH, DISTANCE_PER_GOLD, SIDE_LIMIT, WORLD_PER_METER,
+  TRACK_LENGTH, TRACK_WIDTH, DISTANCE_PER_GOLD, SIDE_LIMIT, WORLD_PER_METER, MAX_PROP_BODIES, MAX_CHAIN_DEPTH,
   UPGRADE_DEFS, TUTORIAL_DURATION, RUN_DURATION,
   newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade,
-  generateTrack, eventX, ballStats, newRun, steerRun, resolveEvent, stepRun,
+  generateTrack, eventX, eventPose, ballStats, newRun, steerRun, resolveEvent, stepRun,
   collectRunGold, canContinue, continueRun, settleRun,
 } from '../rules.mjs';
 
@@ -51,17 +51,18 @@ test('seeded tracks scatter continuous moving colliders with no lane field', () 
   let warps = 0;
   for (let seed = 1; seed <= 80; seed++) {
     const events = generateTrack(3, seed);
-    assert.equal(events.length, 10);
+    assert.equal(events.length, 22);
     assert.equal(new Set(events.map(event => event.id)).size, events.length);
     assert.ok(events.some(event => !Number.isInteger(event.x)));
     for (let index = 0; index < events.length; index++) {
       const event = events[index];
       assert.equal(Object.hasOwn(event, 'lane'), false);
-      assert.ok(Math.abs(event.x) <= 2.15 && event.radius > 0);
+      assert.ok(Math.abs(event.x) <= 7.7 && event.radius > 0);
       assert.ok(event.at > 3 * TRACK_LENGTH && event.at < 4 * TRACK_LENGTH);
-      if (index) assert.ok(event.at - events[index - 1].at >= 25);
+      if (index) assert.ok(event.at > events[index - 1].at);
     }
     assert.ok(['bumper','spring','punch','alien','comet','trap','coins','boost'].every(type => events.some(e => e.type === type)));
+    assert.ok(events.filter((event,index)=>index&&event.at-events[index-1].at<10).length>=10,'nearby props must support physical chains');
     if (events.some(e => ['hole','ufo'].includes(e.type))) warps++;
   }
   assert.ok(warps > 0 && warps < 80);
@@ -70,8 +71,8 @@ test('moving prop positions are continuous, bounded and shared with rendering', 
   const alien = { type: 'alien', x: 0, phase: .2 };
   assert.notEqual(eventX(alien, 0), eventX(alien, .1));
   for (let time = 0; time < 10; time += .03) {
-    assert.ok(Math.abs(eventX(alien, time)) <= 2.35);
-    assert.ok(Math.abs(eventX({ type: 'punch', x: 2, phase: 1 }, time)) <= 2.7);
+    assert.ok(Math.abs(eventX(alien, time)) <= 7.9);
+    assert.ok(Math.abs(eventX({ type: 'punch', x: 7, phase: 1 }, time)) <= 7.9);
   }
 });
 test('power, continuous shot angle and ball upgrades change actual launch velocity', () => {
@@ -93,6 +94,16 @@ test('spin applies force continuously rather than snapping to discrete positions
   steerRun(run, 20);assert.equal(run.steer, 1);
   run.phase = 'stopped';assert.equal(steerRun(run, -1), false);
 });
+
+test('the physical track is wider than twice the old cylinder and the ball freely crosses its former rails',()=>{
+  assert.equal(TRACK_WIDTH,20);assert.ok(SIDE_LIMIT>8.8);
+  const profile=ordinary(0),run=newRun(profile,1,1,0);run.events=[];run.eventTrack=0;
+  steerRun(run,1);
+  for(let i=0;i<100;i++){run.events=[];run.eventTrack=run.track;stepRun(run,profile,1/120);}
+  assert.ok(run.x>1);
+  for(let i=0;i<100;i++){run.events=[];run.eventTrack=run.track;stepRun(run,profile,1/120);}
+  assert.ok(run.x>3.05&&run.x<SIDE_LIMIT);
+});
 test('side rails reflect lateral velocity and create an airborne cushion bounce', () => {
   const profile = ordinary(0), run = newRun(profile, 1, 1, 0);
   run.x = SIDE_LIMIT - .01;run.vx = 8;run.events = [];
@@ -107,7 +118,8 @@ test('a physical prop reflects the ball backwards and sideways and sends it into
   const feedback = resolveEvent(run, event, profile, { x: .6, s: -.8 });
   assert.ok(run.speed < 0 && run.speed < before);assert.ok(run.vx > 0);assert.ok(run.vy > 0);
   assert.equal(feedback.eventId, 'impact');assert.equal(feedback.kind, 'danger');
-  assert.equal(run.collisions, 1);assert.equal(event.used, true);
+  assert.equal(run.collisions, 1);assert.equal(event.used, false);
+  assert.equal(event.body.active,true);assert.ok(Math.abs(event.body.vs)>0&&Math.abs(event.body.vx)>0);
   stepRun(run, profile, .1);assert.ok(run.height > 0);
 });
 test('springs launch a real arc and floor contact bounces, then restores rolling momentum', () => {
@@ -152,7 +164,20 @@ test('backward motion cannot erase distance rewards and colliders do not pay twi
   assert.ok(resolveEvent(run, coin, profile));assert.equal(resolveEvent(run, coin, profile), null);
   assert.equal(run.bonusGold, 12);
 });
-test('bumpers have a cooldown and a finite collision count', () => {
+
+test('collected rewards remain consumed after their static-track cache is evicted and regenerated',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0);
+  const coin=run.events.find(event=>event.type==='coins'),id=coin.id;
+  resolveEvent(run,coin,profile);assert.equal(run.bonusGold,12);
+  run.s=run.distance=TRACK_LENGTH*4+10;run.height=5;
+  stepRun(run,profile,1/120);assert.equal(run.events.some(event=>event.id===id),false);
+  run.s=0;run.speed=0;run.rollSpeed=0;run.height=0;
+  stepRun(run,profile,1/120);
+  const regenerated=run.events.find(event=>event.id===id);
+  assert.ok(regenerated&&regenerated.used);assert.equal(resolveEvent(run,regenerated,profile),null);
+  assert.equal(run.bonusGold,12);assert.ok(run.consumed.has(id));
+});
+test('flying bumpers have a ball-contact cooldown and a finite collision count', () => {
   const profile = ordinary(0), run = newRun(profile, 1, 5, 0);
   const bumper = { id: 'bounce', type: 'bumper', direction: 1 };
   resolveEvent(run, bumper, profile);
@@ -161,8 +186,68 @@ test('bumpers have a cooldown and a finite collision count', () => {
   assert.equal(resolveEvent(run, bumper, profile), null);
   run.elapsed = bumper.cooldown + .01;
   resolveEvent(run, bumper, profile);
-  assert.equal(bumper.hits, 2);assert.equal(bumper.used, true);
+  assert.equal(bumper.hits, 2);assert.equal(bumper.used, false);
+  run.elapsed=bumper.cooldown+.01;resolveEvent(run,bumper,profile);
+  assert.equal(bumper.hits,3);assert.equal(bumper.body.active,true);
   assert.equal(resolveEvent(run, bumper, profile), null);
+});
+
+test('a ball launches a real four-body domino chain with shared physical poses',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0);
+  const props=[20,28,36,44].map((at,index)=>({id:`domino:${index}`,type:'bumper',x:0,at,radius:1.05,height:1.05,direction:1}));
+  run.events=props;run.eventTrack=0;const feedback=[];
+  for(let frame=0;frame<180;frame++)feedback.push(...stepRun(run,profile,1/120));
+  const chains=feedback.filter(event=>event.kind==='chain');
+  assert.ok(chains.some(event=>event.sourceId==='domino:0'&&event.eventId==='domino:1'&&event.chainDepth===2));
+  assert.ok(chains.some(event=>event.sourceId==='domino:1'&&event.eventId==='domino:2'&&event.chainDepth===3));
+  assert.ok(chains.some(event=>event.sourceId==='domino:2'&&event.eventId==='domino:3'&&event.chainDepth===4));
+  assert.ok(run.chainHits>=3&&run.maxChain>=4);
+  for(const prop of props){
+    assert.equal(prop.body.active,true);assert.notEqual(prop.body.s,prop.at);
+    const pose=eventPose(prop,run.elapsed);
+    for(const key of ['s','x','height','rx','ry','rz'])assert.equal(pose[key],prop.body[key]);
+    assert.equal(eventX(prop,run.elapsed),prop.body.x);
+  }
+  assert.equal(run.bonusGold,0,'prop impacts must not manufacture pickup earnings');
+});
+
+test('a moving obstacle can return and physically hit the ball',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0);
+  Object.assign(run,{s:50,distance:50,speed:0,rollSpeed:0,vx:0,x:0});
+  const prop={id:'return',type:'comet',at:60,x:0,radius:1,height:1.05,direction:1,
+    body:{active:true,wheel:0,s:60,x:0,height:0,vs:-80,vx:0,vy:0,rx:0,ry:0,rz:0,wx:1,wy:1,wz:1,life:4,depth:1,chainId:1,contacts:{},impacts:0}};
+  run.events=[prop];run.eventTrack=0;
+  const feedback=stepRun(run,profile,.2);
+  assert.ok(feedback.some(event=>event.eventId==='return'));
+  assert.ok(run.speed<0&&run.height>0,'the returning body must cause real backward and upward motion');
+});
+
+test('dynamic bodies have finite lifetimes, pair cooldowns and bounded active work',()=>{
+  const profile=ordinary(2),run=newRun(profile,1,1,0),feedback=[];
+  let first;
+  for(let frame=0;frame<1200&&run.phase==='rolling';frame++){
+    feedback.push(...stepRun(run,profile,1/120));
+    const active=run.events.filter(event=>event.body?.active);
+    assert.ok(active.length<=MAX_PROP_BODIES);assert.ok(run.maxChain<=MAX_CHAIN_DEPTH);
+    first ||= active[0];
+  }
+  assert.ok(first);assert.equal(first.body.active,false);assert.equal(first.used,true);
+  const times=new Map();
+  for(const event of feedback.filter(event=>event.kind==='chain')){
+    const key=[event.sourceId,event.eventId].sort().join('|');
+    times.set(key,(times.get(key)||0)+1);
+  }
+  assert.ok(Math.max(...times.values())<15,'contact pairs must not fire every physics substep');
+});
+
+test('active flying props survive static-track cache changes and old-wheel bodies stop on warp',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0);
+  const prop=run.events[0];resolveEvent(run,prop,profile,{x:.1,s:-.99});
+  prop.body.s=1100;run.s=run.distance=1090;
+  stepRun(run,profile,1/120);
+  assert.ok(run.events.includes(prop),'a physical prop must remain until its lifetime ends');
+  resolveEvent(run,{id:'warp',type:'ufo'},profile);
+  assert.equal(prop.body.active,false);assert.equal(prop.used,true);
 });
 test('holes and UFOs alone move to another physical wheel and preserve finite dynamics', () => {
   const profile = ordinary(0);
@@ -223,7 +308,7 @@ test('an unsteered first shot produces autonomous ricochets and comic collision 
   const { run, types } = finish(ordinary(0), 0xffffffff);
   assert.ok(run.collisions >= 5);assert.ok(run.maxHeight > 1);
   assert.ok(types.has('rail') && types.has('bumper') && types.has('landing'));
-  assert.ok(types.has('punch') || types.has('alien') || types.has('spring'));
+  assert.ok(run.chainHits>0&&run.maxChain>=2);
 });
 test('one paid continuation preserves exact physical position, score and remaining time', () => {
   const profile = ordinary(0);profile.gold = 12;
