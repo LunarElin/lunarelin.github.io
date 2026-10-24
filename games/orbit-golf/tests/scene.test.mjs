@@ -111,16 +111,61 @@ test('contact deformation leaves the body collider center fixed while gloves and
 });
 
 test('impact particles remain bounded, freeze while paused and expire promptly',()=>{
-  const scene=harness(),run=runFixture();frame(scene,run);for(let i=0;i<10;i++)scene.burst({type:'punch',strength:1.4});assert.equal(scene.effects.length,80);
+  const scene=harness(),run=runFixture();frame(scene,run);for(let i=0;i<12;i++)scene.burst({type:'comet',strength:1.4});assert.equal(scene.effects.length,48);
   const life=scene.effects[0].life;frame(scene,run,'paused',1);assert.equal(scene.effects[0].life,life);frame(scene,run,'rolling',1);assert.equal(scene.effects.length,0);
 });
 
-test('secondary collisions create colorful bounded shock rings without squashing the remote ball',()=>{
-  const scene=harness(),run=runFixture();frame(scene,run);scene.squash=0;
-  for(let index=0;index<8;index++)scene.burst({kind:'chain',type:'bumper',s:30+index,x:4,height:1,strength:1.4,chainDepth:4});
-  assert.equal(scene.effects.length,80);assert.equal(scene.squash,0);assert.ok(scene.effects.some(effect=>effect.ring));
-  const colors=new Set(scene.effects.filter(effect=>!effect.ring).map(effect=>effect.mesh.material.color.getHex()));assert.ok(colors.size>=3);
-  frame(scene,run,'rolling',1);assert.equal(scene.effects.length,0);
+test('each mechanical effect has a distinct local cue without a generic chain shower',()=>{
+  const scene=harness(),run=runFixture();run.s=20;
+  run.events=['bumper','spring','punch','alien','trap','boost'].map((type,index)=>({id:type,type,at:30+index*6,x:index-2,height:1.05,radius:.9,used:false}));
+  frame(scene,run);scene.squash=0;
+  for(const event of run.events)scene.burst({kind:'bounce',powered:true,type:event.type,eventId:event.id,strength:1.2,effectDirection:-1});
+  frame(scene,run,'rolling',.2);
+  const cue=type=>scene.eventMeshes.get(type).userData.cue;
+  assert.equal(scene.effects.length,0,'prop impulses must not emit a generic rainbow particle shower');
+  assert.equal(cue('bumper').userData.kind,'impulse');assert.ok(cue('bumper').position.z>0);
+  assert.equal(cue('spring').userData.kind,'lift');assert.ok(cue('spring').position.y>1.05);
+  assert.equal(cue('punch').userData.kind,'thrust');assert.ok(cue('punch').scale.z>0);
+  assert.equal(cue('alien').userData.kind,'spin');assert.ok(cue('alien').rotation.y<0);
+  assert.equal(cue('trap').userData.kind,'damping');assert.equal(cue('trap').position.y,.1);
+  assert.equal(cue('boost').userData.kind,'thrust');
+  for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed);assert.equal(mesh.userData.cue.parent,mesh);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.equal(mesh.userData.cue.visible,true);}
+  const opacity=cue('alien').userData.material.opacity;frame(scene,run,'paused',1);assert.equal(cue('alien').userData.material.opacity,opacity);
+  frame(scene,run,'rolling',1);assert.ok(run.events.every(event=>!cue(event.type).visible));
+});
+
+test('passive chain and flying-body contacts retain deformation without implying a powered bonus',()=>{
+  for(const feedback of [{kind:'chain'},{kind:'bounce',powered:false}]) {
+    const scene=harness(),run=runFixture();run.s=20;
+    run.events=['bumper','spring','punch','alien','trap','boost'].map((type,index)=>({id:type,type,at:30+index*6,x:0,height:1.05,radius:.9,used:false}));
+    frame(scene,run);scene.squash=0;
+    for(const event of run.events)scene.burst({...feedback,type:event.type,eventId:event.id,strength:1.2});
+    frame(scene,run,'rolling',.2);
+    assert.ok(run.events.every(event=>!scene.eventMeshes.get(event.id).userData.cue.visible));
+    assert.ok(scene.eventMeshes.get('bumper').userData.visual.scale.y<.9);
+    assert.ok(scene.eventMeshes.get('spring').userData.visual.scale.y<.8);
+    assert.ok(scene.eventMeshes.get('punch').userData.visual.scale.z>1.1);
+    if(feedback.kind==='chain')assert.equal(scene.squash,0,'remote contacts must not squash the ball');
+  }
+});
+
+test('impact fragments originate on the struck object rather than on the remote ball',()=>{
+  const scene=harness(),run=runFixture();run.s=20;run.x=-6;
+  const event={id:'comet',type:'comet',at:50,x:4,height:1.05,used:false,body:{active:true,wheel:0,s:55,x:5,height:2,rx:.2,ry:1,rz:.4,life:3}};
+  run.events=[event];frame(scene,run);
+  const expected=scene.position(55,5,3.05);scene.burst({type:'comet',eventId:'comet',s:run.s,x:run.x,height:0,kind:'chain',strength:1});
+  assert.equal(scene.effects.length,6);assert.ok(scene.effects.every(effect=>effect.mesh.position.distanceTo(expected)<1e-8));
+  const colors=new Set(scene.effects.map(effect=>effect.mesh.material.color.getHex()));assert.equal(colors.size,1);
+});
+
+test('object cues reflect the applied effect duration and remain attached while the object moves',()=>{
+  const scene=harness(),run=runFixture();run.s=20;
+  const alien={id:'curve',type:'alien',at:40,x:1,height:1.05,used:false,body:{active:true,wheel:0,s:40,x:1,height:1,rx:0,ry:0,rz:0,life:3}};
+  run.events=[alien];frame(scene,run);scene.burst({type:'alien',eventId:alien.id,effect:'spin',effectDirection:1,effectDuration:1.5});
+  alien.body.s+=7;alien.body.x+=2;alien.body.height+=.4;frame(scene,run,'rolling',.8);
+  const mesh=scene.eventMeshes.get(alien.id),cue=mesh.userData.cue,pose=eventPose(alien,run.elapsed);
+  assert.equal(cue.visible,true);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.ok(cue.rotation.y>0);
+  frame(scene,run,'rolling',.8);assert.equal(cue.visible,false);
 });
 
 test('the trail records actual sideways airborne and backwards paths and clears on warp',()=>{

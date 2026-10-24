@@ -22,7 +22,7 @@ const sceneSource = `
     render(dt, run, mode, power, upgrades) {
       this.mode = mode; this.power = power; this.current = run;
       this.snapshot = run ? Object.fromEntries(
-        ['s','distance','x','vx','height','vy','speed','steer','spin','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit'].map(key => [key,run[key]])
+        ['s','distance','x','vx','height','vy','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit'].map(key => [key,run[key]])
       ) : null;
     }
   }
@@ -249,6 +249,58 @@ test('fractional aim and held spin control a continuous physical ball without la
   assert.deepEqual(app.errors, []);
 });
 
+test('holding spin cannot keep an exhausted forward shot alive and continuation clears the stopped input', async t => {
+  const app = await game(t, { stored: JSON.stringify(profile({ gold: 200 })) });
+  app.submit('전진 소진'); app.launch();
+  const run = app.scene.current;
+  Object.assign(run, {
+    s: 100, distance: 100, speed: .25, rollSpeed: .2, vx: 7,
+    height: 1.5, vy: 0, restTime: 0, accumulator: 0, events: [], eventTrack: 0,
+  });
+  app.input('spin-control', 1);
+  assert.equal(run.steer, 1, 'The regression must keep the input held while lateral motion is still present');
+  const beforeElapsed = run.elapsed;
+  for (let frame = 0; frame < 80 && app.scene.mode === 'rolling'; frame++) app.tick();
+  assert.equal(app.$('panel').dataset.type, 'result', 'Exhausted forward motion must end without waiting for a spin release');
+  assert.equal(app.scene.snapshot.stopReason, 'natural');
+  assert.ok(run.elapsed - beforeElapsed < 2, 'Lateral movement and height must not extend a stalled shot');
+  assert.ok(run.elapsed < run.durationLimit - 5, 'The time cap is not the fix for exhausted forward motion');
+  for (const key of ['speed','rollSpeed','vx','vy','steer']) assert.equal(run[key], 0, `${key} must be neutral at natural stop`);
+  assert.equal(Number(app.$('spin-control').value), 0);
+  const position = { s: run.s, x: run.x, height: run.height };
+  const balance = app.saved().gold;
+  app.panelButton('이어 달리기').click();
+  for (const key of ['s','x','height']) assert.equal(run[key], position[key], 'Paid continuation must keep the actual stopped position');
+  assert.ok(run.speed > 50 && run.rollSpeed > 50);
+  assert.equal(run.restTime, 0);
+  assert.equal(run.steer, 0);
+  assert.equal(app.saved().gold, balance - 40);
+  app.tick(5);
+  assert.equal(app.scene.mode, 'rolling');
+  assert.ok(app.scene.snapshot.elapsed > beforeElapsed);
+  assert.deepEqual(app.errors, []);
+});
+
+test('a complete free shot still ends naturally while spin is held for the whole flight', async t => {
+  const app = await game(t);
+  app.submit('연속 스핀'); app.launch(); app.input('spin-control', 1);
+  const run = app.scene.current;
+  let heldFrames = 0;
+  while (app.scene.mode === 'rolling' && heldFrames++ < 1000) {
+    // Keep this input regression independent of random propulsion props, even after a lap.
+    run.events = [];run.eventTrack = Math.max(0, Math.floor(run.s / 360));
+    app.tick();
+  }
+  assert.equal(app.$('panel').dataset.type, 'result');
+  assert.equal(app.scene.snapshot.stopReason, 'natural');
+  assert.ok(run.elapsed < 50 && run.elapsed < run.durationLimit - 30,
+    'Constant steering must not stretch an exhausted free shot to the normal time limit');
+  assert.ok(run.distance > 500, 'The regression must exercise a real full shot before its forward energy runs out');
+  assert.equal(Number(app.$('spin-control').value), 0);
+  assert.equal(run.steer, 0);
+  assert.deepEqual(app.errors, []);
+});
+
 test('an unsteered shot ricochets and becomes airborne while collision feedback reaches the scene', async t => {
   const app = await game(t);
   app.submit('알아서 통통'); app.launch();
@@ -258,11 +310,14 @@ test('an unsteered shot ricochets and becomes airborne while collision feedback 
     app.tick();
     highest = Math.max(highest, app.scene.snapshot.height);
     maxCollisions = Math.max(maxCollisions, app.scene.snapshot.collisions);
+    assert.equal(app.$('toast').classList.contains('visible'), false,
+      'A collision must use the object effect rather than floating speech');
   }
   assert.ok(highest > .15, 'The launched ball must actually leave the surface without an avoidance input');
   assert.ok(maxCollisions >= 2, 'An unsteered shot must physically ricochet more than once');
   assert.ok(app.scene.feedback.some(event => event && typeof event === 'object'
-    && event.type !== 'shot' && event.type !== 'stop' && Number.isFinite(event.strength)),
+    && event.type !== 'shot' && event.type !== 'stop' && Number.isFinite(event.strength)
+    && typeof event.effect === 'string'),
   'Collision impulses must reach the scene as structured impact feedback');
   assert.deepEqual(app.errors, []);
 });
@@ -273,7 +328,9 @@ test('a launched obstacle creates physical chain feedback in the live HUD and fi
   let chainHUD = false, pausedBody = false;
   for (let frame = 0; frame < 2400 && app.scene.mode === 'rolling'; frame++) {
     app.tick();
-    chainHUD ||= !app.$('combo').hidden && /연쇄/.test(app.$('combo').textContent);
+    chainHUD ||= !app.$('combo').hidden && /^연쇄 \d+$/.test(app.$('combo').textContent);
+    assert.equal(app.$('toast').classList.contains('visible'), false,
+      'Chain reactions must not produce a floating collision phrase');
     const body = app.scene.current.events.find(event => event.body?.active)?.body;
     if (body && !pausedBody) {
       const pose = () => JSON.stringify(['s','x','height','rx','ry','rz','vs','vx','vy'].map(key => body[key]));

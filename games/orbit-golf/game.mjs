@@ -1,5 +1,5 @@
-import { OrbitScene } from './scene.mjs?v=20261024-chain1';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-chain1';
+import { OrbitScene } from './scene.mjs?v=20261024-momentum1';
+import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-momentum1';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
@@ -11,7 +11,7 @@ let profile=newProfile(), storageOK=true;
 try { profile=sanitizeProfile(JSON.parse(PREVIEW?'null':localStorage.getItem(KEY)||'null')); } catch { storageOK=false; }
 let run=null, mode='lobby', previousMode='lobby', charging=false, charge=0, power=0, seed=0;
 let audio=null, audioEnabled=true, raf=0, last=0, hudTime=0, saveTime=0, toastLife=0, disposed=false;
-let rollSound=null, rollGain=null, lastTone=-1, toastCooldown=0, lastHaptic=-1000;
+let rollSound=null, rollGain=null, lastTone=-1, lastHaptic=-1000;
 const heldKeys=new Set();
 const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
 let scene;
@@ -62,19 +62,16 @@ function tone(kind='good'){
     }
   }catch{/* Sound is optional; a blocked AudioContext must not interrupt play. */}
 }
-function toast(text,kind='good'){$('toast').textContent=text;$('toast').className=`toast visible${kind==='danger'?' bad':kind==='chain'?' chain':''}`;toastLife=1.25;toastCooldown=.3;}
+function toast(text){$('toast').textContent=text;$('toast').className='notice visible';toastLife=2;}
 function impact(feedback){
   scene.burst(feedback);tone(feedback.type||feedback.kind);
   const now=performance.now();
   if(!reducedMotion&&feedback.strength>.6&&now-lastHaptic>90){navigator.vibrate?.(feedback.type==='shot'?24:12);lastHaptic=now;}
-  let chainPeak=false;
   if(feedback.kind==='chain'&&run){
     if(run.displayChainId!==feedback.chainId||!Number.isFinite(run.displayChainDepth)){run.displayChainId=feedback.chainId;run.displayChainDepth=0;}
-    chainPeak=feedback.chainDepth>run.displayChainDepth;
     run.displayChainDepth=Math.max(run.displayChainDepth,feedback.chainDepth||2);
     run.displayChainUntil=run.elapsed+2.4;
   }
-  if(feedback.text&&(toastCooldown<=0||feedback.kind==='warp'||chainPeak))toast(feedback.text,feedback.kind);
 }
 function element(tag,className,text){const e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;}
 function button(text,className,action){const b=element('button',className,text);b.type='button';b.addEventListener('click',action);return b;}
@@ -89,9 +86,9 @@ function lobby(){charging=false;finalize();closePanel();run=null;mode='lobby';sc
 function ready(){
   finalize();closePanel();seed=crypto.getRandomValues(new Uint32Array(1))[0];
   run=prepareRun(.5);run.phase='ready';mode='ready';charging=false;charge=0;power=0;
-  $('shot-title').textContent=run.tutorial?'초록에서 놓으면 · 쾅!':`${BALL_NAMES[profile.upgrades.ball]} · 한 방 더 멀리!`;
-  $('shoot').innerHTML='길게 눌러 → 한 방! <span aria-hidden="true">⛳</span>';
-  $('toast').classList.remove('visible');toastLife=0;toastCooldown=0;updateAim();
+  $('shot-title').textContent=run.tutorial?'초록 구간에서 놓으세요':`${BALL_NAMES[profile.upgrades.ball]} · 목표 ${fmt(run.goalDistance)}m`;
+  $('shoot').textContent='누르고 → 타격';
+  $('toast').classList.remove('visible');toastLife=0;updateAim();
   scene.lastTrack=-1;visibleMode();updateHUD();updatePower();
 }
 function updatePower(){
@@ -103,8 +100,7 @@ function chargeCancel(){if(!charging)return;charging=false;power=0;updatePower()
 function launch(){
   if(mode!=='ready'||!charging)return;charging=false;const p=Math.max(.22,power),perfect=p>=.82&&p<=.96;
   run=prepareRun(perfect?1:p);power=0;mode='rolling';visibleMode();
-  impact({type:'shot',kind:'good',strength:perfect?1.4:1,text:perfect?'완벽한 한 방!':'가자! 우주 당구공!'});
-  $('shot-flash').classList.remove('bang');void $('shot-flash').offsetWidth;$('shot-flash').classList.add('bang');updateHUD();
+  impact({type:'shot',kind:'good',strength:perfect?1.4:1});updateHUD();
 }
 function updateAim(){const aim=Number($('aim-control').value);$('aim-value').textContent=`${aim>0?'+':''}${aim}°`;if(mode==='ready'&&run)run.aim=aim;}
 function setSpin(axis){if(mode!=='rolling')return;steerRun(run,axis);$('spin-control').value=String(axis);}
@@ -120,30 +116,27 @@ function updateHUD(){
   $('growth-readout').textContent=`공 Lv.${profile.upgrades.ball} · 타격 추진력 ${Math.round(stats.launchSpeed/base.launchSpeed*100)}%`;
   const chainActive=run.displayChainDepth>=2&&run.elapsed<run.displayChainUntil;
   $('combo').hidden=mode!=='rolling'||(!chainActive&&(run.combo<2||run.elapsed-run.lastImpact>3.2));
-  $('combo').classList.toggle('chain',chainActive);$('combo').textContent=chainActive?`${run.displayChainDepth}연쇄!`:`${run.combo||0}연속!`;
-  $('warning').hidden=mode!=='rolling';
-  $('warning').textContent=run.height>1.2?'뿅! 공중 비행':Math.abs(run.vx)>3?'데굴데굴 · 벽도 발사대!':`${run.collisions||0}번 충돌 · 더 멀리 튀어라!`;
+  $('combo').textContent=chainActive?`연쇄 ${run.displayChainDepth}`:`연속 충돌 ${run.combo||0}`;
   $('game').style.setProperty('--speed',mode==='rolling'?String(Math.min(1,Math.abs(run.speed)/150)):'0');
-  if(run.previousBest&&!run.beatBest&&run.distance>run.previousBest){run.beatBest=true;toast(`지난 기록 돌파! +${fmt(run.distance-run.previousBest)}m`);}
 }
 function stopped(){
   mode='stopped';collectRunGold(profile,run);
   if(run.tutorial)settleRun(profile,run);
   save();visibleMode();updateHUD();tone('stop');
   const distance=element('p','result-distance',fmt(run.distance));distance.append(element('small','',' m'));
-  const summary=element('div','result-summary');summary.append(element('span','',`◆ +${fmt(run.earned)} G`),element('span','',`${run.collisions||0}번 와장창!`));
+  const summary=element('div','result-summary');summary.append(element('span','',`◆ +${fmt(run.earned)} G`),element('span','',`충돌 ${fmt(run.collisions||0)}회`));
   const chainSummary=element('p','chain-summary',run.chainHits?`장애물 ${fmt(run.chainHits)}번 연쇄 · 최대 ${run.maxChain}단계`:'');chainSummary.id='chain-summary';chainSummary.hidden=!run.chainHits;
-  const growth=element('p','growth-note',run.previousBest?run.distance>run.previousBest?`최고 기록 +${fmt(run.distance-run.previousBest)}m!`:`이전 최고 ${fmt(run.previousBest)}m · 강화하고 다시 도전`:'첫 기록 완성! 이제 장비를 성장시켜요.');
+  const growth=element('p','growth-note',run.previousBest?run.distance>run.previousBest?`최고 기록 ${fmt(run.distance-run.previousBest)}m 경신`:`이전 최고 ${fmt(run.previousBest)}m · 강화 후 재도전`:'첫 비행 완료 · 공을 강화하세요.');
   const upgradeAction=()=>{finalize();run=null;mode='lobby';visibleMode();showUpgrades();};
   if(run.tutorial) {
     const reward=element('p','training-reward',`훈련 보상 +${fmt(run.trainingBonus)} G 포함`);
     const next=button('첫 강화하기','primary panel-action',upgradeAction);
-    openPanel('첫 훈련 완료',[distance,summary,chainSummary,reward,growth,element('p','panel-intro','공 강화 = 더 센 한 방 + 더 오래 구르기!'),next,button('기록 저장 · 대기실','text-button panel-action',lobby)],'result');
+    openPanel('첫 훈련 완료',[distance,summary,chainSummary,reward,growth,element('p','panel-intro','공 강화로 타격 추진력과 비거리가 증가합니다.'),next,button('기록 저장 · 대기실','text-button panel-action',lobby)],'result');
     return;
   }
   const can=canContinue(profile,run),used=run.continued;
   const again=button(used?'이어하기 사용 완료':`이어 달리기 · ${continueCost(run)} G`,'primary panel-action',()=>{
-    if(continueRun(profile,run)){save();closePanel();mode='rolling';visibleMode();impact({type:'shot',kind:'good',strength:1,text:'같은 자리에서, 다시 쾅!'});updateHUD();}
+    if(continueRun(profile,run)){save();closePanel();mode='rolling';visibleMode();impact({type:'shot',kind:'good',strength:1});updateHUD();}
   });again.disabled=!can;
   const note=element('p','continue-note',run.stopReason==='time'?'120초 비행 완료 · 강화하고 다음 기록에 도전하세요.':used?'한 판에 한 번의 재출발을 사용했어요.':can?'멈춘 자리에서 재출발 · 한 판에 딱 한 번':`보유 ${fmt(profile.gold)} G · 이어 달리기에는 40 G 필요`);
   const retry=button('다시 타격','secondary',ready),upgrade=button('강화','secondary',upgradeAction);
@@ -167,9 +160,7 @@ function showUpgrades(){
     const current=ballStats(level),next=ballStats(nextLevel);
     const improvement=Math.round((next.range/current.range-1)*100);
     const maxed=level===def.maxLevel;
-    const currentRebound=.74+level*.035+profile.upgrades.ball*.012;
-    const rebound=Math.round(((currentRebound+.035)/currentRebound-1)*100);
-    const desc=element('p','',key==='pilot'?maxed?'최고 단계 · 더 통통, 충돌 뒤에도 오래!':`충돌 뒤 힘을 더 오래 보존\n반발력 +${rebound}% · 우당탕 후 다시 전진` :maxed?`${BALL_NAMES[level]} · 최고 단계\n출발 추진력 ${fmt(current.launchSpeed)} · 낮은 마찰`:`${BALL_NAMES[level]} → ${BALL_NAMES[nextLevel]}\n기본 비거리 +${improvement}%\n${fmt(current.range)}m → ${fmt(next.range)}m`);
+    const desc=element('p','',key==='pilot'?maxed?'최고 단계 · 충돌 에너지 보존 및 반발 강화':'충돌 추진력 손실 감소\n반발 강화' :maxed?`${BALL_NAMES[level]} · 최고 단계\n출발 추진력 ${fmt(current.launchSpeed)} · 낮은 마찰`:`${BALL_NAMES[level]} → ${BALL_NAMES[nextLevel]}\n기본 비거리 +${improvement}%\n${fmt(current.range)}m → ${fmt(next.range)}m`);
     if(key==='ball')desc.append(element('small','range-note','장애물 없는 직선 풀샷 기준 · 실제 충돌과 운에 따라 달라져요'));
     const buy=button(Number.isFinite(cost)?`강화 · ${fmt(cost)} G`:'최고 단계','primary',()=>{if(buyUpgrade(profile,key)){save();refreshLobby();tone('good');showUpgrades();}});
     buy.disabled=!Number.isFinite(cost)||profile.gold<cost;card.append(title,desc,buy);children.push(card);
@@ -178,11 +169,11 @@ function showUpgrades(){
 }
 function showRanks(){
   const list=element('ol','rank-list');profile.rankings.forEach((r,i)=>{const row=element('li','rank-row');const score=element('b','',fmt(r.distance));score.append(element('small','',' m'));row.append(element('span','',`${i+1}`),element('strong','',r.name),score);list.append(row);});
-  openPanel('궤도 랭킹',[element('p','panel-intro','이 기기의 TOP 10 · 이름별 최고 기록'),profile.rankings.length?list:element('p','empty','첫 번째 궤도 개척자가 되어보세요.'),button('확인','primary panel-action',closePanel)],'ranks');
+  openPanel('궤도 랭킹',[element('p','panel-intro','이 기기의 TOP 10 · 이름별 최고 기록'),profile.rankings.length?list:element('p','empty','아직 기록이 없습니다.'),button('확인','primary panel-action',closePanel)],'ranks');
 }
 function showHelp(){
-  const list=element('ol','help-list');['발사각을 고르고 타격 버튼을 길게 눌러요. 초록에서 놓으면 퍼펙트 샷!','넓어진 쳇바퀴에서 공은 벽에 부딪혀 튀고, 떠올랐다가 다시 구릅니다. 조작하지 않아도 진행돼요.','맞은 장애물도 함께 날아가 다른 장애물을 밀칩니다. 외계인과 범퍼가 우당탕 연쇄 충돌!','원하면 아래 스핀을 드래그하거나 화면을 좌우로 문질러 살짝 회전시켜요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격.','첫 훈련은 최대 75초. 보상으로 공을 강화하면 한 방의 세기와 구르는 거리가 함께 늘어요.','8m마다 1골드. 일반 비행은 최대 120초, 멈춘 곳에서 40골드로 한 번만 이어 달려요.','홀인원·우주선은 다른 쳇바퀴로 워프! 튀는 방향에 따라 뜻밖의 행운을 만나요.'].forEach(t=>list.append(element('li','',t)));
-  const key=element('div','event-key');['◎ 고무 범퍼 · 팡!','♟ 외계인 · 데굴데굴','↟ 스프링 · 뿅!','✊ 펀치 · 한 방 더','☄ 혜성 · 우당탕','⚑ 홀인원 · 워프'].forEach(t=>key.append(element('span','',t)));
+  const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 스핀을 누르고 있어도 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 추진력과 비거리가 증가합니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다.'].forEach(t=>list.append(element('li','',t)));
+  const key=element('div','event-key');['범퍼 · 반발·추진','우주인 · 곡선 회전','스프링 · 높은 점프','추진 장갑 · 전진 가속','혜성 · 강한 반사','점성 패드 · 감속','가속 패드 · 추진 회복','홀 · 트랙 이동'].forEach(t=>key.append(element('span','',t)));
   openPanel('궤도 비행 안내',[list,key,button('준비 완료','primary panel-action',closePanel)],'help');
 }
 try { scene=new OrbitScene($('space')); } catch(error){$('load-error').hidden=false;console.error('Orbit Golf WebGL:',error);}
@@ -226,7 +217,7 @@ if(scene){
       if(run.phase==='stopped')stopped();
       hudTime+=dt;saveTime+=dt;if(hudTime>.09){hudTime=0;updateHUD();}if(saveTime>1){saveTime=0;collectAndSave();}
     }
-    if(toastLife>0){toastLife-=dt;if(toastLife<=0)$('toast').classList.remove('visible');}toastCooldown=Math.max(0,toastCooldown-dt);
+    if(toastLife>0){toastLife-=dt;if(toastLife<=0)$('toast').classList.remove('visible');}
     if(rollGain&&audio?.state==='running'){
       const loudness=mode==='rolling'?.035*Math.min(1,Math.abs(run.speed)/130)*(run.height>.3?.45:1):0;
       rollGain.gain.setTargetAtTime(audioEnabled?loudness:0,audio.currentTime,.08);

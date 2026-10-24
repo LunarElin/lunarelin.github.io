@@ -1,12 +1,13 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261024-chain1';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261024-momentum1';
 
 const TAU = Math.PI * 2;
 export const WHEEL_RADIUS = 23;
 export const BALL_HEIGHT = 1.08;
 const R = WHEEL_RADIUS;
 const HALF_WIDTH = TRACK_WIDTH / 2;
+const MAX_EFFECTS = 48;
 const THEMES = [0x64e8d6, 0xc29aff, 0xffb575, 0x9eff86];
 const CENTERS = [[0,0,0],[-72,8,12],[62,-12,-45]];
 const BALL_COLORS = [0xf6fbff,0x83ffe0,0xffda79,0xd4a1ff,0xffa3c0,0x9edcff];
@@ -198,7 +199,28 @@ export class OrbitScene {
     for(const child of visual.children)child.position.y-=h;
     visual.position.y=h;
     const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-pose.s/360*TAU;
-    g.userData={type,event,visual,centerHeight:h};return g;
+    const cue=this.createCue(type,r);cue.position.y=h;g.add(cue);
+    g.userData={type,event,visual,centerHeight:h,cue};return g;
+  }
+  createCue(type,radius=1) {
+    const cue=new THREE.Group();cue.visible=false;
+    if(!['bumper','spring','punch','alien','trap','boost'].includes(type)){cue.userData={kind:'',material:null};return cue;}
+    const colors={bumper:0x79e3d4,spring:0xa8dfed,punch:0xf6be83,alien:0xb4a7ed,comet:0xb9a58e,trap:0x9794c9,boost:0x9adeb0};
+    const material=new THREE.MeshBasicMaterial({color:colors[type]||0xc6d6df,transparent:true,opacity:0,depthWrite:false});
+    const add=geometry=>this.mesh(geometry,material,cue);
+    let kind='';
+    if(type==='bumper') {kind='impulse';add(new THREE.TorusGeometry(radius*1.04,.055,6,32));}
+    else if(type==='spring') {kind='lift';add(new THREE.TorusGeometry(radius*.8,.05,6,28)).rotation.x=Math.PI/2;}
+    else if(type==='punch'||type==='boost') {
+      kind='thrust';
+      for(const x of [-.48,0,.48]){const line=add(new THREE.BoxGeometry(.055,.055,1.7));line.position.x=x;}
+      const tip=add(new THREE.ConeGeometry(.19,.5,5));tip.rotation.x=Math.PI/2;tip.position.z=1.1;
+    } else if(type==='alien') {
+      kind='spin';const points=[];
+      for(let i=0;i<=40;i++){const angle=i/40*TAU*1.5;points.push(new THREE.Vector3(Math.cos(angle)*(radius+.18),(i/40-.5)*1.3,Math.sin(angle)*(radius+.18)));}
+      add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),40,.04,5,false));
+    } else if(type==='trap') {kind='damping';add(new THREE.TorusGeometry(radius*1.1,.045,6,32)).rotation.x=Math.PI/2;}
+    cue.userData={kind,material};return cue;
   }
   syncEvents(events,track) {
     if(this.lastTrack===track&&this.lastEvents===events)return;this.lastTrack=track;this.lastEvents=events;
@@ -209,36 +231,36 @@ export class OrbitScene {
   burst(feedback={type:'shot',strength:1}) {
     if(typeof feedback==='string')feedback={type:feedback==='bad'?'comet':'shot',strength:1};
     const strength=Math.min(1.5,Math.max(.2,feedback.strength||1)),chain=feedback.kind==='chain';
-    this.impact=Math.max(this.impact||0,strength*(chain?.4:1));if(!chain)this.squash=Math.max(this.squash||0,strength);
+    this.impact=Math.max(this.impact||0,strength*(chain?.12:.45));if(!chain)this.squash=Math.max(this.squash||0,strength*.7);
     if(feedback.type==='rail')this.railPulse=1;
-    this.hitAnimations||=new Map();if(feedback.eventId)this.hitAnimations.set(feedback.eventId,{life:.9,total:.9,type:feedback.type,strength});
-    const color=chain?0xffd86b:feedback.type==='comet'?0xffa285:feedback.type==='landing'?0xc0dfe1:feedback.type==='punch'?0xff92c3:0xd7ff87;
-    const distance=Number.isFinite(feedback.s)?feedback.s:this.distance||0,a=distance/360*TAU;
-    const origin=Number.isFinite(feedback.s)?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):this.ball.position.clone();
+    const duration=Math.max(.45,Math.min(1.5,feedback.effectDuration||.65));
+    this.hitAnimations||=new Map();if(feedback.eventId)this.hitAnimations.set(feedback.eventId,{life:duration,total:duration,type:feedback.type,strength,effect:feedback.effect,direction:feedback.effectDirection,powered:feedback.kind!=='chain'&&feedback.powered!==false});
+    const event=this.eventMeshes?.get(feedback.eventId)?.userData.event,pose=event?eventPose(event,this.runElapsed||0):null;
+    const distance=pose?.s??(Number.isFinite(feedback.s)?feedback.s:this.distance||0),a=distance/360*TAU;
+    const origin=pose?this.position(pose.s,pose.x,pose.height+(event.height||1.05)):
+      Number.isFinite(feedback.s)?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):this.ball.position.clone();
+    const color=feedback.type==='comet'?0xbba58d:0xc4d8df;
     const inward=new THREE.Vector3(0,Math.cos(a),-Math.sin(a)),forward=new THREE.Vector3(0,Math.sin(a),Math.cos(a));
     this.effectGeometry||=new THREE.OctahedronGeometry(.14);this.effects||=[];
-    const count=feedback.type==='landing'?10:feedback.type==='shot'?22:chain?20:16,palette=[0xffd86b,0xff8cc8,0x8fffe3,0xffffff];
+    const count=feedback.type==='comet'?6:feedback.type==='landing'?4:feedback.type==='shot'?6:feedback.type==='rail'?3:0;
     for(let i=0;i<count;i++) {
-      const mesh=new THREE.Mesh(this.effectGeometry,new THREE.MeshBasicMaterial({color:chain?palette[i%palette.length]:color,transparent:true,opacity:1,depthWrite:false}));mesh.position.copy(origin);this.scene.add(mesh);
-      const velocity=inward.clone().multiplyScalar(2+Math.random()*6*strength).addScaledVector(forward,(Math.random()-.5)*10*strength);velocity.x=(Math.random()-.5)*12*strength;
-      this.effects.push({mesh,life:.6,total:.6,v:velocity,gravity:inward.clone().multiplyScalar(-10)});
+      const mesh=new THREE.Mesh(this.effectGeometry,new THREE.MeshBasicMaterial({color,transparent:true,opacity:.7,depthWrite:false}));mesh.position.copy(origin);mesh.scale.setScalar(feedback.type==='comet'?1:.55);this.scene.add(mesh);
+      const velocity=inward.clone().multiplyScalar(1+Math.random()*3*strength).addScaledVector(forward,(Math.random()-.5)*5*strength);velocity.x=(Math.random()-.5)*6*strength;
+      this.effects.push({mesh,life:.45,total:.45,v:velocity,gravity:inward.clone().multiplyScalar(-10),opacity:.7,scale:feedback.type==='comet'?1:.55});
     }
-    if(chain){
-      this.chainGeometry||=new THREE.TorusGeometry(.5,.055,6,24);
-      const mesh=new THREE.Mesh(this.chainGeometry,new THREE.MeshBasicMaterial({color,transparent:true,opacity:1,depthWrite:false}));mesh.position.copy(origin);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),inward);this.scene.add(mesh);
-      this.effects.push({mesh,life:.45,total:.45,v:new THREE.Vector3(),gravity:new THREE.Vector3(),ring:true});
-    }
-    while(this.effects.length>80){const effect=this.effects.shift();this.scene.remove(effect.mesh);effect.mesh.material.dispose();}
+    while(this.effects.length>MAX_EFFECTS){const effect=this.effects.shift();this.scene.remove(effect.mesh);effect.mesh.material.dispose();}
   }
   animateEvents(dt,run,active) {
     this.hitAnimations||=new Map();
     for(const [id,hit] of this.hitAnimations){hit.life-=dt;if(hit.life<=0)this.hitAnimations.delete(id);}
     for(const mesh of this.eventMeshes.values()) {
-      const {event,visual,type,centerHeight}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=eventPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
+      const {event,visual,type,centerHeight,cue}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=eventPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
       const flying=Boolean(event.body?.active),sameWheel=!active||!event.body||event.body.wheel===run.wheel;
       mesh.visible=sameWheel&&(flying||!event.used||Boolean(hit)&&!event.body)&&(!active||(ahead>-65&&ahead<190));
       mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-pose.s/360*TAU;
       visual.position.set(0,centerHeight,0);visual.rotation.set(pose.rx||0,pose.ry||0,pose.rz||0);visual.scale.setScalar(1);
+      cue.visible=Boolean(hit?.powered)&&Boolean(cue.userData.kind);cue.position.set(0,centerHeight,0);cue.rotation.set(0,0,0);cue.scale.setScalar(1);
+      if(cue.userData.material)cue.userData.material.opacity=0;
       const wobble=Math.sin(this.time*3+event.at);
       if(!flying){
         if(type==='alien')visual.rotation.z+=wobble*.12;
@@ -250,6 +272,12 @@ export class OrbitScene {
       }
       if(!hit)continue;
       const progress=1-hit.life/hit.total,pulse=Math.sin(progress*Math.PI);
+      const cueKind=cue.userData.kind;if(cue.userData.material)cue.userData.material.opacity=(1-progress)*.65;
+      if(cueKind==='impulse'){cue.position.z=progress*2.1;cue.scale.setScalar(1+progress*.65);}
+      else if(cueKind==='lift'){cue.position.y+=progress*2.1;cue.scale.setScalar(1+progress*.5);}
+      else if(cueKind==='thrust'){cue.position.z=.4+progress*1.8;cue.scale.z=.7+progress*.8;}
+      else if(cueKind==='spin'){cue.rotation.y=progress*TAU*(hit.direction||event.direction||1);cue.scale.setScalar(1+pulse*.12);}
+      else if(cueKind==='damping'){cue.position.y=.1;cue.scale.setScalar(1.2-progress*.4);}
       if(type==='spring')visual.scale.set(1+pulse*.22,1-pulse*.55,1+pulse*.22);
       else if(type==='punch')visual.scale.set(1+pulse*.2,1-pulse*.1,1+pulse*.4);
       else if(type==='bumper'||type==='trap')visual.scale.set(1+pulse*.3,1-pulse*.38,1+pulse*.3);
@@ -265,6 +293,7 @@ export class OrbitScene {
     this.center.copy(center);this.track.position.copy(this.center);this.distantTracks?.forEach((ring,index)=>{ring.visible=index!==orbit;});
     if(active){this.distance=run.s;this.x=run.x;this.syncEvents(run.events,run.track);}
     else{this.distance=28;this.x=0;this.syncEvents(this.previewEvents,0);}
+    this.runElapsed=active?run.elapsed:this.time;
     const airborne=active?run.height||0:0,speed=rolling?Math.abs(run.speed):0,a=this.distance/360*TAU;
     const pos=this.position(this.distance,this.x,BALL_HEIGHT+airborne);this.ball.position.copy(pos);
     this.ballBody.rotation.x-=rolling?run.speed*dt*.13:animDt*.2;this.ballBody.rotation.z-=rolling?(run.vx||0)*dt*.6:0;this.ball.rotation.set(-a,0,0);
@@ -295,7 +324,7 @@ export class OrbitScene {
     const look=active?this.position(this.distance+this.cameraAim,this.cameraX*.9,1+airborne*.85):this.center.clone().add(new THREE.Vector3(this.mobile?0:-8,this.mobile?2:1,this.mobile?0:8));
     if(active||this.frame<3){this.camera.position.copy(target);this.look.copy(look);}else{this.camera.position.lerp(target,Math.min(1,dt*4));this.look.lerp(look,Math.min(1,dt*4));}
     const up=active?new THREE.Vector3(0,Math.cos(a),-Math.sin(a)):new THREE.Vector3(0,1,0);
-    this.impact=Math.max(0,(this.impact||0)-animDt*4);if(this.impact&&rolling&&!this.reducedMotion){this.camera.position.addScaledVector(up,Math.sin(this.time*92)*this.impact*.2);this.camera.position.x+=Math.cos(this.time*75)*this.impact*.08;}
+    this.impact=Math.max(0,(this.impact||0)-animDt*4);if(this.impact&&rolling&&!this.reducedMotion){this.camera.position.addScaledVector(up,Math.sin(this.time*92)*this.impact*.08);this.camera.position.x+=Math.cos(this.time*75)*this.impact*.03;}
     this.railPulse=Math.max(0,(this.railPulse||0)-animDt*4);if(this.guardMaterial)this.guardMaterial.opacity=.035+this.railPulse*.12;
     this.camera.up.copy(up);this.camera.lookAt(this.look);const fov=active?(this.mobile?(ready?70:74):(ready?60:62))+(this.reducedMotion?0:Math.min(9,speed*.055)):(this.mobile?60:47);
     this.camera.fov+=(fov-this.camera.fov)*Math.min(1,dt*5);this.camera.updateProjectionMatrix();
@@ -306,9 +335,9 @@ export class OrbitScene {
       const positions=this.streakGeometry.attributes.position;for(let i=0;i<36;i++){const s=this.distance+((i*17.73-this.time*speed*1.6)%95+95)%95-8,x=(i%2?1:-1)*(HALF_WIDTH+1+(i%7)*.9),h=3+(i%9)*1.2;const start=this.position(s,x,h),end=this.position(s+3+intensity*5,x,h);positions.setXYZ(i*2,start.x,start.y,start.z);positions.setXYZ(i*2+1,end.x,end.y,end.z);}positions.needsUpdate=true;
     }
     this.animateEvents(animDt,run,active);
-    for(let i=this.effects.length-1;i>=0;i--){const effect=this.effects[i];effect.life-=animDt;effect.mesh.position.addScaledVector(effect.v,animDt);effect.v.addScaledVector(effect.gravity,animDt);effect.mesh.material.opacity=Math.max(0,effect.life/effect.total);effect.mesh.scale.setScalar(1+(1-effect.life/effect.total)*(effect.ring?5:1.5));if(effect.life<=0){this.scene.remove(effect.mesh);effect.mesh.material.dispose();this.effects.splice(i,1);}}
+    for(let i=this.effects.length-1;i>=0;i--){const effect=this.effects[i];effect.life-=animDt;effect.mesh.position.addScaledVector(effect.v,animDt);effect.v.addScaledVector(effect.gravity,animDt);effect.mesh.material.opacity=Math.max(0,effect.life/effect.total)*(effect.opacity||1);effect.mesh.scale.setScalar((effect.scale||1)*(1+(1-effect.life/effect.total)*.4));if(effect.life<=0){this.scene.remove(effect.mesh);effect.mesh.material.dispose();this.effects.splice(i,1);}}
     this.renderer.render(this.scene,this.camera);
   }
   disposeObject(object,skipModels=false) {object.traverse(o=>{if(!o.isMesh&&!o.isLine&&!o.isPoints)return;if(skipModels&&Object.values(this.models||{}).some(m=>{let yes=false;m.traverse(n=>{if(n.geometry===o.geometry)yes=true;});return yes;}))return;o.geometry?.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material?.dispose();});}
-  dispose(){this.abort=true;this.disposeObject(this.scene);for(const model of Object.values(this.models))this.disposeObject(model);this.effectGeometry.dispose();this.chainGeometry?.dispose();this.hitAnimations?.clear();if(this.trailHistory)this.trailHistory.length=0;this.effects.length=0;this.renderer.dispose();}
+  dispose(){this.abort=true;this.disposeObject(this.scene);for(const model of Object.values(this.models))this.disposeObject(model);this.effectGeometry.dispose();this.hitAnimations?.clear();if(this.trailHistory)this.trailHistory.length=0;this.effects.length=0;this.renderer.dispose();}
 }

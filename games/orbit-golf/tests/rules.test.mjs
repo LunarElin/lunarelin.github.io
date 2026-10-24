@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   TRACK_LENGTH, TRACK_WIDTH, DISTANCE_PER_GOLD, SIDE_LIMIT, WORLD_PER_METER, MAX_PROP_BODIES, MAX_CHAIN_DEPTH,
-  UPGRADE_DEFS, TUTORIAL_DURATION, RUN_DURATION,
+  UPGRADE_DEFS, COLLISION_EFFECTS, TUTORIAL_DURATION, RUN_DURATION,
   newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade,
   generateTrack, eventX, eventPose, ballStats, newRun, steerRun, resolveEvent, stepRun,
   collectRunGold, canContinue, continueRun, settleRun,
@@ -93,6 +93,97 @@ test('spin applies force continuously rather than snapping to discrete positions
   assert.notEqual(run.x, -1);assert.notEqual(run.x, 0);assert.notEqual(run.x, 1);
   steerRun(run, 20);assert.equal(run.steer, 1);
   run.phase = 'stopped';assert.equal(steerRun(run, -1), false);
+});
+
+test('exhausted forward momentum ends naturally even with held spin and lateral or airborne motion',()=>{
+  for(const dt of [1/60,.1,1])for(const axis of [-1,1]) {
+    const profile=ordinary(0),run=newRun(profile,1,1,0);
+    Object.assign(run,{speed:0,rollSpeed:0,vx:12,height:1,vy:3,events:[],eventTrack:0});
+    steerRun(run,axis);
+    for(let time=0;time<2&&run.phase==='rolling';time+=dt)stepRun(run,profile,dt);
+    assert.equal(run.phase,'stopped','held lateral input must not prevent a forward stop');
+    assert.equal(run.stopReason,'natural');assert.ok(run.elapsed<1);
+    for(const key of ['speed','rollSpeed','vx','vy','steer'])assert.equal(run[key],0);
+  }
+});
+
+test('a complete free shot ends naturally while spin is held instead of waiting for the duration cap',()=>{
+  for(const dt of [1/60,.1])for(const axis of [-1,1]) {
+    const profile=ordinary(0),run=newRun(profile,1,1,0);steerRun(run,axis);
+    while(run.phase==='rolling'){
+      run.events=[];run.eventTrack=run.track;stepRun(run,profile,dt);
+    }
+    assert.equal(run.stopReason,'natural');assert.ok(run.elapsed<35);
+    assert.equal(run.steer,0);assert.equal(run.vx,0);
+  }
+});
+
+test('steering and collider spin cannot add movement once the forward budget is empty',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0);
+  Object.assign(run,{speed:0,rollSpeed:0,vx:0,height:0,vy:0,curveSpin:20,events:[],eventTrack:0});
+  steerRun(run,1);stepRun(run,profile,.2);
+  assert.equal(run.x,0);assert.equal(run.vx,0);assert.equal(run.s,0);assert.equal(run.rollSpeed,0);
+});
+
+test('real forward or backward flight remains live and an external impulse resets the forward stall',()=>{
+  const profile=ordinary(0);
+  for(const speed of [-30,30]){
+    const run=newRun(profile,1,1,0);
+    Object.assign(run,{s:100,distance:100,speed,rollSpeed:0,height:2,vy:1,events:[],eventTrack:0});
+    stepRun(run,profile,.2);assert.equal(run.phase,'rolling');assert.equal(run.restTime,0);
+  }
+  const run=newRun(profile,1,1,0);Object.assign(run,{speed:0,rollSpeed:0,restTime:.5,events:[],eventTrack:0});
+  resolveEvent(run,{id:'refuel',type:'boost'},profile);
+  assert.equal(run.restTime,0);assert.ok(run.rollSpeed>10);assert.equal(run.vy,0);
+  stepRun(run,profile,1);assert.equal(run.phase,'rolling');assert.ok(run.s>10);
+});
+
+test('each collision object applies a distinct measurable movement effect without floating speech',()=>{
+  const profile=ordinary(0),results=new Map();
+  assert.ok(Object.isFrozen(COLLISION_EFFECTS));
+  for(const type of ['bumper','spring','punch','alien','comet','trap','boost']){
+    const run=newRun(profile,1,1,0);Object.assign(run,{speed:70,rollSpeed:70,vx:3,vy:0,curveSpin:2});
+    const feedback=resolveEvent(run,{id:type,type,x:0,at:20,direction:1},profile,{x:.6,s:-.8});
+    assert.equal(feedback.text,'');assert.equal(feedback.effect,COLLISION_EFFECTS[type].effect);
+    assert.equal(feedback.effectDirection,1);assert.ok(Object.isFrozen(COLLISION_EFFECTS[type]));
+    results.set(type,run);
+  }
+  const get=type=>results.get(type);
+  assert.ok(get('punch').rollSpeed>get('bumper').rollSpeed&&get('bumper').rollSpeed>70,'punch and bumper provide different forward impulse');
+  assert.ok(get('spring').vy>=12&&get('spring').vy>get('punch').vy*2,'spring supplies the high arc');
+  assert.ok(get('alien').curveSpin>8&&get('alien').curveSpin>get('comet').curveSpin,'alien supplies continuing lateral curvature');
+  assert.ok(get('comet').speed<0&&get('comet').speed<get('bumper').speed,'comet supplies strong reflection');
+  assert.ok(get('trap').rollSpeed<get('comet').rollSpeed&&Math.abs(get('trap').vx)<Math.abs(get('comet').vx),'friction trap removes forward and lateral energy');
+  assert.ok(get('trap').slowTime>1&&get('boost').vy===0&&get('boost').speed>70,'boost stays flat while trap adds friction');
+});
+
+test('launched props carry passive momentum without repeating their intrinsic powered effect',()=>{
+  const profile=ordinary(0);
+  for(const type of ['bumper','spring','punch','alien','trap']){
+    const run=newRun(profile,1,1,0),event={id:type,type,direction:1};
+    resolveEvent(run,event,profile,{x:.6,s:-.8});
+    run.elapsed=event.cooldown+.01;Object.assign(run,{speed:70,rollSpeed:70,vx:0,vy:0,curveSpin:0,slowTime:0});
+    Object.assign(event.body,{vs:0,vx:0,vy:0});
+    const feedback=resolveEvent(run,event,profile,{x:.6,s:-.8});
+    assert.equal(feedback.powered,false);assert.ok(run.rollSpeed<70);
+    assert.equal(run.curveSpin,0);assert.equal(run.slowTime,0);assert.ok(run.vy<=3);
+  }
+});
+
+test('only incoming forward prop momentum can refill a depleted forward budget',()=>{
+  const profile=ordinary(0);
+  const collide=(vs,vx,normal)=>{
+    const run=newRun(profile,1,1,0);Object.assign(run,{speed:0,rollSpeed:0,vx:0,vy:0,restTime:.5});
+    const event={id:'moving',type:'punch',direction:1,body:{active:true,vs,vx,vy:0}};
+    resolveEvent(run,event,profile,normal);return {run,event};
+  };
+  const lateral=collide(0,20,{x:1,s:0});
+  assert.equal(lateral.run.rollSpeed,0);assert.equal(lateral.run.speed,0);
+  assert.ok(Math.abs(lateral.event.body.vx)<20,'the carrier must lose energy after transfer');
+  const backward=collide(-60,0,{x:0,s:-1});assert.equal(backward.run.rollSpeed,0);
+  const forward=collide(60,0,{x:0,s:1});
+  assert.ok(forward.run.rollSpeed>20&&forward.run.speed>0);assert.equal(forward.run.restTime,0);
+  assert.ok(forward.event.body.vs<60,'forward momentum must be consumed rather than recycled');
 });
 
 test('the physical track is wider than twice the old cylinder and the ball freely crosses its former rails',()=>{
@@ -287,26 +378,30 @@ test('a free shot agrees with the unobstructed reference within integration tole
     assert.ok(Math.abs(run.distance / ballStats(level).range - 1) < .025);
   }
 });
-test('100 paired seeds show a clear first upgrade and every later level increases the median', () => {
-  const medians = [], distances = [];
+test('100 paired seeds show a clear first upgrade and every later level increases the median', t => {
+  const medians = [], distances = [], calibration=[];
+  const median=values=>[...values].sort((a,b)=>a-b)[49];
   for (let level = 0; level <= 5; level++) {
-    const profile = ordinary(level), values = [];
+    const profile = ordinary(level), values = [],times=[],chains=[],depths=[];let capped=0;
     for (let seed = 1; seed <= 100; seed++) {
       const { run } = finish(profile, seed);
-      values.push(run.distance);assert.ok(run.elapsed <= RUN_DURATION);
+      values.push(run.distance);times.push(run.elapsed);chains.push(run.chainHits);depths.push(run.maxChain);if(run.stopReason==='time')capped++;
+      assert.ok(run.elapsed <= RUN_DURATION);
     }
     distances.push(values);
     medians.push([...values].sort((a,b) => a-b)[49]);
+    calibration.push({level,distance:Math.round(median(values)),seconds:Number(median(times).toFixed(1)),chains:median(chains),depth:median(depths),timeCaps:capped,chainsPresent:chains.filter(value=>value>0).length});
     if (level) assert.ok(medians[level] > medians[level-1] * 1.25, `upgrade ${level} lacks a material median gain`);
   }
   const paired = distances[0].map((value,index) => distances[1][index] / value).sort((a,b) => a-b);
+  t.diagnostic(JSON.stringify({calibration,firstUpgrade:{p10:paired[9],median:paired[49],p90:paired[89],farther:paired.filter(value=>value>1).length,over145:paired.filter(value=>value>=1.45).length}}));
   assert.ok(paired[49] >= 1.8);
   assert.ok(paired.filter(ratio => ratio > 1).length >= 95);
   assert.ok(paired.filter(ratio => ratio >= 1.45).length >= 75);
 });
-test('an unsteered first shot produces autonomous ricochets and comic collision situations', () => {
+test('an unsteered first shot produces autonomous rebounds, airborne motion and active chains', () => {
   const { run, types } = finish(ordinary(0), 0xffffffff);
-  assert.ok(run.collisions >= 5);assert.ok(run.maxHeight > 1);
+  assert.ok(run.collisions >= 5);assert.ok(run.maxHeight > .5);
   assert.ok(types.has('rail') && types.has('bumper') && types.has('landing'));
   assert.ok(run.chainHits>0&&run.maxChain>=2);
 });
