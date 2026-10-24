@@ -4,17 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#090e23">
-  <meta name="description" content="수직 우주 쳇바퀴를 달리는 3D 골프. 짧은 훈련을 마치고 공과 슈트를 강화해 다음 기록에 도전하세요.">
+  <meta name="description" content="쿵! 뿅! 우주 쳇바퀴에서 튀어 다니는 물리 골프. 공을 강화하고 더 멀리 날아가세요.">
   <title>오빗 골프 · ORBIT GOLF</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css">
-  <script type="module" src="game.mjs?v=20261024-chase2"></script>
+  <link rel="stylesheet" href="styles.css?v=20261024-pinball1">
+  <script type="module" src="game.mjs?v=20261024-pinball1"></script>
 </head>
 <body>
   <main id="game" aria-label="오빗 골프">
     <canvas id="space" aria-label="수직 쳇바퀴 안쪽을 구르는 3차원 우주 골프"></canvas>
     <div class="vignette" aria-hidden="true"></div>
+    <div id="speed-lines" aria-hidden="true"></div>
+    <div id="shot-flash" aria-hidden="true"></div>
     <header class="topbar">
       <a href="../../" class="home icon-button" aria-label="홈페이지로">⌂</a>
       <div class="wordmark"><span class="orbit-mark" aria-hidden="true">◉</span><span>ORBIT <b>GOLF</b></span></div>
@@ -23,8 +25,8 @@
     </header>
 
     <section id="lobby" class="lobby">
-      <div class="lobby-title"><p class="kicker">우주 쳇바퀴 챌린지</p><h1>한 바퀴 더,<br><em>어제보다 멀리.</em></h1><p class="tagline">짧게 도전하고, 강해져서 다시.</p></div>
-      <div class="orbit-caption"><span class="live-dot"></span>코발트 휠 · 안쪽을 달려요<span class="caption-line"></span></div>
+      <div class="lobby-title"><p class="kicker">우주 물리 골프</p><h1>쿵! 뿅!<br><em>어디까지 튈까?</em></h1><p class="tagline">한 방 날리고, 와장창 더 멀리.</p></div>
+      <div class="orbit-caption"><span class="live-dot"></span>벽도 외계인도, 전부 발사대!<span class="caption-line"></span></div>
       <div class="lobby-dock">
         <div class="wallet-row"><span>최고 기록 <strong id="best">0 <small>m</small></strong></span><span class="gold-pill"><i aria-hidden="true">◆</i><b id="gold">0</b> G</span></div>
         <form id="name-form"><label for="pilot-name">파일럿 이름</label><div class="name-row"><input id="pilot-name" name="pilot" maxlength="12" placeholder="이름을 입력하세요" autocomplete="nickname" required aria-describedby="name-error"><button class="primary" type="submit">출발 <span aria-hidden="true">↗</span></button></div><p id="name-error" class="form-error" aria-live="polite"></p></form>
@@ -37,21 +39,25 @@
       <div class="distance"><b id="distance">0</b><span>m</span></div>
       <div class="run-stats"><span><i>◆</i> <b id="run-gold">0</b> G</span><span>속도 <b id="speed">0</b></span></div>
       <p id="run-goal" class="run-goal"></p>
+      <p id="growth-readout" class="growth-readout"></p>
       <div class="orbit-progress" aria-label="궤도 진행"><div id="orbit-fill"></div></div>
       <div id="warning" class="warning" hidden></div>
     </section>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="combo" class="combo" aria-label="충돌 콤보" hidden></div>
     <div id="warp-flash" class="warp-flash" aria-hidden="true"></div>
 
     <section id="launch-controls" class="controls launch-controls" hidden aria-label="타격 조작">
-      <div class="shot-hint"><strong id="shot-title">첫 타를 준비하세요</strong><span>길게 누른 뒤, 초록에서 놓기</span></div>
+      <div class="shot-hint"><strong id="shot-title">한 방 준비!</strong></div>
+      <div class="aim-row"><label for="aim-control">발사각 <output id="aim-value">8°</output></label><input id="aim-control" type="range" min="-24" max="24" step="0.5" value="8" aria-label="발사각"></div>
       <div class="power-meter" role="meter" aria-label="타격 세기" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="sweet-zone"></div><div id="power-fill"></div><span id="power-needle"></span></div>
-      <button id="shoot" class="primary shoot">누르고 → 놓기 <span aria-hidden="true">⛳</span></button>
+      <button id="shoot" class="primary shoot">길게 눌러 → 한 방! <span aria-hidden="true">⛳</span></button>
       <button id="cancel-run" class="text-button">대기실</button>
     </section>
-    <section id="drive-controls" class="controls drive-controls" hidden aria-label="이동 조작">
-      <div class="lane-hint">좌우로 피하고 <span>빛나는 길을 타세요</span></div>
-      <div class="steer-row"><button id="left" class="steer" aria-label="왼쪽 레인">〈</button><div class="lane-indicator" aria-label="현재 레인"><i></i><i class="active"></i><i></i></div><button id="right" class="steer" aria-label="오른쪽 레인">〉</button></div>
+    <section id="drive-controls" class="controls drive-controls" hidden aria-label="스핀 조작">
+      <div class="spin-caption">공이 알아서 와장창! <span>원하면 스핀만 살짝</span></div>
+      <label class="spin-label" for="spin-control"><span>스핀</span><b aria-hidden="true">↔</b></label>
+      <input id="spin-control" type="range" min="-1" max="1" step="0.01" value="0" aria-label="공 스핀">
     </section>
 
     <dialog id="panel" aria-labelledby="panel-title">

@@ -15,14 +15,14 @@ const [html, gameSource, rulesSource] = await Promise.all([
 ]);
 const sceneSource = `
   export class OrbitScene {
-    constructor() { globalThis.__testScene = this; this.bursts = 0; this.resizes = 0; this.disposed = false; }
-    burst() { this.bursts++; }
+    constructor() { globalThis.__testScene = this; this.bursts = 0; this.feedback = []; this.resizes = 0; this.disposed = false; }
+    burst(event) { this.bursts++; this.feedback.push(event); }
     resize() { this.resizes++; }
     dispose() { this.disposed = true; }
     render(dt, run, mode, power, upgrades) {
-      this.mode = mode; this.power = power;
+      this.mode = mode; this.power = power; this.current = run;
       this.snapshot = run ? Object.fromEntries(
-        ['distance','speed','earned','banked','lane','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit'].map(key => [key,run[key]])
+        ['s','distance','x','vx','height','vy','speed','steer','spin','combo','collisions','maxHeight','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit'].map(key => [key,run[key]])
       ) : null;
     }
   }
@@ -75,9 +75,9 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   await entry.link(specifier => {
     const localSpecifier = specifier.startsWith('./') ? specifier.replace(/\?[^#]*/, '') : specifier;
     assert.ok(modules.has(localSpecifier), `Unexpected runtime import: ${specifier}`);
-    if (localSpecifier === './scene.mjs') {
+    if (localSpecifier === './scene.mjs' || localSpecifier === './rules.mjs') {
       assert.equal(new URL(specifier, entryURL).searchParams.get('v'), entryURL.searchParams.get('v'),
-        'The scene import and HTML entry must share their cache version');
+        'Runtime imports and HTML entry must share their cache version');
     }
     return modules.get(localSpecifier);
   });
@@ -109,6 +109,10 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
     pointer('shoot', 'pointerdown'); tick(chargeFrames); pointer('shoot', 'pointerup'); tick();
     assert.equal($('drive-controls').hidden, false);
   };
+  const input = (id, value) => {
+    $(id).value = String(value);
+    $(id).dispatchEvent(new window.Event('input', { bubbles: true }));
+  };
   const stop = () => {
     let count = 0;
     while ((!$('panel').open || $('panel').dataset.type !== 'result') && count++ < 6000) tick();
@@ -119,7 +123,7 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   const visibility = value => { hidden = value; document.dispatchEvent(new window.Event('visibilitychange')); };
   t.after(() => { dom.window.close(); });
   return {
-    window, document, $, tick, pointer, submit, launch, stop, visibility, panelButton, frames, errors, storageAccess,
+    window, document, $, tick, pointer, input, submit, launch, stop, visibility, panelButton, frames, errors, storageAccess,
     get scene() { return window.__testScene; },
     get raw() { return raw; },
     saved() { return raw === null ? null : JSON.parse(raw); },
@@ -144,13 +148,9 @@ test('name, touch shot, one paid continuation, banking, upgrades and ranking use
   pointer('shoot', 'pointerup');
   assert.equal($('drive-controls').hidden, true, 'Canceled charge must not launch');
   app.launch();
-  assert.ok(app.scene.snapshot.speed > 100, 'Releasing in the sweet spot must give a full-power shot');
+  const launchSpeed = app.scene.snapshot.speed;
+  assert.ok(launchSpeed > 20, 'Releasing the charge must launch a moving physical ball');
   assert.ok(app.scene.bursts > 0);
-  pointer('left', 'pointerdown'); tick();
-  assert.equal(app.scene.snapshot.lane, -1);
-  $('left').dispatchEvent(new app.window.MouseEvent('click', { bubbles: true, detail: 1 }));
-  pointer('right', 'pointerdown'); tick();
-  assert.equal(app.scene.snapshot.lane, 0, 'A physical click must not duplicate the pointer steering');
 
   const first = app.stop();
   assert.equal(first.phase, 'stopped');
@@ -160,6 +160,9 @@ test('name, touch shot, one paid continuation, banking, upgrades and ranking use
   assert.equal(paid.disabled, false);
   paid.click();
   assert.equal(app.saved().gold, 250 + first.earned - 40);
+  for (const key of ['s','x','height']) {
+    assert.equal(app.scene.current[key], first[key], `Continuation must preserve the physical ${key} coordinate`);
+  }
   paid.click();
   assert.equal(app.saved().gold, 250 + first.earned - 40, 'A duplicate continuation event must not charge twice');
   tick();
@@ -195,13 +198,72 @@ test('name, touch shot, one paid continuation, banking, upgrades and ranking use
   app.submit('별파일럿');
   app.launch();
   assert.equal(app.scene.snapshot.continued, false, 'A new round restores its own single continuation');
-  assert.ok(app.scene.snapshot.speed > 110, 'Purchased ball upgrade applies to the next shot');
+  assert.ok(app.scene.snapshot.speed > launchSpeed * 1.15, 'Purchased ball upgrade materially increases the next shot at the same charge');
   const reloaded = await game(t, { stored: app.raw });
   assert.equal(reloaded.$('pilot-name').value, '별파일럿');
   assert.equal(reloaded.saved().rankings.length, 1);
   assert.equal(reloaded.saved().upgrades.ball, 1);
   assert.equal(app.storageAccess.reads, 1);
   assert.ok(app.storageAccess.writes > 0, 'Normal gameplay must still use its persistent profile');
+  assert.deepEqual(app.errors, []);
+});
+
+test('fractional aim and held spin control a continuous physical ball without lane snapping', async t => {
+  const app = await game(t);
+  app.submit('자유 스핀');
+  app.input('aim-control', 13.5);
+  app.launch();
+  const angled = { ...app.scene.snapshot };
+  const straight = await game(t);
+  straight.submit('직선'); straight.input('aim-control', 0); straight.launch();
+  assert.ok(Math.abs(angled.vx) > Math.abs(straight.scene.snapshot.vx) + .5,
+    'A fractional aim must change lateral launch velocity rather than choose a lane');
+  assert.ok(Math.abs(angled.x) > 0 && Math.abs(angled.x) < 3.2);
+  assert.ok(Math.abs(angled.x - Math.round(angled.x)) > .0001, 'Ball position must remain continuous');
+  assert.equal(app.$('left'), null);
+  assert.equal(app.$('right'), null);
+  app.pointer('spin-control', 'pointerdown');
+  app.input('spin-control', .37); app.tick();
+  assert.equal(app.scene.snapshot.steer, .37);
+  app.pointer('spin-control', 'pointerup'); app.tick();
+  assert.equal(app.scene.snapshot.steer, 0, 'Releasing spin must stop the applied steering force');
+  assert.equal(Number(app.$('spin-control').value), 0);
+  app.document.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+  app.tick();
+  assert.equal(app.scene.snapshot.steer, -1);
+  app.document.dispatchEvent(new app.window.KeyboardEvent('keyup', { key: 'ArrowLeft', bubbles: true }));
+  app.tick();
+  assert.equal(app.scene.snapshot.steer, 0, 'Keyboard steering must also release continuously');
+  app.pointer('space', 'pointerdown', { clientX: 100 });
+  app.pointer('space', 'pointermove', { clientX: 140 }); app.tick();
+  assert.ok(Math.abs(app.scene.snapshot.steer - 40 / 85) < .001,
+    'A canvas drag must apply a proportional spin rather than a fixed sidestep');
+  app.pointer('space', 'pointercancel'); app.tick();
+  assert.equal(app.scene.snapshot.steer, 0, 'A cancelled touch must not leave spin stuck on');
+  app.input('spin-control', -.6); app.tick();
+  app.$('pause').click();
+  assert.equal(app.scene.current.steer, 0, 'Pause must release every held steering source');
+  assert.equal(Number(app.$('spin-control').value), 0);
+  app.panelButton('계속').click(); app.tick();
+  assert.equal(app.scene.snapshot.steer, 0);
+  assert.deepEqual(app.errors, []);
+});
+
+test('an unsteered shot ricochets and becomes airborne while collision feedback reaches the scene', async t => {
+  const app = await game(t);
+  app.submit('알아서 통통'); app.launch();
+  let highest = app.scene.snapshot.height;
+  let maxCollisions = app.scene.snapshot.collisions;
+  for (let frame = 0; frame < 600 && app.scene.mode === 'rolling'; frame++) {
+    app.tick();
+    highest = Math.max(highest, app.scene.snapshot.height);
+    maxCollisions = Math.max(maxCollisions, app.scene.snapshot.collisions);
+  }
+  assert.ok(highest > .15, 'The launched ball must actually leave the surface without an avoidance input');
+  assert.ok(maxCollisions >= 2, 'An unsteered shot must physically ricochet more than once');
+  assert.ok(app.scene.feedback.some(event => event && typeof event === 'object'
+    && event.type !== 'shot' && event.type !== 'stop' && Number.isFinite(event.strength)),
+  'Collision impulses must reach the scene as structured impact feedback');
   assert.deepEqual(app.errors, []);
 });
 
@@ -233,7 +295,7 @@ test('preview plays and upgrades in memory without reading or writing the existi
   assert.match([...app.$('panel-content').querySelectorAll('.upgrade-title')][1].textContent, /Lv\.1/);
   app.panelButton('다음 비행').click(); app.launch();
   assert.equal(app.scene.snapshot.tutorial, false, 'Preview keeps tutorial completion in RAM during this visit');
-  assert.ok(app.scene.snapshot.speed > initialSpeed + 6, 'Preview purchases must affect the actual next shot');
+  assert.ok(app.scene.snapshot.speed > initialSpeed * 1.15, 'Preview purchases must materially affect the actual next shot');
   app.$('pause').click(); app.panelButton('비행 마치기').click();
   app.$('open-ranks').click();
   const rows = [...app.$('panel-content').querySelectorAll('.rank-row strong')];
@@ -267,6 +329,7 @@ test('visibility pause freezes progress, banks once, and resumes only through th
   assert.equal(app.scene.mode, 'paused');
   assert.equal(app.scene.snapshot.distance, before.distance);
   assert.equal(app.scene.snapshot.speed, before.speed);
+  for (const key of ['s','x','vx','height','vy']) assert.equal(app.scene.snapshot[key], before[key]);
   assert.equal(app.scene.snapshot.elapsed, before.elapsed, 'Paused wall time must not consume the active-play limit');
   app.panelButton('계속').click(); app.tick();
   assert.equal(app.scene.mode, 'rolling');
@@ -279,7 +342,7 @@ test('visibility pause freezes progress, banks once, and resumes only through th
   assert.equal(settled.rankings.length, 1);
 });
 
-test('a new zero-gold pilot finishes a short first run, buys a ball upgrade, and flies faster next round', async t => {
+test('a new zero-gold pilot finishes training, upgrades the ball, and travels materially farther next round', async t => {
   const app = await game(t, { stored: null });
   assert.equal(app.$('gold').textContent, '0');
   app.submit('첫 우주인');
@@ -327,9 +390,11 @@ test('a new zero-gold pilot finishes a short first run, buys a ball upgrade, and
   app.launch();
   assert.equal(app.scene.snapshot.tutorial, false);
   assert.equal(app.scene.snapshot.durationLimit, 120);
-  assert.ok(app.scene.snapshot.speed > initialSpeed + 6,
-    'The purchased ball must increase actual next-shot speed at the same charge');
+  assert.ok(app.scene.snapshot.speed > initialSpeed * 1.15,
+    'The purchased ball must materially increase actual next-shot speed at the same charge');
   const second = app.stop();
+  assert.ok(second.distance > first.distance * 1.3,
+    `The same seeded shot must travel visibly farther after its first upgrade (${first.distance} -> ${second.distance})`);
   app.panelButton('기록 저장').click();
   assert.equal(app.saved().gold, balance - 90 + second.earned,
     'Later rounds must not receive the first-flight grant again');
