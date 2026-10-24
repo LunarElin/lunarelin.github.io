@@ -157,6 +157,38 @@ test('each collision object applies a distinct measurable movement effect withou
   assert.ok(get('trap').slowTime>1&&get('boost').vy===0&&get('boost').speed>70,'boost stays flat while trap adds friction');
 });
 
+test('matched impacts remain visibly different over the following second of actual travel',()=>{
+  const profile=ordinary(0),sample=(type,direction=1)=>{
+    const run=newRun(profile,1,1,0);
+    Object.assign(run,{s:100,distance:100,speed:70,rollSpeed:70,vx:0,vy:0,events:[],eventTrack:0});
+    resolveEvent(run,{id:type,type,at:100,x:0,direction},profile,{x:0,s:-1});
+    const frames=[];
+    for(let frame=0;frame<120;frame++){
+      // Observe the struck object's effect in isolation, without later objects or input.
+      run.events=[];run.eventTrack=run.track;stepRun(run,profile,1/120);
+      if(frame===35||frame===119)frames.push({s:run.s,x:run.x,height:run.height,vx:run.vx,curve:run.curveSpin});
+    }
+    return frames;
+  };
+  const bumper=sample('bumper'),spring=sample('spring'),punch=sample('punch'),alien=sample('alien'),comet=sample('comet'),trap=sample('trap');
+  assert.ok(spring[0].height>3.3&&spring[1].height>4.5,'spring must produce a high sustained arc');
+  assert.ok(punch.every(frame=>frame.height<.2),'piston thrust must stay close to the tread');
+  assert.ok(punch[1].s>bumper[1].s+12,'piston must travel visibly farther forward than the elastic bumper');
+  assert.ok(comet[0].s<90&&bumper[0].s>115,'a meteor reflects backward while the elastic bumper continues forward');
+  assert.ok(trap[1].s<bumper[1].s-15&&Math.abs(trap[1].x)<.1,'brake removes travel instead of throwing the ball');
+  assert.ok(alien[1].x>4&&alien[1].x>bumper[1].x+3&&alien[1].curve>4,'gyro continues curving rather than applying a one-frame knock');
+  const reversed=sample('alien',-1);
+  assert.ok(reversed[1].x< -4);assert.ok(Math.abs(alien[1].x+reversed[1].x)<1e-8,'gyro direction marks must match the physical curvature');
+});
+
+test('gyro feedback carries the applied curvature direction even against incoming lateral movement',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0);
+  Object.assign(run,{x:-1,vx:3});
+  const feedback=resolveEvent(run,{id:'gyro',type:'alien',x:0,at:20},profile,{x:0,s:-1});
+  assert.ok(run.vx>0&&run.curveSpin<0,'the ball can initially drift against the new curvature');
+  assert.equal(feedback.effectDirection,-1,'direction must describe the applied effect rather than the previous drift');
+});
+
 test('launched props carry passive momentum without repeating their intrinsic powered effect',()=>{
   const profile=ordinary(0);
   for(const type of ['bumper','spring','punch','alien','trap']){
@@ -216,12 +248,12 @@ test('a physical prop reflects the ball backwards and sideways and sends it into
 test('springs launch a real arc and floor contact bounces, then restores rolling momentum', () => {
   const profile = ordinary(0), run = newRun(profile, 1, 1, 0);
   run.events = [];
-  resolveEvent(run, { id: 'spring', type: 'spring', direction: 1 }, profile, { x: .8, s: -.6 });
+  resolveEvent(run, { id: 'spring', type: 'spring', direction: 1 }, profile, { x: 0, s: -1 });
   let landed = false;
   for (let frame = 0; frame < 240; frame++) {
     if (stepRun(run, profile, 1 / 120).some(event => event.type === 'landing')) landed = true;
   }
-  assert.ok(run.maxHeight > 2.5);assert.ok(landed);assert.ok(run.speed > 0);
+  assert.ok(run.maxHeight > 4.5);assert.ok(landed);assert.ok(run.speed > 0);
 });
 test('a slow rendering frame cannot tunnel through pickups or a collider', () => {
   const profile = ordinary(0), run = newRun(profile, 1, 1, 0);

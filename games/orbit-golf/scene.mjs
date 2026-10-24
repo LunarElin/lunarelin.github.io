@@ -1,6 +1,6 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261024-momentum1';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261024-devices1';
 
 const TAU = Math.PI * 2;
 export const WHEEL_RADIUS = 23;
@@ -34,7 +34,7 @@ export class OrbitScene {
     this.buildTrack(); this.buildSpace();
     this.ball = new THREE.Group(); this.scene.add(this.ball);
     this.ballBody = new THREE.Mesh(new THREE.SphereGeometry(1.05, 22, 16), mat(0xf6fbff, .24, .25)); this.ball.add(this.ballBody);
-    const seam = new THREE.Mesh(new THREE.TorusGeometry(1.055, .035, 6, 36), glow(0x8affda, .9)); seam.rotation.x = Math.PI / 2; this.ballBody.add(seam);
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(1.055, .065, 6, 36), mat(0x183c59,.35,.35)); seam.rotation.x = Math.PI / 2; this.ballBody.add(seam);
     const seam2 = seam.clone(); seam2.rotation.x = 0; this.ballBody.add(seam2);
     this.shadow = new THREE.Mesh(new THREE.CircleGeometry(.78, 24), new THREE.MeshBasicMaterial({ color: 0x050e20, transparent: true, opacity: .6, depthWrite: false })); this.shadow.rotation.x = -Math.PI / 2; this.scene.add(this.shadow);
     this.trail = []; const trailGeometry = new THREE.SphereGeometry(.23, 8, 6);
@@ -150,33 +150,48 @@ export class OrbitScene {
     const a=distance/360*TAU,r=R-height;
     return new THREE.Vector3(-x,-Math.cos(a)*r,Math.sin(a)*r).add(this.center||new THREE.Vector3());
   }
+  directionArrow(parent,color,size=1) {
+    const shape=new THREE.Shape();shape.moveTo(-.16,-.5);shape.lineTo(.16,-.5);shape.lineTo(.16,.08);shape.lineTo(.42,.08);shape.lineTo(0,.55);shape.lineTo(-.42,.08);shape.lineTo(-.16,.08);shape.closePath();
+    const arrow=this.mesh(new THREE.ExtrudeGeometry(shape,{depth:.13,bevelEnabled:false}),glow(color,.55),parent);arrow.scale.setScalar(size);return arrow;
+  }
   createEvent(event) {
-    const g=new THREE.Group(),visual=new THREE.Group(),type=event.type,r=event.radius||.95,h=event.height||1.05;g.add(visual);
+    const g=new THREE.Group(),visual=new THREE.Group(),type=event.type,r=event.radius||.95,h=event.height||1.05,mechanism={};g.add(visual);
     const useModel=(name,scale)=>{if(!this.models[name])return false;const m=this.models[name].clone(true);m.scale.setScalar(scale);m.position.y=h;visual.add(m);return true;};
     const eyes=(y,z,spread=.35)=>{for(const sign of [-1,1]){const eye=this.mesh(new THREE.SphereGeometry(.25,12,8),mat(0xffffff,.35,0),visual);eye.position.set(sign*spread,y,z);const pupil=this.mesh(new THREE.SphereGeometry(.115,10,8),mat(0x111c35,.3,0),visual);pupil.position.set(sign*spread,y-.025,z-.2);}};
     if(type==='bumper') {
-      const body=this.mesh(new THREE.SphereGeometry(r,18,12),mat(0xffce58,.28,.25),visual);body.position.y=h;body.scale.y=.9;
-      const belt=this.mesh(new THREE.TorusGeometry(r,.14,7,28),glow(0xff7ea7,.8),visual);belt.rotation.x=Math.PI/2;belt.position.y=h;
-      eyes(h+.24,-r*.83);
-      const base=this.mesh(new THREE.CylinderGeometry(r*1.15,r*1.25,.18,20),mat(0x547caa,.4,.6),visual);base.position.y=.12;
+      const body=this.mesh(new THREE.SphereGeometry(r*.88,16,12),mat(0xf8b93b,.28,.35),visual);body.name='elastic-shield';body.position.y=h;body.scale.z=.8;
+      const belt=this.mesh(new THREE.TorusGeometry(r*.9,.19,7,24),mat(0x182b42,.8,.1),visual);belt.name='rubber-ring';belt.position.set(0,h,-r*.3);
+      const face=this.mesh(new THREE.CylinderGeometry(r*.64,r*.75,.22,16),glow(0xffd66b,.32),visual);face.rotation.x=Math.PI/2;face.position.set(0,h,-r*.73);
+      for(const sign of [-1,1]){const rib=this.mesh(new THREE.BoxGeometry(.14,r*.8,.12),mat(0x26394a),visual);rib.position.set(sign*r*.48,h,-r*.77);rib.rotation.z=sign*.35;}
+      const base=this.mesh(new THREE.CylinderGeometry(r*.82,r,.2,16),mat(0x4b6176,.5,.65),visual);base.position.y=.12;
+      mechanism.rubber=belt;
     } else if(type==='spring') {
-      const points=[];for(let i=0;i<=64;i++){const a=i/64*TAU*4;points.push(new THREE.Vector3(Math.cos(a)*r*.55,.2+i/64*1.1,Math.sin(a)*r*.55));}
-      this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),64,.08,6,false),mat(0x9aefff,.3,.75),visual);
-      const cap=this.mesh(new THREE.CylinderGeometry(r,r,.2,20),glow(0xd4ff72,.5),visual);cap.position.y=1.4;
-      const base=this.mesh(new THREE.CylinderGeometry(r*1.1,r*1.1,.16,20),mat(0x414f79),visual);base.position.y=.1;
+      const points=[];for(let i=0;i<=48;i++){const a=i/48*TAU*3;points.push(new THREE.Vector3(Math.cos(a)*r*.57,.15+i/48*1.15,Math.sin(a)*r*.57));}
+      const coil=this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),48,.11,6,false),mat(0x80e4ff,.25,.75),visual);coil.name='compression-coil';
+      const cap=this.mesh(new THREE.CylinderGeometry(r*.94,r*.94,.23,16),glow(0x84e9ff,.4),visual);cap.name='jump-platform';cap.position.y=1.42;
+      const up=this.directionArrow(visual,0xf2ffff,1.2);up.name='up-arrow';up.position.set(0,.9,-r*.76);up.rotation.y=Math.PI;
+      const base=this.mesh(new THREE.CylinderGeometry(r,r,.17,16),mat(0x214e6e),visual);base.position.y=.1;
+      mechanism.coil=coil;mechanism.cap=cap;
     } else if(type==='punch') {
-      const cuff=this.mesh(new THREE.CylinderGeometry(.62,.62,.65,16),mat(0xffdf65,.4,.25),visual);cuff.rotation.x=Math.PI/2;cuff.position.set(0,h,.65);
-      const glove=this.mesh(new THREE.SphereGeometry(r,18,12),mat(0xff5e91,.26,.2),visual);glove.scale.set(1.1,.9,1);glove.position.set(0,h,-.15);
-      const thumb=this.mesh(new THREE.SphereGeometry(r*.48,12,8),mat(0xff85b0,.27,.2),visual);thumb.position.set(r*.75,h-.25,-.45);
-      const stand=this.mesh(new THREE.CylinderGeometry(.13,.2,h,8),mat(0x8597b9,.4,.7),visual);stand.position.y=h*.5;
+      const housing=this.mesh(new THREE.BoxGeometry(r*1.6,r*1.15,r*.68),mat(0xb95525,.35,.5),visual);housing.name='piston-housing';housing.position.set(0,h,-r*.3);
+      const piston=new THREE.Group();piston.name='forward-piston';piston.position.set(0,h,0);visual.add(piston);
+      const rod=this.mesh(new THREE.CylinderGeometry(r*.27,r*.27,r*1.1,10),mat(0xbbd5d9,.24,.8),piston);rod.rotation.x=Math.PI/2;
+      const head=this.mesh(new THREE.BoxGeometry(r*1.7,r*1.12,.28),mat(0xff983e,.25,.4),piston);head.position.z=r*.62;
+      for(const sign of [-1,1]){const arrow=this.directionArrow(visual,0xffefb2,.82);arrow.name='forward-arrow';arrow.rotation.x=Math.PI/2;arrow.position.set(sign*r*.43,h+r*.62,-.12);}
+      this.mesh(new THREE.BoxGeometry(r*1.8,.2,r*1.6),mat(0x3c4657),visual).position.y=.12;
+      mechanism.piston=piston;
     } else if(type==='coins') {
       for(let i=0;i<3;i++){const m=this.mesh(new THREE.TorusGeometry(.36,.11,7,16),glow(0xffcf65,.8),visual);m.position.set(0,.9,-.7+i*.7);m.rotation.y=Math.PI/2;}
     } else if(type==='boost') {
-      const pad=this.mesh(new THREE.BoxGeometry(2.3,.18,2.7),glow(0x8affbb,.7),visual);pad.position.y=.12;
-      for(let i=0;i<3;i++)for(const sign of [-1,1]){const arrow=this.mesh(new THREE.BoxGeometry(.65,.07,.16),glow(0xecffad,1),visual);arrow.position.set(sign*.25,.25,(i-1)*.65);arrow.rotation.y=sign*.6;}
+      const pad=this.mesh(new THREE.BoxGeometry(2,.22,2.6),mat(0x185742,.45,.4),visual);pad.name='acceleration-pad';pad.position.y=.12;
+      for(let i=0;i<3;i++){const arrow=this.directionArrow(visual,0x9dffb3,.8);arrow.name='forward-arrow';arrow.rotation.x=Math.PI/2;arrow.position.set(0,.28,(i-1)*.7);}
+      for(const sign of [-1,1])this.mesh(new THREE.BoxGeometry(.13,.15,2.6),glow(0x79edac,.5),visual).position.set(sign*.98,.2,0);
     } else if(type==='trap') {
-      const jelly=this.mesh(new THREE.SphereGeometry(r*1.15,18,10),new THREE.MeshStandardMaterial({color:0xc784ff,roughness:.18,metalness:.15,transparent:true,opacity:.86}),visual);jelly.scale.set(1,.35,1.2);jelly.position.y=.3;eyes(.55,-r*.9,.3);
-      const plate=this.mesh(new THREE.CylinderGeometry(r*1.25,r*1.25,.1,24),mat(0x6d4c9a),visual);plate.position.y=.04;
+      const jelly=this.mesh(new THREE.SphereGeometry(r,16,10),new THREE.MeshStandardMaterial({color:0xdc59ad,roughness:.22,metalness:.05,transparent:true,opacity:.88}),visual);jelly.name='sticky-brake';jelly.scale.set(1,.42,1.15);jelly.position.y=.38;
+      const plate=this.mesh(new THREE.BoxGeometry(r*2.12,.14,r*2.25),mat(0x5a254f),visual);plate.position.y=.1;
+      for(let i=0;i<3;i++){const band=this.mesh(new THREE.BoxGeometry(r*1.75,.1,.19),glow(0xffb3dc,.25),visual);band.name='brake-bar';band.position.set(0,.64,(i-1)*r*.5);}
+      for(const sign of [-1,1]){const jaw=this.mesh(new THREE.BoxGeometry(.16,.45,r*1.5),mat(0x873a73),visual);jaw.name='brake-jaw';jaw.position.set(sign*r*.95,.35,0);}
+      mechanism.jelly=jelly;
     } else if(type==='hole') {
       this.mesh(new THREE.CylinderGeometry(.85,.85,.05,28),new THREE.MeshBasicMaterial({color:0x020813}),visual).position.y=.06;
       const ring=this.mesh(new THREE.TorusGeometry(.88,.13,7,32),glow(0xd6ff7b,1.4),visual);ring.rotation.x=Math.PI/2;ring.position.y=.1;
@@ -189,18 +204,28 @@ export class OrbitScene {
       const beam=this.mesh(new THREE.ConeGeometry(.95,1.8,16,1,true),new THREE.MeshBasicMaterial({color:0x79ffe6,transparent:true,opacity:.2,side:THREE.DoubleSide,depthWrite:false}),visual);beam.position.y=.95;
     } else if(type==='comet') {
       if(!useModel('meteor',3.1))this.mesh(new THREE.IcosahedronGeometry(r,1),mat(0xb49e86),visual).position.y=h;
-      const tail=this.mesh(new THREE.ConeGeometry(.45,2.6,7),glow(0xffaa65,.8),visual);tail.position.set(0,h+1,-.7);tail.rotation.x=-.6;
+      const facet=this.mesh(new THREE.IcosahedronGeometry(r*.83,0),mat(0x91aabc,.2,.85),visual);facet.name='reflection-facet';facet.position.set(0,h,-r*.35);facet.rotation.z=.35;
+      const tail=this.mesh(new THREE.ConeGeometry(.32,1.5,6),glow(0xff8c64,.6),visual);tail.position.set(0,h+.68,.55);tail.rotation.x=.65;
+      const rim=this.mesh(new THREE.TorusGeometry(r*.73,.075,5,12,Math.PI*1.35),glow(0xff9871,.45),visual);rim.name='reflection-rim';rim.position.set(0,h,-r*.64);
     } else if(type==='alien') {
-      if(!useModel('alien',3)){this.mesh(new THREE.SphereGeometry(.65,14,10),mat(0xb0dd7a),visual).position.y=h;eyes(h+.1,-.5);}
-      const tray=this.mesh(new THREE.BoxGeometry(1.8,.12,1.3),mat(0xffcc7e,.55,.2),visual);tray.position.set(0,.5,-.6);
-      for(const sign of [-1,1]){const foot=this.mesh(new THREE.SphereGeometry(.3,10,6),mat(0x6a8d67),visual);foot.scale.z=1.4;foot.position.set(sign*.45,.2,-.1);}
+      if(!useModel('alien',2.15)){this.mesh(new THREE.SphereGeometry(.5,12,8),mat(0xb0dd7a),visual).position.y=h;eyes(h+.1,-.43,.25);}
+      const rotor=new THREE.Group();rotor.name='spin-rotor';rotor.position.y=h;visual.add(rotor);
+      const ring=this.mesh(new THREE.TorusGeometry(r*.93,.12,6,24),glow(0xaf8dff,.5),rotor);ring.rotation.x=Math.PI/2;
+      const direction=event.direction||1;
+      for(let i=0;i<3;i++){const angle=i/3*TAU,fin=this.directionArrow(rotor,0xd4c4ff,.66);fin.name='spin-vane';fin.rotation.x=Math.PI/2;fin.rotation.z=angle+(direction<0?Math.PI:0);fin.position.set(Math.cos(angle)*r*.8,.12,Math.sin(angle)*r*.8);}
+      const base=this.mesh(new THREE.CylinderGeometry(r*.6,r*.8,.3,12),mat(0x4d3e77),visual);base.position.y=.22;
+      const curve=new THREE.QuadraticBezierCurve3(new THREE.Vector3(0,.4,-r*.9),new THREE.Vector3(0,.4,r*.2),new THREE.Vector3(-direction*r*.72,.4,r*.65));
+      const guide=this.mesh(new THREE.TubeGeometry(curve,12,.12,5,false),glow(0xd4c4ff,.35),visual);guide.name='curve-guide';
+      const tip=this.mesh(new THREE.ConeGeometry(.24,.55,3),glow(0xd4c4ff,.35),visual);tip.name='curve-tip';tip.position.copy(curve.getPoint(1));tip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),curve.getTangent(1));
+      mechanism.rotor=rotor;
     }
     // Rotate every flying object about its collider center, never its old floor anchor.
     for(const child of visual.children)child.position.y-=h;
     visual.position.y=h;
+    if(mechanism.cap)mechanism.capRest=mechanism.cap.position.y;
     const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-pose.s/360*TAU;
     const cue=this.createCue(type,r);cue.position.y=h;g.add(cue);
-    g.userData={type,event,visual,centerHeight:h,cue};return g;
+    g.userData={type,event,visual,centerHeight:h,cue,mechanism};return g;
   }
   createCue(type,radius=1) {
     const cue=new THREE.Group();cue.visible=false;
@@ -209,17 +234,17 @@ export class OrbitScene {
     const material=new THREE.MeshBasicMaterial({color:colors[type]||0xc6d6df,transparent:true,opacity:0,depthWrite:false});
     const add=geometry=>this.mesh(geometry,material,cue);
     let kind='';
-    if(type==='bumper') {kind='impulse';add(new THREE.TorusGeometry(radius*1.04,.055,6,32));}
-    else if(type==='spring') {kind='lift';add(new THREE.TorusGeometry(radius*.8,.05,6,28)).rotation.x=Math.PI/2;}
+    if(type==='bumper') {kind='impulse';add(new THREE.TorusGeometry(radius*1.04,.11,6,24));}
+    else if(type==='spring') {kind='lift';add(new THREE.TorusGeometry(radius*.8,.1,6,24)).rotation.x=Math.PI/2;}
     else if(type==='punch'||type==='boost') {
       kind='thrust';
-      for(const x of [-.48,0,.48]){const line=add(new THREE.BoxGeometry(.055,.055,1.7));line.position.x=x;}
-      const tip=add(new THREE.ConeGeometry(.19,.5,5));tip.rotation.x=Math.PI/2;tip.position.z=1.1;
+      for(const x of [-.48,0,.48]){const line=add(new THREE.BoxGeometry(.11,.11,1.7));line.position.x=x;}
+      const tip=add(new THREE.ConeGeometry(.24,.6,5));tip.rotation.x=Math.PI/2;tip.position.z=1.1;
     } else if(type==='alien') {
       kind='spin';const points=[];
       for(let i=0;i<=40;i++){const angle=i/40*TAU*1.5;points.push(new THREE.Vector3(Math.cos(angle)*(radius+.18),(i/40-.5)*1.3,Math.sin(angle)*(radius+.18)));}
-      add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),40,.04,5,false));
-    } else if(type==='trap') {kind='damping';add(new THREE.TorusGeometry(radius*1.1,.045,6,32)).rotation.x=Math.PI/2;}
+      add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),40,.09,5,false));
+    } else if(type==='trap') {kind='damping';for(const z of [-.45,0,.45]){const bar=add(new THREE.BoxGeometry(radius*2,.11,.18));bar.position.z=z;}}
     cue.userData={kind,material};return cue;
   }
   syncEvents(events,track) {
@@ -233,7 +258,7 @@ export class OrbitScene {
     const strength=Math.min(1.5,Math.max(.2,feedback.strength||1)),chain=feedback.kind==='chain';
     this.impact=Math.max(this.impact||0,strength*(chain?.12:.45));if(!chain)this.squash=Math.max(this.squash||0,strength*.7);
     if(feedback.type==='rail')this.railPulse=1;
-    const duration=Math.max(.45,Math.min(1.5,feedback.effectDuration||.65));
+    const duration=Math.max(.45,Math.min(1.8,feedback.effectDuration||.65));
     this.hitAnimations||=new Map();if(feedback.eventId)this.hitAnimations.set(feedback.eventId,{life:duration,total:duration,type:feedback.type,strength,effect:feedback.effect,direction:feedback.effectDirection,powered:feedback.kind!=='chain'&&feedback.powered!==false});
     const event=this.eventMeshes?.get(feedback.eventId)?.userData.event,pose=event?eventPose(event,this.runElapsed||0):null;
     const distance=pose?.s??(Number.isFinite(feedback.s)?feedback.s:this.distance||0),a=distance/360*TAU;
@@ -254,7 +279,7 @@ export class OrbitScene {
     this.hitAnimations||=new Map();
     for(const [id,hit] of this.hitAnimations){hit.life-=dt;if(hit.life<=0)this.hitAnimations.delete(id);}
     for(const mesh of this.eventMeshes.values()) {
-      const {event,visual,type,centerHeight,cue}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=eventPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
+      const {event,visual,type,centerHeight,cue,mechanism}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=eventPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
       const flying=Boolean(event.body?.active),sameWheel=!active||!event.body||event.body.wheel===run.wheel;
       mesh.visible=sameWheel&&(flying||!event.used||Boolean(hit)&&!event.body)&&(!active||(ahead>-65&&ahead<190));
       mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-pose.s/360*TAU;
@@ -262,11 +287,12 @@ export class OrbitScene {
       cue.visible=Boolean(hit?.powered)&&Boolean(cue.userData.kind);cue.position.set(0,centerHeight,0);cue.rotation.set(0,0,0);cue.scale.setScalar(1);
       if(cue.userData.material)cue.userData.material.opacity=0;
       const wobble=Math.sin(this.time*3+event.at);
+      if(mechanism.rotor)mechanism.rotor.rotation.y=flying?0:-this.time*(this.reducedMotion?.8:2.4)*(event.direction||1);
+      if(mechanism.piston)mechanism.piston.position.z=flying?0:Math.sin(this.time*3+event.at)*.1;
+      if(mechanism.coil){const compression=flying?1:.85+Math.sin(this.time*3+event.at)*.14;mechanism.coil.scale.y=compression;mechanism.cap.position.y=mechanism.capRest-(1-compression)*1.15;}
+      if(mechanism.rubber)mechanism.rubber.scale.setScalar(flying?1:1+Math.sin(this.time*3+event.at)*.035);
       if(!flying){
-        if(type==='alien')visual.rotation.z+=wobble*.12;
-        else if(type==='punch')visual.rotation.z+=wobble*.08;
-        else if(type==='spring')visual.scale.y=1+Math.sin(this.time*4+event.at)*.08;
-        else if(type==='ufo')visual.rotation.y+=this.time*.6;
+        if(type==='ufo')visual.rotation.y+=this.time*.6;
         else if(type==='trap')visual.scale.set(1+wobble*.08,1-wobble*.12,1);
         else if(type==='coins')visual.rotation.y+=this.time*2;
       }
@@ -276,12 +302,15 @@ export class OrbitScene {
       if(cueKind==='impulse'){cue.position.z=progress*2.1;cue.scale.setScalar(1+progress*.65);}
       else if(cueKind==='lift'){cue.position.y+=progress*2.1;cue.scale.setScalar(1+progress*.5);}
       else if(cueKind==='thrust'){cue.position.z=.4+progress*1.8;cue.scale.z=.7+progress*.8;}
-      else if(cueKind==='spin'){cue.rotation.y=progress*TAU*(hit.direction||event.direction||1);cue.scale.setScalar(1+pulse*.12);}
+      else if(cueKind==='spin'){cue.rotation.y=-progress*TAU*(hit.direction||event.direction||1);cue.scale.setScalar(1+pulse*.12);}
       else if(cueKind==='damping'){cue.position.y=.1;cue.scale.setScalar(1.2-progress*.4);}
       if(type==='spring')visual.scale.set(1+pulse*.22,1-pulse*.55,1+pulse*.22);
       else if(type==='punch')visual.scale.set(1+pulse*.2,1-pulse*.1,1+pulse*.4);
       else if(type==='bumper'||type==='trap')visual.scale.set(1+pulse*.3,1-pulse*.38,1+pulse*.3);
       else if(type==='coins')visual.scale.setScalar(1-progress*.8);
+      if(hit.powered&&mechanism.piston)mechanism.piston.position.z=pulse*.6;
+      if(hit.powered&&mechanism.coil){mechanism.coil.scale.y=1-pulse*.48;mechanism.cap.position.y=mechanism.capRest-pulse*.45;}
+      if(mechanism.rubber)mechanism.rubber.scale.setScalar(1+pulse*.19);
     }
   }
   render(dt,run,mode='lobby',power=0,upgrades={pilot:0,ball:0}) {
@@ -296,7 +325,7 @@ export class OrbitScene {
     this.runElapsed=active?run.elapsed:this.time;
     const airborne=active?run.height||0:0,speed=rolling?Math.abs(run.speed):0,a=this.distance/360*TAU;
     const pos=this.position(this.distance,this.x,BALL_HEIGHT+airborne);this.ball.position.copy(pos);
-    this.ballBody.rotation.x-=rolling?run.speed*dt*.13:animDt*.2;this.ballBody.rotation.z-=rolling?(run.vx||0)*dt*.6:0;this.ball.rotation.set(-a,0,0);
+    this.ballBody.rotation.x-=rolling?run.speed*dt*.13:animDt*.2;this.ballBody.rotation.z-=rolling?(run.vx||0)*dt*.6:0;this.ballBody.rotation.y-=rolling?(run.curveSpin||0)*dt*.55:0;this.ball.rotation.set(-a,0,0);
     this.squash=Math.max(0,(this.squash||0)-animDt*5);const squash=Math.min(.22,this.squash*.15),stretch=Math.min(.16,Math.abs(run?.vy||0)*.008);
     this.ball.scale.set(1+power*.12+squash,1+power*.12-squash+stretch,1+power*.12+squash-stretch*.4);this.ballBody.material.color.setHex(BALL_COLORS[upgrades.ball||0]);
     if(this.ballBody.material.emissive){this.ballBody.material.emissive.setHex(BALL_COLORS[upgrades.ball||0]);this.ballBody.material.emissiveIntensity=Math.min(.35,(this.impact||0)*.2);}

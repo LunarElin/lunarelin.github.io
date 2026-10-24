@@ -85,6 +85,63 @@ test('static props share their collider poses across the expanded width',()=>{
   for(const elapsed of [0,.37,1.4,2.9]){run.elapsed=elapsed;frame(scene,run);for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,elapsed);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.ok(mesh.userData.visual.children.length>0);}}
 });
 
+test('obstacle silhouettes contain broad mechanical direction marks before contact',()=>{
+  const scene=harness(320,568),run=runFixture();run.s=0;
+  run.events=['bumper','spring','punch','alien','comet','trap','boost'].map(type=>({id:type,type,at:30,x:0,radius:.85,height:1.05,direction:1,used:false}));
+  frame(scene,run);scene.scene.updateMatrixWorld(true);
+  const object=type=>scene.eventMeshes.get(type).userData.visual;
+  assert.equal(object('bumper').getObjectByName('rubber-ring').geometry.type,'TorusGeometry');
+  assert.equal(object('spring').getObjectByName('compression-coil').geometry.type,'TubeGeometry');
+  const up=object('spring').getObjectByName('up-arrow'),forward=object('punch').getObjectByName('forward-arrow');
+  assert.ok(new THREE.Vector3(0,1,0).applyQuaternion(up.quaternion).y>.99);
+  assert.ok(new THREE.Vector3(0,1,0).applyQuaternion(forward.quaternion).z>.99);
+  const arrowBounds=new THREE.Box3().setFromObject(up),left=project(scene,arrowBounds.min),right=project(scene,arrowBounds.max);
+  assert.ok(Math.abs(right.x-left.x)*320/2>=12,'jump symbol must occupy at least 12 CSS pixels at a near collision');
+  assert.ok(object('alien').getObjectByName('curve-tip').position.x<0,'positive spin bends into local -X, which is screen right');
+  assert.equal(object('comet').getObjectByName('reflection-facet').geometry.type,'IcosahedronGeometry');
+  assert.equal(object('trap').children.filter(child=>child.name==='brake-bar').length,3);
+  assert.equal(object('boost').children.filter(child=>child.name==='forward-arrow').length,3);
+  for(const type of ['bumper','spring','punch','alien','comet','trap']) {
+    const size=new THREE.Box3().setFromObject(object(type)).getSize(new THREE.Vector3());
+    assert.ok(size.x>=1.2&&size.x<2.9,type+' must retain a substantial collider-sized silhouette');
+  }
+});
+
+test('idle coil, piston and rotor demonstrate their action and stop powering once launched',()=>{
+  const scene=harness(),run=runFixture();run.s=0;
+  run.events=['spring','punch','alien'].map(type=>({id:type,type,at:30,x:0,radius:.85,height:1.05,direction:1,used:false}));
+  frame(scene,run,'rolling',.1);
+  const parts=type=>scene.eventMeshes.get(type).userData.mechanism;
+  const before={cap:parts('spring').cap.position.y,piston:parts('punch').piston.position.z,rotor:parts('alien').rotor.rotation.y};
+  frame(scene,run,'rolling',.2);
+  assert.notEqual(parts('spring').cap.position.y,before.cap);assert.notEqual(parts('punch').piston.position.z,before.piston);assert.ok(parts('alien').rotor.rotation.y<before.rotor);
+  const frozen=parts('alien').rotor.rotation.y;frame(scene,run,'paused',1);assert.equal(parts('alien').rotor.rotation.y,frozen);
+  for(const event of run.events){event.used=true;event.body={active:true,wheel:0,s:35,x:1,height:2,rx:.5,ry:.7,rz:.2,life:3};}
+  frame(scene,run,'rolling',.2);
+  assert.equal(parts('alien').rotor.rotation.y,0);assert.equal(parts('punch').piston.position.z,0);assert.equal(parts('spring').coil.scale.y,1);
+  for(const mesh of scene.eventMeshes.values()){assert.equal(mesh.userData.cue.visible,false);assert.equal(mesh.userData.visual.rotation.y,.7);}
+});
+
+test('both spin signs agree between the entry curve, rotating guide and physical screen direction',()=>{
+  for(const direction of [-1,1]) {
+    const scene=harness(),run=runFixture();run.s=0;run.events=[{id:'spin',type:'alien',at:30,x:0,height:1.05,radius:.85,direction,used:false}];
+    frame(scene,run,'rolling',.01);const mesh=scene.eventMeshes.get('spin'),tip=mesh.userData.visual.getObjectByName('curve-tip');
+    assert.ok(tip.position.x*direction<0);
+    scene.burst({type:'alien',eventId:'spin',kind:'bounce',powered:true,effectDirection:direction,effectDuration:1.8});frame(scene,run,'rolling',.15);
+    const turn=new THREE.Vector3(0,0,1).applyEuler(mesh.userData.cue.rotation);
+    assert.ok(turn.x*direction<0,'cue must rotate from forward toward the real spin direction');
+    frame(scene,run,'rolling',1.4);assert.equal(mesh.userData.cue.visible,true,'visual rotation should cover the applied 1.8 second effect');
+    frame(scene,run,'rolling',.3);assert.equal(mesh.userData.cue.visible,false);
+  }
+});
+
+test('the ball shows actual imposed spin without rotating while paused',()=>{
+  const scene=harness(),run=runFixture();run.speed=30;run.vx=0;run.curveSpin=18;
+  frame(scene,run,'rolling',.1);const angle=scene.ballBody.rotation.y;assert.ok(angle<-.5);
+  frame(scene,run,'paused',1);assert.equal(scene.ballBody.rotation.y,angle);
+  run.curveSpin=-18;frame(scene,run,'rolling',.1);assert.ok(Math.abs(scene.ballBody.rotation.y)<1e-8);
+});
+
 test('flying props follow actual body position and orientation through a chain without cosmetic teleporting',()=>{
   const scene=harness(),run=runFixture();run.s=70;
   run.events=['alien','punch','bumper'].map((type,index)=>({id:type,type,at:80+index*5,x:0,height:1.05,used:true,body:{active:true,wheel:0,s:90+index*7,x:7-index*4,height:2+index,rx:.7+index,ry:1.3,rz:-.4,life:3}}));
@@ -103,7 +160,7 @@ test('flying props follow actual body position and orientation through a chain w
   run.events[1].body.wheel=1;frame(scene,run);assert.equal(scene.eventMeshes.get('punch').visible,false,'warped wheels must not inherit flying bodies');
 });
 
-test('contact deformation leaves the body collider center fixed while gloves and rubber react',()=>{
+test('contact deformation leaves the body collider center fixed while pistons and rubber react',()=>{
   const scene=harness(),run=runFixture();run.s=20;run.events=['punch','bumper','spring'].map((type,i)=>({id:type,type,at:30+i*10,x:0,used:false}));frame(scene,run);
   for(const event of run.events)scene.burst({type:event.type,eventId:event.id,strength:1});frame(scene,run,'rolling',.2);
   assert.ok(scene.eventMeshes.get('punch').userData.visual.scale.z>1.1);assert.ok(scene.eventMeshes.get('bumper').userData.visual.scale.y<.9);assert.ok(scene.eventMeshes.get('spring').userData.visual.scale.y<.8);
@@ -126,7 +183,7 @@ test('each mechanical effect has a distinct local cue without a generic chain sh
   assert.equal(cue('bumper').userData.kind,'impulse');assert.ok(cue('bumper').position.z>0);
   assert.equal(cue('spring').userData.kind,'lift');assert.ok(cue('spring').position.y>1.05);
   assert.equal(cue('punch').userData.kind,'thrust');assert.ok(cue('punch').scale.z>0);
-  assert.equal(cue('alien').userData.kind,'spin');assert.ok(cue('alien').rotation.y<0);
+  assert.equal(cue('alien').userData.kind,'spin');assert.ok(cue('alien').rotation.y>0);
   assert.equal(cue('trap').userData.kind,'damping');assert.equal(cue('trap').position.y,.1);
   assert.equal(cue('boost').userData.kind,'thrust');
   for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed);assert.equal(mesh.userData.cue.parent,mesh);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.equal(mesh.userData.cue.visible,true);}
@@ -164,7 +221,7 @@ test('object cues reflect the applied effect duration and remain attached while 
   run.events=[alien];frame(scene,run);scene.burst({type:'alien',eventId:alien.id,effect:'spin',effectDirection:1,effectDuration:1.5});
   alien.body.s+=7;alien.body.x+=2;alien.body.height+=.4;frame(scene,run,'rolling',.8);
   const mesh=scene.eventMeshes.get(alien.id),cue=mesh.userData.cue,pose=eventPose(alien,run.elapsed);
-  assert.equal(cue.visible,true);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.ok(cue.rotation.y>0);
+  assert.equal(cue.visible,true);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.ok(cue.rotation.y<0);
   frame(scene,run,'rolling',.8);assert.equal(cue.visible,false);
 });
 

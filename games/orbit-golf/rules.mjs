@@ -93,12 +93,12 @@ const GRAVITY = 19;
 const SOLIDS = new Set(['bumper','alien','comet','punch','spring','trap']);
 const PROP_MASS = { bumper: 1.1, alien: .7, comet: 1.4, punch: .8, spring: .65, trap: .6 };
 export const COLLISION_EFFECTS = Object.freeze({
-  bumper: Object.freeze({ effect:'propulsion', label:'탄성 가속', restitution:.88, forward:.2, lift:3.5, lateral:1 }),
-  spring: Object.freeze({ effect:'jump', label:'수직 도약', restitution:.65, forward:.04, lift:12, lateral:.5 }),
-  punch: Object.freeze({ effect:'propulsion', label:'전진 추진', restitution:.72, forwardImpulse:18, lift:5, lateral:3 }),
-  alien: Object.freeze({ effect:'spin', label:'회전 부여', restitution:.74, forward:0, lift:4.5, lateral:4, curve:9, duration:1.5 }),
+  bumper: Object.freeze({ effect:'propulsion', label:'탄성 반발', restitution:.88, forward:.2, lift:2.5, lateral:1 }),
+  spring: Object.freeze({ effect:'jump', label:'수직 도약', restitution:.65, forward:.04, lift:14.5, lateral:.5 }),
+  punch: Object.freeze({ effect:'propulsion', label:'전진 추진', restitution:.72, forwardImpulse:24, lift:1.5, lateral:.5 }),
+  alien: Object.freeze({ effect:'spin', label:'회전 부여', restitution:.74, forward:0, lift:1.8, lateral:2.5, curve:18, duration:1.8 }),
   comet: Object.freeze({ effect:'impact', label:'강한 반사', restitution:.98, forward:0, lift:5.5, lateral:2 }),
-  trap: Object.freeze({ effect:'brake', label:'마찰 감속', restitution:.25, forward:0, lift:1, lateral:0, duration:1.4 }),
+  trap: Object.freeze({ effect:'brake', label:'마찰 감속', restitution:.25, forward:0, lift:.35, lateral:0, duration:1.6 }),
   boost: Object.freeze({ effect:'propulsion', label:'전진 가속', forward:.15, lift:0 }),
 });
 
@@ -338,7 +338,7 @@ export function resolveEvent(run, event, profile, normal) {
   const restitution = effect.restitution + pilotLevel * .035 + ballLevel * .012;
   const transfer = 1 / (1 + ballLevel * .12);
   if (dot < 0) {vx -= (1 + restitution) * transfer * dot * nx;forward -= (1 + restitution) * transfer * dot * ns;}
-  const retention = .85 + pilotLevel * .018 + ballLevel * .08 + (wasMoving?.035:0);
+  const retention = .85 + pilotLevel * .018 + ballLevel * .12 + (wasMoving?.035:0);
   run.rollSpeed *= Math.min(.98, retention);
   if(wasMoving&&run.rollSpeed<1.4&&propVs>0)run.rollSpeed=Math.max(run.rollSpeed,Math.min(topSpeed,propVs/WORLD_PER_METER*.45));
   run.speed = clamp(forward / WORLD_PER_METER, -topSpeed * .55, topSpeed);
@@ -351,7 +351,7 @@ export function resolveEvent(run, event, profile, normal) {
   }
   if(!wasMoving&&type==='alien')run.curveSpin=side*effect.curve;
   if(!wasMoving&&type==='trap'){
-    run.rollSpeed*=.68;run.speed*=.55;run.vx*=.25;run.curveSpin*=.2;run.slowTime=effect.duration;
+    run.rollSpeed*=.68;run.speed*=.25;run.vx*=.12;run.curveSpin*=.1;run.slowTime=effect.duration;
   }
   if(run.rollSpeed>=1.4||Math.abs(run.speed)>=2)run.restTime=0;
   if(!wasMoving) {
@@ -362,7 +362,7 @@ export function resolveEvent(run, event, profile, normal) {
     event.body.vx=clamp((propVx+(incoming.x-vx)*.35)*.78,-42,42);event.body.vy=Math.max(0,event.body.vy*.78);
   }
   refreshEarnings(run);
-  return {...feedbackFor(run, type, type === 'comet' ? 'danger' : 'bounce', event, type === 'spring' ? 1.5 : 1.1),powered:!wasMoving};
+  return {...feedbackFor(run, type, type === 'comet' ? 'danger' : 'bounce', event, type === 'spring' ? 1.5 : 1.1),effectDirection:side,powered:!wasMoving};
 }
 
 function physicsStep(run, profile, dt, feedback) {
@@ -376,7 +376,7 @@ function physicsStep(run, profile, dt, feedback) {
     run.vx *= Math.exp(-dt * .32);
   } else run.speed *= Math.exp(-dt * .012);
   const steeringEnergy=clamp(run.rollSpeed/24,0,1);
-  run.curveSpin*=Math.exp(-dt*1.5);
+  run.curveSpin*=Math.exp(-dt*1.1);
   run.vx += (run.steer*6.5+run.curveSpin)*steeringEnergy*dt;
   if(steeringEnergy<.15)run.vx*=Math.exp(-dt*3*(1-steeringEnergy));
   run.vx = clamp(run.vx, -23, 23);

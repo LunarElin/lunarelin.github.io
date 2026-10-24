@@ -1,5 +1,5 @@
-import { OrbitScene } from './scene.mjs?v=20261024-momentum1';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-momentum1';
+import { OrbitScene } from './scene.mjs?v=20261024-devices1';
+import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-devices1';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
@@ -173,8 +173,13 @@ function showRanks(){
 }
 function showHelp(){
   const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 스핀을 누르고 있어도 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 추진력과 비거리가 증가합니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다.'].forEach(t=>list.append(element('li','',t)));
-  const key=element('div','event-key');['범퍼 · 반발·추진','우주인 · 곡선 회전','스프링 · 높은 점프','추진 장갑 · 전진 가속','혜성 · 강한 반사','점성 패드 · 감속','가속 패드 · 추진 회복','홀 · 트랙 이동'].forEach(t=>key.append(element('span','',t)));
-  openPanel('궤도 비행 안내',[list,key,button('준비 완료','primary panel-action',closePanel)],'help');
+  const key=element('div','event-key');[
+    ['완충 링','낮고 강하게 반발'],['코일 · 위 화살표','높이 뛰어오르기'],
+    ['피스톤 · 전진 화살표','앞으로 강하게 추진'],['회전날 · 곡선 화살표','표시 방향으로 휘기'],
+    ['각진 혜성','충돌 면을 따라 반사'],['가로 제동 띠','속도와 스핀 감소'],
+    ['연속 전진 화살표','추진력 회복'],['홀 · 우주선','다른 트랙으로 이동']
+  ].forEach(([shape,effect])=>{const entry=element('div','');entry.append(element('b','',shape),element('span','',effect));key.append(entry);});
+  openPanel('조작과 장치',[element('p','panel-intro','장치의 모양과 화살표가 충돌 효과를 알려줍니다.'),key,list,button('준비 완료','primary panel-action',closePanel)],'help');
 }
 try { scene=new OrbitScene($('space')); } catch(error){$('load-error').hidden=false;console.error('Orbit Golf WebGL:',error);}
 if(scene){
