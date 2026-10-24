@@ -407,6 +407,23 @@ test('the selected ranged shot stays consistent throughout its short attack moti
   assert.equal(target.framing.subject.shotUntil, 10.45);
 });
 
+test('a short active-shot settling period prevents chatter without delaying a dead or distant clash', () => {
+  const enemies = [{ id: 'e', x: 0, z: 3, hp: 60, range: .95 }];
+  const caster = { id: 'caster', kind: 'mage', x: -2, z: 1, hp: 55, range: 3.1, attackAt: 10, targetX: 0, targetZ: 3 };
+  const other = { id: 'other', kind: 'archer', x: 1.5, z: 1, hp: 60, range: 3.5, attackAt: 10.2, targetX: 0, targetZ: 3 };
+  const previous = { x: 0, z: 2, subjectId: 'caster', shotUntil: 10.45 };
+  for (const { width, height } of [{ width: 320, height: 338 }, { width: 390, height: 591 }]) {
+    const settled = battleCamera(width, height, [caster, other], enemies, 10.55, previous);
+    const view = followBattleCamera(previous, settled.focus, settled.framing, 1 / 60);
+    assert.equal(view.subjectId, caster.id);
+    assert.equal(view.shotUntil, 10.45, 'settling must not extend the actual attack animation');
+    assertCombatPadding(settled.framing, view, width, height, 'settled shot');
+    assert.equal(battleCamera(width, height, [caster, other], enemies, 10.64, previous).framing.subject.subjectId, other.id);
+    assert.equal(battleCamera(width, height, [{ ...caster, hp: 0 }, other], enemies, 10.55, previous).framing.subject.subjectId, other.id);
+    assert.equal(battleCamera(width, height, [{ ...caster, x: -5 }, other], enemies, 10.55, previous).framing.subject.subjectId, other.id);
+  }
+});
+
 test('the last distant enemy receives its minimum safe framing on the first handoff frame', () => {
   for (const { width, height } of [{ width: 320, height: 338 }, { width: 390, height: 591 }]) {
     let target = battleCamera(width, height, [{ id: 'left', x: -4, z: 3, hp: 90 }], [{ id: 'left-enemy', x: -4, z: 4, hp: 60 }]);

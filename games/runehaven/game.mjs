@@ -4,6 +4,7 @@ import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getS
 import { REGIONS, getRegion, getStations } from './maps.mjs';
 import { createMapScenery } from './map-scene.mjs';
 import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, CAMERA_Y, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera, followBattleCamera } from './camera.mjs';
+import { createBattleCameraTransition } from './camera-transition.mjs';
 import { createProductVisuals } from './product-visuals.mjs';
 import { createActorMarkers } from './actor-markers.mjs';
 import { applyActorAppearance, getActorPalette } from './actor-appearance.mjs';
@@ -141,6 +142,10 @@ renderer.toneMappingExposure = 1.18;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;
+const cameraTransition = createBattleCameraTransition(renderer);
+let cameraPresentation;
+let renderedCalls = 0, renderedTriangles = 0, renderedFrames = 0;
+const groundProjection = CAMERA_OFFSET.y / Math.hypot(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
 let mobileRender = false;
 let shadowClock = 1;
 let animationUpdates = 0;
@@ -640,6 +645,7 @@ function resize() {
   mobileRender = rect.width < 760 || matchMedia('(pointer: coarse)').matches;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobileRender ? 1.25 : 1.6));
   renderer.setSize(rect.width, rect.height, false);
+  cameraTransition.reset();
   const shadowSize = mobileRender ? 512 : 1024;
   if (sunlight.shadow.mapSize.x !== shadowSize) {
     sunlight.shadow.map?.dispose(); sunlight.shadow.map = null;
@@ -781,7 +787,12 @@ function visuals(dt) {
   const departure = state.raid.phase === 'departure';
   $('battle-transition').hidden = !departure;
   if (departure) $('battle-transition').style.opacity = String(Math.max(0, Math.min(1, (2.2 - state.raid.timer) / .35, state.raid.timer / .55)));
+  const previousCameraFrame = cameraFrame, snapCamera = cameraSnap;
   updateCamera(dt); animationUpdates = 0;
+  const dx = cameraFrame.x - (previousCameraFrame?.x ?? cameraFrame.x);
+  const dz = cameraFrame.z - (previousCameraFrame?.z ?? cameraFrame.z);
+  const jumpPixels = Math.hypot(dx * CAMERA_RIGHT.x + dz * CAMERA_RIGHT.z,
+    (dx * CAMERA_DOWN.x + dz * CAMERA_DOWN.z) * groundProjection) * viewport.height / cameraFrame.span;
   const stations = getStations(state);
   queueMarks.visible = !outside;
   const present = new Set(['player']);
@@ -857,8 +868,12 @@ function visuals(dt) {
   shadowClock += dt;
   if (shadowClock >= (mobileRender ? 1 / 30 : 1 / 60)) { renderer.shadowMap.needsUpdate = true; shadowClock = 0; }
   renderer.render(scene, camera);
+  renderedFrames++;
+  renderedCalls = renderer.info.render.calls; renderedTriangles = renderer.info.render.triangles;
+  cameraPresentation = cameraTransition.render({ enabled: outside && state.raid.phase === 'battle', jumpPixels, dt, snap: snapCamera });
+  renderedCalls += cameraPresentation.calls; renderedTriangles += cameraPresentation.triangles;
   if (qaEnabled && !paused) {
-    renderSamples.push({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, animations: animationUpdates });
+    renderSamples.push({ calls: renderedCalls, triangles: renderedTriangles, animations: animationUpdates });
     if (renderSamples.length > 60) renderSamples.shift();
   }
 }
@@ -868,7 +883,8 @@ function updateHud() {
   $('district').textContent = state.raid.location === 'outside' ? '상점 앞마당' : stageInfo.name;
   $('world-caption').textContent = `${stageInfo.name} · 상권 ${state.stage} · 방어 ${state.raid.wins}회`;
   if (qaEnabled) {
-    canvas.dataset.qaFrame = String(renderer.info.render.frame);
+    canvas.dataset.qaFrame = String(renderedFrames);
+    canvas.dataset.cameraTransition = JSON.stringify(cameraPresentation);
     canvas.dataset.customers = String(state.customers.length);
     canvas.dataset.customerTraffic = JSON.stringify(state.customers.map(({ id, product, phase, x, z, queueCursor, routeIndex }) => ({ id, product, phase, x, z, queueCursor, routeIndex })));
     canvas.dataset.raidDetails = JSON.stringify({ total: state.raid.totalEnemies, threat: state.raid.threatLabel, plan: state.raid.plan, summary: state.raid.summary });
@@ -893,7 +909,7 @@ function updateHud() {
     const feet = projectXYZ(state.player.x, 0, state.player.z), head = projectXYZ(state.player.x, carryHeight(state.player.bag), state.player.z);
     const body = projectXYZ(state.player.x, 1.75, state.player.z);
     const samples = renderSamples.length || 1;
-    inspection.textContent = JSON.stringify({ state: JSON.parse(serialize(state)), visualFixture: previewRegion, cargoFixture: previewCargo, region: getRegion(state).theme, battle: { defenders: state.raid.defenders, enemies: state.raid.enemies }, paused, started, target, dining: { ...state.dining, layout: getDiningLayout(state), guests: state.customers.filter((c) => ["food-queue", "to-table", "eating"].includes(c.phase)) }, cameraSafety, camera: { ...cameraFrame, width: viewport.width, height: viewport.height, feet, head, bodyPixels: feet.y - body.y }, quality: { mobile: mobileRender, pixelRatio: renderer.getPixelRatio(), shadowSize: sunlight.shadow.mapSize.x }, average: { calls: renderSamples.reduce((n, s) => n + s.calls, 0) / samples, triangles: renderSamples.reduce((n, s) => n + s.triangles, 0) / samples, animations: renderSamples.reduce((n, s) => n + s.animations, 0) / samples }, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, renderedFrames: renderer.info.render.frame, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, visibleActors: [...actors.values()].filter((a) => a.root.visible).length });
+    inspection.textContent = JSON.stringify({ state: JSON.parse(serialize(state)), visualFixture: previewRegion, cargoFixture: previewCargo, region: getRegion(state).theme, battle: { defenders: state.raid.defenders, enemies: state.raid.enemies }, paused, started, target, dining: { ...state.dining, layout: getDiningLayout(state), guests: state.customers.filter((c) => ["food-queue", "to-table", "eating"].includes(c.phase)) }, cameraSafety, cameraPresentation, camera: { ...cameraFrame, width: viewport.width, height: viewport.height, feet, head, bodyPixels: feet.y - body.y }, quality: { mobile: mobileRender, pixelRatio: renderer.getPixelRatio(), shadowSize: sunlight.shadow.mapSize.x }, average: { calls: renderSamples.reduce((n, s) => n + s.calls, 0) / samples, triangles: renderSamples.reduce((n, s) => n + s.triangles, 0) / samples, animations: renderSamples.reduce((n, s) => n + s.animations, 0) / samples }, calls: renderedCalls, triangles: renderedTriangles, renderedFrames, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, visibleActors: [...actors.values()].filter((a) => a.root.visible).length });
   }
   $('gold').textContent = compact(state.gold);
   $('patrons').textContent = number(state.patrons?.length || 0);
@@ -1241,7 +1257,7 @@ function teardown(event) {
   diningVisuals?.dispose(disposedGeometries, disposedMaterials);
   battlefieldVisuals.dispose(disposedGeometries, disposedMaterials);
   disposeCombatMotion(disposedGeometries, disposedMaterials);
-  products.dispose(disposedGeometries); renderer.dispose(); audioContext?.close().catch(() => {});
+  products.dispose(disposedGeometries); cameraTransition.dispose(); renderer.dispose(); audioContext?.close().catch(() => {});
 }
 listen(window, 'pagehide', teardown);
 listen(window, 'pageshow', (event) => { if (event.persisted) { lastTime = performance.now(); if (started && !$('sheet').open) openMenu(); } });
@@ -1250,7 +1266,7 @@ listen(window, 'pageshow', (event) => { if (event.persisted) { lastTime = perfor
 if (qaEnabled) {
   Object.defineProperty(window, 'runehavenQA', { value: {
     snapshot: () => JSON.parse(serialize(state)),
-    renderInfo: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, paused }),
+    renderInfo: () => ({ calls: renderedCalls, triangles: renderedTriangles, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, paused }),
   } });
 }
 

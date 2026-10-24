@@ -10,6 +10,7 @@
 - 홈 복귀: `../../`
 - `game.mjs`: 브라우저 화면·입력·저장 연결
 - `camera.mjs`: 짐 높이·화면 여백을 고려한 추적과 전투 구도
+- `camera-transition.mjs`: 먼 교전 교대의 GPU 화면 교차 페이드
 - `product-visuals.mjs`: 운반·진열품의 공유 geometry와 인스턴스 재사용
 - `actor-markers.mjs`: 군중의 체력바·직업 링 일괄 렌더링
 - `actor-appearance.mjs`: 공유 atlas를 사용하는 실제 인물 모델의 역할별 의상·후드 색상
@@ -57,7 +58,7 @@ node games/runehaven/tests/serve.mjs
 
 영업 카메라는 일정한 각도를 유지하며 플레이어를 따라간다. 상회 가장자리에서는 이동을 제한하고, 높은 짐이 상단에 닿으면 필요한 만큼 시야를 넓힌다. 순간이동·지역 이전·재시작·화면 크기 변경에는 구도를 즉시 맞춘다. 전투 카메라는 가까운 접점·최근 공격 부근의 밀집 교전을 고르고 실제 공격자의 위치와 목표를 함께 확인한다. 원거리 공격자와 피격 대상, 머리·무기 동작의 여백을 고려해 같은 교전이 화면 끝에서 잘리지 않게 추적한다. 건물·입구·문 앞 주인공·멀리 대기하는 증원을 모두 담으려고 축소하지 않는다. 결과에서는 마지막 교전 구도를 유지하고 영업으로 돌아오면 기존 플레이어 추적 구도로 복귀한다. 모바일 작업장 표식은 52px 그림 버튼이며, 화면 밖 작업장은 테두리가 점선인 표식으로 안내한다.
 
-전투 배율은 `min(60, 플레이 영역 폭 / 6.4, 플레이 영역 높이 / 6.5)` CSS px/world unit을 기준으로 고정한다. 인물이 흩어지거나 증원 수가 바뀌어도 확대율이 반복해서 변하지 않는다. 전투 전용 추적은 0.12 월드 단위 안의 작은 목표 흔들림을 무시하고 이동을 완화한다. 선택한 공격자의 몸·무기와 표적에 좌우 40·위 48·아래 52 CSS px의 목표 여백을 잡고, 실제 카메라 위치에는 최소 좌우 24·위 38·아래 42px를 적용한다. 목표 여백이 긴 공격 쌍을 담기에 좁으면 해당 축만 최소 여백으로 맞춘다. 완화된 위치가 최소 여백을 벗어나면 필요한 만큼 바로 보정해 교대 첫 화면에도 여유를 확보한다. 공격 동작 동안 선택한 대상을 잠깐 유지하고 출전 페이드 안에서 첫 구도를 맞추며, 결과에서는 마지막 위치를 유지한다. 이 수치와 추적 정책은 새 판타지 웹게임 설계다.
+전투 배율은 `min(60, 플레이 영역 폭 / 6.4, 플레이 영역 높이 / 6.5)` CSS px/world unit을 기준으로 고정한다. 인물이 흩어지거나 증원 수가 바뀌어도 확대율이 반복해서 변하지 않는다. 전투 전용 추적은 0.12 월드 단위 안의 작은 목표 흔들림을 무시하고 이동을 완화한다. 선택한 공격자의 몸·무기와 표적에 좌우 40·위 48·아래 52 CSS px의 목표 여백을 잡고, 실제 카메라 위치에는 최소 좌우 24·위 38·아래 42px를 적용한다. 목표 여백이 긴 공격 쌍을 담기에 좁으면 해당 축만 최소 여백으로 맞춘다. 완화된 위치가 최소 여백을 벗어나면 필요한 만큼 바로 보정해 교대 첫 화면에도 여유를 확보한다. 유효한 원거리 교전은 공격 동작 뒤 0.18초 더 유지해 잦은 교대를 줄이되 죽거나 멀어진 교전은 즉시 해제한다. 실제 화면 이동이 한 프레임에 24 CSS px를 넘으면 직전 안전 구도에서 새 안전 구도로 0.26초 교차 페이드한다. 두 화면의 인물 크기는 같고, 축소하거나 빈 중간 지점을 길게 훑지 않는다. 첫 출전·화면 크기 변경은 이전 영상을 버리고 구도를 맞추며, 결과에서는 마지막 위치를 유지한다. 이 수치와 추적 정책은 새 판타지 웹게임 설계다.
 
 영업 시 가로 시야는 기본 9.4 월드 단위다. 일반 고객은 주인공의 동일 몸 모델 대비 72%, 조수 92%, 수호대 90% 크기로 표시한다. 적은 보병 95%·돌격/원거리 90%·정예 122%와 서로 다른 장식으로 구분한다. 실내는 18×18로 넓혀 양옆 생산·진열 시설과 뒤쪽 여관·주방·식탁을 떨어뜨렸다. 실제 모델 크기·높이·회전을 반영한 주요 시설 묶음 11개는 10개 지역 모두 바깥 윤곽 사이 최소 0.6 월드 단위 간격을 둔다. 이 비율·치수는 영상을 참고해 새로 정한 웹게임 값이다.
 
@@ -107,13 +108,14 @@ node --check games/runehaven/dining-visuals.mjs
 node --check games/runehaven/maps.mjs
 node --check games/runehaven/map-scene.mjs
 node --check games/runehaven/camera.mjs
+node --check games/runehaven/camera-transition.mjs
 node --check games/runehaven/product-visuals.mjs
 node --check games/runehaven/actor-markers.mjs
 node --check games/runehaven/actor-appearance.mjs
 node --check games/runehaven/asset-loader.mjs
 node --check games/runehaven/game.mjs
 node --check games/runehaven/tests/scenarios.mjs
-node --test games/runehaven/tests/rules.test.mjs games/runehaven/tests/scenarios.test.mjs games/runehaven/tests/customers.test.mjs games/runehaven/tests/combat-balance.test.mjs games/runehaven/tests/traffic-workflow.test.mjs games/runehaven/tests/dining.test.mjs games/runehaven/tests/worker-jobs.test.mjs games/runehaven/tests/dining-visuals.test.mjs games/runehaven/tests/maps.test.mjs games/runehaven/tests/camera.test.mjs games/runehaven/tests/product-visuals.test.mjs games/runehaven/tests/actor-markers.test.mjs games/runehaven/tests/actor-appearance.test.mjs games/runehaven/tests/battlefield.test.mjs games/runehaven/tests/battle-transition.test.mjs games/runehaven/tests/combat-motion.test.mjs
+node --test games/runehaven/tests/rules.test.mjs games/runehaven/tests/scenarios.test.mjs games/runehaven/tests/customers.test.mjs games/runehaven/tests/combat-balance.test.mjs games/runehaven/tests/traffic-workflow.test.mjs games/runehaven/tests/dining.test.mjs games/runehaven/tests/worker-jobs.test.mjs games/runehaven/tests/dining-visuals.test.mjs games/runehaven/tests/maps.test.mjs games/runehaven/tests/camera.test.mjs games/runehaven/tests/camera-transition.test.mjs games/runehaven/tests/product-visuals.test.mjs games/runehaven/tests/actor-markers.test.mjs games/runehaven/tests/actor-appearance.test.mjs games/runehaven/tests/battlefield.test.mjs games/runehaven/tests/battle-transition.test.mjs games/runehaven/tests/combat-motion.test.mjs
 git diff --check -- games/runehaven
 ```
 
@@ -121,7 +123,40 @@ git diff --check -- games/runehaven
 
 `data/verification.json`은 원본 추출 산출물과 선택 수치·출처 해시를 대조한 정적 검증 결과다. 이 검증에 사용한 APK 분석 폴더는 저장소 밖에 있으며 게임 실행의 의존성이 아니다. 실제 브라우저·플레이 검증과 자체 평가는 최종 작업 보고에서 범위와 근거를 함께 밝힌다.
 
-### 최신 시점 교대 여백 보정 — 2026-10-24
+### 최신 먼 교전 시점 연결 — 2026-10-24
+
+고정 배율과 최소 여백을 동시에 지켜야 하는 먼 교대는 두 안전 구도 사이를 0.26초 교차 페이드하도록 바꿨다. 한 프레임의 실제 지면 이동을 CSS px로 투영해 24px를 넘을 때만 시작한다. 일반 추적은 기존 완화를 유지한다. 유효한 원거리 공격은 동작 종료 뒤 0.18초 안정 시간을 주어 교대 왕복을 줄이며, 죽거나 먼 교전은 즉시 해제한다. 선택 정책만 바꾸었고 공격 시각·피해·체력·증원·성장 수치는 유지했다.
+
+화면 저장은 그리기 버퍼 크기의 `FramebufferTexture` 2장을 재사용한다. 전투 중 GPU 복사는 프레임당 1회, 페이드 중에는 화면 사각형 1 draw call·2 triangles만 추가한다. CPU 픽셀 읽기·두 번째 전장 렌더·상시 DOM 덮개는 사용하지 않는다. 재교대는 마지막으로 표시한 합성 화면에서 이어지며, 첫 프레임·크기 변경·출전에는 이전 스냅샷을 표시하지 않는다. 일시 정지에는 페이드 시간도 멈추고, 전투 종료에는 GPU 스냅샷을 반환한다. QA의 실제 프레임 수는 추가 합성 패스 수와 분리했다.
+
+변경한 카메라·전환·화면 연결 3개 모듈의 구문 검사와 지정한 17개 테스트 파일의 **176개 테스트**가 통과했다(약 2.784초). 새 전환 회귀 10개는 첫 프레임 흑화 방지, 연속 교대, 0.26초 감쇠, 일시 정지·크기 변경·비전투 전환·자원 정리를 확인한다. 카메라 33개 회귀는 기존 배율·최소 여백과 짧은 주제 유지의 즉시 해제를 검사한다.
+
+브라우저에서 `?qa=1&scenario=late-defense`의 정상 진행으로 얻은 6단계 상회를 열고 출전 버튼을 눌렀다. 두 크기 모두 검사 6명·궁수 5명·마법사 7명이 정예·궁병이 섞인 총 29명을 상대해 승리했다. 후반 표본은 다음과 같다.
+
+| 뷰포트 / 전투 영역 | 수호대 몸 높이 | 실제 카메라 검사 | 교차 페이드 | 스냅샷 최대 용량 |
+| --- | ---: | --- | ---: | ---: |
+| 320×568 / 320×338 | 43.3308px 고정 | 1,423프레임·주제 교대 14회·최소 여백 미달 0 | 5회·160프레임 | 865,280 bytes |
+| 390×844 / 390×591 | 51.9969px 고정 | 1,422프레임·주제 교대 11회·최소 여백 미달 0 | 4회·128프레임 | 1,843,920 bytes |
+
+총 **2,845프레임**에서 선택한 공격 쌍의 최소 좌우 24·위 38·아래 42px를 유지했고, 실제 선택 무기·화살의 투영 검사도 미달 0프레임이었다. 이는 현재 선택한 교전의 보호 영역이며 화면의 모든 인물을 담는 보증은 아니다. 교대·마지막 정예의 PNG를 확인했으며 저장 화면의 상하 반전·색상 급변·검은 화면을 관찰하지 않았다. HUD 표본에서 이전 화면의 불투명도가 약 0.99→0.62→0.07→0으로 감소했고 전환 뒤 잔상은 종료됐다. 320px의 약 250px, 390px의 약 292px 내부 카메라 보정을 화면 페이드로 연결한 것이므로 카메라 좌표 자체가 연속 이동한다고 해석하지 않는다.
+
+위 용량은 이 브라우저의 DPR 1 기준이며 DPR 1.25에서는 390px 전투 영역 기준 약 2.9MB가 필요하다. 두 크기 모두 결과에서 스냅샷 용량이 0으로 돌아갔다. 390px 결과는 11.8609초·전투불능 0명·부상 6명·상회 피해 0이었고, PC 1280×720에서 계속 영업을 눌러 7단계 실내 900×477 추적으로 돌아왔다. 최종 QA 탭의 콘솔 오류·경고와 가로 넘침은 0건, 글꼴은 loaded였다.
+
+| 항목 | 잠정 점수 | 근거와 한계 |
+| --- | ---: | --- |
+| 코어 플레이와 완성도 | 24/25 | 176개 회귀와 후반 전투의 출전·승리·실내 복귀 확인. 장기 캠페인 사람 플레이는 남았다. |
+| 모바일 웹 실행과 조작 | 18/20 | 320/390px 브라우저 포인터 플레이와 PC 복귀 확인. 실제 휴대폰 터치는 미검증이다. |
+| 모바일 게임 UI와 시각 품질 | 19/20 | 인물 크기·선택 교전 최소 여백을 유지하고 먼 교대를 화면 페이드로 연결했다. 실기기 잔상 체감은 남았다. |
+| 게임성 설계와 피드백 | 13/15 | 마지막 정예와 궁수·마법사의 실제 교전을 추적했다. 장기 난도·재미는 짧은 관찰과 설계 검토 수준이다. |
+| 성능과 리소스 최적화 | 9/10 | 스냅샷 2장 재사용·종료 시 반환, 페이드만 1 draw 추가. 실기기 FPS·발열·장시간 메모리는 미측정이다. |
+| 검증·저장·유지관리 | 9/10 | 176개 테스트와 실제 프레임 QA 확인. 저장 형식 유지, 모바일 GPU 복구는 미검증이다. |
+| 합계 | **92/100 · 잠정** | 브라우저 에뮬레이션과 실기기 검증을 구분한 평가다. |
+
+다음 우선순위는 실제 iOS Safari·Android Chrome에서 교차 페이드의 잔상·FPS·발열·주소창 변화와 터치 조작감을 확인하는 것이다. 이어 장기 성장에 따른 방어 난도와 재미를 사람이 검토한다.
+
+### 이전 시점 교대 여백 보정 — 2026-10-24
+
+아래 165개 테스트·여백 표본은 먼 교대 교차 페이드를 넣기 전 버전의 기록이다.
 
 선택한 공격의 발사자와 표적에 적용한 여백을 실제 렌더 카메라 위치에서도 지키도록 보완했다. 고정 인물 크기를 유지한 채 평소에는 부드럽게 추적하고, 시점 교대 때 여백을 벗어나는 부분만 최소 거리로 보정한다. 최종 화면 검사는 같은 정상 획득 `late-defense` 경로를 사용했다. 아래 160개 테스트와 이전 화면의 여백 부족 관찰은 이전 버전의 기록으로 구분한다.
 

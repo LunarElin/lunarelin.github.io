@@ -126,7 +126,9 @@ export function battleCamera(width, height, defenders, enemies, time = 0, previo
   // Keep one related real attack, rather than widening to every distant flank.
   const ranged = front.filter((contact) => contact.actualTarget && contact.striking && contact.source.range > 1.5
     && Math.hypot(contact.x - seed.x, contact.z - seed.z) <= 2.8 && canFrameSource(contact));
-  let subject = ranged.find((contact) => contact.id === previousView?.subjectId && time < previousView.shotUntil);
+  // Briefly settle an active shot after its motion ends. The same live/front
+  // filters still release dead or distant clashes immediately.
+  let subject = ranged.find((contact) => contact.id === previousView?.subjectId && time < previousView.shotUntil + .18);
   if (!subject && ranged.length) subject = ranged.reduce((best, contact) => {
     const score = (item) => Math.hypot(item.x - seed.x, item.z - seed.z) - (item.id === previousView?.subjectId ? .4 : 0);
     return score(contact) < score(best) ? contact : best;
