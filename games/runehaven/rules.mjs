@@ -1,6 +1,7 @@
 import { BALANCE } from './balance.mjs';
 import { BOUNDS, getRegion, getStations, STATIONS } from './maps.mjs';
 import { DINING_RULES, createDiningState, getDiningLayout } from './dining.mjs';
+import { BATTLE_BOUNDS, getBattleLayout } from './battlefield.mjs';
 
 export { DINING_RULES, getDiningLayout };
 
@@ -61,6 +62,7 @@ function result(state, ok, reason = '', extra = {}) {
 }
 
 export function createGame(seed = 1) {
+  const spawn = getRegion(1).spawn;
   return {
     version: SAVE_VERSION,
     seed: seedNumber(seed), rng: seedNumber(seed), nextId: 1,
@@ -71,12 +73,12 @@ export function createGame(seed = 1) {
     moneyPiles: { gear: 0, potion: 0, inn: 0 },
     facilityLevels: { forge: 1, counter: 1, alchemy: 1, inn: 1 },
     workerLevels: { speed: 1, capacity: 1 },
-    player: { x: 0, z: 1, bag: { gear: 0, potion: 0, food: 0 }, speedLevel: 1, capacityLevel: 1, priceLevel: 1, facingX: 0, facingZ: -1, blinkCooldown: 0, target: null, transferClock: 0, moving: false, dwell: 0, workKind: null },
+    player: { x: spawn.x, z: spawn.z, bag: { gear: 0, potion: 0, food: 0 }, speedLevel: 1, capacityLevel: 1, priceLevel: 1, facingX: 0, facingZ: -1, blinkCooldown: 0, target: null, transferClock: 0, moving: false, dwell: 0, workKind: null },
     stocks: { forge: BALANCE.facilities.forge.capacity, gear: 0, alchemy: 0, potion: 0 },
     unlocks: { archer: false, mage: false, alchemy: false, inn: false, alchemyAvailable: false, innAvailable: false },
     customers: [], patrons: [], staff: [], effects: [], events: [],
     shopHp: 240, shopMaxHp: 240,
-    raid: { phase: 'idle', wave: 0, wins: 0, kind: 'monsters', timer: 90, enemies: [], defenders: [], spawnRemaining: 0, spawnClock: 0, triggerSales: 18, reward: 0 },
+    raid: { phase: 'idle', location: 'shop', wave: 0, wins: 0, kind: 'monsters', timer: 90, enemies: [], defenders: [], spawnRemaining: 0, spawnClock: 0, triggerSales: 18, reward: 0 },
     timers: { forge: 0, alchemy: 0, customer: 1, innHeal: 0 },
     message: '대장간에서 장비를 챙겨 진열대에 놓으세요', messageTimer: 6,
     lastAction: null,
@@ -240,6 +242,7 @@ export function act(state, action, payload = {}) {
       state.raid.spawnRemaining = 0;
       state.customers = [];
       for (const patron of state.patrons) patron.hp = patron.maxHp;
+      returnToShop(state);
     }
     emit(state, 'repair', info.freeRecovery ? '무료 복구 · 단골과 다시 준비하세요' : '상회를 수리했습니다', stations.inn);
     return result(state, true, '', { cost: info.cost });
@@ -350,6 +353,7 @@ function moveToward(actor, target, speed, dt, stop = 0) {
 
 function updatePlayer(state, dt, input) {
   const player = state.player;
+  const bounds = state.raid.location === 'outside' ? BATTLE_BOUNDS : BOUNDS;
   const stations = getStations(state);
   const previousX = player.x, previousZ = player.z;
   let dx = Number.isFinite(input.x) ? input.x : 0, dz = Number.isFinite(input.z) ? input.z : 0;
@@ -358,8 +362,8 @@ function updatePlayer(state, dt, input) {
   else {
     const target = input.target ?? player.target;
     if (target && Number.isFinite(target.x) && Number.isFinite(target.z)) {
-      dx = clamp(target.x, BOUNDS.minX, BOUNDS.maxX) - player.x;
-      dz = clamp(target.z, BOUNDS.minZ, BOUNDS.maxZ) - player.z;
+      dx = clamp(target.x, bounds.minX, bounds.maxX) - player.x;
+      dz = clamp(target.z, bounds.minZ, bounds.maxZ) - player.z;
       length = Math.hypot(dx, dz);
       if (length < 0.08) { dx = 0; dz = 0; length = 0; player.target = null; }
     }
@@ -367,11 +371,12 @@ function updatePlayer(state, dt, input) {
   if (length > 0) {
     const scale = Math.min(1, length) / length;
     player.facingX = dx / length; player.facingZ = dz / length;
-    player.x = clamp(player.x + dx * scale * getSpeed(state) * dt, BOUNDS.minX, BOUNDS.maxX);
-    player.z = clamp(player.z + dz * scale * getSpeed(state) * dt, BOUNDS.minZ, BOUNDS.maxZ);
+    player.x = clamp(player.x + dx * scale * getSpeed(state) * dt, bounds.minX, bounds.maxX);
+    player.z = clamp(player.z + dz * scale * getSpeed(state) * dt, bounds.minZ, bounds.maxZ);
   }
   player.blinkCooldown = Math.max(0, player.blinkCooldown - dt);
   player.moving = Math.hypot(player.x - previousX, player.z - previousZ) > 0.00001;
+  if (state.raid.location === 'outside') { player.dwell = 0; player.transferClock = 0; player.workKind = null; return; }
   for (const pile of getMoneyPiles(state)) {
     if (pile.amount > 0 && distance(player, pile) <= BALANCE.web.moneyPickupRadius) {
       state.gold += pile.amount;
@@ -554,24 +559,16 @@ function updateStaff(state, dt) {
 
 const CUSTOMER_LIMIT = 30;
 const CUSTOMER_QUEUE_LIMIT = 16;
+const CUSTOMER_COUNTER_SLOTS = 6;
 const customerLanes = new Map();
+const customerEntries = new Map();
 
 function customerLane(state, product) {
   const key = `${getRegion(state).id}:${product}`;
   if (customerLanes.has(key)) return customerLanes.get(key);
   const counter = getStations(state)[product === 'potion' ? 'potionCounter' : 'counter'];
-  const side = Math.sign(counter.x);
-  const head = { x: side * Math.max(2.9, Math.abs(counter.x) - .65), z: counter.z + .65 };
-  const bottom = 4.45, outerX = side * 5.1;
-  const downSteps = Math.max(1, Math.floor((bottom - head.z) / .7 + .00001));
-  const acrossSteps = Math.max(1, Math.floor((5.1 - Math.abs(head.x)) / .7 + .00001));
-  const slots = [head];
-  for (let i = 1; i <= downSteps; i++) slots.push({ x: head.x, z: head.z + (bottom - head.z) * i / downSteps });
-  for (let i = 1; i <= acrossSteps; i++) slots.push({ x: head.x + (outerX - head.x) * i / acrossSteps, z: bottom });
-  const backSteps = CUSTOMER_QUEUE_LIMIT - slots.length;
-  const backSpacing = Math.min(.8, (bottom - (BOUNDS.minZ + .3)) / backSteps);
-  while (slots.length < CUSTOMER_QUEUE_LIMIT) slots.push({ x: outerX, z: bottom - (slots.length - downSteps - acrossSteps) * backSpacing });
-  const lane = Object.freeze({ side, slots: Object.freeze(slots.map(Object.freeze)) });
+  const slots = Array.from({ length: CUSTOMER_COUNTER_SLOTS }, (_, index) => Object.freeze({ x: counter.x, z: counter.z + .95 + index * .68 }));
+  const lane = Object.freeze({ slots: Object.freeze(slots) });
   customerLanes.set(key, lane);
   return lane;
 }
@@ -580,8 +577,27 @@ export function getCustomerQueueSlots(state, product = 'gear') {
   return customerLane(state, product).slots;
 }
 
-function spawnCustomer(state, queues) {
+function customerEntry(state) {
+  const key = getRegion(state).id;
+  if (customerEntries.has(key)) return customerEntries.get(key);
   const gate = getStations(state).gate;
+  const entry = Object.freeze({
+    slots: Object.freeze(Array.from({ length: 24 }, (_, index) => Object.freeze({ x: gate.x, z: gate.z + .6 + index * .7 }))),
+    branch: Object.freeze({ x: gate.x, z: gate.z - 1.25 }),
+  });
+  customerEntries.set(key, entry);
+  return entry;
+}
+
+export function getCustomerEntrySlots(state) {
+  return customerEntry(state).slots;
+}
+
+export function getCustomerBranchPoint(state) {
+  return customerEntry(state).branch;
+}
+
+function spawnCustomer(state, productCounts, entrance) {
   // A full line waits for its next customer instead of turning every rejected
   // gear shopper into a mage. Retrying keeps the original class draw.
   state.pendingCustomerKind ??= (() => {
@@ -592,10 +608,11 @@ function spawnCustomer(state, queues) {
   })();
   const kind = state.pendingCustomerKind;
   const product = kind === 'mage' ? 'potion' : 'gear';
-  if ((product === 'potion' && !state.unlocks.mage) || queues[product].length >= CUSTOMER_QUEUE_LIMIT) return false;
-  const side = customerLane(state, product).side;
-  const entry = { x: gate.x + side * .35, z: gate.z - .18 };
-  state.customers.push({ id: nextId(state, 'customer'), ...entry, kind, product, phase: 'entering', hp: CLASS_STATS[kind].hp, purchased: false, patronId: null, timer: 0, patience: 0 });
+  if ((product === 'potion' && !state.unlocks.mage) || productCounts[product] >= CUSTOMER_QUEUE_LIMIT) return false;
+  const slots = getCustomerEntrySlots(state);
+  const tailZ = Math.max(slots[Math.min(entrance.length, slots.length - 1)].z, ...entrance.map((customer) => customer.z));
+  const entry = { x: slots[0].x, z: tailZ + .7 };
+  state.customers.push({ id: nextId(state, 'customer'), ...entry, kind, product, phase: 'entrance', hp: CLASS_STATS[kind].hp, purchased: false, patronId: null, timer: 0, patience: 0 });
   state.pendingCustomerKind = null;
   return true;
 }
@@ -624,27 +641,49 @@ function updateCustomers(state, dt, allowPurchases = true) {
     cancelDining(state);
     for (const customer of state.customers) customer.phase = 'leaving';
   }
-  const queues = { gear: [], potion: [] };
-  for (const customer of state.customers) if (customer.phase === 'entering' || customer.phase === 'queue') queues[customer.product].push(customer);
+  const queues = { gear: [], potion: [] }, productCounts = { gear: 0, potion: 0 }, entrance = [];
+  for (const customer of state.customers) {
+    if (['entrance', 'branch', 'queue'].includes(customer.phase)) productCounts[customer.product]++;
+    if (customer.phase === 'entrance') entrance.push(customer);
+    else if (customer.phase === 'branch' || customer.phase === 'queue') queues[customer.product].push(customer);
+  }
   if (allowPurchases) {
     state.timers.customer -= dt;
-    const waiting = queues.gear.length + queues.potion.length;
+    state.timers.entry = Math.max(0, (state.timers.entry ?? 0) - dt);
+    const waiting = productCounts.gear + productCounts.potion;
     const demand = Math.min(24, 12 + (state.sales >= 8 ? 2 : 0) + (state.unlocks.alchemy ? 4 : 0) + (state.unlocks.inn ? 6 : 0));
     if (state.timers.customer <= 0) {
-      if (waiting < demand && state.customers.length < CUSTOMER_LIMIT && spawnCustomer(state, queues)) {
-        const customer = state.customers.at(-1); queues[customer.product].push(customer);
+      if (waiting < demand && state.customers.length < CUSTOMER_LIMIT && spawnCustomer(state, productCounts, entrance)) {
+        const customer = state.customers.at(-1); entrance.push(customer);
         const arrivalSeconds = clamp(getFacilityStats(state, 'counter').seconds / (state.unlocks.alchemy ? 2 : 1) * .75, .3, 1);
         state.timers.customer = waiting < 6 ? Math.min(.65, arrivalSeconds) : arrivalSeconds;
       } else state.timers.customer = .15;
     }
   }
   const slots = { gear: getCustomerQueueSlots(state, 'gear'), potion: getCustomerQueueSlots(state, 'potion') };
+  const entrySlots = getCustomerEntrySlots(state), branchPoint = getCustomerBranchPoint(state);
+  const head = entrance[0];
+  if (allowPurchases && head && distance(head, entrySlots[0]) <= .03 && state.timers.entry <= .000001
+    && (head.abandoning || queues[head.product].length < CUSTOMER_COUNTER_SLOTS)) {
+    head.phase = head.abandoning ? 'leaving' : 'branch'; head.branchPassed = false;
+    if (!head.abandoning) queues[head.product].push(head);
+    state.timers.entry = .55;
+  }
   const layout = getDiningLayout(state);
   const foodQueue = state.customers.filter((customer) => customer.phase === 'food-queue')
     .sort((a, b) => (a.foodJoinedAt ?? 0) - (b.foodJoinedAt ?? 0));
   for (const customer of state.customers) {
+    if (['entrance', 'branch', 'queue'].includes(customer.phase)) {
+      customer.patience += dt;
+      if (customer.patience > 90 && !customer.purchased) customer.abandoning = true;
+    }
     if (customer.phase === 'leaving') {
       customer.exited = moveToward(customer, { x: stations.gate.x, z: stations.gate.z - .15 }, 1.8, dt, .04);
+      continue;
+    }
+    if (customer.phase === 'entrance') {
+      const index = entrance.indexOf(customer);
+      if (index >= 0) moveToward(customer, entrySlots[Math.min(index, entrySlots.length - 1)], 1.8, dt, .025);
       continue;
     }
     if (customer.phase === 'food-queue') {
@@ -684,10 +723,13 @@ function updateCustomers(state, dt, allowPurchases = true) {
       continue;
     }
     const queue = queues[customer.product], index = queue.indexOf(customer);
-    if (index < 0 || index >= CUSTOMER_QUEUE_LIMIT) { customer.phase = 'leaving'; continue; }
-    customer.patience += dt;
-    // Only the final waiting positions matter: visitors may cross one another
-    // while walking straight to the next FIFO position, without collision work.
+    if (index < 0 || index >= CUSTOMER_COUNTER_SLOTS) { customer.phase = 'leaving'; continue; }
+    if (customer.phase === 'branch' && !customer.branchPassed) {
+      if (moveToward(customer, branchPoint, 1.8, dt, .025)) customer.branchPassed = true;
+      continue;
+    }
+    // The shared entrance and its branch are intentional waypoints. Once
+    // admitted, shoppers move straight to their short counter line.
     if (moveToward(customer, slots[customer.product][index], 1.8, dt, .025)) {
       customer.phase = 'queue';
       if (allowPurchases && index === 0 && customer.abandoning) customer.phase = 'leaving';
@@ -697,7 +739,6 @@ function updateCustomers(state, dt, allowPurchases = true) {
       }
     }
     if (index > 0) customer.timer = 0;
-    if (customer.patience > 90 && !customer.purchased) customer.abandoning = true;
   }
   state.customers = state.customers.filter((customer) => !customer.exited);
 }
@@ -707,10 +748,10 @@ function makeDefender(state, patron, index, count, rowOffset) {
   const power = 1 + (patron.equipmentLevel - 1) * 0.1 + Math.min(9, patron.loyalty - 1) * 0.08;
   const maxHp = stats.hp * (1 + (patron.equipmentLevel - 1) * 0.03);
   const healthRatio = Math.max(0.65, patron.hp / patron.maxHp);
-  const gate = getStations(state).gate;
+  const gate = getBattleLayout(state).gate;
   const row = Math.floor(index / 6);
   const columns = Math.min(6, count - row * 6);
-  return { id: `defender-${patron.id}`, patronId: patron.id, kind: patron.kind, purchased: true, radius: COMBAT_RADIUS, x: clamp(gate.x + index % 6 - (columns - 1) / 2, BOUNDS.minX + COMBAT_RADIUS, BOUNDS.maxX - COMBAT_RADIUS), z: gate.z - 4 - (rowOffset + row) * 0.95, hp: maxHp * healthRatio, maxHp, damage: stats.damage * power, range: stats.range, speed: stats.speed, interval: stats.interval, attackClock: index / Math.max(count, 1), phase: 'fighter' };
+  return { id: `defender-${patron.id}`, patronId: patron.id, kind: patron.kind, purchased: true, radius: COMBAT_RADIUS, x: clamp(gate.x + index % 6 - (columns - 1) / 2, BATTLE_BOUNDS.minX + COMBAT_RADIUS, BATTLE_BOUNDS.maxX - COMBAT_RADIUS), z: gate.z - 4 - (rowOffset + row) * 0.95, hp: maxHp * healthRatio, maxHp, damage: stats.damage * power, range: stats.range, speed: stats.speed, interval: stats.interval, attackClock: index / Math.max(count, 1), attackSerial: 0, phase: 'fighter' };
 }
 
 export function getRaidPlan(state, roster = state.patrons.filter((patron) => patron.purchases > 0).slice(-18)) {
@@ -732,9 +773,21 @@ function setRaidThreat(raid, plan) {
   raid.threatLabel = plan.roles.includes('elite') ? '정예·원거리 부대' : plan.roles.includes('ranged') ? '돌격·원거리 부대' : '보병·돌격 부대';
 }
 
-function startRaid(state) {
+function beginDeparture(state) {
+  state.raid.phase = 'departure'; state.raid.timer = 2.2;
+  state.raid.returnPosition = { x: state.player.x, z: state.player.z };
+  state.raid.prepared = false;
+  state.player.target = null; state.player.moving = false;
+  state.player.workKind = null; state.player.dwell = 0;
+  cancelDining(state);
+  emit(state, 'departure', '상점 밖으로 · 단골 수호대 출전');
+}
+
+function prepareRaid(state) {
   const raid = state.raid;
-  raid.phase = 'battle'; raid.wave = state.stage; raid.kind = state.stage % 2 ? 'monsters' : 'army'; raid.timer = 0;
+  raid.location = 'outside'; raid.prepared = true;
+  raid.wave = state.stage; raid.kind = state.stage % 2 ? 'monsters' : 'army';
+  Object.assign(state.player, getBattleLayout(state).player, { target: null, moving: false, workKind: null, dwell: 0, transferClock: 0 });
   const patrons = state.patrons.filter((patron) => patron.purchases > 0).slice(-18);
   const counts = Object.fromEntries(Object.keys(CLASS_STATS).map((kind) => [kind, patrons.filter((patron) => patron.kind === kind).length]));
   const rows = { warrior: 0, archer: Math.ceil(counts.warrior / 6), mage: Math.ceil(counts.warrior / 6) + Math.ceil(counts.archer / 6) };
@@ -750,12 +803,11 @@ function startRaid(state) {
   separateCombatants(raid.enemies);
   cancelDining(state);
   for (const customer of state.customers) customer.phase = 'leaving';
-  emit(state, 'raid', raid.kind === 'monsters' ? '몬스터 습격 · 단골이 돌아왔습니다' : '타국 군대 · 단골이 지킵니다', getStations(state).gate);
 }
 
 function spawnEnemy(state) {
   const raid = state.raid, wave = state.stage;
-  const gate = getStations(state).gate;
+  const gate = getBattleLayout(state).gate;
   const index = raid.spawned ?? 0;
   const role = raid.plan?.roles[index] ?? 'grunt';
   const traits = {
@@ -776,7 +828,7 @@ function spawnEnemy(state) {
     if (score > bestScore) { spawn = candidate; bestScore = score; }
   }
   spawn.x += (random(state) - 0.5) * 0.04;
-  raid.enemies.push({ id: nextId(state, 'enemy'), kind: raid.kind === 'monsters' ? 'slime' : 'soldier', faction: raid.kind, role, name: traits.name, radius: COMBAT_RADIUS, ...spawn, hp, maxHp: hp, damage: (9 + wave) * traits.damage, speed: traits.speed + Math.min(wave - 1, 8) * 0.03, range: traits.range, interval: traits.interval, attackClock: 0.65, phase: 'attacking' });
+  raid.enemies.push({ id: nextId(state, 'enemy'), kind: raid.kind === 'monsters' ? 'slime' : 'soldier', faction: raid.kind, role, name: traits.name, radius: COMBAT_RADIUS, ...spawn, hp, maxHp: hp, damage: (9 + wave) * traits.damage, speed: traits.speed + Math.min(wave - 1, 8) * 0.03, range: traits.range, interval: traits.interval, attackClock: 0.65, attackSerial: 0, phase: 'attacking' });
   raid.spawnRemaining--;
   raid.spawned = index + 1;
 }
@@ -812,8 +864,8 @@ export function separateCombatants(actors) {
     }
     for (const actor of living) {
       const radius = actor.radius ?? COMBAT_RADIUS;
-      actor.x = clamp(actor.x, BOUNDS.minX + radius, BOUNDS.maxX - radius);
-      actor.z = clamp(actor.z, BOUNDS.minZ + radius, BOUNDS.maxZ - radius);
+      actor.x = clamp(actor.x, BATTLE_BOUNDS.minX + radius, BATTLE_BOUNDS.maxX - radius);
+      actor.z = clamp(actor.z, BATTLE_BOUNDS.minZ + radius, BATTLE_BOUNDS.maxZ - radius);
     }
   }
 }
@@ -848,7 +900,7 @@ function completeRaid(state, win) {
     earn(state, raid.reward); raid.wins++; state.stage++; state.milestone = true;
     state.shopHp = Math.min(state.shopMaxHp, state.shopHp + 40);
     raid.phase = 'victory'; raid.timer = 7;
-    relocateRegion(state, stations);
+    raid.pendingRegion = true;
     emit(state, 'victory', `방어 성공 · +${raid.reward} 골드`, getStations(state).gate, raid.reward);
   } else {
     state.shopHp = 0; state.status = 'defeat'; raid.phase = 'defeat'; raid.timer = 0;
@@ -857,10 +909,19 @@ function completeRaid(state, win) {
 }
 
 function finishRecovery(state) {
+  if (state.raid.pendingRegion) { state.raid.returnPosition = null; relocateRegion(state, getStations(Math.max(1, state.stage - 1))); state.raid.pendingRegion = false; }
+  returnToShop(state);
   state.raid.phase = 'idle'; state.raid.timer = 90; state.raid.triggerSales = state.sales + 18 + Math.min(state.stage * 2, 16);
   state.raid.enemies = []; state.raid.defenders = []; state.raid.spawnRemaining = 0;
   state.timers.customer = 1;
   emit(state, 'notice', `${getStageInfo(state).name} · 다시 영업합니다`);
+}
+
+function returnToShop(state) {
+  if (state.raid.location === 'outside' && !state.raid.pendingRegion && state.raid.returnPosition) {
+    Object.assign(state.player, state.raid.returnPosition, { target: null, moving: false, workKind: null, dwell: 0, transferClock: 0 });
+  }
+  state.raid.location = 'shop'; state.raid.returnPosition = null;
 }
 
 function updateRaid(state, dt) {
@@ -878,8 +939,17 @@ function updateRaid(state, dt) {
   if (raid.phase === 'warning' || raid.phase === 'victory' || raid.phase === 'recovery') {
     raid.timer -= dt;
     if (raid.timer <= 0) {
-      if (raid.phase === 'warning') startRaid(state);
+      if (raid.phase === 'warning') beginDeparture(state);
       else finishRecovery(state);
+    }
+    return;
+  }
+  if (raid.phase === 'departure') {
+    raid.timer -= dt;
+    if (!raid.prepared && raid.timer <= 1.1) prepareRaid(state);
+    if (raid.timer <= 0) {
+      raid.phase = 'battle'; raid.timer = 0;
+      emit(state, 'raid', '상점 밖 방어전 · 단골 수호대와 함께', getBattleLayout(state).gate);
     }
     return;
   }
@@ -895,6 +965,7 @@ function updateRaid(state, dt) {
     defender.attackClock -= dt;
     const enemy = nearest(defender, raid.enemies);
     if (!enemy) continue;
+    defender.targetX = enemy.x; defender.targetZ = enemy.z;
     const range = distance(defender, enemy);
     const retreating = defender.kind !== 'warrior' && range < defender.range * 0.53;
     if (retreating) {
@@ -904,6 +975,7 @@ function updateRaid(state, dt) {
     } else if (range > defender.range) moveToward(defender, enemy, defender.speed, dt, defender.range * 0.92);
     if (!retreating && distance(defender, enemy) <= defender.range && defender.attackClock <= 0) {
       defender.attackClock = defender.interval;
+      defender.attackSerial = (defender.attackSerial || 0) + 1; defender.attackAt = state.time;
       const victims = defender.kind === 'mage' ? raid.enemies.filter((item) => item.hp > 0 && distance(item, enemy) < 1.4).slice(0, 3) : [enemy];
       for (const victim of victims) victim.hp -= defender.damage;
       emit(state, defender.kind === 'archer' ? 'arrow' : defender.kind === 'mage' ? 'magic' : 'hit', '', enemy, defender.damage, { actorId: defender.id, from: { x: defender.x, z: defender.z }, to: { x: enemy.x, z: enemy.z } });
@@ -915,16 +987,17 @@ function updateRaid(state, dt) {
     const living = raid.defenders.filter((defender) => defender.hp > 0);
     const backline = living.filter((defender) => defender.kind !== 'warrior');
     let defender = nearest(enemy, enemy.role === 'raider' && backline.length ? backline : living);
-    const stations = getStations(state);
-    const shop = { x: (stations.counter.x + stations.potionCounter.x) / 2, z: (stations.forge.z + stations.counter.z) / 2 };
+    const shop = getBattleLayout(state).shop;
     if (enemy.role === 'raider' && raid.timer > 5 && distance(enemy, shop) < 1.25 && (!defender || distance(enemy, defender) > 1.4)) defender = null;
     const target = defender ?? shop;
+    enemy.targetX = target.x; enemy.targetZ = target.z;
     if (enemy.role === 'ranged' && defender && distance(enemy, target) < 1.4) {
       const length = distance(enemy, target) || 1;
       moveToward(enemy, { x: enemy.x + (enemy.x - target.x) / length, z: enemy.z + (enemy.z - target.z) / length }, enemy.speed, dt);
     } else if (distance(enemy, target) > enemy.range) moveToward(enemy, target, enemy.speed, dt, enemy.range * 0.92);
     else if (enemy.attackClock <= 0) {
       enemy.attackClock = enemy.interval;
+      enemy.attackSerial = (enemy.attackSerial || 0) + 1; enemy.attackAt = state.time;
       if (defender) {
         const victims = enemy.role === 'elite' ? [defender, ...living.filter((ally) => ally !== defender && distance(ally, defender) < 1.25)].slice(0, 2) : [defender];
         for (const victim of victims) victim.hp = Math.max(0, victim.hp - enemy.damage);
@@ -949,8 +1022,8 @@ function tick(state, dt, input) {
   state.time += dt;
   state.messageTimer = Math.max(0, state.messageTimer - dt);
   for (const key of ['effects', 'events']) state[key] = state[key].filter((item) => (item.ttl -= dt) > 0);
-  updatePlayer(state, dt, input);
-  if (['idle', 'warning', 'victory', 'recovery'].includes(state.raid.phase)) {
+  if (state.raid.phase !== 'departure') updatePlayer(state, dt, input);
+  if (state.raid.location !== 'outside' && ['idle', 'warning', 'victory', 'recovery'].includes(state.raid.phase)) {
     produce(state, dt);
     updateKitchen(state, dt);
     updateStaff(state, dt);
@@ -982,7 +1055,8 @@ export function step(state, dt, input = {}) {
 }
 
 export function serialize(state) {
-  return JSON.stringify({ version: SAVE_VERSION, seed: state.seed, rng: state.rng, nextId: state.nextId, time: state.time, stage: state.stage, gold: state.gold, sales: state.sales, lodgings: state.lodgings, milestone: state.milestone, economy: state.economy, dining: { kitchen: state.dining.kitchen, food: state.dining.food, cleaned: state.dining.cleaned, tables: state.dining.tables.map(({ status }) => ({ status })) }, moneyPiles: { ...state.moneyPiles }, facilityLevels: { ...state.facilityLevels }, workerLevels: { ...state.workerLevels }, player: { x: state.player.x, z: state.player.z, bag: { ...state.player.bag }, speedLevel: state.player.speedLevel, capacityLevel: state.player.capacityLevel, priceLevel: state.player.priceLevel, blinkCooldown: state.player.blinkCooldown }, stocks: { ...state.stocks }, unlocks: { alchemy: state.unlocks.alchemy, inn: state.unlocks.inn }, patrons: state.patrons, staff: state.staff.map(({ cleanTableId, workKind, ...helper }) => helper), shopHp: state.shopHp, raid: { wins: state.raid.wins, wave: state.raid.wave, phase: state.raid.phase, timer: state.raid.timer, triggerSales: state.raid.triggerSales } });
+  const shopPosition = state.raid.location === 'outside' && state.raid.returnPosition ? state.raid.returnPosition : state.player;
+  return JSON.stringify({ version: SAVE_VERSION, seed: state.seed, rng: state.rng, nextId: state.nextId, time: state.time, stage: state.stage, gold: state.gold, sales: state.sales, lodgings: state.lodgings, milestone: state.milestone, economy: state.economy, dining: { kitchen: state.dining.kitchen, food: state.dining.food, cleaned: state.dining.cleaned, tables: state.dining.tables.map(({ status }) => ({ status })) }, moneyPiles: { ...state.moneyPiles }, facilityLevels: { ...state.facilityLevels }, workerLevels: { ...state.workerLevels }, player: { x: shopPosition.x, z: shopPosition.z, bag: { ...state.player.bag }, speedLevel: state.player.speedLevel, capacityLevel: state.player.capacityLevel, priceLevel: state.player.priceLevel, blinkCooldown: state.player.blinkCooldown }, stocks: { ...state.stocks }, unlocks: { alchemy: state.unlocks.alchemy, inn: state.unlocks.inn }, patrons: state.patrons, staff: state.staff.map(({ cleanTableId, workKind, ...helper }) => helper), shopHp: state.shopHp, raid: { wins: state.raid.wins, wave: state.raid.wave, phase: state.raid.phase, timer: state.raid.timer, triggerSales: state.raid.triggerSales } });
 }
 
 function badSave() {
@@ -1039,7 +1113,7 @@ export function restore(value) {
         product: helper.product, job, jobAssigned: helper.jobAssigned === true, phase: bagCount(helper.bag) > 0 ? 'haul' : 'collect',
         bag: { gear: helper.bag.gear, potion: helper.bag.potion, food: helper.bag.food ?? 0 }, timer: 0, cleanTableId: null, workKind: null }, source);
     });
-    if (!finite(saved.shopHp, 0, 240) || !saved.raid || !['idle', 'warning', 'battle', 'victory', 'defeat', 'recovery'].includes(saved.raid.phase) || !integer(saved.raid.wins, 0, 999) || saved.stage !== saved.raid.wins + 1 || !integer(saved.raid.wave, 0, 1000) || !integer(saved.raid.triggerSales, 0, 1e9)) return badSave();
+    if (!finite(saved.shopHp, 0, 240) || !saved.raid || !['idle', 'warning', 'departure', 'battle', 'victory', 'defeat', 'recovery'].includes(saved.raid.phase) || !integer(saved.raid.wins, 0, 999) || saved.stage !== saved.raid.wins + 1 || !integer(saved.raid.wave, 0, 1000) || !integer(saved.raid.triggerSales, 0, 1e9)) return badSave();
     if (!saved.economy || !finite(saved.economy.earned, 0, 1e13) || !finite(saved.economy.spent, 0, 1e13)) return badSave();
     const state = createGame(saved.seed);
     for (const key of ['rng', 'nextId', 'time', 'stage', 'gold', 'sales', 'lodgings']) state[key] = saved[key];

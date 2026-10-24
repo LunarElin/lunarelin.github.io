@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CAMERA_DOWN, CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_Y, battleCamera, cameraFocus, cameraFraming, carryHeight, followCamera } from '../camera.mjs';
+import { BOUNDS } from '../maps.mjs';
+import { getBattleLayout } from '../battlefield.mjs';
 
 // Independent orthographic projection: camera basis comes from cross products,
 // rather than reproducing cameraFraming/followCamera's scalar calculations.
@@ -27,6 +29,34 @@ function footAndTop(player, bag, view, width, height) {
 }
 
 const screens = [{ width: 320, height: 356 }, { width: 390, height: 604 }, { width: 900, height: 560 }];
+
+test('expanded shop corners preserve carried food and feet inside mobile safe areas', () => {
+  for (const { width, height } of screens) for (const x of [BOUNDS.minX, 0, BOUNDS.maxX]) for (const z of [BOUNDS.minZ, BOUNDS.maxZ]) {
+    const player = { x, z }, bag = { gear: 0, potion: 0, food: 22 };
+    const framing = cameraFraming(width, height, bag);
+    const focus = cameraFocus(player, framing, width, height, bag, BOUNDS);
+    const view = followCamera(null, focus, framing, 0);
+    const { foot, top } = footAndTop(player, bag, view, width, height);
+    assert.ok(top.y >= 38 - 1e-8 && foot.y <= height - 140 + 1e-8);
+    assert.ok(foot.x >= 38 - 1e-8 && foot.x <= width - 38 + 1e-8);
+  }
+});
+
+test('outdoor framing includes the shop facade and fighting line without carrying indoor cargo', () => {
+  const yard = getBattleLayout(1), player = { ...yard.player, bag: {} };
+  const units = Array.from({ length: 18 }, (_, i) => ({ x: i % 6 - 2.5, z: 2 - Math.floor(i / 6), hp: 10 }));
+  units.push(...Array.from({ length: 14 }, (_, i) => ({ x: i % 6 - 2.5, z: 5.45 - Math.floor(i / 6), hp: 10 })));
+  for (const { width, height } of screens) {
+    const framing = battleCamera(width, height, player, units, yard.gate, yard.backdrop);
+    const view = followCamera(null, framing.focus, framing.framing, 0);
+    for (const point of [player, ...units, yard.backdrop]) {
+      const foot = project({ ...point, y: 0 }, view, width, height);
+      const top = project({ ...point, y: point.top || 2.1 }, view, width, height);
+      assert.ok(top.y >= 38 - 1e-8 && foot.y <= height - 42 + 1e-8);
+      assert.ok(foot.x >= 30 - 1e-8 && foot.x <= width - 30 + 1e-8);
+    }
+  }
+});
 
 test('food and mixed cargo remain inside the phone camera safe margins up to full capacity', () => {
   const player = { x: -1.35, z: -2.2 };

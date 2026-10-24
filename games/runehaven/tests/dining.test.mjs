@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { BOUNDS, DINING_RULES, CLASS_STATS, createGame, getDiningLayout, getCustomerQueueSlots, getFacilityStats, getStations, getCoinMultiplier, serialize, restore, step } from '../rules.mjs';
+import { BOUNDS, DINING_RULES, CLASS_STATS, createGame, getDiningLayout, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getFacilityStats, getStations, getCoinMultiplier, serialize, restore, step } from '../rules.mjs';
 
 function run(state, seconds, input = {}) {
   for (let frame = 0; frame < Math.round(seconds * 20); frame++) step(state, .05, input);
@@ -210,7 +210,7 @@ test('dining v1 saves keep food and dirty tables, convert occupied seats safely,
   }
 });
 
-test('battle cancels meals without paying, releases reservations, and leaves used seats dirty', () => {
+test('departure cancels meals without paying, releases reservations, and leaves used seats dirty', () => {
   const state = shop();
   addGuest(state, 'eater', 'eating', 0);
   addGuest(state, 'carrier', 'to-table', 1);
@@ -218,12 +218,16 @@ test('battle cancels meals without paying, releases reservations, and leaves use
   state.raid.phase = 'warning';
   state.raid.timer = .01;
   step(state, .05);
-  assert.equal(state.raid.phase, 'battle');
+  assert.equal(state.raid.phase, 'departure');
   assert.equal(state.lodgings, 0);
   assert.equal(state.moneyPiles.inn, 0);
   assert.equal(state.dining.tables[0].status, 'dirty');
   assert.equal(state.dining.tables[1].status, 'clean');
-  assert.ok(state.customers.every(({ phase, meal, tableId }) => phase === 'leaving' && !meal && tableId === null));
+  assert.ok(state.customers.every(({ meal, tableId }) => !meal && tableId === null));
+  run(state, 1.2);
+  assert.equal(state.raid.location, 'outside');
+  assert.ok(state.customers.every(({ phase }) => phase === 'leaving'));
+  assert.equal(state.lodgings, 0);
   assert.ok(state.dining.tables.every(({ customerId }) => customerId === null));
   assert.ok(state.patrons.every(({ loyalty }) => loyalty === 1));
 });
@@ -232,13 +236,13 @@ test('customers walk directly through other characters to their waiting slot and
   const state = createGame(42);
   state.timers.customer = 1000;
   const gate = getStations(state).gate;
-  const target = getCustomerQueueSlots(state)[0];
-  const customer = { id: 'walker', x: gate.x, z: gate.z - .18, kind: 'warrior', product: 'gear', phase: 'entering', hp: 90, purchased: false, timer: 0, patience: 0 };
+  const target = getCustomerBranchPoint(state);
+  const customer = { id: 'walker', ...getCustomerEntrySlots(state)[0], kind: 'warrior', product: 'gear', phase: 'entrance', hp: 90, purchased: false, timer: 0, patience: 0 };
   state.customers.push(customer);
   const before = { x: customer.x, z: customer.z };
   step(state, .05);
   const cross = (customer.x - before.x) * (target.z - before.z) - (customer.z - before.z) * (target.x - before.x);
-  assert.ok(Math.abs(cross) < 1e-8, 'entry takes a straight segment to its assigned slot');
+  assert.ok(Math.abs(cross) < 1e-8, 'entry takes a straight segment through the doorway to the shared branch');
   assert.ok(Math.abs(Math.hypot(customer.x - before.x, customer.z - before.z) - 1.8 * .05) < 1e-8);
   const overlapping = [0, 1].map((id) => ({ ...customer, id: `leaving-${id}`, x: -3, z: -2, phase: 'leaving', purchased: true }));
   state.customers = overlapping;
@@ -248,6 +252,6 @@ test('customers walk directly through other characters to their waiting slot and
   const exit = { x: gate.x, z: gate.z - .15 };
   const crossExit = (overlapping[0].x + 3) * (exit.z + 2) - (overlapping[0].z + 2) * (exit.x + 3);
   assert.ok(Math.abs(crossExit) < 1e-8);
-  run(state, 8);
+  run(state, 10);
   assert.equal(state.customers.length, 0);
 });

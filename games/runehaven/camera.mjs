@@ -16,7 +16,7 @@ export function cameraFraming(width, height, bag) {
   return { span, feet, focusY: (feet - height / 2) * span / height / CAMERA_Y };
 }
 
-export function cameraFocus(player, framing, width, height, bag) {
+export function cameraFocus(player, framing, width, height, bag, bounds = { minX: -6, maxX: 6, minZ: -4.7, maxZ: 6 }) {
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const u = player.x * CAMERA_RIGHT.x + player.z * CAMERA_RIGHT.z;
   const v = player.x * CAMERA_DOWN.x + player.z * CAMERA_DOWN.z;
@@ -27,27 +27,28 @@ export function cameraFocus(player, framing, width, height, bag) {
   const horizontal = (width / 2 - 38) / pixels;
   const up = Math.max(0, (framing.feet - 38 - carryHeight(bag) * CAMERA_Y * pixels) / (pixels * groundY));
   const down = Math.max(0, (height - 140 - framing.feet) / (pixels * groundY));
-  const pan = Math.max(0, 7 - width / (2 * pixels));
+  const pan = Math.max(0, (bounds.maxX - bounds.minX) / 2 + 1 - width / (2 * pixels));
   const focusU = clamp(clamp(u, -pan, pan), u - horizontal, u + horizontal);
-  const focusV = clamp(clamp(v, 1.6, 4.7), v - down, v + up);
+  const focusV = clamp(clamp(v, 1.6 + bounds.minZ + 4.7, bounds.maxZ - 1.3), v - down, v + up);
   return { x: focusU * CAMERA_RIGHT.x + focusV * CAMERA_DOWN.x, z: focusU * CAMERA_RIGHT.z + focusV * CAMERA_DOWN.z };
 }
 
-export function battleCamera(width, height, player, units, gate) {
+export function battleCamera(width, height, player, units, gate, backdrop) {
   const groundY = CAMERA_OFFSET.y / Math.hypot(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
-  const points = [player, ...units.filter((unit) => unit.hp > 0), { x: gate.x - 2.5, z: 6.8 }, { x: gate.x + 2.5, z: 6.8 }];
+  const points = [player, ...units.filter((unit) => unit.hp > 0), { x: gate.x - 2.5, z: gate.z + .8 }, { x: gate.x + 2.5, z: gate.z + .8 }, ...(backdrop ? [backdrop] : [])];
   let minU = Infinity, maxU = -Infinity, minS = Infinity, maxS = -Infinity;
   for (const point of points) {
     const u = point.x * CAMERA_RIGHT.x + point.z * CAMERA_RIGHT.z;
     const v = point.x * CAMERA_DOWN.x + point.z * CAMERA_DOWN.z;
-    const top = point === player ? carryHeight(player.bag) : 2.1;
+    const top = point === player ? carryHeight(player.bag) : point.top || 2.1;
     minU = Math.min(minU, u - .5); maxU = Math.max(maxU, u + .5);
     minS = Math.min(minS, -v * groundY); maxS = Math.max(maxS, top * CAMERA_Y - v * groundY);
   }
-  const pixels = Math.min(52, width / 7.8, (width - 60) / (maxU - minU), (height - 178) / (maxS - minS));
+  const margin = backdrop ? 80 : 178;
+  const pixels = Math.min(52, width / 7.8, (width - 60) / (maxU - minU), (height - margin) / (maxS - minS));
   const span = height / Math.max(8, pixels);
   const u = (minU + maxU) / 2;
-  const v = -((minS + maxS) / 2 - 51 / pixels) / groundY;
+  const v = -((minS + maxS) / 2 - (backdrop ? 2 : 51) / pixels) / groundY;
   return { framing: { span, focusY: 0 }, focus: { x: u * CAMERA_RIGHT.x + v * CAMERA_DOWN.x, z: u * CAMERA_RIGHT.z + v * CAMERA_DOWN.z } };
 }
 

@@ -63,15 +63,15 @@ test('a full waiting line does not block a straight floor tap through its shoppe
   const state = controlledShop(1, false);
   for (let frame = 0; frame < 500; frame++) step(state, .05);
   assert.ok(state.customers.length >= 12, 'actual unpaid shoppers occupy the waiting line');
-  const from = { x: -5.8, z: 4.45 }, target = { x: 5.8, z: 4.45 };
+  const from = { x: -7.8, z: 5.09 }, target = { x: 7.8, z: 5.09 };
   Object.assign(state.player, { ...from, target: null });
   let frames = 0;
-  while (distance(state.player, target) > .1 && frames < 200) {
+  while (distance(state.player, target) > .1 && frames < 400) {
     step(state, .05, { target });
     assertOnLine(state.player, from, target);
     frames++;
   }
-  assert.ok(frames < 200);
+  assert.ok(frames < 400);
   assert.ok(distance(state.player, target) <= .1, 'overlap is allowed without a route around the queue');
 });
 

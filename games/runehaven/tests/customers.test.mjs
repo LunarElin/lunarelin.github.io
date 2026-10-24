@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { BOUNDS, createGame, getCoinMultiplier, getCustomerQueueSlots, getFacilityStats, getSalePrice, getStationApproach, getStations, step } from '../rules.mjs';
+import { BOUNDS, createGame, getCoinMultiplier, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getFacilityStats, getSalePrice, getStationApproach, getStations, step } from '../rules.mjs';
 
 function run(state, seconds, inspect = () => {}) {
   for (let frame = 0; frame < Math.round(seconds * 20); frame++) {
@@ -26,12 +26,12 @@ function grownShop(seed = 42, stage = 1) {
 function inBounds(customer) {
   return Number.isFinite(customer.x) && Number.isFinite(customer.z)
     && customer.x >= BOUNDS.minX && customer.x <= BOUNDS.maxX
-    && customer.z >= BOUNDS.minZ && customer.z <= BOUNDS.maxZ;
+    && customer.z >= BOUNDS.minZ && customer.z <= (customer.phase ? 26 : BOUNDS.maxZ);
 }
 
 function queues(state, product) {
   return state.customers.filter((customer) => customer.product === product
-    && ['entering', 'queue'].includes(customer.phase));
+    && ['entrance', 'branch', 'queue'].includes(customer.phase));
 }
 
 test('a new shop gains a visible real queue quickly without free purchases or revenue', () => {
@@ -47,29 +47,29 @@ test('a new shop gains a visible real queue quickly without free purchases or re
   assert.equal(state.gold, BALANCE.web.startingCoins);
 });
 
-test('all ten regions provide long single-file queues beside a clear central aisle', () => {
+test('all regions have one outside entrance line and two short straight counter queues', () => {
   for (let stage = 1; stage <= 10; stage++) {
+    const state = { stage }, stations = getStations(state), entrance = getCustomerEntrySlots(state), branch = getCustomerBranchPoint(state);
+    assert.equal(entrance.length, 24);
+    assert.equal(getCustomerEntrySlots(state), entrance, 'static queue positions are cached');
+    entrance.forEach((slot, index) => {
+      assert.equal(slot.x, stations.gate.x);
+      assert.ok(slot.z > stations.gate.z, 'common waiting line starts outside the doorway');
+      if (index) assert.ok(Math.abs(slot.z - entrance[index - 1].z - .7) < .00001);
+    });
+    assert.equal(branch.x, stations.gate.x);
+    assert.ok(branch.z < stations.gate.z);
     for (const product of ['gear', 'potion']) {
-      const slots = getCustomerQueueSlots({ stage }, product);
-      assert.equal(slots.length, 16);
-      assert.equal(new Set(slots.map(({ x, z }) => `${x}:${z}`)).size, 16);
-      assert.ok(slots.every(inBounds), `${stage}/${product}: reachable slots`);
-      for (let left = 0; left < slots.length; left++) for (let right = left + 1; right < slots.length; right++) {
-        assert.ok(Math.hypot(slots[left].x - slots[right].x, slots[left].z - slots[right].z) >= .7 - .00001,
-          `${stage}/${product}: slots ${left}/${right}`);
-      }
-      for (let index = 1; index < slots.length; index++) {
-        assert.ok(Math.hypot(slots[index].x - slots[index - 1].x, slots[index].z - slots[index - 1].z) <= 1.4,
-          `${stage}/${product}: contiguous queue path`);
-      }
-      assert.ok(slots.every((slot) => Math.abs(slot.x) >= 2.9), 'queues stay outside the working lanes');
-      const approach = getStationApproach({ stage }, product === 'potion' ? 'potionCounter' : 'counter');
+      const slots = getCustomerQueueSlots(state, product), counter = stations[product === 'gear' ? 'counter' : 'potionCounter'];
+      assert.equal(slots.length, 6);
+      assert.ok(slots.every(inBounds));
+      slots.forEach((slot, index) => {
+        assert.equal(slot.x, counter.x);
+        assert.ok(Math.abs(slot.z - (counter.z + .95 + index * .68)) < .00001);
+      });
+      const approach = getStationApproach(state, product === 'potion' ? 'potionCounter' : 'counter');
       assert.ok(inBounds(approach));
-      assert.ok(slots.every((slot) => Math.hypot(slot.x - approach.x, slot.z - approach.z) >= .75),
-        'player delivery stops behind the counter, away from waiting shoppers');
-      const directions = slots.slice(1).map((slot, i) => Math.sign(slot.x - slots[i].x) || 2 * Math.sign(slot.z - slots[i].z));
-      const turns = directions.filter((direction, i) => i > 0 && direction !== directions[i - 1]).length;
-      assert.equal(turns, 2, 'one long U-shaped line, rather than a compact grid');
+      assert.ok(slots.every((slot) => Math.hypot(slot.x - approach.x, slot.z - approach.z) >= .75));
     }
   }
 });
@@ -220,19 +220,63 @@ test('full shops keep buying without routing or collision deadlocks across all r
   }
 });
 
-test('stationary shoppers settle in their own FIFO positions without forming a crowd at the counter', () => {
+test('unserved crowds settle into one entrance line and six places per counter', () => {
   for (let stage = 1; stage <= 10; stage++) {
     const state = grownShop(42, stage);
-    run(state, 45);
+    run(state, 60);
+    const entrance = state.customers.filter((customer) => customer.phase === 'entrance');
+    assert.ok(entrance.length > 0, 'the remainder waits outside instead of appearing at a counter');
+    entrance.forEach((customer, index) => assert.ok(Math.hypot(customer.x - getCustomerEntrySlots(state)[index].x,
+      customer.z - getCustomerEntrySlots(state)[index].z) < .04));
     for (const product of ['gear', 'potion']) {
-      const line = queues(state, product), slots = getCustomerQueueSlots(state, product);
-      assert.ok(line.length > 0);
+      const line = state.customers.filter((customer) => customer.product === product && ['branch', 'queue'].includes(customer.phase));
+      assert.ok(line.length <= 6);
       line.forEach((customer, index) => {
+        const slot = getCustomerQueueSlots(state, product)[index];
         assert.equal(customer.phase, 'queue');
-        assert.ok(Math.hypot(customer.x - slots[index].x, customer.z - slots[index].z) < .04);
+        assert.ok(Math.hypot(customer.x - slot.x, customer.z - slot.z) < .04);
       });
     }
   }
+});
+
+test('entrance admission is global FIFO with a visible interval before the doorway branch', () => {
+  const state = grownShop(42);
+  const spawned = [], admitted = [], known = new Set(), entered = new Set();
+  run(state, 30, () => {
+    for (const customer of state.customers) {
+      if (!known.has(customer.id)) {
+        known.add(customer.id); spawned.push(customer.id);
+        assert.equal(customer.phase, 'entrance');
+        assert.ok(customer.z > getStations(state).gate.z);
+      }
+      if (['branch', 'queue'].includes(customer.phase) && !entered.has(customer.id)) {
+        entered.add(customer.id); admitted.push({ id: customer.id, time: state.time });
+      }
+    }
+  });
+  assert.ok(admitted.length >= 6);
+  assert.deepEqual(admitted.map(({ id }) => id), spawned.slice(0, admitted.length));
+  for (let index = 1; index < admitted.length; index++) assert.ok(admitted[index].time - admitted[index - 1].time >= .55 - .00001);
+  assert.ok(state.customers.some((customer) => customer.phase === 'entrance'));
+});
+
+test('an admitted shopper crosses the doorway branch before walking straight toward its chosen counter', () => {
+  const state = createGame(42);
+  state.timers.customer = 1000;
+  const entry = getCustomerEntrySlots(state)[0], branch = getCustomerBranchPoint(state);
+  const shopper = { id: 'at-entrance', ...entry, kind: 'warrior', product: 'gear', phase: 'entrance', hp: 90, purchased: false, timer: 0, patience: 0 };
+  state.customers.push(shopper);
+  for (let frame = 0; frame < 100 && !shopper.branchPassed; frame++) {
+    step(state, .05);
+    assert.equal(shopper.x, entry.x, 'the doorway must be visited before the left/right split');
+  }
+  assert.equal(shopper.branchPassed, true);
+  assert.ok(Math.hypot(shopper.x - branch.x, shopper.z - branch.z) <= .026);
+  const before = { x: shopper.x, z: shopper.z }, target = getCustomerQueueSlots(state, shopper.product)[0];
+  step(state, .05);
+  const cross = (shopper.x - before.x) * (target.z - before.z) - (shopper.z - before.z) * (target.x - before.x);
+  assert.ok(Math.abs(cross) < .000001, 'after the intentional branch, movement is one direct segment');
 });
 
 test('departing customers leave through the regional gate without walking out of the playable bounds', () => {

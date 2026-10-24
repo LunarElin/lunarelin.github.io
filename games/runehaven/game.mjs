@@ -1,6 +1,6 @@
 import { THREE, createAssetLibrary } from './asset-loader.mjs';
 import { BALANCE } from './balance.mjs';
-import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getStationApproach } from './rules.mjs';
+import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getStationApproach } from './rules.mjs';
 import { REGIONS, getRegion, getStations } from './maps.mjs';
 import { createMapScenery } from './map-scene.mjs';
 import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera } from './camera.mjs';
@@ -10,6 +10,9 @@ import { applyActorAppearance, getActorPalette } from './actor-appearance.mjs';
 import { DINING_RULES, getDiningLayout } from './dining.mjs';
 import { createDiningVisuals } from './dining-visuals.mjs';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
+import { getBattleLayout } from './battlefield.mjs';
+import { createBattlefieldVisuals } from './battlefield-visuals.mjs';
+import { createCombatRig, updateCombatMotion, disposeCombatMotion, COMBAT_ATTACK_SECONDS } from './combat-motion.mjs';
 
 const $ = (id) => document.getElementById(id);
 const SAVE_KEY = 'runehaven:v1';
@@ -145,6 +148,7 @@ const viewport = { width: 1, height: 1 };
 let cameraFrame;
 let cameraSnap = true;
 const scene = new THREE.Scene();
+const shopScene = new THREE.Group(); shopScene.name = 'shop-interior'; scene.add(shopScene);
 scene.background = new THREE.Color('#bdcfb2');
 const camera = new THREE.OrthographicCamera(-9, 9, 12, -12, .1, 100);
 camera.position.set(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
@@ -167,7 +171,7 @@ function material(color, extra = {}) {
 const products = createProductVisuals(material);
 const actorMarkers = createActorMarkers(material); scene.add(actorMarkers.group);
 const markerEntries = [];
-function mesh(geometry, color, parent = scene, extra = {}) {
+function mesh(geometry, color, parent = shopScene, extra = {}) {
   geometries.add(geometry);
   const m = new THREE.Mesh(geometry, material(color, extra));
   m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
@@ -183,27 +187,29 @@ function releaseOwnedGeometry(group) {
 function emptyGroup(group) {
   for (const child of [...group.children]) { releaseOwnedGeometry(child); group.remove(child); }
 }
-function box(w, h, d, color, x = 0, y = 0, z = 0, parent = scene) {
+function box(w, h, d, color, x = 0, y = 0, z = 0, parent = shopScene) {
   const m = mesh(new THREE.BoxGeometry(w, h, d), color, parent); m.position.set(x, y, z); return m;
 }
-function cylinder(top, bottom, h, color, x, y, z, parent = scene, sides = 12, extra = {}) {
+function cylinder(top, bottom, h, color, x, y, z, parent = shopScene, sides = 12, extra = {}) {
   const m = mesh(new THREE.CylinderGeometry(top, bottom, h, sides), color, parent, extra); m.position.set(x, y, z); return m;
 }
-function orb(radius, color, x, y, z, parent = scene, emissive = false) {
+function orb(radius, color, x, y, z, parent = shopScene, emissive = false) {
   const m = mesh(new THREE.IcosahedronGeometry(radius, 1), color, parent, emissive ? { emissive: color, emissiveIntensity: .7 } : {});
   m.position.set(x, y, z); m.castShadow = !emissive; return m;
 }
-function ring(radius, color, x, z, width = .035, parent = scene) {
+function ring(radius, color, x, z, width = .035, parent = shopScene) {
   const m = mesh(new THREE.TorusGeometry(radius, width, 5, 42), color, parent, { emissive: color, emissiveIntensity: .15 });
   m.rotation.x = -Math.PI / 2; m.position.set(x, .025, z); m.castShadow = false; return m;
 }
-const mapScenery = createMapScenery({ THREE, scene, box, cylinder, orb, mesh, ring, emptyGroup, material, geometries });
+const mapScenery = createMapScenery({ THREE, scene: shopScene, box, cylinder, orb, mesh, ring, emptyGroup, material, geometries });
+const battlefieldVisuals = createBattlefieldVisuals(scene);
+let sceneLocation = '';
 const queueGeometry = new THREE.CircleGeometry(.075, 8); geometries.add(queueGeometry);
-const queueMarks = new THREE.InstancedMesh(queueGeometry, material('#795c41', { transparent: true, opacity: .28 }), 32);
-queueMarks.receiveShadow = false; scene.add(queueMarks);
+const queueMarks = new THREE.InstancedMesh(queueGeometry, material('#795c41', { transparent: true, opacity: .28 }), 36);
+queueMarks.receiveShadow = false; shopScene.add(queueMarks);
 
 // A handmade furnace and anvil sit alongside the licensed Kenney furniture.
-const forgeGroup = new THREE.Group(); forgeGroup.position.set(-4, 0, -2); scene.add(forgeGroup);
+const forgeGroup = new THREE.Group(); forgeGroup.position.set(-4, 0, -2); shopScene.add(forgeGroup);
 box(1.35, .75, 1.2, '#8c6260', -.5, .38, -.3, forgeGroup);
 box(1.48, .18, 1.3, '#605569', -.5, .8, -.3, forgeGroup);
 box(.82, .44, .06, '#332a3a', -.5, .4, .32, forgeGroup);
@@ -214,24 +220,24 @@ cylinder(.5, .57, .55, '#91633e', .7, .27, .2, forgeGroup, 10);
 box(.38, .45, .45, '#5b6377', .7, .7, .2, forgeGroup);
 box(1.06, .22, .52, '#9eacb8', .62, 1.02, .2, forgeGroup);
 const anvilHorn = mesh(new THREE.ConeGeometry(.24, .5, 4), '#a3b0bb', forgeGroup); anvilHorn.rotation.z = -Math.PI / 2; anvilHorn.position.set(1.3, 1.02, .2);
-const forgeLight = new THREE.PointLight('#ff9a4c', 3.5, 5); forgeLight.position.set(-4.5, 1, -1.5); scene.add(forgeLight);
+const forgeLight = new THREE.PointLight('#ff9a4c', 3.5, 5); forgeLight.position.set(-4.5, 1, -1.5); shopScene.add(forgeLight);
 const sparks = [];
-for (let i = 0; i < 7; i++) sparks.push(orb(.035, '#ffd684', -4.5, 1 + i * .12, -1.7, scene, true));
+for (let i = 0; i < 7; i++) sparks.push(orb(.035, '#ffd684', -4.5, 1 + i * .12, -1.7, shopScene, true));
 
-const alchemyGroup = new THREE.Group(); alchemyGroup.position.set(3.4, 0, -2.15); scene.add(alchemyGroup);
-const innGroup = new THREE.Group(); innGroup.position.set(0, 0, -4.25); scene.add(innGroup);
-const counterGroup = new THREE.Group(); counterGroup.position.set(-3, 0, 2); scene.add(counterGroup);
-const potionGroup = new THREE.Group(); potionGroup.position.set(3, 0, 2); scene.add(potionGroup);
+const alchemyGroup = new THREE.Group(); alchemyGroup.position.set(3.4, 0, -2.15); shopScene.add(alchemyGroup);
+const innGroup = new THREE.Group(); innGroup.position.set(0, 0, -4.25); shopScene.add(innGroup);
+const counterGroup = new THREE.Group(); counterGroup.position.set(-3, 0, 2); shopScene.add(counterGroup);
+const potionGroup = new THREE.Group(); potionGroup.position.set(3, 0, 2); shopScene.add(potionGroup);
 box(2.25, .65, .8, '#a4734b', 0, .33, 0, counterGroup);
 box(2.4, .16, 1, '#d3a36e', 0, .72, 0, counterGroup);
 box(1.9, .65, .8, '#729083', 0, .33, 0, potionGroup);
 box(2.1, .16, 1, '#b8c4a2', 0, .72, 0, potionGroup);
 const supplyRing = ring(1.22, '#f6c16e', -4, -2);
 const alchemyRing = ring(1.2, '#8cceb6', 3, -2);
-const destination = ring(.35, '#fff0a5', 0, 0, .04); destination.visible = false;
-const playerRing = ring(.42, '#e2d7ff', 0, 0, .025);
+const destination = ring(.35, '#fff0a5', 0, 0, .04, scene); destination.visible = false;
+const playerRing = ring(.42, '#e2d7ff', 0, 0, .025, scene);
 const stockVisuals = { forge: new THREE.Group(), gear: new THREE.Group(), alchemy: new THREE.Group(), potion: new THREE.Group() };
-for (const g of Object.values(stockVisuals)) scene.add(g);
+for (const g of Object.values(stockVisuals)) shopScene.add(g);
 const stationLabels = new Map();
 const cashVisuals = new Map();
 const labelConfig = [
@@ -278,7 +284,7 @@ for (const [key, text, x, z, y] of labelConfig) {
 }
 
 for (const [kind, name] of [['gear', '무기 대금'], ['potion', '물약 대금'], ['inn', '식사 대금']]) {
-  const group = new THREE.Group(); scene.add(group);
+  const group = new THREE.Group(); shopScene.add(group);
   const el = document.createElement('button'); el.className = 'cash-label'; el.hidden = true;
   $('station-labels').append(el);
   listen(el, 'click', () => { if (paused || !started) return; const pile = getMoneyPiles(state).find((p) => p.kind === kind); if (pile) { setDestination(pile); blinkAim = false; } });
@@ -299,8 +305,8 @@ function basicActor(kind, group, color) {
   box(.16, .25, .2, '#5b4b47', -.13, .15, 0, base); box(.16, .25, .2, '#5b4b47', .13, .15, 0, base);
   return base;
 }
-function addClassGear(root, kind, role, appearance) {
-  const key = `${appearance.key}:${kind}:${role}`;
+function addClassGear(root, kind, role, appearance, combat = false) {
+  const key = `${appearance.key}:${kind}:${role}:${combat}`;
   if (classGear.has(key)) {
     const copy = classGear.get(key).clone(); root.add(copy); return copy;
   }
@@ -313,16 +319,22 @@ function addClassGear(root, kind, role, appearance) {
   if (kind === 'player' || kind === 'mage') {
     const hat = mesh(new THREE.ConeGeometry(.3, .6, 7), appearance.body, group); hat.position.set(0, 1.45, 0);
     cylinder(.35, .35, .05, appearance.trim, 0, 1.15, 0, group);
-    cylinder(.035, .035, 1.1, '#8b6844', .4, .7, .05, group, 6);
-    orb(.11, '#a8f0d4', .4, 1.3, .05, group, true);
+    if (!combat) {
+      cylinder(.035, .035, 1.1, '#8b6844', .4, .7, .05, group, 6);
+      orb(.11, '#a8f0d4', .4, 1.3, .05, group, true);
+    }
   } else if (kind === 'archer' || role === 'ranged') {
-    const bow = mesh(new THREE.TorusGeometry(.28, .025, 4, 12, Math.PI), '#cda364', group);
-    bow.position.set(.39, .68, .12); bow.rotation.z = -Math.PI / 2;
-    box(.03, .55, .03, '#eee3c3', .39, .68, .12, group);
+    if (!combat) {
+      const bow = mesh(new THREE.TorusGeometry(.28, .025, 4, 12, Math.PI), '#cda364', group);
+      bow.position.set(.39, .68, .12); bow.rotation.z = -Math.PI / 2;
+      box(.03, .55, .03, '#eee3c3', .39, .68, .12, group);
+    }
     const feather = mesh(new THREE.ConeGeometry(.07, .38, 4), '#e1d2a6', group); feather.position.set(-.12, 1.37, -.06); feather.rotation.z = .4;
   } else if (kind === 'warrior' || kind === 'soldier') {
-    box(.09, .65, .05, '#cbd3d6', .38, .7, .12, group);
-    box(.27, .06, .07, '#d0ae56', .38, .4, .12, group);
+    if (!combat) {
+      box(.09, .65, .05, '#cbd3d6', .38, .7, .12, group);
+      box(.27, .06, .07, '#d0ae56', .38, .4, .12, group);
+    }
     cylinder(.2, .2, .05, kind === 'soldier' ? '#a54d60' : '#b8a683', -.32, .67, .12, group, 8).rotation.x = Math.PI / 2;
   }
   if (role === 'elite') {
@@ -334,8 +346,10 @@ function addClassGear(root, kind, role, appearance) {
     }
     box(.48, .08, .1, '#d7b163', 0, .81, .28, group);
   } else if (role === 'raider') {
-    cylinder(.035, .035, .85, '#654b39', .4, .65, .08, group, 6);
-    box(.31, .26, .07, '#bfc8c7', .4, .99, .08, group);
+    if (!combat) {
+      cylinder(.035, .035, .85, '#654b39', .4, .65, .08, group, 6);
+      box(.31, .26, .07, '#bfc8c7', .4, .99, .08, group);
+    }
     box(.5, .13, .36, '#995954', 0, .85, 0, group);
   }
   // Class accessories are rigid: bake their transforms and colors into one
@@ -366,19 +380,22 @@ function createActor(id, kind, role = '') {
   const root = new THREE.Group(); scene.add(root);
   const appearance = getActorPalette({ id, kind });
   const body = basicActor(kind, root, appearance.body);
-  const gear = addClassGear(root, kind, role, appearance);
+  const combat = id.startsWith('d-') || id.startsWith('e-');
+  const gear = addClassGear(root, kind, role, appearance, combat);
   gear.traverse((node) => { node.castShadow = false; });
   const carry = new THREE.Group(); carry.position.set(0, 1.8, .14); root.add(carry);
   const marker = { visible: true, x: 0, z: 0, scale: 1, healthVisible: false, healthRatio: 1, enemy: id.startsWith('e-'), ringVisible: false, ringRadius: role === 'elite' ? .46 : .32, ringColor: role === 'elite' ? '#ff9969' : id.startsWith('e-') ? '#d97674' : actorPalette[kind] || '#90cf96' };
   const upper = new THREE.Group(), food = new THREE.Group(); carry.add(upper, food);
   const actor = { id, kind, appearance, root, body, gear, carry, upper, food, marker, animationClock: 0, x: 0, z: 0, angle: 0, mixer: null, animations: null, currentAnimation: '', count: -1, ready: false };
   actors.set(id, actor);
+  if (combat) createCombatRig(actor, kind, role, appearance);
   if (library) {
     library.load(kind === 'orc' ? 'orc' : 'human', { height: 1.3 }).then(({ object, animations }) => {
       if (actors.get(id) !== actor || disposed) return;
       applyActorAppearance(object, { id, kind });
       releaseOwnedGeometry(body); root.remove(body); root.add(object); actor.body = object;
       actor.mixer = new THREE.AnimationMixer(object); actor.animations = animations;
+      if (combat) createCombatRig(actor, kind, role, appearance);
       actor.ready = true;
       renderDirty = true;
     }).catch(() => { /* Procedural character remains usable if an optional model fails. */ });
@@ -393,15 +410,23 @@ function removeActor(actor) {
   actor.root.traverse((node) => { if (node.skeleton && !skeletons.has(node.skeleton)) { skeletons.add(node.skeleton); node.skeleton.dispose(); } });
   // Actor clones own materials, but share source geometry and texture buffers.
   actor.root.traverse((node) => { if (node.isMesh && node.material && ![...materials.values()].includes(node.material)) {
-    for (const m of Array.isArray(node.material) ? node.material : [node.material]) if (!m.userData.diningShared) m.dispose();
+    for (const m of Array.isArray(node.material) ? node.material : [node.material]) if (!m.userData.diningShared && !m.userData.combatShared) m.dispose();
   } });
   actors.delete(actor.id);
 }
-function animation(actor, name) {
-  if (!actor.mixer || actor.currentAnimation === name) return;
+function animation(actor, name, serial = 0) {
+  if (!actor.mixer || actor.currentAnimation === name && actor.animationSerial === serial) return;
   const clip = actor.animations.find((a) => a.name === name) || actor.animations.find((a) => a.name === 'idle');
   if (!clip) return;
-  actor.mixer.stopAllAction(); actor.mixer.clipAction(clip).reset().play(); actor.currentAnimation = name;
+  const next = actor.mixer.clipAction(clip).reset();
+  next.setEffectiveTimeScale(1); next.setEffectiveWeight(1);
+  const attack = ['attack-melee-right', 'holding-right-shoot', 'interact-right'].includes(name) && serial > 0;
+  next.setLoop(attack ? THREE.LoopOnce : THREE.LoopRepeat, attack ? 1 : Infinity);
+  next.clampWhenFinished = attack;
+  if (attack) next.setDuration(COMBAT_ATTACK_SECONDS);
+  next.play();
+  if (actor.action && actor.action !== next) actor.action.crossFadeTo(next, .07, false);
+  actor.action = next; actor.currentAnimation = name; actor.animationSerial = serial;
 }
 function productInstances(parent, count, product, columns = 1, spacing = .17) {
   products.set(parent, count, product, columns, spacing);
@@ -429,15 +454,15 @@ function updateActor(data, id, kind, dt, battle = false) {
   const eating = customer && data.phase === 'eating';
   if (eating) actor.angle = Math.PI;
   else if (moving) actor.angle = Math.atan2(dx, dz);
-  else if (battle) actor.angle = kind === 'orc' || kind === 'soldier' ? Math.PI : 0;
   // The source sit clip lowers the small customer's feet .132 below ground.
   actor.root.position.set(x, eating ? .14 : 0, z); actor.root.rotation.y = actor.angle;
   actor.x = x; actor.z = z;
   actor.gear.visible = !eating;
   const feet = projectXYZ(x, 0, z), head = projectXYZ(x, carryHeight(data.bag) * scale, z);
-  const sheltering = state.raid.phase === 'battle' && (customer || id.startsWith('s-'));
+  const sheltering = state.raid.location === 'outside' && (customer || id.startsWith('s-'));
   actor.root.visible = !sheltering && feet.x > -70 && feet.x < viewport.width + 70 && head.y < viewport.height + 80 && feet.y > -80;
-  if (actor.ready && actor.root.visible) animation(actor, eating ? 'sit' : moving ? 'walk' : battle ? (kind === 'archer' || data.role === 'ranged' ? 'holding-right-shoot' : kind === 'mage' ? 'interact-right' : 'attack-melee-right') : data.workKind ? 'interact-right' : 'idle');
+  const combatMotion = actor.combatRig ? updateCombatMotion(actor, data, { time: state.time, dt, moving, battle }) : null;
+  if (actor.ready && actor.root.visible) animation(actor, combatMotion?.clip || (eating ? 'sit' : moving ? 'walk' : data.workKind ? 'interact-right' : 'idle'), combatMotion?.attacking ? combatMotion.attackSerial : 0);
   else if (!actor.ready) actor.body.rotation.z = moving ? Math.sin(state.time * 15 + x) * .055 : 0;
   actor.animationClock += dt;
   if (actor.mixer && actor.root.visible && (kind === 'player' || actor.animationClock >= (mobileRender ? 1 / (customer ? 15 : 30) : 1 / 60))) {
@@ -449,6 +474,7 @@ function updateActor(data, id, kind, dt, battle = false) {
   marker.healthRatio = Math.max(0, data.hp / (data.maxHp || data.hp || 1));
   marker.ringVisible = battle || kind === 'player' || kind === 'staff';
   const bag = data.bag;
+  actor.carry.visible = state.raid.location !== 'outside';
   if (bag) { drawCarry(actor, bag); actor.carry.rotation.z = moving ? Math.sin(state.time * 7) * .045 : Math.sin(state.time * 2) * .012; }
   diningVisuals?.setGuestMeal(actor, customer && Boolean(data.meal) && !eating);
   return actor;
@@ -463,15 +489,15 @@ async function populate() {
   await library.preload(Object.keys(library.manifest.models));
   await Promise.all([
     place('table', alchemyGroup, 0, -.2, .73), place('cauldron', alchemyGroup, -.25, .1, .85),
-    place('potion', alchemyGroup, .6, .1, .6), place('bookshelf', scene, 5.6, -4.7, 1.8, -.12),
-    place('barrel', scene, -5.9, -4.8, .85), place('barrel', scene, -5.2, -4.8, .7),
-    place('bed', innGroup, -.5, -.1, 1.1), place('chair', innGroup, 1.1, .2, .75, -.5),
-    place('chest', scene, 5.6, -.1, .65, -.3), place('marketStall', counterGroup, 0, 0, 1.4),
-    place('sword', forgeGroup, 1.2, .3, 1.1, 1.8), place('shield', scene, -6.55, -1.2, .8, .9),
-    place('coin', counterGroup, .7, .2, .25), place('lantern', scene, -6.6, -4.6, 1.5),
-    place('lantern', scene, 6.6, -4.6, 1.5),
+    place('potion', alchemyGroup, .6, .1, .6), place('bookshelf', shopScene, 7.9, -7.3, 1.8, -.12),
+    place('barrel', shopScene, -8.2, -7.3, .85), place('barrel', shopScene, -7.5, -7.3, .7),
+    place('bed', innGroup, 0, -.65, .9, Math.PI / 2), place('chair', innGroup, 0, .45, .75),
+    place('chest', shopScene, 7.9, -.1, .65, -.3), place('marketStall', counterGroup, 0, 0, 1.4),
+    place('sword', forgeGroup, 1.2, .3, 1.1, 1.8), place('shield', shopScene, -8.5, -1.2, .8, .9),
+    place('coin', counterGroup, .7, .2, .25), place('lantern', shopScene, -8.6, -6.6, 1.5),
+    place('lantern', shopScene, 8.6, -6.6, 1.5),
   ]);
-  diningVisuals = await createDiningVisuals(scene, library);
+  diningVisuals = await createDiningVisuals(shopScene, library);
   // Small products are raised to the tables after ground-normalized loading.
   for (const g of [alchemyGroup, counterGroup]) for (const child of g.children) {
     if (['asset-potion', 'asset-coin', 'asset-cauldron'].includes(child.name)) child.position.y += .75;
@@ -487,6 +513,11 @@ function project(point) {
 }
 function projectXYZ(x, y, z) { vector.set(x, y, z); return project(vector); }
 function positionLabels() {
+  if (state.raid.location === 'outside' || state.raid.phase === 'departure') {
+    for (const { el } of stationLabels.values()) el.hidden = true;
+    for (const { el } of cashVisuals.values()) el.hidden = true;
+    return;
+  }
   const width = viewport.width, height = viewport.height, short = mobileRender || height < 430;
   const labels = [];
   for (const [key, { el, point, height: labelHeight }] of stationLabels) {
@@ -533,9 +564,10 @@ function positionLabels() {
 }
 function updateCamera(dt) {
   let framing = cameraFraming(viewport.width, viewport.height, state.player.bag);
-  let focus = cameraFocus(state.player, framing, viewport.width, viewport.height, state.player.bag);
-  if (state.raid.phase === 'battle') {
-    const battle = battleCamera(viewport.width, viewport.height, state.player, [...state.raid.defenders, ...state.raid.enemies], getStations(state).gate);
+  let focus = cameraFocus(state.player, framing, viewport.width, viewport.height, state.player.bag, BOUNDS);
+  if (state.raid.location === 'outside') {
+    const layout = getBattleLayout(state);
+    const battle = battleCamera(viewport.width, viewport.height, { ...state.player, bag: {} }, [...state.raid.defenders, ...state.raid.enemies], layout.gate, layout.backdrop);
     framing = battle.framing; focus = battle.focus;
   }
   cameraFrame = followCamera(cameraFrame, focus, framing, dt, cameraSnap);
@@ -585,17 +617,17 @@ function syncRegion() {
   const region = getRegion(state);
   if (currentRegionId === region.id) return;
   const previous = currentRegionId; currentRegionId = region.id;
-  cameraSnap = true; shadowClock = 1;
+  cameraSnap = true; shadowClock = 1; sceneLocation = '';
   stopInput(); blinkAim = false;
   mapScenery.apply(region);
   const stations = region.stations;
   const queueMatrix = new THREE.Matrix4(), queueRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
-  const queuePoints = [...getCustomerQueueSlots(state, 'gear'), ...getCustomerQueueSlots(state, 'potion')];
+  const queuePoints = [...getCustomerEntrySlots(state), ...getCustomerQueueSlots(state, 'gear'), ...getCustomerQueueSlots(state, 'potion')];
   queuePoints.forEach((point, index) => {
     queueMatrix.compose(new THREE.Vector3(point.x, .145, point.z), queueRotation, new THREE.Vector3(.7, 1, 1));
     queueMarks.setMatrixAt(index, queueMatrix);
   });
-  queueMarks.count = 32; queueMarks.instanceMatrix.needsUpdate = true; queueMarks.computeBoundingSphere();
+  queueMarks.count = queuePoints.length; queueMarks.instanceMatrix.needsUpdate = true; queueMarks.computeBoundingSphere();
   for (const [key, group] of [['forge', forgeGroup], ['alchemy', alchemyGroup], ['inn', innGroup], ['counter', counterGroup], ['potionCounter', potionGroup]]) group.position.set(stations[key].x, 0, stations[key].z);
   supplyRing.position.set(stations.forge.x, .025, stations.forge.z + .8);
   alchemyRing.position.set(stations.alchemy.x, .025, stations.alchemy.z + .8);
@@ -635,7 +667,7 @@ function updateCashVisuals() {
     }
     const p = projectXYZ(pile.x, .3, pile.z);
     visual.el.style.left = `${p.x}px`; visual.el.style.top = `${p.y}px`;
-    visual.el.hidden = !pile.amount || p.x < 0 || p.x > viewport.width || p.y < 0 || p.y > viewport.height - 120;
+    visual.el.hidden = state.raid.location === 'outside' || state.raid.phase === 'departure' || !pile.amount || p.x < 0 || p.x > viewport.width || p.y < 0 || p.y > viewport.height - 120;
     if (visual.amount !== pile.amount) {
       visual.amount = pile.amount;
       visual.el.setAttribute('aria-label', `${visual.name} ${number(pile.amount)} 골드 줍기`);
@@ -684,9 +716,21 @@ function floatText(text, x, z) {
 const renderSamples = [];
 function visuals(dt) {
   syncRegion();
+  const outside = state.raid.location === 'outside';
+  if (sceneLocation !== (outside ? 'outside' : 'shop')) {
+    sceneLocation = outside ? 'outside' : 'shop'; cameraSnap = true; shadowClock = 1;
+    stopInput();
+    for (const flight of flights.splice(0)) { scene.remove(flight.node); releaseOwnedGeometry(flight.node); }
+    scene.background.set(outside ? getBattleLayout(state).background : getRegion(state).groundColor);
+  }
+  shopScene.visible = !outside;
+  battlefieldVisuals.update(state, outside);
+  const departure = state.raid.phase === 'departure';
+  $('battle-transition').hidden = !departure;
+  if (departure) $('battle-transition').style.opacity = String(Math.max(0, Math.min(1, (2.2 - state.raid.timer) / .35, state.raid.timer / .55)));
   updateCamera(dt); animationUpdates = 0;
   const stations = getStations(state);
-  queueMarks.visible = state.raid.phase !== 'battle'; queueMarks.count = state.unlocks.alchemy ? 32 : 16;
+  queueMarks.visible = !outside;
   const present = new Set(['player']);
   updateActor(state.player, 'player', 'player', dt);
   playerRing.position.set(state.player.x, .025, state.player.z);
@@ -698,7 +742,7 @@ function visuals(dt) {
   }
   for (const e of state.raid?.enemies || []) {
     if (e.hp <= 0) continue;
-    const id = `e-${e.id}`; present.add(id); updateActor(e, id, state.raid.kind === 'army' ? 'soldier' : 'orc', dt, true);
+    const id = `e-${e.id}`; present.add(id); updateActor(e, id, state.raid.kind === 'army' ? 'soldier' : 'orc', dt, state.raid.phase === 'battle');
   }
   for (const actor of actors.values()) if (!present.has(actor.id)) removeActor(actor);
   markerEntries.length = 0;
@@ -767,7 +811,7 @@ function visuals(dt) {
 
 function updateHud() {
   const stageInfo = getStageInfo(state);
-  $('district').textContent = stageInfo.name;
+  $('district').textContent = state.raid.location === 'outside' ? '상점 앞마당' : stageInfo.name;
   $('world-caption').textContent = `${stageInfo.name} · 상권 ${state.stage} · 방어 ${state.raid.wins}회`;
   if (qaEnabled) {
     canvas.dataset.customers = String(state.customers.length);
@@ -777,6 +821,14 @@ function updateHud() {
       id: actor.id, kind: actor.kind, palette: actor.appearance.key, scale: actor.root.scale.x, ready: actor.ready, visible: actor.root.visible,
       bodyPixels: projectXYZ(actor.x, 0, actor.z).y - projectXYZ(actor.x, 1.3 * actor.root.scale.y, actor.z).y,
     })));
+    const motions = [...actors.values()].filter((actor) => actor.combatRig).map((actor) => {
+      const tip = actor.combatRig.weapon.getWorldPosition(new THREE.Vector3());
+      return { id: actor.id, clip: actor.currentAnimation, serial: actor.animationSerial, weapon: { x: tip.x, y: tip.y, z: tip.z } };
+    });
+    canvas.dataset.combatMotion = JSON.stringify(motions);
+    canvas.dataset.enemyAttacking = String(motions.filter((motion) => motion.id.startsWith('e-') && motion.serial > 0).length);
+    canvas.dataset.scene = JSON.stringify({ location: state.raid.location, interior: shopScene.visible, courtyard: battlefieldVisuals.group.visible, transition: state.raid.phase === 'departure' });
+    canvas.dataset.entry = JSON.stringify({ slots: getCustomerEntrySlots(state), branch: getCustomerBranchPoint(state) });
     let inspection = $('qa-state');
     if (!inspection) { inspection = document.createElement('script'); inspection.id = 'qa-state'; inspection.type = 'application/json'; document.body.append(inspection); }
     const feet = projectXYZ(state.player.x, 0, state.player.z), head = projectXYZ(state.player.x, carryHeight(state.player.bag), state.player.z);
@@ -795,14 +847,23 @@ function updateHud() {
   $('work-progress').style.width = `${workKind === 'clean' ? cleanProgress / DINING_RULES.cleanSeconds * 100 : workKind ? Math.min(1, state.player.dwell / .4) * 100 : 0}%`;
   const uncollected = Object.values(state.moneyPiles).reduce((total, value) => total + value, 0);
   const raid = state.raid;
-  const inRaid = ['warning', 'battle'].includes(raid.phase);
+  const inRaid = ['warning', 'departure', 'battle'].includes(raid.phase);
+  const outside = raid.location === 'outside', travelling = raid.phase === 'departure';
+  document.querySelector('.actions').hidden = outside || travelling;
+  $('battle-status').hidden = !outside && !travelling;
+  $('joystick').hidden = outside || travelling;
+  $('magic').hidden = outside || travelling;
+  document.querySelector('.carry-hud').hidden = outside || travelling;
+  $('world').setAttribute('aria-label', outside ? '상점 밖 마당에서 펼쳐지는 단골 수호대 방어전' : '상점. 바닥을 누르면 이동합니다.');
   document.querySelector('.quest-hud').classList.toggle('in-raid', inRaid);
   $('raid-health').hidden = !inRaid;
   $('health-fill').style.width = `${Math.max(0, state.shopHp / state.shopMaxHp * 100)}%`;
   $('health-value').textContent = number(state.shopHp);
   if (raid.phase === 'warning') {
     $('quest-title').textContent = `${raid.kind === 'army' ? '왕국군' : '몬스터'} 습격 · ${Math.max(0, Math.ceil(raid.timer))}초`;
-    $('quest-detail').textContent = raid.threatLabel ? `${raid.threatLabel} · 적 ${raid.totalEnemies}명` : '당신의 단골들이 상회를 지키러 옵니다'; $('quest-symbol').textContent = '⚔';
+    $('quest-detail').textContent = `적 ${raid.totalEnemies}명 · 준비 후 상점 밖으로 이동`; $('quest-symbol').textContent = '⚔';
+  } else if (raid.phase === 'departure') {
+    $('quest-title').textContent = '단골 수호대 출전'; $('quest-detail').textContent = '상점 밖 마당에서 적을 맞이합니다'; $('quest-symbol').textContent = '⚔';
   } else if (raid.phase === 'battle') {
     $('quest-title').textContent = `단골 수호대 · ${raid.wave}차 방어`;
     $('quest-detail').textContent = `남은 적 ${(raid.enemies || []).filter((e) => e.hp > 0).length + (raid.spawnRemaining || 0)} · 수호대 ${(raid.defenders || []).filter((d) => d.hp > 0).length}`;
@@ -855,7 +916,7 @@ function updateHud() {
     entry.el.dataset.count = table ? '정리' : locked ? '잠김' : key === 'inn' ? '휴식' : detail.match(/\d+/)?.[0] || '0';
     const station = labelStation(key);
     const future = locked && (key === 'alchemy' ? !state.unlocks.alchemyAvailable : key === 'inn' ? !state.unlocks.innAvailable : true);
-    entry.unavailable = future || raid.phase === 'battle' || (!locked && Math.hypot(state.player.x - station.x, state.player.z - station.z) < 1.5);
+    entry.unavailable = future || outside || travelling || (!locked && Math.hypot(state.player.x - station.x, state.player.z - station.z) < 1.5);
     if (key === 'inn' && state.unlocks.inn) entry.unavailable = true;
     if (key === 'meal' || key === 'kitchen') entry.unavailable = !state.unlocks.inn || raid.phase === 'battle';
     if (key.startsWith('table-')) entry.unavailable = !state.unlocks.inn || raid.phase === 'battle' || table?.status !== 'dirty' || Number(key.slice(6)) !== nearestDirty;
@@ -868,6 +929,7 @@ function updateHud() {
     if (!/^(매출 |식사 매출 |회수 \+)/.test(lastMessage) && !(raid.phase === 'battle' && /습격/.test(lastMessage))) toast(lastMessage);
   }
   if (lastRaidPhase !== raid.phase) {
+    if (raid.phase === 'departure') { stopInput(); tone('alarm'); renderDirty = true; openDeparture(); }
     if (raid.phase === 'warning') tone('alarm');
     if (['victory', 'defeat'].includes(raid.phase)) openResult();
     lastRaidPhase = raid.phase;
@@ -974,6 +1036,10 @@ function openLedger() {
   const count = (kind) => state.patrons.filter((p) => p.kind === kind).length;
   openSheet('단골 수첩', `<div class="result-stats"><div><strong>${count('warrior')}</strong><span>검사</span></div><div><strong>${count('archer')}</strong><span>궁수</span></div><div><strong>${count('mage')}</strong><span>마법사</span></div></div><p class="sheet-description">상회에서 물건을 산 손님만 단골이 됩니다.<br>습격이 시작되면 이들이 돌아와 싸워줘요.<br>여관에서 식사한 단골은 더욱 든든합니다.</p><div class="gold-note">방어 ${number(state.raid.wave || 0)}차 · 판매 ${number(state.sales)}회</div><button class="gold-button full" data-command="resume">상회로</button>`, 'ledger');
 }
+function openDeparture() {
+  const raid = state.raid;
+  openSheet('상점 밖을 지켜요', `<div class="result-emblem">⚔</div><h2 class="result-title">마당 방어 준비</h2><p class="sheet-description intro">손님들은 대피하고,<br>단골 수호대가 밖에서 적을 맞이해요.</p><div class="result-stats"><div><strong>${Math.min(18, state.patrons.filter((p) => p.purchases > 0).length)}</strong><span>단골 수호대</span></div><div><strong>${raid.totalEnemies}</strong><span>${raid.kind === 'army' ? '왕국군' : '몬스터'}</span></div></div><button class="gold-button full" data-command="depart">마당으로 출전</button>`, 'departure', false);
+}
 function openResult() {
   const won = state.raid.phase === 'victory';
   const reward = state.raid.reward ?? BALANCE.web.raidCoinRewards[Math.min((state.raid.wave || 1) - 1, BALANCE.web.raidCoinRewards.length - 1)];
@@ -988,6 +1054,7 @@ listen($('sheet-content'), 'click', (event) => {
   const command = button.dataset.command;
   if (command === 'start') { started = true; closeSheet(); tone(); if (state.raid.phase === 'defeat') openResult(); return; }
   if (command === 'resume') { closeSheet(); return; }
+  if (command === 'depart' && state.raid.phase === 'departure') { closeSheet(); return; }
   if (command === 'upgrade') { action('upgrade', { kind: button.dataset.kind }); openUpgrades(); return; }
   if (command === 'hire') { action('hire'); openWorkers(); return; }
   if (command === 'upgrade-worker') { action(command, { kind: button.dataset.kind }); openWorkers(); return; }
@@ -1011,7 +1078,7 @@ listen($('sheet-content'), 'click', (event) => {
   if (command === 'continue' || command === 'repair') { action(command); closeSheet(); return; }
 });
 listen($('close-sheet'), 'click', dismissSheet);
-listen($('sheet'), 'cancel', (event) => { event.preventDefault(); if (activeSheet === 'confirm' || started && activeSheet !== 'result') dismissSheet(); });
+listen($('sheet'), 'cancel', (event) => { event.preventDefault(); if (activeSheet === 'confirm' || started && !['result', 'departure'].includes(activeSheet)) dismissSheet(); });
 listen($('pause'), 'click', () => { if (started) openMenu(); });
 listen($('upgrades'), 'click', openUpgrades);
 listen($('workers'), 'click', openWorkers);
@@ -1032,7 +1099,7 @@ function worldPoint(event) {
 let canvasDown = null;
 listen(canvas, 'pointerdown', (e) => { if (!started || paused) return; canvasDown = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
 listen(canvas, 'pointerup', (e) => {
-  if (!canvasDown || canvasDown.id !== e.pointerId || paused) return;
+  if (!canvasDown || canvasDown.id !== e.pointerId || paused || state.raid.location === 'outside' || state.raid.phase === 'departure') return;
   const distance = Math.hypot(e.clientX - canvasDown.x, e.clientY - canvasDown.y); canvasDown = null;
   if (distance > 22) return;
   const point = worldPoint(e); if (!point) return;
@@ -1084,7 +1151,7 @@ function loop(time) {
     const kx = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
     const kz = Number(keys.has('s') || keys.has('arrowdown')) - Number(keys.has('w') || keys.has('arrowup'));
     if (kx || kz) { x = kx * CAMERA_RIGHT.x + kz * CAMERA_DOWN.x; z = kx * CAMERA_RIGHT.z + kz * CAMERA_DOWN.z; clearDestination(); }
-    step(state, dt, { x, z, target });
+    step(state, dt, state.raid.location === 'outside' || state.raid.phase === 'departure' ? {} : { x, z, target });
     if (target && Math.hypot(state.player.x - target.x, state.player.z - target.z) < .1) target = null;
     saveClock += dt;
     if (saveClock > 5) { saveClock = 0; save(); }
@@ -1113,6 +1180,8 @@ function teardown(event) {
   for (const geometry of geometries) if (!disposedGeometries.has(geometry)) geometry.dispose();
   for (const geometry of classGeometries) if (!disposedGeometries.has(geometry)) geometry.dispose();
   diningVisuals?.dispose(disposedGeometries, disposedMaterials);
+  battlefieldVisuals.dispose(disposedGeometries, disposedMaterials);
+  disposeCombatMotion(disposedGeometries, disposedMaterials);
   products.dispose(disposedGeometries); renderer.dispose(); audioContext?.close().catch(() => {});
 }
 listen(window, 'pagehide', teardown);

@@ -15,16 +15,18 @@ export function getDiningLayout(state) {
   if (layouts.has(key)) return layouts.get(key);
   const inn = getStations(state).inn;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  const kitchen = { x: inn.x - 1.35, z: inn.z + 1.15 };
-  const counter = { x: inn.x + 1.35, z: inn.z + 1.15 };
+  const kitchen = { x: inn.x - 2, z: inn.z + 1.4 };
+  const counter = { x: inn.x + 2, z: inn.z + 1.4 };
   const kitchenPoint = { x: kitchen.x, z: kitchen.z + .65 };
   const counterPoint = { x: counter.x, z: counter.z - .75 };
   const tables = Array.from({ length: DINING_RULES.tables }, (_, id) => {
-    const x = clamp(inn.x + (id % 2 ? 1.25 : -1.25), BOUNDS.minX + .9, BOUNDS.maxX - .9);
-    const z = clamp(inn.z + (id < 2 ? 2.6 : 4.5), BOUNDS.minZ + .9, BOUNDS.maxZ - 1.1);
+    const x = clamp(inn.x + (id % 2 ? 2 : -2), BOUNDS.minX + .9, BOUNDS.maxX - .9);
+    const z = clamp(inn.z + (id < 2 ? 4.1 : 7.3), BOUNDS.minZ + .9, BOUNDS.maxZ - 1.1);
     return { id, x, z, seat: { x, z: z + .65 }, cleanPoint: { x, z: z + .9 } };
   });
-  const queue = Array.from({ length: DINING_RULES.tables }, (_, index) => ({ x: counter.x, z: counter.z + .65 + index * .65 }));
+  // The food line runs across the service area, leaving the first table row
+  // clear instead of extending straight into the right-hand dining table.
+  const queue = Array.from({ length: DINING_RULES.tables }, (_, index) => ({ x: counter.x - index * .65, z: counter.z + 1 }));
   const layout = Object.freeze({ kitchen: Object.freeze(kitchen), kitchenPoint: Object.freeze(kitchenPoint), counter: Object.freeze(counter), counterPoint: Object.freeze(counterPoint), tables: Object.freeze(tables.map((table) => Object.freeze({ ...table, seat: Object.freeze(table.seat), cleanPoint: Object.freeze(table.cleanPoint) }))), queue: Object.freeze(queue.map(Object.freeze)) });
   layouts.set(key, layout);
   return layout;

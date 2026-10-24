@@ -4,7 +4,7 @@
 // Import this module only for an explicitly requested QA scenario.
 import {
   act, createGame, getCapacity, getFacilityUpgradeInfo, getHireInfo, getMoneyPiles, getRegion, getStations, getUpgradeInfo, getWorkerUpgradeInfo,
-  restore, serialize, STATIONS, step,
+  getStationApproach, restore, serialize, step,
 } from '../rules.mjs';
 
 export const SCENARIO_INFO = Object.freeze({
@@ -59,10 +59,8 @@ function commerce(name) {
     const piles = getMoneyPiles(state);
     if (cashKind && !state.moneyPiles[cashKind]) cashKind = null;
     if (!bag && !cashKind) cashKind = piles.filter((pile) => pile.amount > 0).sort((a, b) => b.amount - a.amount)[0]?.kind ?? null;
-    const stations = getStations(state);
     const target = cashKind ? piles.find((pile) => pile.kind === cashKind)
-      : carrying ? (state.player.bag.gear > 0 ? stations.counter : stations.potionCounter)
-        : (product === 'gear' ? stations.forge : stations.alchemy);
+      : getStationApproach(state, carrying ? (state.player.bag.gear > 0 ? 'counter' : 'potionCounter') : (product === 'gear' ? 'forge' : 'alchemy'));
     step(state, 0.1, { target });
     if (name === 'defense' && state.raid.phase === 'warning' && state.raid.timer <= 8 && state.patrons.length >= 8) return mark(state, name);
   }
@@ -78,14 +76,14 @@ function defeat() {
   function reach(target) {
     until(() => Math.hypot(state.player.x - target.x, state.player.z - target.z) < 0.12, { target });
   }
-  until(() => state.player.bag.gear >= 2, { target: STATIONS.forge });
-  until(() => state.player.bag.gear === 0, { target: STATIONS.counter });
+  until(() => state.player.bag.gear >= 2, { target: getStationApproach(state, 'forge') });
+  until(() => state.player.bag.gear === 0, { target: getStationApproach(state, 'counter') });
   until(() => state.sales >= 2);
-  until(() => state.player.bag.gear >= 2, { target: STATIONS.forge });
+  until(() => state.player.bag.gear >= 2, { target: getStationApproach(state, 'forge') });
   // Approach the far edge, deliver exactly one item, and walk away holding one.
-  reach({ x: 0, z: 4.2 });
-  reach({ x: -3, z: 4.1 });
-  until(() => state.player.bag.gear < 2, { target: { x: -3, z: 3 } });
+  const counter = getStations(state).counter;
+  reach({ x: counter.x + Math.sign(counter.x) * 1.5, z: counter.z });
+  until(() => state.player.bag.gear < 2, { target: { x: counter.x + Math.sign(counter.x) * .95, z: counter.z } });
   for (let index = 0; index < 10; index++) step(state, 0.1, { z: 1 });
   until(() => state.sales >= 3);
   for (let index = 0; index < 10000; index++) {

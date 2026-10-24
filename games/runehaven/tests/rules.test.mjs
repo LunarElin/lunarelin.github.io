@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { act, BOUNDS, CLASS_STATS, COMBAT_RADIUS, createGame, getCapacity, getFacilityStats, getFacilityUpgradeInfo, getHireInfo, getMoneyPiles, getSalePrice, getStationApproach, getStations, getUpgradeInfo, getWorkerUpgradeInfo, restore, separateCombatants, serialize, STATIONS, step } from '../rules.mjs';
+import { act, BOUNDS, CLASS_STATS, COMBAT_RADIUS, createGame, getCapacity, getFacilityStats, getFacilityUpgradeInfo, getHireInfo, getMoneyPiles, getRegion, getSalePrice, getStationApproach, getStations, getUpgradeInfo, getWorkerUpgradeInfo, restore, separateCombatants, serialize, STATIONS, step } from '../rules.mjs';
+import { BATTLE_BOUNDS, getBattleLayout } from '../battlefield.mjs';
 
 function run(state, seconds, input = {}) {
   for (let elapsed = 0; elapsed < seconds; elapsed += 0.1) step(state, Math.min(0.1, seconds - elapsed), input);
@@ -9,6 +10,12 @@ function run(state, seconds, input = {}) {
 
 function patron(id, kind = 'warrior') {
   return { id, kind, purchases: 1, totalSpent: 50, loyalty: 1, hp: CLASS_STATS[kind].hp, maxHp: CLASS_STATS[kind].hp, equipmentLevel: 1 };
+}
+
+function enterBattle(state) {
+  for (let frame = 0; frame < 300 && state.raid.phase !== 'battle'; frame++) step(state, .05);
+  assert.equal(state.raid.phase, 'battle');
+  assert.equal(state.raid.location, 'outside');
 }
 
 test('upgrade transaction preserves exact imported cost, capacity and speed curves', () => {
@@ -101,7 +108,8 @@ test('only purchased patrons return as defenders and the first raid is winnable'
   state.customers.push({ id: 'unpaid', x: 0, z: 5, kind: 'mage', product: 'potion', phase: 'queue', hp: 55, purchased: false, timer: 0, patience: 0 });
   state.raid.phase = 'warning'; state.raid.timer = 0.1;
   run(state, 0.2);
-  assert.equal(state.raid.phase, 'battle');
+  assert.equal(state.raid.phase, 'departure');
+  enterBattle(state);
   assert.equal(state.raid.defenders.length, 8);
   assert.ok(state.raid.defenders.every((item) => state.patrons.some((paid) => paid.id === item.patronId && paid.purchases > 0)));
   assert.equal(state.raid.defenders.some((item) => item.patronId === 'unpaid'), false);
@@ -125,13 +133,14 @@ test('learning without purchases never starts a raid; an expired timer waits for
   assert.equal(state.patrons.length, 2);
   assert.equal(state.raid.phase, 'idle');
   state.stocks.gear = 1;
-  // A newly arriving third buyer must follow the side entrance and queue.
+  // A newly arriving third buyer must traverse the common entrance and branch.
   for (let wait = 0; wait < 200 && state.sales < 3; wait++) step(state, .1);
   assert.equal(state.sales, 3);
   assert.equal(state.patrons.length, 3);
   assert.equal(state.raid.phase, 'warning');
   run(state, 10);
-  assert.equal(state.raid.phase, 'battle');
+  assert.equal(state.raid.phase, 'departure');
+  enterBattle(state);
   assert.equal(state.raid.defenders.length, 3);
 });
 
@@ -149,7 +158,8 @@ test('archer range and mage splash differ from warrior melee behavior', () => {
 test('raid defeat permits free recovery and alternates monster/army stages', () => {
   const state = createGame(8);
   state.raid.phase = 'battle'; state.raid.spawnRemaining = 0; state.shopHp = 1;
-  state.raid.enemies = [{ id: 'attacker', kind: 'slime', x: 0, z: -0.4, hp: 100, maxHp: 100, damage: 10, speed: 0, range: 1, interval: 1, attackClock: 0 }];
+  state.raid.location = 'outside'; state.raid.returnPosition = { x: state.player.x, z: state.player.z };
+  state.raid.enemies = [{ id: 'attacker', kind: 'slime', x: 0, z: getBattleLayout(state).shop.z + .4, hp: 100, maxHp: 100, damage: 10, speed: 0, range: 1, interval: 1, attackClock: 0 }];
   step(state, 0.1);
   assert.equal(state.status, 'defeat');
   assert.equal(state.shopHp, 0);
@@ -165,7 +175,8 @@ test('raid defeat permits free recovery and alternates monster/army stages', () 
   assert.equal(state.raid.phase, 'warning');
   assert.equal(state.raid.kind, 'army');
   run(state, 10);
-  assert.equal(state.raid.phase, 'battle');
+  assert.equal(state.raid.phase, 'departure');
+  enterBattle(state);
 });
 
 test('level 21 blink respects range, world bounds and four-second cooldown', () => {
@@ -177,9 +188,9 @@ test('level 21 blink respects range, world bounds and four-second cooldown', () 
   assert.ok(Math.hypot(state.player.x - start.x, state.player.z - start.z) <= 3.500001);
   assert.equal(act(state, 'blink', { x: -6, z: -4 }).ok, false);
   run(state, 4.1);
-  Object.assign(state.player, { x: 5.9, z: 5.9 });
+  Object.assign(state.player, { x: BOUNDS.maxX - .1, z: BOUNDS.maxZ - .1 });
   assert.equal(act(state, 'blink', { x: 100, z: 100 }).ok, true);
-  assert.equal(state.player.x, 6); assert.equal(state.player.z, 6);
+  assert.equal(state.player.x, BOUNDS.maxX); assert.equal(state.player.z, BOUNDS.maxZ);
 });
 
 test('inn customers pay for a completed meal, heal and gain loyalty', () => {
@@ -413,8 +424,8 @@ test('same-side combat separation deterministically resolves coincident crowds w
   assert.deepEqual(crowd, copy);
   for (const actor of crowd) {
     assert.ok(Number.isFinite(actor.x) && Number.isFinite(actor.z));
-    assert.ok(actor.x >= BOUNDS.minX + actor.radius && actor.x <= BOUNDS.maxX - actor.radius);
-    assert.ok(actor.z >= BOUNDS.minZ + actor.radius && actor.z <= BOUNDS.maxZ - actor.radius);
+    assert.ok(actor.x >= BATTLE_BOUNDS.minX + actor.radius && actor.x <= BATTLE_BOUNDS.maxX - actor.radius);
+    assert.ok(actor.z >= BATTLE_BOUNDS.minZ + actor.radius && actor.z <= BATTLE_BOUNDS.maxZ - actor.radius);
   }
   for (let left = 0; left < crowd.length; left++) for (let right = left + 1; right < crowd.length; right++) {
     assert.ok(Math.hypot(crowd[left].x - crowd[right].x, crowd[left].z - crowd[right].z) >= 0.919);
@@ -462,18 +473,27 @@ test('production, customer entry and money positions follow all ten regional lay
   }
 });
 
-test('a regional victory immediately relocates actors and preserves carried stock and uncollected money', () => {
+test('a regional victory keeps the outdoor result before continuing into the next shop with stock and cash intact', () => {
   const state = createGame(108);
   act(state, 'hire');
   state.staff[0].bag.gear = 1;
   state.player.bag.gear = 1;
   state.moneyPiles.gear = 71;
-  state.raid.phase = 'battle'; state.raid.spawnRemaining = 0; state.raid.enemies = [];
-  step(state, 0.1);
+  state.raid.phase = 'warning'; state.raid.timer = .01;
+  enterBattle(state);
+  const outside = { x: state.player.x, z: state.player.z };
+  const helperPosition = { x: state.staff[0].x, z: state.staff[0].z };
+  state.raid.spawnRemaining = 0; state.raid.enemies = [];
+  step(state, .05);
   const stations = getStations(state);
   assert.equal(state.stage, 2);
-  assert.equal(state.player.x, stations.gate.x);
-  assert.equal(state.player.z, 4.7);
+  assert.equal(state.raid.phase, 'victory');
+  assert.equal(state.raid.location, 'outside');
+  assert.deepEqual({ x: state.player.x, z: state.player.z }, outside);
+  assert.deepEqual({ x: state.staff[0].x, z: state.staff[0].z }, helperPosition);
+  assert.equal(act(state, 'continue').ok, true);
+  assert.equal(state.raid.location, 'shop');
+  assert.deepEqual({ x: state.player.x, z: state.player.z }, getRegion(state).spawn);
   assert.equal(state.player.bag.gear, 1);
   assert.equal(state.staff[0].bag.gear, 1);
   assert.ok(Math.hypot(state.staff[0].x - stations.forge.x, state.staff[0].z - stations.forge.z) <= 1.12);

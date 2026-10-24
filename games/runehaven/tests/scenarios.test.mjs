@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { act, BOUNDS, COMBAT_RADIUS, getRepairInfo, restore, serialize, step } from '../rules.mjs';
+import { act, COMBAT_RADIUS, getRepairInfo, restore, serialize, step } from '../rules.mjs';
+import { BATTLE_BOUNDS } from '../battlefield.mjs';
 import { buildScenario, SCENARIO_INFO } from './scenarios.mjs';
 
 function assertEarnedProgress(state) {
@@ -45,6 +46,8 @@ test('defense scenario pauses a normally triggered first warning with paid defen
   assert.ok(state.sales >= state.raid.triggerSales);
   assert.ok(state.patrons.length >= 8);
   for (let index = 0; index < 9; index++) step(state, 1);
+  assert.equal(state.raid.phase, 'departure');
+  for (let frame = 0; frame < 40 && state.raid.phase !== 'battle'; frame++) step(state, .05);
   assert.equal(state.raid.phase, 'battle');
   assert.ok(state.raid.defenders.length >= 8);
   assert.ok(state.raid.defenders.every((defender) => state.patrons.some((patron) => patron.id === defender.patronId && patron.purchases > 0)));
@@ -62,8 +65,8 @@ test('an earned eighteen-patron first raid preserves visible same-side clearance
       const living = group.filter((actor) => actor.hp > 0);
       for (const actor of living) {
         assert.equal(actor.radius, COMBAT_RADIUS);
-        assert.ok(actor.x >= BOUNDS.minX + COMBAT_RADIUS && actor.x <= BOUNDS.maxX - COMBAT_RADIUS);
-        assert.ok(actor.z >= BOUNDS.minZ + COMBAT_RADIUS && actor.z <= BOUNDS.maxZ - COMBAT_RADIUS);
+        assert.ok(actor.x >= BATTLE_BOUNDS.minX + COMBAT_RADIUS && actor.x <= BATTLE_BOUNDS.maxX - COMBAT_RADIUS);
+        assert.ok(actor.z >= BATTLE_BOUNDS.minZ + COMBAT_RADIUS && actor.z <= BATTLE_BOUNDS.maxZ - COMBAT_RADIUS);
       }
       for (let left = 0; left < living.length; left++) for (let right = left + 1; right < living.length; right++) {
         assert.ok(Math.hypot(living[left].x - living[right].x, living[left].z - living[right].z) >= 0.9, `frame ${frame}: visible clearance`);
@@ -109,7 +112,7 @@ test('queue previews are explicit artificial fixtures with real unpaid shoppers 
     assert.equal(state.qaScenario.artificial, true);
     assert.equal(state.stage, stage);
     assert.equal(state.customers.length, 24);
-    assert.ok(state.customers.every((customer) => customer.phase === 'queue' && !customer.purchased));
+    assert.ok(state.customers.every((customer) => ['entrance', 'branching', 'entering', 'queue'].includes(customer.phase) && !customer.purchased));
     assert.equal(state.patrons.length, 0);
     assert.equal(state.economy.earned, 0);
     assert.equal(state.gold, BALANCE.web.startingCoins);

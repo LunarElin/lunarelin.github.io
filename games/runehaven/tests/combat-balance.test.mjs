@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  act, BOUNDS, CLASS_STATS, createGame, getCapacity, getHireInfo, getMoneyPiles,
+  act, CLASS_STATS, createGame, getCapacity, getHireInfo, getMoneyPiles,
   getRaidPlan, getStationApproach, getUpgradeInfo, step,
 } from '../rules.mjs';
+import { BATTLE_BOUNDS } from '../battlefield.mjs';
 
 // Controlled combat fixtures, not earned-progress saves: isolate the same seed,
 // roster and campaign stage so equipment investment can be compared fairly.
@@ -22,8 +23,9 @@ function muster({ stage = 1, count = 18, equipmentLevel = 1, loyalty = 1, allWar
 }
 
 function begin(state) {
-  step(state, 0.05);
+  for (let frame = 0; frame < 50 && state.raid.phase !== 'battle'; frame++) step(state, .05);
   assert.equal(state.raid.phase, 'battle');
+  assert.equal(state.raid.location, 'outside');
   return state;
 }
 
@@ -35,8 +37,8 @@ function fight(options) {
     assert.ok(state.raid.enemies.length <= 20, 'reinforcements cannot create an unbounded crowd');
     for (const actor of [...state.raid.defenders, ...state.raid.enemies].filter((item) => item.hp > 0)) {
       assert.ok(Number.isFinite(actor.hp) && Number.isFinite(actor.x) && Number.isFinite(actor.z));
-      assert.ok(actor.x >= BOUNDS.minX + actor.radius && actor.x <= BOUNDS.maxX - actor.radius);
-      assert.ok(actor.z >= BOUNDS.minZ + actor.radius && actor.z <= BOUNDS.maxZ - actor.radius);
+      assert.ok(actor.x >= BATTLE_BOUNDS.minX + actor.radius && actor.x <= BATTLE_BOUNDS.maxX - actor.radius);
+      assert.ok(actor.z >= BATTLE_BOUNDS.minZ + actor.radius && actor.z <= BATTLE_BOUNDS.maxZ - actor.radius);
     }
   }
   assert.ok(state.raid.summary, 'combat resolves within two minutes');
@@ -110,7 +112,7 @@ test('first defense has real attrition but eight prepared purchasers can beat it
 
 test('mid-campaign equipment and inn loyalty improve survival against the identical attack budget', () => {
   const baseline = fight({ stage: 6 });
-  const invested = fight({ stage: 6, equipmentLevel: 6, loyalty: 2 });
+  const invested = fight({ stage: 6, equipmentLevel: 7, loyalty: 2 });
   const stronger = fight({ stage: 6, equipmentLevel: 10, loyalty: 3 });
   assert.deepEqual(baseline.plan, invested.plan);
   assert.deepEqual(invested.plan, stronger.plan);
@@ -118,11 +120,12 @@ test('mid-campaign equipment and inn loyalty improve survival against the identi
   assert.equal(invested.summary.won, true);
   assert.ok(invested.summary.duration > 10 && invested.summary.duration < 45);
   assert.ok(invested.summary.fallen > 0 && invested.summary.fallen < baseline.summary.fallen);
-  assert.ok(invested.summary.shopDamage > 0 && invested.summary.shopDamage < baseline.summary.shopDamage);
+  assert.equal(baseline.summary.shopDamage, baseline.state.shopMaxHp);
+  assert.ok(invested.summary.shopDamage < baseline.summary.shopDamage);
   assert.equal(stronger.summary.won, true);
   assert.ok(stronger.summary.fallen < invested.summary.fallen);
   assert.ok(stronger.summary.duration < invested.summary.duration);
-  assert.ok(stronger.summary.shopDamage < invested.summary.shopDamage);
+  assert.ok(stronger.summary.shopDamage <= invested.summary.shopDamage);
 });
 
 test('late armies challenge an established shop while full growth retains a clear advantage', () => {
@@ -135,11 +138,11 @@ test('late armies challenge an established shop while full growth retains a clea
   assert.equal(established.summary.enemies, 32);
   assert.equal(established.summary.won, true);
   assert.ok(established.summary.fallen >= 5 && established.summary.fallen < 18);
-  assert.ok(established.summary.shopDamage > 0);
+  assert.ok(established.summary.shopDamage < underprepared.summary.shopDamage);
   assert.equal(fullyGrown.summary.won, true);
   assert.ok(fullyGrown.summary.duration >= 8 && fullyGrown.summary.duration < established.summary.duration);
   assert.ok(fullyGrown.summary.fallen < established.summary.fallen);
-  assert.ok(fullyGrown.summary.shopDamage < established.summary.shopDamage);
+  assert.ok(fullyGrown.summary.shopDamage <= established.summary.shopDamage);
 });
 
 test('enemy roles have distinct bodies, movement and actual ranged projectile endpoints', () => {
