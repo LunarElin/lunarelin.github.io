@@ -282,7 +282,8 @@ test('combat focus follows a moving front and the busiest clash instead of idle 
   const moved = battleCamera(320, 338, allies.map((unit) => ({ ...unit, x: unit.x + 3, z: unit.z - 2 })), enemies.map((unit) => ({ ...unit, x: unit.x + 3, z: unit.z - 2 })));
   assert.ok(Math.abs(moved.focus.x - first.focus.x - 3) < 1e-10);
   assert.ok(Math.abs(moved.focus.z - first.focus.z + 2) < 1e-10);
-  assert.deepEqual(moved.framing, first.framing);
+  assert.equal(moved.framing.span, first.framing.span);
+  assert.equal(moved.framing.focusY, first.framing.focusY);
   const busy = battleCamera(320, 338, [...allies, { x: 6, z: 0, hp: 90 }], [...enemies, { x: 6, z: 1, hp: 60 }]);
   assert.ok(Math.hypot(busy.focus.x, busy.focus.z - .5) < .3);
 });
@@ -294,7 +295,8 @@ test('recent ranged strikes can shift focus to a real exchange before two front 
   const firing = battleCamera(390, 585, allies, enemies, 10.1);
   assert.ok(firing.focus.x < approaching.focus.x - 1);
   assert.ok(firing.focus.x < -2.5 && firing.focus.z > 1.5);
-  assert.deepEqual(firing.framing, approaching.framing);
+  assert.equal(firing.framing.span, approaching.framing.span);
+  assert.equal(firing.framing.focusY, approaching.framing.focusY);
 });
 
 test('a defeated side and empty result preserve the last combat view and return finite framing', () => {
@@ -349,4 +351,105 @@ test('thirty and sixty hertz combat tracking keep a moving front visible with eq
   const slow = trace(30), fast = trace(60);
   assert.ok(Math.hypot(slow.x - fast.x, slow.z - fast.z) < .04);
   assert.ok(Math.hypot(fast.x - 3.6, fast.z + 4) < .55);
+});
+
+test('a real ranged shot remains visible beside a crowded last enemy without reducing fighter size', () => {
+  for (const [kind, range] of [['archer', 3.5], ['mage', 3.1]]) for (const { width, height } of [{ width: 320, height: 338 }, { width: 390, height: 591 }]) {
+    const enemy = { id: 'last', x: 5, z: 3, hp: 60, range: .95, attackAt: 10 };
+    const caster = { id: 'caster', x: 5 - range, z: 3, hp: 55, kind, range, attackAt: 10, attackSerial: 1, targetX: 5, targetZ: 3 };
+    const melee = Array.from({ length: 10 }, (_, i) => ({ id: `melee-${i}`, x: 4.3 + i % 3 * .3, z: 2.4 + Math.floor(i / 3) * .25, hp: 90, range: 1, attackAt: 10 }));
+    const target = battleCamera(width, height, [...melee, caster], [enemy], 10.1);
+    const view = followBattleCamera(null, target.focus, target.framing, 0);
+    assert.equal(view.subjectId, caster.id);
+    assert.equal(view.subjectTeam, 'defender');
+    for (const unit of [caster, enemy]) for (const side of [-.6, .6]) for (const y of [0, 2.1]) {
+      const actual = project({ x: unit.x + right.x * side, y, z: unit.z + right.z * side }, view, width, height);
+      assert.ok(actual.x >= 24 && actual.x <= width - 24, `${kind}/${width}: shot or weapon crosses a side`);
+      assert.ok(actual.y >= 38 && actual.y <= height - 42, `${kind}/${width}: shot head or feet clips`);
+    }
+    const foot = project({ ...caster, y: 0 }, view, width, height), head = project({ ...caster, y: 1.3 * .9 }, view, width, height);
+    assert.ok(foot.y - head.y >= 40);
+  }
+});
+
+test('a recent attack uses its actual target instead of the nearest opposing body', () => {
+  const warrior = { id: 'front', x: .1, z: 0, hp: 90, range: 1 };
+  const mage = { id: 'back', x: 0, z: -1, hp: 55, range: 3.1 };
+  const raider = { id: 'raider', x: 0, z: 0, hp: 60, role: 'raider', range: 1.05, attackAt: 10, targetX: 0, targetZ: -1 };
+  const target = battleCamera(320, 338, [warrior, mage], [raider], 10.1);
+  assert.equal(target.framing.subject.subjectId, 'raider');
+  assert.deepEqual(target.framing.subject.subjectTarget, { x: mage.x, z: mage.z });
+  assert.notDeepEqual(target.framing.subject.subjectTarget, { x: warrior.x, z: warrior.z });
+});
+
+test('the selected ranged shot stays consistent throughout its short attack motion', () => {
+  const enemies = [{ id: 'e', x: 0, z: 3, hp: 60, range: .95 }];
+  const allies = [{ id: 'caster', kind: 'mage', x: -2, z: 1, hp: 55, range: 3.1, attackAt: 10, targetX: 0, targetZ: 3 },
+    { id: 'other', kind: 'archer', x: 1.5, z: 1, hp: 60, range: 3.5, attackAt: 10.2, targetX: 0, targetZ: 3 }];
+  const previous = { x: 0, z: 2, subjectId: 'caster', shotUntil: 10.45 };
+  const target = battleCamera(320, 338, allies, enemies, 10.4, previous);
+  assert.equal(target.framing.subject.subjectId, 'caster');
+  assert.equal(target.framing.subject.shotUntil, 10.45);
+});
+
+test('the last distant enemy becomes visible promptly after the other flank falls without a snap', () => {
+  for (const { width, height } of [{ width: 320, height: 338 }, { width: 390, height: 591 }]) {
+    let target = battleCamera(width, height, [{ id: 'left', x: -4, z: 3, hp: 90 }], [{ id: 'left-enemy', x: -4, z: 4, hp: 60 }]);
+    let view = followBattleCamera(null, target.focus, target.framing, 0);
+    const enemy = { id: 'last', x: 4, z: 4, hp: 60, range: 1.15 };
+    const caster = { id: 'right', kind: 'mage', x: 4, z: 1, hp: 55, range: 3.1, attackAt: 10, targetX: 4, targetZ: 4 };
+    target = battleCamera(width, height, [caster], [enemy], 10.1, view);
+    const first = followBattleCamera(view, target.focus, target.framing, 1 / 60);
+    assert.ok(Math.hypot(first.x - view.x, first.z - view.z) <= 36 / 60 + 1e-10);
+    assert.ok(Math.hypot(first.x - target.focus.x, first.z - target.focus.z) > 1);
+    for (let frame = 0; frame < 36; frame++) view = followBattleCamera(view, target.focus, target.framing, 1 / 60);
+    for (const unit of [caster, enemy]) {
+      const actual = project({ ...unit, y: 0 }, view, width, height);
+      assert.ok(actual.x >= 24 && actual.x <= width - 24, `${width}: last clash remains offscreen after 0.6 seconds`);
+    }
+  }
+});
+
+test('accelerated offscreen combat handoffs retain equivalent thirty and sixty hertz response', () => {
+  function trace(hz) {
+    const start = battleCamera(320, 338, [{ x: -4, z: 2, hp: 90 }], [{ x: -4, z: 3, hp: 60 }]);
+    let view = followBattleCamera(null, start.focus, start.framing, 0);
+    const target = battleCamera(320, 338, [{ id: 'a', x: 4, z: 1, hp: 55, range: 3.1, attackAt: 10, targetX: 4, targetZ: 4 }], [{ id: 'e', x: 4, z: 4, hp: 60 }], 10.1, view);
+    for (let frame = 0; frame < hz; frame++) view = followBattleCamera(view, target.focus, target.framing, 1 / hz);
+    return view;
+  }
+  const slow = trace(30), fast = trace(60);
+  assert.ok(Math.hypot(slow.x - fast.x, slow.z - fast.z) < .06);
+  assert.equal(slow.span, fast.span);
+});
+
+test('empty reinforcement gaps and results retain the last selected attack metadata', () => {
+  const target = battleCamera(320, 338, [{ id: 'a', x: 1, z: 0, hp: 55, range: 3.1, attackAt: 10, targetX: 1, targetZ: 3 }], [{ id: 'e', x: 1, z: 3, hp: 60 }], 10.1);
+  const previous = followBattleCamera(null, target.focus, target.framing, 0);
+  const gap = battleCamera(320, 338, [], [], 10.5, previous);
+  const view = followBattleCamera(previous, gap.focus, gap.framing, 1 / 60);
+  assert.equal(view.subjectId, previous.subjectId);
+  assert.deepEqual(view.subjectSource, previous.subjectSource);
+  assert.deepEqual(view.subjectTarget, previous.subjectTarget);
+  assert.equal(view.x, previous.x); assert.equal(view.z, previous.z);
+});
+
+test('a critically clipped new shot receives a bounded fast pan while ordinary tracking stays gentle', () => {
+  for (const [width, height] of [[320, 338], [390, 591]]) for (const hz of [30, 60]) {
+    const old = battleCamera(width, height, [{ x: -2, z: 2, hp: 90 }], [{ x: -2, z: 3, hp: 60 }]);
+    let view = followBattleCamera(null, old.focus, old.framing, 0);
+    const caster = { id: 'caster', x: 1.5, z: 3, hp: 60, range: 3.5, attackAt: 10, targetX: 5, targetZ: 3 };
+    const enemy = { id: 'last', x: 5, z: 3, hp: 60, range: .95 };
+    const target = battleCamera(width, height, [caster], [enemy], 10.1, view);
+    const initial = view;
+    view = followBattleCamera(view, target.focus, target.framing, 1 / hz);
+    const travel = Math.hypot(view.x - initial.x, view.z - initial.z);
+    assert.ok(travel > 18 / hz && travel <= 36 / hz + 1e-10);
+    assert.ok(Math.hypot(view.x - target.focus.x, view.z - target.focus.z) > .5, 'a fast pan must not snap to its destination');
+    for (let frame = 1; frame < hz * .2; frame++) view = followBattleCamera(view, target.focus, target.framing, 1 / hz);
+    for (const unit of [caster, enemy]) for (const side of [-.6, .6]) {
+      const actual = project({ x: unit.x + right.x * side, y: 0, z: unit.z + right.z * side }, view, width, height);
+      assert.ok(actual.x >= 0 && actual.x <= width, `${width}/${hz}: weapon remains clipped after 0.2 seconds`);
+    }
+  }
 });

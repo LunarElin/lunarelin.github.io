@@ -53,6 +53,30 @@ test('defense scenario pauses a normally triggered first warning with paid defen
   assert.ok(state.raid.defenders.every((defender) => state.patrons.some((patron) => patron.id === defender.patronId && patron.purchases > 0)));
 });
 
+test('late defense earns a sixth-stage warning with all three paid defender classes and elite ranged opposition', () => {
+  const state = buildScenario('late-defense');
+  assertEarnedProgress(state);
+  assert.equal(state.status, 'playing');
+  assert.ok(state.stage >= 6);
+  assert.equal(state.stage, state.raid.wins + 1);
+  assert.equal(state.raid.phase, 'warning');
+  assert.ok(state.raid.timer > 7.8 && state.raid.timer <= 8);
+  assert.equal(state.unlocks.alchemy, true);
+  assert.equal(state.unlocks.inn, true);
+  for (const kind of ['warrior', 'archer', 'mage']) {
+    assert.ok(state.patrons.slice(-18).some((patron) => patron.kind === kind && patron.purchases > 0));
+  }
+  assert.ok(state.raid.plan.roles.includes('elite'));
+  assert.ok(state.raid.plan.roles.includes('ranged'));
+  for (let frame = 0; frame < 300 && state.raid.phase !== 'battle'; frame++) step(state, .05);
+  assert.equal(state.raid.phase, 'battle');
+  assert.equal(state.raid.defenders.length, 18);
+  for (const kind of ['warrior', 'archer', 'mage']) assert.ok(state.raid.defenders.some((defender) => defender.kind === kind));
+  assert.ok(state.raid.enemies.some((enemy) => enemy.role === 'elite'));
+  assert.ok(state.raid.enemies.some((enemy) => enemy.role === 'ranged'));
+  assert.ok(state.raid.defenders.every((defender) => state.patrons.some((patron) => patron.id === defender.patronId && patron.purchases > 0)));
+});
+
 test('an earned eighteen-patron first raid preserves visible same-side clearance on every battle frame and wins', () => {
   const state = buildScenario('defense');
   assert.ok(state.patrons.length >= 18);

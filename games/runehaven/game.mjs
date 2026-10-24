@@ -18,7 +18,7 @@ const $ = (id) => document.getElementById(id);
 const SAVE_KEY = 'runehaven:v1';
 const query = new URLSearchParams(location.search);
 const qaEnabled = query.has('qa');
-const qaScenario = qaEnabled && ['late', 'defense', 'defeat', 'queues', 'dining'].includes(query.get('scenario')) ? query.get('scenario') : null;
+const qaScenario = qaEnabled && ['late', 'late-defense', 'defense', 'defeat', 'queues', 'dining'].includes(query.get('scenario')) ? query.get('scenario') : null;
 const previewRegion = qaEnabled && query.has('previewRegion') ? Math.max(1, Math.min(10, Math.trunc(Number(query.get('previewRegion'))) || 1)) : null;
 const previewCargo = qaEnabled && ['gear', 'potion', 'food', 'mixed'].includes(query.get('previewCargo')) ? query.get('previewCargo') : null;
 const controller = new AbortController();
@@ -818,6 +818,7 @@ function updateHud() {
   $('district').textContent = state.raid.location === 'outside' ? '상점 앞마당' : stageInfo.name;
   $('world-caption').textContent = `${stageInfo.name} · 상권 ${state.stage} · 방어 ${state.raid.wins}회`;
   if (qaEnabled) {
+    canvas.dataset.qaFrame = String(renderer.info.render.frame);
     canvas.dataset.customers = String(state.customers.length);
     canvas.dataset.customerTraffic = JSON.stringify(state.customers.map(({ id, product, phase, x, z, queueCursor, routeIndex }) => ({ id, product, phase, x, z, queueCursor, routeIndex })));
     canvas.dataset.raidDetails = JSON.stringify({ total: state.raid.totalEnemies, threat: state.raid.threatLabel, plan: state.raid.plan, summary: state.raid.summary });
@@ -832,6 +833,9 @@ function updateHud() {
     });
     canvas.dataset.combatMotion = JSON.stringify(motions);
     canvas.dataset.enemyAttacking = String(motions.filter((motion) => motion.id.startsWith('e-') && motion.serial > 0).length);
+    canvas.dataset.aliveEnemies = String(state.raid.enemies.filter((enemy) => enemy.hp > 0).length);
+    canvas.dataset.pendingEnemies = String(state.raid.spawnRemaining || 0);
+    canvas.dataset.rangedAttacking = String(motions.filter((motion) => motion.serial > 0 && ['holding-right-shoot', 'interact-right'].includes(motion.clip)).length);
     canvas.dataset.scene = JSON.stringify({ location: state.raid.location, interior: shopScene.visible, courtyard: battlefieldVisuals.group.visible, transition: state.raid.phase === 'departure' });
     canvas.dataset.entry = JSON.stringify({ slots: getCustomerEntrySlots(state), branch: getCustomerBranchPoint(state) });
     let inspection = $('qa-state');

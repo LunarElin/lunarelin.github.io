@@ -1,5 +1,5 @@
 // Browser QA fixtures only. No browser APIs, storage, wall clock, or random seeds.
-// late/defense/defeat earn their progression through normal simulation.
+// late/late-defense/defense/defeat earn progression through normal simulation.
 // queues/dining deliberately assign supplies and unlocks for visual fixtures.
 // Import this module only for an explicitly requested QA scenario.
 import {
@@ -9,6 +9,7 @@ import {
 
 export const SCENARIO_INFO = Object.freeze({
   late: Object.freeze({ label: '후반 영업 · 점멸', expected: '속도 21, 공방·여관, 세 직업 단골, 미회수 매출, 영업 상태', artificial: false }),
+  'late-defense': Object.freeze({ label: '후반 습격 예고', expected: '6단계 이상, 최근 출전 명단에 검사·궁수·마법사, 정예·원거리 적, 경고 약 8초', artificial: false }),
   defense: Object.freeze({ label: '첫 습격 예고', expected: '유료 단골 8명 이상, 경고 약 8초', artificial: false }),
   defeat: Object.freeze({ label: '패배 저장 재접속', expected: '정상 구매 단골 3명, 준비 부족으로 자연스러운 패배, 복구 대기', artificial: false }),
   queues: Object.freeze({ label: '대기열 외형 검사', expected: '시설·지역을 지정한 24명 무재고 대기열, 실제 획득 진행 아님', artificial: true }),
@@ -22,6 +23,7 @@ function mark(state, name) {
 
 function commerce(name) {
   const state = createGame(42);
+  const advanced = name === 'late' || name === 'late-defense';
   act(state, 'hire');
   let carrying = false;
   let product = 'gear';
@@ -32,7 +34,7 @@ function commerce(name) {
     if (state.unlocks.innAvailable && !state.unlocks.inn) act(state, 'unlock', { kind: 'inn' });
     if (state.staff.length < 3 && state.gold > 900 && getHireInfo(state).canBuy) act(state, 'hire');
     if (state.player.capacityLevel < 4 && getUpgradeInfo(state, 'capacity').canBuy) act(state, 'upgrade', { kind: 'capacity' });
-    if (name === 'late') {
+    if (advanced) {
       for (const kind of ['forge', 'counter', 'alchemy', 'inn']) {
         const info = getFacilityUpgradeInfo(state, kind);
         if (info.currentLevel < Math.min(3, state.stage) && info.canBuy) act(state, 'upgrade-facility', { kind });
@@ -43,7 +45,7 @@ function commerce(name) {
       }
       if (state.player.priceLevel < Math.min(21, 2 + state.stage * 3) && getUpgradeInfo(state, 'price').canBuy) act(state, 'upgrade', { kind: 'price' });
     }
-    if (name === 'late' && state.player.speedLevel < 21 && getUpgradeInfo(state, 'speed').canBuy) act(state, 'upgrade', { kind: 'speed' });
+    if (advanced && state.player.speedLevel < 21 && getUpgradeInfo(state, 'speed').canBuy) act(state, 'upgrade', { kind: 'speed' });
     if (state.raid.phase === 'victory') {
       act(state, 'continue');
       if (name === 'late' && state.player.speedLevel === 21 && state.unlocks.alchemy && state.unlocks.inn && ['warrior', 'archer', 'mage'].every((kind) => state.patrons.some((patron) => patron.kind === kind))) {
@@ -63,6 +65,8 @@ function commerce(name) {
       : getStationApproach(state, carrying ? (state.player.bag.gear > 0 ? 'counter' : 'potionCounter') : (product === 'gear' ? 'forge' : 'alchemy'));
     step(state, 0.1, { target });
     if (name === 'defense' && state.raid.phase === 'warning' && state.raid.timer <= 8 && state.patrons.length >= 8) return mark(state, name);
+    if (name === 'late-defense' && state.stage >= 6 && state.raid.phase === 'warning' && state.raid.timer <= 8
+      && ['warrior', 'archer', 'mage'].every((kind) => state.patrons.slice(-18).some((patron) => patron.kind === kind))) return mark(state, name);
   }
   throw new Error(`QA ${name}: bounded simulation did not reach its checkpoint`);
 }

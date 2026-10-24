@@ -42,21 +42,29 @@ export function battleCamera(width, height, defenders, enemies, time = 0, previo
   const allies = alive(defenders), foes = alive(enemies);
   const previous = previousView && Number.isFinite(previousView.x) && Number.isFinite(previousView.z) ? { x: previousView.x, z: previousView.z } : null;
   // Hold the last clash for the result instead of panning to distant survivors.
-  if (!allies.length || !foes.length) return { framing, focus: previous || { x: 0, z: 2.5 } };
+  if (!allies.length || !foes.length) {
+    if (previousView?.subjectId) framing.subject = { subjectId: previousView.subjectId, subjectTeam: previousView.subjectTeam,
+      subjectSource: previousView.subjectSource, subjectTarget: previousView.subjectTarget, shotUntil: previousView.shotUntil };
+    return { framing, focus: previous || { x: 0, z: 2.5 } };
+  }
   const contacts = [];
   const recent = (unit) => Number.isFinite(unit.attackAt) && time >= unit.attackAt && time - unit.attackAt < .85;
-  function nearestContacts(team, opponents) {
-    for (const unit of team) {
+  function nearestContacts(team, opponents, teamName) {
+    for (const [index, unit] of team.entries()) {
       let opponent, distance = Infinity;
       for (const other of opponents) {
         const gap = Math.hypot(other.x - unit.x, other.z - unit.z);
         if (gap < distance) { distance = gap; opponent = other; }
       }
-      contacts.push({ x: (unit.x + opponent.x) / 2, z: (unit.z + opponent.z) / 2, distance,
-        striking: (recent(unit) || recent(opponent)) && distance <= Math.max(unit.range || 1.1, opponent.range || 1.1) + .8 });
+      const actualTarget = recent(unit) && Number.isFinite(unit.targetX) && Number.isFinite(unit.targetZ);
+      const target = actualTarget ? { x: unit.targetX, z: unit.targetZ } : opponent;
+      if (actualTarget) distance = Math.hypot(target.x - unit.x, target.z - unit.z);
+      contacts.push({ x: (unit.x + target.x) / 2, z: (unit.z + target.z) / 2, distance,
+        source: unit, target, id: unit.id || `${teamName}-${index}`, team: teamName, actualTarget,
+        striking: (recent(unit) || !actualTarget && recent(opponent)) && distance <= Math.max(unit.range || 1.1, opponent.range || 1.1) + .8 });
     }
   }
-  nearestContacts(allies, foes); nearestContacts(foes, allies);
+  nearestContacts(allies, foes, 'defender'); nearestContacts(foes, allies, 'enemy');
   const nearest = Math.min(...contacts.map((contact) => contact.distance));
   const front = contacts.filter((contact) => contact.striking || contact.distance <= nearest + 1);
   // Select the densest nearby clash. The small continuity bonus settles ties
@@ -77,22 +85,62 @@ export function battleCamera(width, height, defenders, enemies, time = 0, previo
     const weight = (1 - distance / 4) * (contact.striking ? 1.5 : 1);
     x += contact.x * weight; z += contact.z * weight; total += weight;
   }
-  return { framing, focus: { x: x / total, z: z / total } };
+  const focus = { x: x / total, z: z / total };
+  // A dense melee group must not push its firing archer or mage offscreen.
+  // Keep one related real attack, rather than widening to every distant flank.
+  const ranged = front.filter((contact) => contact.actualTarget && contact.striking && contact.source.range > 1.5
+    && Math.hypot(contact.x - seed.x, contact.z - seed.z) <= 2.8);
+  let subject = ranged.find((contact) => contact.id === previousView?.subjectId && time < previousView.shotUntil);
+  if (!subject && ranged.length) subject = ranged.reduce((best, contact) => {
+    const score = (item) => Math.hypot(item.x - seed.x, item.z - seed.z) - (item.id === previousView?.subjectId ? .4 : 0);
+    return score(contact) < score(best) ? contact : best;
+  });
+  subject ||= front.filter((contact) => contact.actualTarget && contact.striking
+    && Math.hypot(contact.x - seed.x, contact.z - seed.z) <= 2.8)
+    .sort((a, b) => Math.hypot(a.x - seed.x, a.z - seed.z) - Math.hypot(b.x - seed.x, b.z - seed.z))[0] || seed;
+  const anchors = subject.distance <= 4.6 ? [subject.source, subject.target] : [subject.target];
+  const groundY = CAMERA_OFFSET.y / Math.hypot(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
+  const halfWidth = (width / 2 - 32) / pixels;
+  const up = (height / 2 - 44 + (framing.focusY - 2.6) * CAMERA_Y * pixels) / (groundY * pixels);
+  const down = (height / 2 - 48 - framing.focusY * CAMERA_Y * pixels) / (groundY * pixels);
+  let minU = -Infinity, maxU = Infinity, minV = -Infinity, maxV = Infinity;
+  for (const point of anchors) {
+    const u = point.x * CAMERA_RIGHT.x + point.z * CAMERA_RIGHT.z;
+    const v = point.x * CAMERA_DOWN.x + point.z * CAMERA_DOWN.z;
+    minU = Math.max(minU, u + .6 - halfWidth); maxU = Math.min(maxU, u - .6 + halfWidth);
+    minV = Math.max(minV, v - down); maxV = Math.min(maxV, v + up);
+  }
+  const clamp = (value, min, max) => min <= max ? Math.max(min, Math.min(max, value)) : (min + max) / 2;
+  const u = clamp(focus.x * CAMERA_RIGHT.x + focus.z * CAMERA_RIGHT.z, minU, maxU);
+  const v = clamp(focus.x * CAMERA_DOWN.x + focus.z * CAMERA_DOWN.z, minV, maxV);
+  framing.guard = { minU, maxU, minV, maxV };
+  framing.subject = { subjectId: subject.id, subjectTeam: subject.team,
+    subjectSource: { x: subject.source.x, z: subject.source.z }, subjectTarget: { x: subject.target.x, z: subject.target.z },
+    shotUntil: subject.actualTarget ? subject.source.attackAt + .45 : 0 };
+  return { framing, focus: { x: u * CAMERA_RIGHT.x + v * CAMERA_DOWN.x, z: u * CAMERA_RIGHT.z + v * CAMERA_DOWN.z } };
 }
 
 export function followBattleCamera(current, focus, framing, dt, snap = false) {
-  if (!current || snap) return { ...focus, span: framing.span, focusY: framing.focusY, playerX: focus.x, playerZ: focus.z };
+  if (!current || snap) return { ...focus, span: framing.span, focusY: framing.focusY, playerX: focus.x, playerZ: focus.z, ...framing.subject };
   const dx = focus.x - current.x, dz = focus.z - current.z;
   const distance = Math.hypot(dx, dz);
   // Ignore tiny target changes, then ease and cap travel. Unlike player blink
   // following, a changed combat target never snaps the camera across the yard.
-  const travel = Math.min(Math.max(0, distance - .12) * (1 - Math.exp(-5 * dt)), 5 * dt);
+  const guard = framing.guard;
+  const u = current.x * CAMERA_RIGHT.x + current.z * CAMERA_RIGHT.z;
+  const v = current.x * CAMERA_DOWN.x + current.z * CAMERA_DOWN.z;
+  const outside = guard ? Math.hypot(Math.max(guard.minU - u, 0, u - guard.maxU), Math.max(guard.minV - v, 0, v - guard.maxV)) : 0;
+  // Catch a new offscreen clash promptly; once visible, keep the gentle pan.
+  const critical = outside > .6;
+  const response = critical ? 24 : outside > .1 ? 12 : 5;
+  const speed = critical ? 36 : Math.min(18, 5 + outside * 10);
+  const travel = Math.min(Math.max(0, distance - .12) * (1 - Math.exp(-response * dt)), speed * dt);
   const scale = distance ? travel / distance : 0;
   const zoom = 1 - Math.exp(-3 * dt);
   return { x: current.x + dx * scale, z: current.z + dz * scale,
     span: current.span + (framing.span - current.span) * zoom,
     focusY: current.focusY + (framing.focusY - current.focusY) * zoom,
-    playerX: focus.x, playerZ: focus.z };
+    playerX: focus.x, playerZ: focus.z, ...framing.subject };
 }
 
 export function followCamera(current, player, framing, dt, snap = false) {
