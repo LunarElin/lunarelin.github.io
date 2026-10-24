@@ -107,6 +107,27 @@ test('obstacle silhouettes contain broad mechanical direction marks before conta
   }
 });
 
+test('mobile chase cameras see the spring arrow head and coil through its open platform',()=>{
+  for(const [width,height] of [[320,568],[390,844]])for(const ahead of [10,30,60])for(const elapsed of [0,.5,1]) {
+    const scene=harness(width,height),run=runFixture();run.s=0;
+    run.events=[{id:'jump',type:'spring',at:ahead,x:0,radius:.85,height:1.05,used:false}];
+    frame(scene,run,'rolling',elapsed);scene.scene.updateMatrixWorld(true);scene.camera.updateMatrixWorld(true);
+    const visual=scene.eventMeshes.get('jump').userData.visual,arrow=visual.getObjectByName('up-arrow'),cap=visual.getObjectByName('jump-platform'),coil=visual.getObjectByName('compression-coil');
+    assert.equal(cap.geometry.type,'TorusGeometry','the jump platform must leave its coil visible');
+    const ray=new THREE.Raycaster();
+    for(const point of [[-.15,.2,.131],[.15,.2,.131],[0,.47,.131]]) {
+      const target=arrow.localToWorld(new THREE.Vector3(...point)),ndc=project(scene,target);
+      assert.ok(Math.abs(ndc.x)<1&&Math.abs(ndc.y)<1,'arrow head stays inside the chase frame');
+      ray.set(scene.camera.position,target.clone().sub(scene.camera.position).normalize());
+      const first=ray.intersectObject(visual,true)[0];
+      assert.equal(first?.object,arrow,'jump platform must not cover the arrow head at '+width+'px, ahead '+ahead);
+    }
+    const positions=coil.geometry.attributes.position;let exposed=0;
+    for(let index=0;index<positions.count;index+=12){const target=coil.localToWorld(new THREE.Vector3().fromBufferAttribute(positions,index));ray.set(scene.camera.position,target.clone().sub(scene.camera.position).normalize());if(ray.intersectObject(visual,true)[0]?.object===coil)exposed++;}
+    assert.ok(exposed>=6,'multiple coil segments must remain visible below and through the platform');
+  }
+});
+
 test('idle coil, piston and rotor demonstrate their action and stop powering once launched',()=>{
   const scene=harness(),run=runFixture();run.s=0;
   run.events=['spring','punch','alien'].map(type=>({id:type,type,at:30,x:0,radius:.85,height:1.05,direction:1,used:false}));

@@ -1,6 +1,6 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261024-devices1';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261024-devices2';
 
 const TAU = Math.PI * 2;
 export const WHEEL_RADIUS = 23;
@@ -168,8 +168,8 @@ export class OrbitScene {
     } else if(type==='spring') {
       const points=[];for(let i=0;i<=48;i++){const a=i/48*TAU*3;points.push(new THREE.Vector3(Math.cos(a)*r*.57,.15+i/48*1.15,Math.sin(a)*r*.57));}
       const coil=this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),48,.11,6,false),mat(0x80e4ff,.25,.75),visual);coil.name='compression-coil';
-      const cap=this.mesh(new THREE.CylinderGeometry(r*.94,r*.94,.23,16),glow(0x84e9ff,.4),visual);cap.name='jump-platform';cap.position.y=1.42;
-      const up=this.directionArrow(visual,0xf2ffff,1.2);up.name='up-arrow';up.position.set(0,.9,-r*.76);up.rotation.y=Math.PI;
+      const cap=this.mesh(new THREE.TorusGeometry(r*.78,.11,6,20),mat(0x80d8ef,.3,.65),visual);cap.name='jump-platform';cap.rotation.x=Math.PI/2;cap.position.y=1.42;
+      const up=this.directionArrow(visual,0xf2ffff,1.2);up.name='up-arrow';up.position.set(0,1.94,-r*.9);up.rotation.y=Math.PI;
       const base=this.mesh(new THREE.CylinderGeometry(r,r,.17,16),mat(0x214e6e),visual);base.position.y=.1;
       mechanism.coil=coil;mechanism.cap=cap;
     } else if(type==='punch') {

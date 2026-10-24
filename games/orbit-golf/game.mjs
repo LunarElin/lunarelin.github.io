@@ -1,5 +1,5 @@
-import { OrbitScene } from './scene.mjs?v=20261024-devices1';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-devices1';
+import { OrbitScene } from './scene.mjs?v=20261024-devices2';
+import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-devices2';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
