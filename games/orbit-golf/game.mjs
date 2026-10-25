@@ -1,5 +1,5 @@
-import { OrbitScene } from './scene.mjs?v=20261024-guardian1';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261024-guardian1';
+import { OrbitScene } from './scene.mjs?v=20261025-course1';
+import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261025-course1';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
@@ -115,10 +115,10 @@ function updateAim(){const aim=Number($('aim-control').value);$('aim-value').tex
 function setSpin(axis){if(mode!=='rolling')return;steerRun(run,axis);$('spin-control').value=String(axis);}
 function resetSpin(){heldKeys.clear();if(run)steerRun(run,0);$('spin-control').value='0';}
 function updateHUD(){
-  if(!run)return;$('distance').textContent=fmt(run.distance);$('speed').textContent=fmt(Math.abs(run.speed));$('run-gold').textContent=fmt(run.earned);
+  if(!run)return;$('distance').textContent=fmt(run.distance);$('speed').textContent=fmt(Math.abs(run.speed));$('speed-label').textContent=run.speed < -2 ? '후진' : '속도';$('run-gold').textContent=fmt(run.earned);
   const remaining=Math.max(0,Math.ceil(run.durationLimit-run.elapsed));
   const compact=window.innerWidth<=600&&window.innerHeight<=680;
-  $('track-label').textContent=compact?`${run.track+1}바퀴 · ${remaining}초`:`${run.track+1}바퀴${run.tutorial?' · 훈련':''}`;$('pilot-label').textContent=run.name;
+  $('track-label').textContent=compact?`${run.track+1}구간 · ${remaining}초`:`${run.track+1}구간${run.tutorial?' · 훈련':''}`;$('pilot-label').textContent=run.name;
   $('run-goal').textContent=compact?`목표 ${fmt(run.goalDistance)}m`:`${run.tutorial?'훈련':'비행'} ${remaining}초 · 목표 ${fmt(run.goalDistance)}m`;
   $('orbit-fill').style.width=`${run.distance%TRACK_LENGTH/TRACK_LENGTH*100}%`;
   const stats=ballStats(profile),base=ballStats(0);
@@ -133,7 +133,7 @@ function updateHUD(){
   $('run-goal').classList.toggle('force-short',Boolean(guardian)&&force<guardian.requiredForce);
   progress.classList.toggle('guardian-power',Boolean(guardian));progress.classList.toggle('can-break',Boolean(guardian)&&force>=guardian.requiredForce);
   progress.setAttribute('role','progressbar');progress.setAttribute('aria-valuemin','0');
-  progress.setAttribute('aria-label',guardian?'수문장 충돌 힘':'궤도 진행');
+  progress.setAttribute('aria-label',guardian?'수문장 충돌 힘':'구간 진행');
   progress.setAttribute('aria-valuemax',String(guardian?guardian.requiredForce:TRACK_LENGTH));
   progress.setAttribute('aria-valuenow',String(guardian?Math.min(force,guardian.requiredForce):run.distance%TRACK_LENGTH));
   if(guardian){
@@ -191,7 +191,7 @@ function showUpgrades(){
     const improvement=Math.round((next.range/current.range-1)*100);
     const maxed=level===def.maxLevel;
     const desc=element('p','',key==='pilot'?maxed?'최고 단계 · 충돌 에너지 보존 및 반발 강화':'충돌 추진력 손실 감소\n반발 강화' :maxed?`${BALL_NAMES[level]} · 최고 단계\n출발 추진력 ${fmt(current.launchSpeed)} · 낮은 마찰`:`${BALL_NAMES[level]} → ${BALL_NAMES[nextLevel]}\n기본 비거리 +${improvement}%\n${fmt(current.range)}m → ${fmt(next.range)}m`);
-    if(key==='ball')desc.append(element('small','range-note','장애물 없는 직선 풀샷 기준 · 실제 충돌과 운에 따라 달라져요'));
+    if(key==='ball')desc.append(element('small','range-note','장애물 없는 평지 풀샷 기준 · 실제 충돌과 운에 따라 달라져요'));
     const buy=button(Number.isFinite(cost)?`강화 · ${fmt(cost)} G`:'최고 단계','primary',()=>{if(buyUpgrade(profile,key)){save();refreshLobby();tone('good');showUpgrades();}});
     buy.disabled=!Number.isFinite(cost)||profile.gold<cost;card.append(title,desc,buy);children.push(card);
   }
@@ -202,7 +202,7 @@ function showRanks(){
   openPanel('궤도 랭킹',[element('p','panel-intro','이 기기의 TOP 10 · 이름별 최고 기록'),profile.rankings.length?list:element('p','empty','아직 기록이 없습니다.'),button('확인','primary panel-action',closePanel)],'ranks');
 }
 function showHelp(){
-  const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','한 바퀴를 지나면 새로운 배치 기믹이 추가됩니다. 5·10·15번째 바퀴처럼 5바퀴마다 한 번에 3개가 추가됩니다.','10번째 바퀴 끝에는 거대한 수문장이 길을 막습니다. 화면의 충격이 필요 힘 이상이면 부수고 통과하며 40G를 얻습니다. 공을 강화하면 같은 속도에서도 충격이 커집니다. 이후 수문장은 10바퀴마다 나타납니다.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 스핀을 누르고 있어도 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 추진력과 비거리가 증가합니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다. 수문장이 남아 있으면 그 앞에서 내려옵니다.'].forEach(t=>list.append(element('li','',t)));
+  const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','360m 구간을 지나면 새로운 배치 기믹이 추가됩니다. 5·10·15번째 구간처럼 5구간마다 한 번에 3개가 추가됩니다.','10번째 구간 끝에는 거대한 수문장이 길을 막습니다. 화면의 충격이 필요 힘 이상이면 부수고 통과하며 40G를 얻습니다. 공을 강화하면 같은 속도에서도 충격이 커집니다. 이후 수문장은 10구간마다 나타납니다.','완만하게 오르내리는 우주 코스가 앞에 이어집니다. 카메라는 수평을 유지하며 공을 따라갑니다.','마찰과 오르막은 속도를 줄이고 내리막은 가속을 돕습니다. 주황 추진기와 초록 패드에 닿으면 가속합니다. 충돌과 착지 뒤 속도가 자동으로 복구되지 않습니다.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 스핀을 누르고 있어도 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 추진력과 비거리가 증가합니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다. 수문장이 남아 있으면 그 앞에서 내려옵니다.'].forEach(t=>list.append(element('li','',t)));
   const key=element('div','event-key');[
     ['완충 링','낮고 강하게 반발'],['코일 · 위 화살표','높이 뛰어오르기'],
     ['피스톤 · 전진 화살표','앞으로 강하게 추진'],['회전날 · 곡선 화살표','표시 방향으로 휘기'],

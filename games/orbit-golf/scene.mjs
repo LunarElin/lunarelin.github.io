@@ -1,15 +1,15 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261024-guardian1';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261025-course1';
+import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261025-course1';
 
 const TAU = Math.PI * 2;
-export const WHEEL_RADIUS = 23;
 export const BALL_HEIGHT = 1.08;
-const R = WHEEL_RADIUS;
 const HALF_WIDTH = TRACK_WIDTH / 2;
+const COURSE_SEGMENTS = 144;
+const COURSE_STEP = 8;
 const MAX_EFFECTS = 48;
 const THEMES = [0x64e8d6, 0xc29aff, 0xffb575, 0x9eff86];
-const CENTERS = [[0,0,0],[-72,8,12],[62,-12,-45]];
 const BALL_COLORS = [0xf6fbff,0x83ffe0,0xffda79,0xd4a1ff,0xffa3c0,0x9edcff];
 const mat = (color, roughness = .5, metalness = .25) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
 const glow = (color, intensity = 1) => new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity, roughness: .35 });
@@ -61,60 +61,40 @@ export class OrbitScene {
     this.camera.fov=this.mobile?70:60;this.camera.updateProjectionMatrix();
   }
   mesh(geometry, material, parent=this.track) { const m=new THREE.Mesh(geometry,material); parent.add(m); return m; }
-  cylinder(radius,width,material,parent=this.track) {
-    const geometry=new THREE.CylinderGeometry(radius,radius,width,96,1,true);
-    geometry.rotateZ(Math.PI/2);
-    return this.mesh(geometry,material,parent);
-  }
-  rim(radius,x,tube,material,parent=this.track) {
-    const rim=this.mesh(new THREE.TorusGeometry(radius,tube,8,96),material,parent);
-    rim.rotation.y=Math.PI/2;rim.position.x=x;return rim;
-  }
   buildTrack() {
-    // An open cylinder on its side: the ball runs on its inward-facing tread.
-    const tread=mat(0x315c6c,.66,.35);tread.side=THREE.BackSide;
-    this.cylinder(R,TRACK_WIDTH,tread).name='inner-tread';
-    this.cylinder(R+.6,TRACK_WIDTH,mat(0x14283d,.55,.65)).name='outer-shell';
-    for(const x of [-HALF_WIDTH-.1,HALF_WIDTH+.1]) {
-      this.rim(R+.25,x,.38,mat(0x456476,.45,.65));
-      this.rim(R-.1,x,.11,this.railMaterial);
-      const edgeMaterial=mat(0x527886,.5,.55);edgeMaterial.side=THREE.DoubleSide;
-      const face=this.mesh(new THREE.RingGeometry(R-.08,R+.65,96),edgeMaterial);
-      face.rotation.y=Math.PI/2;face.position.x=x;
-    }
-    // The side cushions extend inward as a visible energy guard for airborne banks.
+    // Reuse a fixed ribbon and instanced panels as the forward corridor is generated.
+    const geometry=new THREE.BufferGeometry(),positions=new Float32Array((COURSE_SEGMENTS+1)*2*3),indices=[];
+    for(let i=0;i<COURSE_SEGMENTS;i++){const a=i*2;indices.push(a,a+2,a+1,a+1,a+2,a+3);}
+    geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);
+    const floor=mat(0x315c6c,.66,.35);floor.side=THREE.DoubleSide;
+    this.courseFloor=this.mesh(geometry,floor);this.courseFloor.name='continuous-course-floor';this.courseFloor.frustumCulled=false;
+    this.courseRails=new THREE.InstancedMesh(new THREE.BoxGeometry(.4,.6,COURSE_STEP*COURSE_WORLD_PER_METER+.05),this.railMaterial,COURSE_SEGMENTS*2);this.courseRails.name='course-edge-rails';this.courseRails.frustumCulled=false;this.track.add(this.courseRails);
     this.guardMaterial=new THREE.MeshBasicMaterial({color:0x9dfff0,side:THREE.DoubleSide,transparent:true,opacity:.035,depthWrite:false});
-    for(const x of [-HALF_WIDTH,HALF_WIDTH]) {
-      const guard=this.mesh(new THREE.RingGeometry(R-9,R+.25,96),this.guardMaterial);guard.rotation.y=Math.PI/2;guard.position.x=x;
-      for(let i=0;i<12;i++){const angle=i/12*TAU,post=this.mesh(new THREE.BoxGeometry(.055,8.8,.055),glow(0x5ef3de,.35));post.position.set(x,-Math.cos(angle)*(R-4.4),Math.sin(angle)*(R-4.4));post.rotation.x=-angle;}
+    this.courseGuards=new THREE.InstancedMesh(new THREE.BoxGeometry(.035,8,COURSE_STEP*COURSE_WORLD_PER_METER),this.guardMaterial,COURSE_SEGMENTS*2);this.courseGuards.frustumCulled=false;this.track.add(this.courseGuards);
+    this.courseRibs=new THREE.InstancedMesh(new THREE.BoxGeometry(TRACK_WIDTH-.45,.06,.12),mat(0x477d87,.7,.4),COURSE_SEGMENTS);this.courseRibs.name='transverse-floor-ribs';this.courseRibs.frustumCulled=false;this.track.add(this.courseRibs);
+    this.courseSupports=new THREE.InstancedMesh(new THREE.BoxGeometry(TRACK_WIDTH+.8,1.2,.8),mat(0x14283d,.55,.65),Math.ceil(COURSE_SEGMENTS/4));this.courseSupports.frustumCulled=false;this.track.add(this.courseSupports);
+    this.updateTrack(0);
+  }
+  updateTrack(distance) {
+    if(!this.courseFloor)return;
+    const start=Math.floor(distance/COURSE_STEP)*COURSE_STEP-96,origin=this.origin||{s:0,height:0};
+    if(this.courseStart===start){this.track.position.set(0,this.courseOriginHeight-origin.height,(this.courseOrigin-origin.s)*COURSE_WORLD_PER_METER);return;}
+    this.courseStart=start;this.courseOrigin=origin.s;this.courseOriginHeight=origin.height;this.track.position.set(0,0,0);
+    const vertices=this.courseFloor.geometry.attributes.position,instance=new THREE.Object3D();
+    for(let i=0;i<=COURSE_SEGMENTS;i++) {
+      const s=start+i*COURSE_STEP,p=this.position(s,0,-.025);
+      vertices.setXYZ(i*2,-HALF_WIDTH,p.y,p.z);vertices.setXYZ(i*2+1,HALF_WIDTH,p.y,p.z);
+      if(i===COURSE_SEGMENTS)continue;
+      const middle=s+COURSE_STEP/2,pitch=-Math.atan(courseSample(middle).slope);
+      for(const [side,x]of[-HALF_WIDTH,HALF_WIDTH].entries()) {
+        instance.position.copy(this.position(middle,x,.25));instance.rotation.set(pitch,0,0);instance.scale.set(1,1,Math.sqrt(1+courseSample(middle).slope**2));instance.updateMatrix();this.courseRails.setMatrixAt(i*2+side,instance.matrix);
+        instance.position.copy(this.position(middle,x,4));instance.updateMatrix();this.courseGuards.setMatrixAt(i*2+side,instance.matrix);
+      }
+      instance.position.copy(this.position(s,0,.008));instance.rotation.set(-Math.atan(courseSample(s).slope),0,0);instance.scale.set(1,1,1);instance.updateMatrix();this.courseRibs.setMatrixAt(i,instance.matrix);
+      if(i%4===0){instance.position.copy(this.position(s,0,-.65));instance.updateMatrix();this.courseSupports.setMatrixAt(i/4,instance.matrix);}
     }
-    const instance=new THREE.Object3D();
-    const ribs=new THREE.InstancedMesh(new THREE.BoxGeometry(TRACK_WIDTH-.25,.09,.2),mat(0x477d87,.7,.4),72);this.track.add(ribs);
-    for(let i=0;i<72;i++) {
-      const a=i/72*TAU;instance.position.set(0,-Math.cos(a)*(R-.04),Math.sin(a)*(R-.04));
-      instance.rotation.set(-a,0,0);instance.updateMatrix();ribs.setMatrixAt(i,instance.matrix);
-    }
-    // Broad, staggered floor plates replace the old three-lane markings.
-    const columns=10,tileWidth=TRACK_WIDTH/columns;
-    const plates=new THREE.InstancedMesh(new THREE.BoxGeometry(tileWidth-.08,.035,1.9),mat(0x467e87,.72,.25),36*columns);plates.name='staggered-floor-plates';this.track.add(plates);
-    let plateIndex=0;
-    for(let i=0;i<36;i++)for(let j=0;j<columns;j++) {
-      const a=(i+(j%2)*.5)/36*TAU;instance.position.set((j-(columns-1)/2)*tileWidth,-Math.cos(a)*(R-.06),Math.sin(a)*(R-.06));
-      instance.rotation.set(-a,0,0);instance.updateMatrix();plates.setMatrixAt(plateIndex++,instance.matrix);
-    }
-    // Rear spokes and a hub make the vertical hamster-wheel silhouette unmistakable.
-    for(let i=0;i<3;i++) {
-      const spoke=this.mesh(new THREE.BoxGeometry(.45,R*2,.48),mat(0x334e65,.6,.6));
-      spoke.position.x=-HALF_WIDTH-.5;spoke.rotation.x=i*Math.PI/3;
-    }
-    const hub=this.mesh(new THREE.CylinderGeometry(1.3,1.3,1.3,20),mat(0x9cb3bc,.35,.7));
-    hub.rotation.z=Math.PI/2;hub.position.x=-HALF_WIDTH-.5;
-    for(let i=0;i<8;i++) {
-      const a=i/8*TAU,pod=new THREE.Group();this.track.add(pod);
-      pod.position.set(0,-Math.cos(a)*(R+1),Math.sin(a)*(R+1));pod.rotation.x=-a;
-      this.mesh(new THREE.BoxGeometry(2.5,1.1,1.8),mat(0x466076),pod);
-      const light=this.mesh(new THREE.BoxGeometry(1.8,.15,1),this.railMaterial,pod);light.position.y=-.58;
-    }
+    vertices.needsUpdate=true;this.courseFloor.geometry.computeVertexNormals();
+    for(const mesh of[this.courseRails,this.courseGuards,this.courseRibs,this.courseSupports])mesh.instanceMatrix.needsUpdate=true;
   }
   buildSpace() {
     const positions=[];let seed=3219;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
@@ -127,13 +107,8 @@ export class OrbitScene {
     for(const [y,r,t] of bands){const band=this.mesh(new THREE.TorusGeometry(r,t,6,80),mat(0xe69b68,.9,0),planet);band.rotation.x=Math.PI/2;band.position.y=y;}
     const pr=this.mesh(new THREE.RingGeometry(32,42,100),new THREE.MeshBasicMaterial({color:0xa6adc6,side:THREE.DoubleSide,transparent:true,opacity:.22}),planet);pr.rotation.x=1.12;pr.rotation.y=.3;
     const moon=this.mesh(new THREE.IcosahedronGeometry(10,3),mat(0x597e9b,.9,0),this.scene);moon.position.set(65,30,-110);
-    for(let j=0;j<CENTERS.length;j++) {
-      const distant=new THREE.Group();distant.position.fromArray(CENTERS[j]);this.scene.add(distant);
-      const material=mat(j===1?0x4d396a:0x234f61,.6,.6);material.side=THREE.DoubleSide;
-      this.cylinder(R,TRACK_WIDTH,material,distant);
-      for(const x of [-HALF_WIDTH-.1,HALF_WIDTH+.1])this.rim(R,x,.23,glow(j===1?0x9c7dff:0x51b4c9,.7),distant);
-      this.distantTracks.push(distant);
-    }
+    // Far scenery stays fixed in the chase frame, giving a quiet horizon reference.
+    planet.position.set(-75,25,170);moon.position.set(72,48,230);
     this.saturn=planet;
   }
   fallbackAstronaut() {const g=new THREE.Group();const suit=mat(0xe3edf5);this.mesh(new THREE.CapsuleGeometry(.28,.45,4,10),suit,g).position.y=.6;const head=this.mesh(new THREE.SphereGeometry(.31,14,10),suit,g);head.position.y=1.15;const visor=this.mesh(new THREE.SphereGeometry(.245,14,10),mat(0x1c384c,.2,.6),g);visor.position.set(0,1.15,.16);g.scale.setScalar(1.5);return g;}
@@ -147,8 +122,8 @@ export class OrbitScene {
     }));
   }
   position(distance,x=0,height=.1) {
-    const a=distance/360*TAU,r=R-height;
-    return new THREE.Vector3(-x,-Math.cos(a)*r,Math.sin(a)*r).add(this.center||new THREE.Vector3());
+    const sample=courseSample(distance),origin=this.origin||{s:0,height:0},normal=1/Math.sqrt(1+sample.slope**2);
+    return new THREE.Vector3(-x,sample.height-origin.height+height*normal,(distance-origin.s)*COURSE_WORLD_PER_METER-height*sample.slope*normal);
   }
   directionArrow(parent,color,size=1) {
     const shape=new THREE.Shape();shape.moveTo(-.16,-.5);shape.lineTo(.16,-.5);shape.lineTo(.16,.08);shape.lineTo(.42,.08);shape.lineTo(0,.55);shape.lineTo(-.42,.08);shape.lineTo(-.16,.08);shape.closePath();
@@ -213,7 +188,7 @@ export class OrbitScene {
       const points=[];for(let i=0;i<=48;i++){const a=i/48*TAU*3;points.push(new THREE.Vector3(Math.cos(a)*r*.57,.15+i/48*1.15,Math.sin(a)*r*.57));}
       const coil=this.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),48,.11,6,false),mat(0x80e4ff,.25,.75),visual);coil.name='compression-coil';
       const cap=this.mesh(new THREE.TorusGeometry(r*.78,.11,6,20),mat(0x80d8ef,.3,.65),visual);cap.name='jump-platform';cap.rotation.x=Math.PI/2;cap.position.y=1.42;
-      const up=this.directionArrow(visual,0xf2ffff,1.2);up.name='up-arrow';up.position.set(0,1.94,-r*.9);up.rotation.y=Math.PI;
+      const up=this.directionArrow(visual,0xf2ffff,1.5);up.name='up-arrow';up.position.set(0,1.94,-r*.9);up.rotation.y=Math.PI;
       const base=this.mesh(new THREE.CylinderGeometry(r,r,.17,16),mat(0x214e6e),visual);base.position.y=.1;
       mechanism.coil=coil;mechanism.cap=cap;
     } else if(type==='punch') {
@@ -268,7 +243,7 @@ export class OrbitScene {
     for(const child of visual.children)child.position.y-=h;
     visual.position.y=h;
     if(mechanism.cap)mechanism.capRest=mechanism.cap.position.y;
-    const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-pose.s/360*TAU;
+    const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-Math.atan(courseSample(pose.s).slope);
     const cue=this.createCue(type,r);cue.position.y=h;g.add(cue);
     g.userData={type,event,visual,centerHeight:h,cue,mechanism};return g;
   }
@@ -307,11 +282,11 @@ export class OrbitScene {
     const duration=Math.max(.45,Math.min(1.8,feedback.kind==='guardian-break'?1.6:feedback.effectDuration||.65));
     this.hitAnimations||=new Map();if(feedback.eventId)this.hitAnimations.set(feedback.eventId,{life:duration,total:duration,type:feedback.type,kind:feedback.kind,strength,effect:feedback.effect,direction:feedback.effectDirection,powered:feedback.kind!=='chain'&&feedback.powered!==false});
     const event=this.eventMeshes?.get(feedback.eventId)?.userData.event,pose=event?eventPose(event,this.runElapsed||0):null;
-    const distance=feedback.type==='guardian'&&Number.isFinite(feedback.s)?feedback.s:pose?.s??(Number.isFinite(feedback.s)?feedback.s:this.distance||0),a=distance/360*TAU;
+    const distance=feedback.type==='guardian'&&Number.isFinite(feedback.s)?feedback.s:pose?.s??(Number.isFinite(feedback.s)?feedback.s:this.distance||0),slope=courseSample(distance).slope;
     const origin=feedback.type==='guardian'?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):pose?this.position(pose.s,pose.x,pose.height+(event.height||1.05)):
       Number.isFinite(feedback.s)?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):this.ball.position.clone();
     const color=feedback.type==='guardian'?0xe4b86e:feedback.type==='comet'?0xbba58d:0xc4d8df;
-    const inward=new THREE.Vector3(0,Math.cos(a),-Math.sin(a)),forward=new THREE.Vector3(0,Math.sin(a),Math.cos(a));
+    const inward=new THREE.Vector3(0,1,-slope).normalize(),forward=new THREE.Vector3(0,slope,1).normalize();
     this.effectGeometry||=new THREE.OctahedronGeometry(.14);this.effects||=[];
     const guardianBreak=feedback.kind==='guardian-break',count=guardianBreak?14:feedback.kind==='guardian-block'?5:feedback.type==='comet'?6:feedback.type==='landing'?4:feedback.type==='shot'?6:feedback.type==='rail'?3:0;
     for(let i=0;i<count;i++) {
@@ -330,7 +305,7 @@ export class OrbitScene {
       const {event,visual,type,centerHeight,cue,mechanism}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=eventPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
       const flying=Boolean(event.body?.active),sameWheel=!active||!event.body||event.body.wheel===run.wheel;
       mesh.visible=sameWheel&&(type==='guardian'||flying||!event.used||Boolean(hit)&&!event.body)&&(!active||(ahead>-65&&ahead<190));
-      mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-pose.s/360*TAU;
+      mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-Math.atan(courseSample(pose.s).slope);
       visual.position.set(0,centerHeight,0);visual.rotation.set(pose.rx||0,pose.ry||0,pose.rz||0);visual.scale.setScalar(1);
       cue.visible=Boolean(hit?.powered)&&Boolean(cue.userData.kind);cue.position.set(0,centerHeight,0);cue.rotation.set(0,0,0);cue.scale.setScalar(1);
       if(cue.userData.material)cue.userData.material.opacity=0;
@@ -375,47 +350,49 @@ export class OrbitScene {
   render(dt,run,mode='lobby',power=0,upgrades={pilot:0,ball:0}) {
     const animDt=mode==='paused'?0:dt;this.time+=animDt;this.frame++;
     const active=run&&mode!=='lobby', rolling=active&&run.phase==='rolling'&&mode==='rolling';
-    this.center ||= new THREE.Vector3();const orbit=active?(run.wheel||0)%CENTERS.length:0;
-    const center=new THREE.Vector3().fromArray(CENTERS[orbit]);
-    if(!this.center.equals(center))this.lastTrack=-1;
-    this.center.copy(center);this.track.position.copy(this.center);this.distantTracks?.forEach((ring,index)=>{ring.visible=index!==orbit;});
+    const orbit=active?run.wheel||0:0,newS=active?run.s:28,newHeight=courseSample(newS).height;
+    const oldOrigin=this.origin||{s:0,height:0},shift=new THREE.Vector3(0,oldOrigin.height-newHeight,(oldOrigin.s-newS)*COURSE_WORLD_PER_METER);
+    this.origin={s:newS,height:newHeight};
+    // Historical paths and fragments share the same floating-origin translation.
+    for(const point of this.trailHistory||[])point.add(shift);
+    for(const effect of this.effects)effect.mesh.position.add(shift);
     if(active){this.distance=run.s;this.x=run.x;this.syncEvents(run.events,run.track);}
     else{this.distance=28;this.x=0;this.syncEvents(this.previewEvents,0);}
+    this.updateTrack(this.distance);
     this.runElapsed=active?run.elapsed:this.time;
-    const airborne=active?run.height||0:0,speed=rolling?Math.abs(run.speed):0,a=this.distance/360*TAU;
+    const airborne=active?run.height||0:0,speed=rolling?Math.abs(run.speed):0,pitch=-Math.atan(courseSample(this.distance).slope);
     const pos=this.position(this.distance,this.x,BALL_HEIGHT+airborne);this.ball.position.copy(pos);
-    this.ballBody.rotation.x-=rolling?run.speed*dt*.13:animDt*.2;this.ballBody.rotation.z-=rolling?(run.vx||0)*dt*.6:0;this.ballBody.rotation.y-=rolling?(run.curveSpin||0)*dt*.55:0;this.ball.rotation.set(-a,0,0);
+    this.ballBody.rotation.x-=rolling?run.speed*animDt*.13:animDt*.2;this.ballBody.rotation.z-=rolling?(run.vx||0)*animDt*.6:0;this.ballBody.rotation.y-=rolling?(run.curveSpin||0)*animDt*.55:0;this.ball.rotation.set(pitch,0,0);
     this.squash=Math.max(0,(this.squash||0)-animDt*5);const squash=Math.min(.22,this.squash*.15),stretch=Math.min(.16,Math.abs(run?.vy||0)*.008);
     this.ball.scale.set(1+power*.12+squash,1+power*.12-squash+stretch,1+power*.12+squash-stretch*.4);this.ballBody.material.color.setHex(BALL_COLORS[upgrades.ball||0]);
     if(this.ballBody.material.emissive){this.ballBody.material.emissive.setHex(BALL_COLORS[upgrades.ball||0]);this.ballBody.material.emissiveIntensity=Math.min(.35,(this.impact||0)*.2);}
-    this.shadow.position.copy(this.position(this.distance,this.x,.045));this.shadow.rotation.set(-a-Math.PI/2,0,0);this.shadow.scale.setScalar(1+airborne*.12);if(this.shadow.material)this.shadow.material.opacity=Math.max(.12,.6-airborne*.05);
+    this.shadow.position.copy(this.position(this.distance,this.x,.045));this.shadow.rotation.set(pitch-Math.PI/2,0,0);this.shadow.scale.setScalar(1+airborne*.12);if(this.shadow.material)this.shadow.material.opacity=Math.max(.12,.6-airborne*.05);
     this.ballLight?.position.copy(this.position(this.distance,this.x,BALL_HEIGHT+airborne+2));
     if(this.aimGuide){this.aimGuide.visible=mode==='ready';const angle=(run?.aim||0)*Math.PI/180;
-      this.aimGuide.children.forEach((part,index)=>{const ahead=3+index*1.8,x=this.x+Math.tan(angle)*ahead*(TAU*R/360);part.position.copy(this.position(this.distance+ahead,x,.2));});
-      const tipAngle=(this.distance+15.6)/360*TAU,tangent=new THREE.Vector3(-Math.sin(angle),Math.sin(tipAngle)*Math.cos(angle),Math.cos(tipAngle)*Math.cos(angle));this.aimTip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),tangent);
+      this.aimGuide.children.forEach((part,index)=>{const ahead=3+index*1.8,x=this.x+Math.tan(angle)*ahead*COURSE_WORLD_PER_METER;part.position.copy(this.position(this.distance+ahead,x,.2));});
+      const tangent=new THREE.Vector3(-Math.sin(angle),courseSample(this.distance+15.6).slope*Math.cos(angle),Math.cos(angle)).normalize();this.aimTip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),tangent);
     }
-    this.astronaut.visible=mode==='ready'||mode==='lobby';this.astronaut.position.copy(this.position(this.distance-4,-1.5,1.1));this.astronaut.rotation.set(-a,0,0);
+    this.astronaut.visible=mode==='ready'||mode==='lobby';this.astronaut.position.copy(this.position(this.distance-4,-1.5,1.1));this.astronaut.rotation.set(pitch,0,0);
     if(upgrades.pilot)this.astronaut.scale.setScalar(2.7+upgrades.pilot*.05);
     if(this.pilotLevel!==upgrades.pilot) {
       this.pilotLevel=upgrades.pilot;
       const body=this.astronaut.getObjectByName('body')||this.astronaut;
       body.traverse(part=>{if(part.isMesh&&!Array.isArray(part.material)&&part.material?.color)part.material.color.setHex(BALL_COLORS[upgrades.pilot||0]);});
     }
-    // The chase frame travels with the ball; the wheel's inward normal is its up.
-    // Keep the angular position exact so fast loops never outrun the camera.
+    // Fixed world-up and offsets keep the horizon level while the terrain rolls below.
     const aim=mode==='ready'?0:18;
-    this.cameraAim??=aim;this.cameraAim+=(aim-this.cameraAim)*Math.min(1,dt*7);
-    this.cameraX??=this.x;this.cameraX+=(this.x-this.cameraX)*Math.min(1,dt*10);this.cameraX=Math.max(this.x-.75,Math.min(this.x+.75,this.cameraX));
+    this.cameraAim??=aim;this.cameraAim+=(aim-this.cameraAim)*Math.min(1,animDt*5);
+    this.cameraX??=this.x;this.cameraX+=(this.x-this.cameraX)*Math.min(1,animDt*8);this.cameraX=Math.max(this.x-.75,Math.min(this.x+.75,this.cameraX));
     const fit=this.mobile?Math.max(1,1/this.camera.aspect/1.7):1;
-    const ready=mode==='ready',behind=ready?60:72,camHeight=ready?9:10;
-    const target=active?this.position(this.distance-behind,this.cameraX*.9,camHeight+airborne*.55):this.center.clone().add(new THREE.Vector3((this.mobile?88:77)*fit,10,25));
-    const look=active?this.position(this.distance+this.cameraAim,this.cameraX*.9,1+airborne*.85):this.center.clone().add(new THREE.Vector3(this.mobile?0:-8,this.mobile?2:1,this.mobile?0:8));
-    if(active||this.frame<3){this.camera.position.copy(target);this.look.copy(look);}else{this.camera.position.lerp(target,Math.min(1,dt*4));this.look.lerp(look,Math.min(1,dt*4));}
-    const up=active?new THREE.Vector3(0,Math.cos(a),-Math.sin(a)):new THREE.Vector3(0,1,0);
-    this.impact=Math.max(0,(this.impact||0)-animDt*4);if(this.impact&&rolling&&!this.reducedMotion){this.camera.position.addScaledVector(up,Math.sin(this.time*92)*this.impact*.08);this.camera.position.x+=Math.cos(this.time*75)*this.impact*.03;}
+    const ready=mode==='ready',ground=this.position(this.distance,this.cameraX*.9,0);
+    const target=active?ground.clone().add(new THREE.Vector3(0,9+airborne*.55,-24)):new THREE.Vector3((this.mobile?34:32)*fit,26,-38);
+    const look=active?ground.clone().add(new THREE.Vector3(0,1+airborne*.85,this.cameraAim*COURSE_WORLD_PER_METER)):new THREE.Vector3(0,-1,27);
+    this.camera.position.copy(target);this.look.copy(look);
+    const up=new THREE.Vector3(0,1,0);
+    this.impact=Math.max(0,(this.impact||0)-animDt*4);
     this.railPulse=Math.max(0,(this.railPulse||0)-animDt*4);if(this.guardMaterial)this.guardMaterial.opacity=.035+this.railPulse*.12;
-    this.camera.up.copy(up);this.camera.lookAt(this.look);const fov=active?(this.mobile?(ready?70:74):(ready?60:62))+(this.reducedMotion?0:Math.min(9,speed*.055)):(this.mobile?60:47);
-    this.camera.fov+=(fov-this.camera.fov)*Math.min(1,dt*5);this.camera.updateProjectionMatrix();
+    this.camera.up.copy(up);this.camera.lookAt(this.look);const fov=active?(this.mobile?(ready?70:74):(ready?60:62))+(this.reducedMotion?0:Math.min(4,speed*.018)):(this.mobile?60:47);
+    this.camera.fov+=(fov-this.camera.fov)*Math.min(1,animDt*3);this.camera.updateProjectionMatrix();
     this.trailHistory||=[];if(this.lastWheel!==orbit||!rolling)this.trailHistory.length=0;this.lastWheel=orbit;
     if(rolling){this.trailHistory.unshift(pos.clone());if(this.trailHistory.length>32)this.trailHistory.pop();}
     for(let i=0;i<this.trail.length;i++){const trail=this.trail[i],history=this.trailHistory[i*2];trail.material.opacity=rolling&&history?(.5-i*.028):0;trail.material.color.setHex(BALL_COLORS[upgrades.ball||0]);if(history)trail.position.copy(history);trail.scale.setScalar(1.6-i*.075);}

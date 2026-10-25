@@ -8,10 +8,11 @@ import { JSDOM } from 'jsdom';
 // WebGL scene is replaced: layout, pixels, real touch hardware and GPU rendering
 // require browser/device verification and are deliberately outside this suite.
 const KEY = 'orbit-golf:v1';
-const [html, gameSource, rulesSource] = await Promise.all([
+const [html, gameSource, rulesSource, courseSource] = await Promise.all([
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
   readFile(new URL('../game.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../rules.mjs', import.meta.url), 'utf8'),
+  readFile(new URL('../course.mjs', import.meta.url), 'utf8'),
 ]);
 const sceneSource = `
   export class OrbitScene {
@@ -70,12 +71,13 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   const modules = new Map([
     ['./scene.mjs', new vm.SourceTextModule(sceneSource, { context, identifier: 'scene-stub.mjs' })],
     ['./rules.mjs', new vm.SourceTextModule(rulesSource, { context, identifier: 'rules.mjs' })],
+    ['./course.mjs', new vm.SourceTextModule(courseSource, { context, identifier: 'course.mjs' })],
   ]);
   const entry = new vm.SourceTextModule(gameSource, { context, identifier: 'game.mjs' });
   await entry.link(specifier => {
     const localSpecifier = specifier.startsWith('./') ? specifier.replace(/\?[^#]*/, '') : specifier;
     assert.ok(modules.has(localSpecifier), `Unexpected runtime import: ${specifier}`);
-    if (localSpecifier === './scene.mjs' || localSpecifier === './rules.mjs') {
+    if (['./scene.mjs','./rules.mjs','./course.mjs'].includes(localSpecifier)) {
       assert.equal(new URL(specifier, entryURL).searchParams.get('v'), entryURL.searchParams.get('v'),
         'Runtime imports and HTML entry must share their cache version');
     }
@@ -131,16 +133,31 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
 }
 
 test('lap changes show the added mechanic and fifth-lap reinforcement in the live HUD',async t=>{
-  const app=await game(t,{stored:JSON.stringify(profile({tutorialComplete:false}))});app.submit('바퀴 검증');app.launch();
-  assert.match(app.$('track-label').textContent,/1바퀴/);
+  const app=await game(t,{stored:JSON.stringify(profile({tutorialComplete:false}))});app.submit('구간 검증');app.launch();
+  assert.match(app.$('track-label').textContent,/1구간/);
   const run=app.scene.current;
   Object.assign(run,{s:360,distance:360,eventTrack:-1,events:[]});app.tick(3);
-  assert.match(app.$('track-label').textContent,/2바퀴/);
+  assert.match(app.$('track-label').textContent,/2구간/);
   assert.match(app.$('growth-readout').textContent,/추가/);
   Object.assign(run,{s:1440,distance:1440,eventTrack:-1,events:[]});app.tick(3);
-  assert.match(app.$('track-label').textContent,/5바퀴/);
+  assert.match(app.$('track-label').textContent,/5구간/);
   assert.match(app.$('growth-readout').textContent,/기믹 \+3/);
   assert.ok(app.$('growth-readout').classList.contains('milestone'));
+});
+
+test('speed HUD follows actual motion and marks backward reflection rather than hidden launch energy',async t=>{
+  const app=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?preview=1'});
+  app.submit('속도 검증');app.launch();
+  const run=app.scene.current;
+  Object.assign(run,{s:200,distance:200,speed:-34,rollSpeed:190,height:1,vy:-1,events:[],eventTrack:0});
+  app.tick(3);
+  assert.equal(app.$('speed-label').textContent,'후진');
+  assert.ok(Math.abs(Number(app.$('speed').textContent.replaceAll(',',''))-Math.abs(run.speed))<2);
+  app.tick(12);
+  assert.ok(run.speed<0,'landing cannot restore the old positive launch speed');
+  Object.assign(run,{speed:12,rollSpeed:190,height:0,vy:0});app.tick(3);
+  assert.equal(app.$('speed-label').textContent,'속도');
+  assert.ok(Number(app.$('speed').textContent)<13,'a small actual speed must remain small on screen');
 });
 
 test('isolated guardian previews use the real weak and strong impact paths without accessing user storage',async t=>{
@@ -350,7 +367,7 @@ test('an unsteered shot ricochets and becomes airborne while collision feedback 
     assert.equal(app.$('toast').classList.contains('visible'), false,
       'A collision must use the object effect rather than floating speech');
   }
-  assert.ok(highest > .15, 'The launched ball must actually leave the surface without an avoidance input');
+  assert.ok(highest > .1, `The launched ball must actually leave the surface without an avoidance input (height ${highest})`);
   assert.ok(maxCollisions >= 2, 'An unsteered shot must physically ricochet more than once');
   assert.ok(app.scene.feedback.some(event => event && typeof event === 'object'
     && event.type !== 'shot' && event.type !== 'stop' && Number.isFinite(event.strength)

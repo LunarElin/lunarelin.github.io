@@ -1,3 +1,5 @@
+import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261025-course1';
+
 export const TRACK_LENGTH = 360;
 export const DISTANCE_PER_GOLD = 8;
 export const CONTINUE_COST = 40;
@@ -10,7 +12,7 @@ export const UPGRADE_DEFS = Object.freeze({
     label: '슈트', description: '충돌 추진 보존 +1.8% · 반발 강화', baseCost: 70, growth: 1.6, maxLevel: MAX_UPGRADE_LEVEL,
   }),
   ball: Object.freeze({
-    label: '골프공', description: '타격 속도 +35% · 마찰 8% 감소', baseCost: 90, growth: 1.65, maxLevel: MAX_UPGRADE_LEVEL,
+    label: '골프공', description: '타격 속도 +40% · 마찰 8% 감소', baseCost: 90, growth: 1.65, maxLevel: MAX_UPGRADE_LEVEL,
   }),
 });
 
@@ -82,7 +84,7 @@ function randomFor(seed) {
   };
 }
 
-export const WORLD_PER_METER = Math.PI * 2 * 23 / TRACK_LENGTH;
+export const WORLD_PER_METER = COURSE_WORLD_PER_METER;
 export const BALL_RADIUS = 1.05;
 export const TRACK_WIDTH = 20;
 export const SIDE_LIMIT = TRACK_WIDTH / 2 - BALL_RADIUS - .1;
@@ -95,8 +97,8 @@ const GRAVITY = 19;
 const SOLIDS = new Set(['bumper','alien','comet','punch','spring','trap']);
 const PROP_MASS = { bumper: 1.1, alien: .7, comet: 1.4, punch: .8, spring: .65, trap: .6 };
 export const COLLISION_EFFECTS = Object.freeze({
-  bumper: Object.freeze({ effect:'propulsion', label:'탄성 반발', restitution:.88, forward:.2, lift:2.5, lateral:1 }),
-  spring: Object.freeze({ effect:'jump', label:'수직 도약', restitution:.65, forward:.04, lift:14.5, lateral:.5 }),
+  bumper: Object.freeze({ effect:'impact', label:'탄성 반발', restitution:.88, forward:0, lift:2.5, lateral:1 }),
+  spring: Object.freeze({ effect:'jump', label:'수직 도약', restitution:.65, forward:0, lift:14.5, lateral:.5 }),
   punch: Object.freeze({ effect:'propulsion', label:'전진 추진', restitution:.72, forwardImpulse:24, lift:1.5, lateral:.5 }),
   alien: Object.freeze({ effect:'spin', label:'회전 부여', restitution:.74, forward:0, lift:1.8, lateral:2.5, curve:18, duration:1.8 }),
   comet: Object.freeze({ effect:'impact', label:'강한 반사', restitution:.98, forward:0, lift:5.5, lateral:2 }),
@@ -107,9 +109,9 @@ export const COLLISION_EFFECTS = Object.freeze({
 export function ballStats(profileOrLevel = 0) {
   const value = typeof profileOrLevel === 'number' ? profileOrLevel : level(profileOrLevel, 'ball');
   const ballLevel = Math.floor(clamp(finite(value), 0, MAX_UPGRADE_LEVEL));
-  const launchSpeed = 106 * 1.35 ** ballLevel;
-  const drag = 3.4 * .92 ** ballLevel;
-  return { level: ballLevel, launchSpeed, drag, range: launchSpeed ** 2 / (2 * drag), rangeGain: 1.35 ** 2 / .92 - 1 };
+  const launchSpeed = 106 * 1.4 ** ballLevel;
+  const drag = 4.3 * .92 ** ballLevel;
+  return { level: ballLevel, launchSpeed, drag, range: launchSpeed ** 2 / (2 * drag), rangeGain: 1.4 ** 2 / .92 - 1 };
 }
 
 const GIMMICKS = Object.freeze([
@@ -153,7 +155,7 @@ function collideGuardian(run,profile,feedback) {
   const force=guardianPower(run,profile);
   if(force>=event.requiredForce) {
     consumeEvent(run,event);event.broken=true;run.guardiansBroken=(run.guardiansBroken||0)+1;
-    run.speed*=.76;run.rollSpeed*=.8;run.vx*=.75;run.curveSpin*=.6;run.vy=Math.max(run.vy,2);run.restTime=0;
+    run.speed*=.76;run.rollSpeed=Math.max(0,run.speed);run.vx*=.75;run.curveSpin*=.6;run.vy=Math.max(run.vy,2);run.restTime=0;
     run.bonusGold+=40;refreshEarnings(run);
     feedback.push({...feedbackFor(run,'guardian','guardian-break',event,1.5),s:event.at-finite(event.depth,3.2)/2/WORLD_PER_METER,force,requiredForce:event.requiredForce,passed:true});
     nextGuardian(run);return;
@@ -161,7 +163,7 @@ function collideGuardian(run,profile,feedback) {
   run.s=contact;
   const contacts=run.guardianContacts||(run.guardianContacts=new Map());
   if((contacts.get(event.id)||-1)<=run.elapsed) {
-    run.speed=-Math.abs(run.speed)*.35;run.rollSpeed*=.28;run.vx*=.5;run.curveSpin*=.35;run.vy=Math.max(run.vy,2.5);
+    run.speed=-Math.abs(run.speed)*.35;run.rollSpeed=0;run.vx*=.5;run.curveSpin*=.35;run.vy=Math.max(run.vy,2.5);
     contacts.set(event.id,run.elapsed+.65);run.collisions++;run.lastImpact=run.elapsed;
     feedback.push({...feedbackFor(run,'guardian','guardian-block',event,1.2),s:event.at-finite(event.depth,3.2)/2/WORLD_PER_METER,force,requiredForce:event.requiredForce,passed:false});
   } else run.speed=Math.min(0,run.speed);
@@ -188,7 +190,8 @@ export function generateTrack(track, seed = 1) {
     const at=track*TRACK_LENGTH+30+cluster*64+random()*4;
     const x=cluster===0?1.9+random()*.7:(random()-.5)*14;
     for(let index=0;index<3;index++) {
-      const type=cluster===0&&index===0?'bumper':types[(cluster*3+index)%types.length];
+      const intro=track===0&&cluster<2?[['bumper','punch','spring'],['bumper','alien','spring']][cluster]:null;
+      const type=intro?intro[index]:cluster===0&&index===0?'bumper':types[(cluster*3+index)%types.length];
       add(type,at+index*7.5,x+(random()-.5)*(index?2.1:.4));
     }
     add(cluster%2?'boost':'coins',at+27,x+(random()-.5)*5);
@@ -277,7 +280,7 @@ export function newRun(profile, power01, seed = Date.now(), aim = 8) {
   const run = {
     phase: 'rolling', name: cleanName(profile?.name) || '우주 골퍼',
     s: 0, distance: 0, x: 0, vx: Math.sin(angle) * velocity * WORLD_PER_METER,
-    height: 0, vy: 0, speed: Math.cos(angle) * velocity, rollSpeed: velocity,
+    height: 0, vy: 0, speed: Math.cos(angle) * velocity, rollSpeed: Math.cos(angle) * velocity,
     aim: angle * 180 / Math.PI, steer: 0, spin: 0, curveSpin:0, slowTime:0, combo: 0, collisions: 0, maxHeight: 0,
     chainHits:0,maxChain:0,lastChain:-10,nextChainId:0,consumed:new Set(),
     nextGuardianLap:10,guardiansBroken:0,guardianContacts:new Map(),
@@ -399,7 +402,7 @@ function collideProps(run,feedback,dt) {
 export function resolveEvent(run, event, profile, normal) {
   if (!run || !event || run.phase !== 'rolling' || event.used || run.consumed.has(event.id) || (event.cooldown || 0) > run.elapsed || SOLIDS.has(event.type)&&(event.hits||0)>=3) return null;
   const type = event.type, ballLevel = level(profile, 'ball'), pilotLevel = level(profile, 'pilot');
-  const topSpeed = Math.max(340, ballStats(profile).launchSpeed * 1.75);
+  const topSpeed = ballStats(profile).launchSpeed * 1.25;
   const side = event.direction || (eventX(event, run.elapsed) < run.x ? 1 : -1);
   if (type === 'coins') {
     consumeEvent(run,event);run.bonusGold += 12;refreshEarnings(run);
@@ -410,7 +413,7 @@ export function resolveEvent(run, event, profile, normal) {
     run.s = guardianDestination(run,(Math.floor(Math.max(0, run.s) / TRACK_LENGTH) + 1) * TRACK_LENGTH + 12);
     run.wheel++;run.height = type === 'ufo' ? 2.2 : 1.2;run.vy = 4;
     for(const prop of run.events)if(prop.body?.active){prop.body.active=false;consumeEvent(run,prop);}
-    run.speed = Math.max(run.rollSpeed * .8, 48);run.rollSpeed = Math.max(run.rollSpeed, run.speed);
+    run.speed *= .9;run.rollSpeed = Math.max(0,run.speed);
     run.restTime=0;
     if (type === 'hole') run.bonusGold += 20;
     refreshEarnings(run);refreshEvents(run);
@@ -418,15 +421,15 @@ export function resolveEvent(run, event, profile, normal) {
   }
   if (type === 'boost') {
     consumeEvent(run,event);const boost = ballStats(profile).launchSpeed*COLLISION_EFFECTS.boost.forward;
-    run.speed = Math.min(topSpeed, Math.max(run.speed, run.rollSpeed) + boost);
-    run.rollSpeed = Math.max(run.rollSpeed, run.speed);
+    run.speed += boost*clamp(1-Math.max(0,run.speed)/topSpeed,0,1);
+    run.rollSpeed = Math.max(0,run.speed);
     run.restTime=0;
     refreshEarnings(run);
     return feedbackFor(run, type, 'good', event, .9);
   }
   const effect=COLLISION_EFFECTS[type];
   if (!effect) return null;
-  const incoming={s:run.speed*WORLD_PER_METER,x:run.vx,y:run.vy,roll:run.rollSpeed},wasMoving=Boolean(event.body?.active);
+  const incoming={s:run.speed*WORLD_PER_METER,x:run.vx,y:run.vy},wasMoving=Boolean(event.body?.active);
   event.hits = (event.hits || 0) + 1;
   event.cooldown = run.elapsed + .4;
   run.combo = run.elapsed - run.lastImpact < 3.2 ? run.combo + 1 : 1;
@@ -435,31 +438,48 @@ export function resolveEvent(run, event, profile, normal) {
   let vx = run.vx, forward = run.speed * WORLD_PER_METER;
   const propVx=wasMoving?event.body.vx:0,propVs=wasMoving?event.body.vs*WORLD_PER_METER:0;
   const dot = (vx-propVx) * nx + (forward-propVs) * ns;
-  const restitution = effect.restitution + pilotLevel * .035 + ballLevel * .012;
-  const transfer = 1 / (1 + ballLevel * .12);
-  if (dot < 0) {vx -= (1 + restitution) * transfer * dot * nx;forward -= (1 + restitution) * transfer * dot * ns;}
-  const retention = .85 + pilotLevel * .018 + ballLevel * .12 + (wasMoving?.035:0);
-  run.rollSpeed *= Math.min(.98, retention);
-  if(wasMoving&&run.rollSpeed<1.4&&propVs>0)run.rollSpeed=Math.max(run.rollSpeed,Math.min(topSpeed,propVs/WORLD_PER_METER*.45));
-  run.speed = clamp(forward / WORLD_PER_METER, -topSpeed * .55, topSpeed);
-  run.vx = clamp(vx + (wasMoving?0:side * effect.lateral), -23, 23);
+  const restitution = Math.min(.98,effect.restitution + pilotLevel * .012);
+  const yieldRatio=type==='comet'?1:type==='bumper'?.12:type==='alien'?.18:type==='spring'?.04:0;
+  const ballMass=1+ballLevel*2.8+pilotLevel*.08,propMass=PROP_MASS[type]||1;
+  const transfer = yieldRatio / ballMass;
+  let bodyImpulse=0;
+  if (dot < 0) {
+    if(wasMoving){
+      bodyImpulse=-(1+restitution)*dot/(1/ballMass+1/propMass);
+      vx+=nx*bodyImpulse/ballMass;forward+=ns*bodyImpulse/ballMass;
+    }else{vx -= (1 + restitution) * transfer * dot * nx;forward -= (1 + restitution) * transfer * dot * ns;}
+  }
+  if(!wasMoving){
+    // A passive collision can redirect existing travel, but never refill a hidden motor.
+    const retention=Math.min(.99,.85+pilotLevel*.018+ballLevel*.12);
+    const limit=Math.hypot(incoming.s,incoming.x)*retention;
+    vx+=(side*effect.lateral);
+    const scale=Math.min(1,limit/Math.max(.00001,Math.hypot(forward,vx)));
+    forward*=scale;vx*=scale;
+  }
+  run.speed = forward / WORLD_PER_METER;
+  run.vx = clamp(vx, -23, 23);
   run.vy = Math.max(run.vy, wasMoving?Math.min(3,Math.abs(dot)*.12):effect.lift);
-  if(!wasMoving&&(effect.forward||effect.forwardImpulse)){
-    const gain=effect.forwardImpulse?effect.forwardImpulse+ballLevel*3:incoming.roll*effect.forward;
-    run.rollSpeed=Math.min(topSpeed,run.rollSpeed+gain);
-    run.speed=Math.max(run.speed,run.rollSpeed*(type==='spring'?.65:type==='punch'?.95:.8));
+  if(!wasMoving&&effect.forwardImpulse){
+    const gain=(effect.forwardImpulse+ballLevel*3)*clamp(1-Math.max(0,run.speed)/topSpeed,0,1);
+    run.speed+=gain;
   }
   if(!wasMoving&&type==='alien')run.curveSpin=side*effect.curve;
   if(!wasMoving&&type==='trap'){
-    run.rollSpeed*=.68;run.speed*=.25;run.vx*=.12;run.curveSpin*=.1;run.slowTime=effect.duration;
+    run.speed*=Math.min(.85,.25+ballLevel*.16+pilotLevel*.01);run.vx*=.12;run.curveSpin*=.1;run.slowTime=effect.duration;
   }
-  if(run.rollSpeed>=1.4||Math.abs(run.speed)>=2)run.restTime=0;
+  run.rollSpeed=Math.max(0,run.speed);
+  if(Math.abs(run.speed)>=2)run.restTime=0;
   if(!wasMoving) {
     const chainId=++run.nextChainId;
-    launchProp(run,event,{s:Math.abs(incoming.s)*.82*-ns,x:incoming.x*.55-nx*Math.max(2,Math.abs(incoming.s)*.55),y:4.2},chainId,1);
+    const velocity={s:Math.abs(incoming.s)*.82*-ns,x:incoming.x*.55-nx*Math.max(2,Math.abs(incoming.s)*.55),y:4.2};
+    const removed=Math.max(0,incoming.s**2+incoming.x**2-(run.speed*WORLD_PER_METER)**2-run.vx**2);
+    const available=Math.sqrt(ballMass*removed/propMass),scale=Math.min(1,available/Math.max(.00001,Math.hypot(velocity.s,velocity.x)));
+    velocity.s*=scale;velocity.x*=scale;
+    launchProp(run,event,velocity,chainId,1);
   } else {
-    event.body.vs=clamp((propVs+(incoming.s-forward)*.35)*.78/WORLD_PER_METER,-240,360);
-    event.body.vx=clamp((propVx+(incoming.x-vx)*.35)*.78,-42,42);event.body.vy=Math.max(0,event.body.vy*.78);
+    event.body.vs=(propVs-ns*bodyImpulse/propMass)*.98/WORLD_PER_METER;
+    event.body.vx=(propVx-nx*bodyImpulse/propMass)*.98;event.body.vy=Math.max(0,event.body.vy*.78);
   }
   refreshEarnings(run);
   return {...feedbackFor(run, type, type === 'comet' ? 'danger' : 'bounce', event, type === 'spring' ? 1.5 : 1.1),effectDirection:side,powered:!wasMoving};
@@ -468,13 +488,19 @@ export function resolveEvent(run, event, profile, normal) {
 function physicsStep(run, profile, dt, feedback) {
   const stats = ballStats(profile), grounded = run.height <= .0001 && run.vy <= 0;
   const previousS = run.s, previousX = run.x, previousHeight = run.height;
-  // Angular rolling momentum remains after a hit; contact converts spin back to travel.
+  // speed is the actual signed travel velocity. rollSpeed mirrors positive travel
+  // for the existing HUD/steering contract; it never restores lost velocity.
   run.slowTime=Math.max(0,run.slowTime-dt);
-  run.rollSpeed = Math.max(0, run.rollSpeed - stats.drag*(run.slowTime>0?1.9:1)*dt);
   if (grounded) {
-    run.speed += (run.rollSpeed - run.speed) * Math.min(1, dt * 7);
+    if(Math.abs(run.speed)>.05){
+      const sign=Math.sign(run.speed),slope=courseSample(run.s).slope;
+      const acceleration=-14*slope-sign*stats.drag*(run.slowTime>0?1.9:1);
+      const next=run.speed+acceleration*dt;
+      run.speed=Math.sign(next)===sign?next:0;
+    }else run.speed=0;
     run.vx *= Math.exp(-dt * .32);
   } else run.speed *= Math.exp(-dt * .012);
+  run.rollSpeed=Math.max(0,run.speed);
   const steeringEnergy=clamp(run.rollSpeed/24,0,1);
   run.curveSpin*=Math.exp(-dt*1.1);
   run.vx += (run.steer*6.5+run.curveSpin)*steeringEnergy*dt;
@@ -488,7 +514,7 @@ function physicsStep(run, profile, dt, feedback) {
     const landing = -run.vy;run.height = 0;
     if (!grounded && landing > 3.5) {
       run.vy = landing > 6 ? landing * .28 : 0;
-      run.speed += (run.rollSpeed - run.speed) * .55;
+      run.speed *= .98;
       if (run.elapsed - run.lastLanding > .25) {
         feedback.push(feedbackFor(run, 'landing', 'landing', null, Math.min(1, landing / 12)));
         run.lastLanding = run.elapsed;
@@ -499,7 +525,7 @@ function physicsStep(run, profile, dt, feedback) {
   run.maxHeight = Math.max(run.maxHeight, run.height);
   if (Math.abs(run.x) > SIDE_LIMIT) {
     const sign = Math.sign(run.x);run.x = sign * SIDE_LIMIT;run.vx = -sign * Math.abs(run.vx) * .82;
-    run.rollSpeed *= .985;run.vy = Math.max(run.vy, Math.min(4, Math.abs(run.vx) * .22));
+    run.speed *= .985;run.vy = Math.max(run.vy, Math.min(4, Math.abs(run.vx) * .22));
     if (run.elapsed - run.lastRail > .32 && Math.abs(run.vx) > 1) {
       run.collisions++;feedback.push(feedbackFor(run, 'rail', 'bounce', null, Math.min(1, Math.abs(run.vx) / 12)));
       run.lastRail = run.elapsed;
@@ -531,11 +557,12 @@ function physicsStep(run, profile, dt, feedback) {
     if (result?.kind === 'warp') break;
   }
   collideProps(run,feedback,dt);
-  if (run.s < 0) {run.s = 0;run.speed = Math.max(0, run.rollSpeed * .5);}
+  if (run.s < 0) {run.s = 0;run.speed = Math.max(0,run.speed);}
+  run.rollSpeed=Math.max(0,run.speed);
   run.spin += Math.hypot(run.speed * WORLD_PER_METER, run.vx) * dt / BALL_RADIUS;
   run.elapsed = Math.min(run.durationLimit, run.elapsed + dt);
   refreshEarnings(run);refreshEvents(run);
-  if (run.rollSpeed < 1.4 && Math.abs(run.speed) < 2) run.restTime += dt;
+  if (Math.abs(run.speed) < 1.4) run.restTime += dt;
   else run.restTime = 0;
   if (run.restTime >= .55 || run.distance >= MAX_DISTANCE) {
     run.speed = 0;run.rollSpeed = 0;run.vx = 0;run.vy = 0;run.height = 0;run.steer=0;run.curveSpin=0;run.slowTime=0;
