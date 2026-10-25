@@ -147,7 +147,9 @@ test('lap changes show the added mechanic and fifth-lap reinforcement in the liv
 
 test('speed HUD follows actual motion and marks backward reflection rather than hidden launch energy',async t=>{
   const app=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?preview=1'});
-  app.submit('속도 검증');app.launch();
+  app.submit('속도 검증');
+  assert.equal(app.$('speed').textContent,'0','a waiting ball must not show its planned launch velocity as actual speed');
+  app.launch();
   const run=app.scene.current;
   Object.assign(run,{s:200,distance:200,speed:-34,rollSpeed:190,height:1,vy:-1,events:[],eventTrack:0});
   app.tick(3);

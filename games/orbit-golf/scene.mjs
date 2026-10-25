@@ -1,7 +1,7 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261025-course1';
-import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261025-course1';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261025-course2';
+import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261025-course2';
 
 const TAU = Math.PI * 2;
 export const BALL_HEIGHT = 1.08;

@@ -1,5 +1,5 @@
-import { OrbitScene } from './scene.mjs?v=20261025-course1';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261025-course1';
+import { OrbitScene } from './scene.mjs?v=20261025-course2';
+import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261025-course2';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
@@ -115,7 +115,7 @@ function updateAim(){const aim=Number($('aim-control').value);$('aim-value').tex
 function setSpin(axis){if(mode!=='rolling')return;steerRun(run,axis);$('spin-control').value=String(axis);}
 function resetSpin(){heldKeys.clear();if(run)steerRun(run,0);$('spin-control').value='0';}
 function updateHUD(){
-  if(!run)return;$('distance').textContent=fmt(run.distance);$('speed').textContent=fmt(Math.abs(run.speed));$('speed-label').textContent=run.speed < -2 ? '후진' : '속도';$('run-gold').textContent=fmt(run.earned);
+  if(!run)return;$('distance').textContent=fmt(run.distance);$('speed').textContent=run.phase==='ready'?'0':fmt(Math.abs(run.speed));$('speed-label').textContent=run.speed < -2 ? '후진' : '속도';$('run-gold').textContent=fmt(run.earned);
   const remaining=Math.max(0,Math.ceil(run.durationLimit-run.elapsed));
   const compact=window.innerWidth<=600&&window.innerHeight<=680;
   $('track-label').textContent=compact?`${run.track+1}구간 · ${remaining}초`:`${run.track+1}구간${run.tutorial?' · 훈련':''}`;$('pilot-label').textContent=run.name;
