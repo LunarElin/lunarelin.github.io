@@ -535,22 +535,18 @@
   },
   "icons": {
     "upgrade": {
-      "url": "icons/burger-upgrade.png",
-      "sourceApp": "Burger Please! 31.6.0 / io.supercent.burgeridle",
-      "sourceExport": "upgrade_arrow__416382b5__1.png",
-      "sha256": "ea3c79b2d7b04372d05b40649c195d07ec6d3a10726eb8eccdf5978114106227",
-      "license": "Original game rights; no redistribution license identified; user explicitly requested reuse of supplied extracted assets",
-      "modification": "None: exact exported PNG bytes preserved",
-      "licenseFile": "licenses/Burger-Please-provenance.txt"
+      "url": "icons/upgrade-arrow.svg",
+      "source": "Original SVG authored for Runehaven",
+      "sha256": "e01c38fdc9bf6feae20badd57d1e1ecf512018387a16737c84598a4edd336fcb",
+      "license": "Project-authored artwork",
+      "modification": "Original vector shapes; no source-game artwork used"
     },
     "star": {
-      "url": "icons/burger-star.png",
-      "sourceApp": "Burger Please! 31.6.0 / io.supercent.burgeridle",
-      "sourceExport": "Icon_Star_128__0a477a10__1821.png",
-      "sha256": "f59ad6a14715474b0e3dc0339ebe1c8ae0b62116217b288be68528f99b999460",
-      "license": "Original game rights; no redistribution license identified; user explicitly requested reuse of supplied extracted assets",
-      "modification": "None: exact exported PNG bytes preserved",
-      "licenseFile": "licenses/Burger-Please-provenance.txt"
+      "url": "icons/patron-star.svg",
+      "source": "Original SVG authored for Runehaven",
+      "sha256": "342cf93fac4293e4f198ccfee1c43f3d6390d682dc21b427e69fc0ef5c60df14",
+      "license": "Project-authored artwork",
+      "modification": "Original vector shapes; no source-game artwork used"
     }
   },
   "font": {
