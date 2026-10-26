@@ -19,13 +19,13 @@ async function fixture(t) {
   return { scene, loads, geometry, materials, visuals, state, group };
 }
 
-test('dining loads existing furniture once and reuses pooled food and table dishes across service cycles', async (t) => {
+test('simple dining furniture needs no model loads and reuses pooled food and table dishes across service cycles', async (t) => {
   const { loads, visuals, state, group } = await fixture(t);
-  assert.equal(loads.filter(({ key }) => key === 'table').length, 6);
-  assert.equal(loads.filter(({ key }) => key === 'chair').length, 4);
-  assert.equal(loads.filter(({ key }) => key === 'cauldron').length, 1);
-  assert.ok(loads.every(({ options }) => options.shadows === false));
-  const prepared = group.getObjectByName('dining-prepared-food'), dish = group.getObjectByName('dining-table-0').getObjectByName('dining-table-dish');
+  assert.equal(loads.length, 0, 'simple furniture must not request detailed GLB models');
+  group.traverse((node) => { if (node.isMesh) assert.equal(node.material.map, null); });
+  const prepared = group.getObjectByName('dining-prepared-food'), table = group.getObjectByName('dining-table-0');
+  const dish = table.getObjectByName('dining-table-dish'), top = table.getObjectByName('dining-table-top');
+  const cleanColor = top.material.color.getHex();
   const meshCount = [], food = prepared.geometry;
   for (let cycle = 0; cycle < 20; cycle++) {
     for (const status of ['clean', 'reserved', 'eating', 'dirty']) {
@@ -33,13 +33,14 @@ test('dining loads existing furniture once and reuses pooled food and table dish
       assert.equal(prepared.count, cycle % 9);
       assert.equal(dish.visible, status === 'eating' || status === 'dirty');
       assert.equal(dish.geometry === food, status !== 'dirty');
+      assert.equal(top.material.color.getHex() === cleanColor, status !== 'dirty', 'used tables must be visibly different without detailed decals');
       assert.equal(group.getObjectByName('dining-table-0').getObjectByName('dining-table-dish'), dish);
       let count = 0; group.traverse((node) => { if (node.isMesh) count++; }); meshCount.push(count);
     }
   }
   assert.equal(new Set(meshCount).size, 1);
   assert.equal(prepared.instanceMatrix.count, DINING_RULES.foodCapacity);
-  assert.equal(loads.length, 11);
+  assert.equal(loads.length, 0);
 });
 
 test('region updates place all furniture at the rules layout and locked inn hides dining', async (t) => {
@@ -109,19 +110,26 @@ test('multiple food stacks reuse shared dishes and change counts without uploadi
   assert.ok(stacks[0].boundingBox && Number.isFinite(stacks[0].boundingSphere.radius));
 });
 
-test('disposal respects scene-owned shared releases and never frees library source geometry', async (t) => {
-  const { visuals, state, group, geometry, materials } = await fixture(t);
+test('disposal releases shared procedural furniture once and never frees external library geometry', async (t) => {
+  const { visuals, state, group, geometry } = await fixture(t);
   state.dining.tables[0].status = 'dirty'; visuals.update(state);
   const prepared = group.getObjectByName('dining-prepared-food'), dirty = group.getObjectByName('dining-table-0').getObjectByName('dining-table-dish');
+  const materials = new Set(), furnitureGeometry = new Set();
+  group.traverse((node) => {
+    if (!node.isMesh) return;
+    materials.add(node.material);
+    if (node.geometry !== prepared.geometry && node.geometry !== dirty.geometry) furnitureGeometry.add(node.geometry);
+  });
   const liveStack = visuals.setFoodStack(new THREE.Group(), 3), removedStack = visuals.setFoodStack(new THREE.Group(), 2);
-  const counts = { food: 0, dirty: 0, sharedGeometry: 0, prepared: 0, stacks: 0, materials: 0 };
+  const counts = { food: 0, dirty: 0, furniture: 0, sharedGeometry: 0, prepared: 0, stacks: 0, materials: 0 };
   prepared.geometry.addEventListener('dispose', () => counts.food++); dirty.geometry.addEventListener('dispose', () => counts.dirty++);
+  for (const resource of furnitureGeometry) resource.addEventListener('dispose', () => counts.furniture++);
   geometry.addEventListener('dispose', () => counts.sharedGeometry++); prepared.addEventListener('dispose', () => counts.prepared++);
   for (const stack of [liveStack, removedStack]) stack.addEventListener('dispose', () => counts.stacks++);
-  for (const material of [...materials, prepared.material]) material.addEventListener('dispose', () => counts.materials++);
+  for (const material of materials) material.addEventListener('dispose', () => counts.materials++);
   const disposedGeometries = new Set([prepared.geometry]), disposedMaterials = new Set([prepared.material]);
   prepared.geometry.dispose(); prepared.material.dispose(); prepared.dispose(); removedStack.dispose();
   visuals.dispose(disposedGeometries, disposedMaterials); visuals.dispose(disposedGeometries, disposedMaterials);
-  assert.deepEqual(counts, { food: 1, dirty: 1, sharedGeometry: 0, prepared: 1, stacks: 2, materials: 12 });
+  assert.deepEqual(counts, { food: 1, dirty: 1, furniture: furnitureGeometry.size, sharedGeometry: 0, prepared: 1, stacks: 2, materials: materials.size });
   assert.equal(group.parent, null);
 });

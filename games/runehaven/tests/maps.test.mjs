@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { getDiningLayout } from '../dining.mjs';
+import { THREE } from '../asset-loader.mjs';
+import { createDiningState, getDiningLayout } from '../dining.mjs';
+import { createDiningVisuals } from '../dining-visuals.mjs';
+import { createShopFixtures } from '../shop-visuals.mjs';
 import { BALANCE } from '../balance.mjs';
 import { BOUNDS, REGIONS, STATIONS, getRegion, getStations, legacySTATIONS } from '../maps.mjs';
 
@@ -76,12 +78,33 @@ test('workshop spacing leaves at least 4.5 world units between station centers',
   }
 });
 
-const nativeModels = JSON.parse(readFileSync(new URL('../assets/manifest.json', import.meta.url), 'utf8')).models;
-function modelFootprint(key, height, x, z, rotation = 0) {
-  const [w, h, d] = nativeModels[key].nativeBounds.size, scale = height / h;
-  const width = scale * (Math.abs(Math.cos(rotation)) * w + Math.abs(Math.sin(rotation)) * d);
-  const depth = scale * (Math.abs(Math.sin(rotation)) * w + Math.abs(Math.cos(rotation)) * d);
-  return { minX: x - width / 2, maxX: x + width / 2, minZ: z - depth / 2, maxZ: z + depth / 2 };
+function footprint(object) {
+  const bounds = new THREE.Box3().setFromObject(object);
+  assert.equal(bounds.isEmpty(), false, `${object.name}: has actual geometry`);
+  return { minX: bounds.min.x, maxX: bounds.max.x, minZ: bounds.min.z, maxZ: bounds.max.z };
+}
+async function visualFixtures(t) {
+  const scene = new THREE.Scene(), fixtures = createShopFixtures(scene);
+  const dining = await createDiningVisuals(scene), diningGroup = scene.getObjectByName('inn-dining');
+  const state = { stage: 1, unlocks: { inn: true }, dining: createDiningState() };
+  t.after(() => {
+    dining.dispose();
+    const geometries = new Set(), materials = new Set();
+    for (const group of Object.values(fixtures)) group.traverse((node) => {
+      if (!node.isMesh) return;
+      geometries.add(node.geometry); materials.add(node.material);
+    });
+    for (const geometry of geometries) geometry.dispose();
+    for (const material of materials) material.dispose();
+  });
+  function place(stage) {
+    state.stage = stage;
+    const stations = getStations(state);
+    for (const [kind, group] of Object.entries(fixtures)) group.position.set(stations[kind].x, 0, stations[kind].z);
+    dining.update(state); scene.updateMatrixWorld(true);
+    return getDiningLayout(state);
+  }
+  return { fixtures, diningGroup, place };
 }
 function envelope(boxes) {
   return { minX: Math.min(...boxes.map((box) => box.minX)), maxX: Math.max(...boxes.map((box) => box.maxX)),
@@ -94,41 +117,36 @@ function rectangle(x, z, left, right, back, front) {
   return { minX: x + left, maxX: x + right, minZ: z + back, maxZ: z + front };
 }
 
-test('actual model dimensions leave at least 0.6 units between every facility and dining-table footprint', () => {
+test('actual fixture geometry leaves at least 0.6 units between every facility and dining-table footprint', async (t) => {
+  const { fixtures, diningGroup, place } = await visualFixtures(t);
   for (const region of REGIONS) {
-    const stations = region.stations, dining = getDiningLayout({ stage: region.index + 1 });
+    const dining = place(region.index + 1);
     const pieces = [
-      ['forge', rectangle(stations.forge.x, stations.forge.z, -1.24, 1.55, -.985, .77)],
-      ['alchemy', envelope([modelFootprint('table', .73, stations.alchemy.x, stations.alchemy.z - .2),
-        modelFootprint('cauldron', .85, stations.alchemy.x - .25, stations.alchemy.z + .1)])],
-      ['counter', envelope([rectangle(stations.counter.x, stations.counter.z, -1.2, 1.2, -.5, .5),
-        modelFootprint('marketStall', 1.4, stations.counter.x, stations.counter.z)])],
-      ['potion-counter', rectangle(stations.potionCounter.x, stations.potionCounter.z, -1.05, 1.05, -.5, .5)],
-      // The bed is laid across the rear room rather than pointing into the kitchen.
-      ['inn', [modelFootprint('bed', .9, stations.inn.x, stations.inn.z - .65, Math.PI / 2),
-        modelFootprint('chair', .75, stations.inn.x, stations.inn.z + .45)]],
-      ['kitchen', modelFootprint('table', .7, dining.kitchen.x, dining.kitchen.z)],
-      ['food-counter', modelFootprint('table', .7, dining.counter.x, dining.counter.z)],
-      ...dining.tables.map((table) => [`table-${table.id}`, envelope([modelFootprint('table', .65, table.x, table.z),
-        modelFootprint('chair', .65, table.seat.x, table.seat.z, Math.PI)])]),
+      ...Object.entries(fixtures).map(([kind, group]) => [kind, footprint(group)]),
+      ['kitchen', footprint(diningGroup.getObjectByName('dining-kitchen'))],
+      ['food-counter', footprint(diningGroup.getObjectByName('dining-counter'))],
+      ...dining.tables.map((table) => [`table-${table.id}`, envelope([
+        footprint(diningGroup.getObjectByName(`dining-table-${table.id}`)),
+        footprint(diningGroup.getObjectByName(`dining-chair-${table.id}`)),
+      ])]),
     ];
     for (let left = 0; left < pieces.length; left++) for (let right = left + 1; right < pieces.length; right++) {
-      const boxes = (piece) => Array.isArray(piece) ? piece : [piece];
-      const clearance = Math.min(...boxes(pieces[left][1]).flatMap((a) => boxes(pieces[right][1]).map((b) => gap(a, b))));
+      const clearance = gap(pieces[left][1], pieces[right][1]);
       assert.ok(clearance >= .6, `${region.name}: ${pieces[left][0]}/${pieces[right][0]} gap ${clearance}`);
     }
-    for (const [name, piece] of pieces) for (const box of (Array.isArray(piece) ? piece : [piece])) {
+    for (const [name, box] of pieces) {
       assert.ok(box.minX > -region.dimensions.width / 2 && box.maxX < region.dimensions.width / 2, `${name}: within shop walls`);
       assert.ok(box.minZ > -region.dimensions.depth / 2 && box.maxZ < region.dimensions.depth / 2, `${name}: within shop walls`);
     }
   }
 });
 
-test('the food waiting line crosses the service area without entering any dining table footprint', () => {
+test('the food waiting line crosses the service area without entering any actual dining table geometry', async (t) => {
+  const { diningGroup, place } = await visualFixtures(t);
   for (let stage = 1; stage <= 10; stage++) {
-    const dining = getDiningLayout({ stage });
+    const dining = place(stage);
     for (const point of dining.queue) for (const table of dining.tables) {
-      const tableBox = modelFootprint('table', .65, table.x, table.z);
+      const tableBox = footprint(diningGroup.getObjectByName(`dining-table-${table.id}`));
       assert.ok(gap(rectangle(point.x, point.z, -.25, .25, -.25, .25), tableBox) >= .6);
     }
   }

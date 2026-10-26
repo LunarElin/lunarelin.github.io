@@ -1,4 +1,4 @@
-import { THREE, createAssetLibrary } from './asset-loader.mjs';
+import { THREE } from './asset-loader.mjs';
 import { BALANCE } from './balance.mjs';
 import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getStationApproach } from './rules.mjs';
 import { REGIONS, getRegion, getStations } from './maps.mjs';
@@ -7,13 +7,14 @@ import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, CAMERA_Y, carryHeight, camera
 import { createBattleCameraTransition } from './camera-transition.mjs';
 import { createProductVisuals } from './product-visuals.mjs';
 import { createActorMarkers } from './actor-markers.mjs';
-import { applyActorAppearance, getActorPalette } from './actor-appearance.mjs';
+import { getActorPalette } from './actor-appearance.mjs';
 import { DINING_RULES, getDiningLayout } from './dining.mjs';
 import { createDiningVisuals } from './dining-visuals.mjs';
-import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
+import { createShopFixtures } from './shop-visuals.mjs';
+import { createSimpleActor, updateSimpleActor, disposeSimpleActors } from './simple-actors.mjs';
 import { getBattleLayout } from './battlefield.mjs';
 import { createBattlefieldVisuals } from './battlefield-visuals.mjs';
-import { createCombatRig, updateCombatMotion, disposeCombatMotion, COMBAT_ATTACK_SECONDS } from './combat-motion.mjs';
+import { createCombatRig, updateCombatMotion, disposeCombatMotion } from './combat-motion.mjs';
 
 const $ = (id) => document.getElementById(id);
 const SAVE_KEY = 'runehaven:v1';
@@ -127,7 +128,7 @@ function action(name, payload = {}) {
   return result;
 }
 
-// A compact, lit diorama. No physics engine or continuous DOM rebuilding.
+// Simple solid-color 3D forms. No physics engine or continuous DOM rebuilding.
 const canvas = $('scene');
 let renderer;
 try {
@@ -138,7 +139,7 @@ try {
 }
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.18;
+renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;
@@ -160,8 +161,8 @@ scene.background = new THREE.Color('#bdcfb2');
 const camera = new THREE.OrthographicCamera(-9, 9, 12, -12, .1, 100);
 camera.position.set(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
 camera.lookAt(0, 0, 0);
-scene.add(new THREE.HemisphereLight('#fff4d5', '#7b7192', 2.5));
-const sunlight = new THREE.DirectionalLight('#fff1d0', 3.1);
+scene.add(new THREE.HemisphereLight('#ffffff', '#c3c9d0', 2.2));
+const sunlight = new THREE.DirectionalLight('#ffffff', 1.8);
 sunlight.position.set(-6, 13, 7); sunlight.castShadow = true;
 sunlight.shadow.mapSize.set(1024, 1024);
 Object.assign(sunlight.shadow.camera, { left: -11, right: 11, top: 10, bottom: -10, near: .1, far: 40 });
@@ -172,7 +173,7 @@ const materials = new Map();
 const geometries = new Set();
 function material(color, extra = {}) {
   const key = color + JSON.stringify(extra);
-  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: .88, ...extra }));
+  if (!materials.has(key)) materials.set(key, new THREE.MeshLambertMaterial({ color, ...extra }));
   return materials.get(key);
 }
 const products = createProductVisuals(material);
@@ -215,30 +216,9 @@ const queueGeometry = new THREE.CircleGeometry(.075, 8); geometries.add(queueGeo
 const queueMarks = new THREE.InstancedMesh(queueGeometry, material('#795c41', { transparent: true, opacity: .28 }), 36);
 queueMarks.receiveShadow = false; shopScene.add(queueMarks);
 
-// A handmade furnace and anvil sit alongside the licensed Kenney furniture.
-const forgeGroup = new THREE.Group(); forgeGroup.position.set(-4, 0, -2); shopScene.add(forgeGroup);
-box(1.35, .75, 1.2, '#8c6260', -.5, .38, -.3, forgeGroup);
-box(1.48, .18, 1.3, '#605569', -.5, .8, -.3, forgeGroup);
-box(.82, .44, .06, '#332a3a', -.5, .4, .32, forgeGroup);
-const fire = box(.63, .27, .07, '#ffc669', -.5, .37, .36, forgeGroup); fire.material = material('#ffb44e', { emissive: '#ff7733', emissiveIntensity: 1.2 });
-box(.85, 1.1, .8, '#8c6260', -.5, 1.15, -.5, forgeGroup);
-box(1.03, .17, .97, '#605569', -.5, 1.75, -.5, forgeGroup);
-cylinder(.5, .57, .55, '#91633e', .7, .27, .2, forgeGroup, 10);
-box(.38, .45, .45, '#5b6377', .7, .7, .2, forgeGroup);
-box(1.06, .22, .52, '#9eacb8', .62, 1.02, .2, forgeGroup);
-const anvilHorn = mesh(new THREE.ConeGeometry(.24, .5, 4), '#a3b0bb', forgeGroup); anvilHorn.rotation.z = -Math.PI / 2; anvilHorn.position.set(1.3, 1.02, .2);
-const forgeLight = new THREE.PointLight('#ff9a4c', 3.5, 5); forgeLight.position.set(-4.5, 1, -1.5); shopScene.add(forgeLight);
-const sparks = [];
-for (let i = 0; i < 7; i++) sparks.push(orb(.035, '#ffd684', -4.5, 1 + i * .12, -1.7, shopScene, true));
-
-const alchemyGroup = new THREE.Group(); alchemyGroup.position.set(3.4, 0, -2.15); shopScene.add(alchemyGroup);
-const innGroup = new THREE.Group(); innGroup.position.set(0, 0, -4.25); shopScene.add(innGroup);
-const counterGroup = new THREE.Group(); counterGroup.position.set(-3, 0, 2); shopScene.add(counterGroup);
-const potionGroup = new THREE.Group(); potionGroup.position.set(3, 0, 2); shopScene.add(potionGroup);
-box(2.25, .65, .8, '#a4734b', 0, .33, 0, counterGroup);
-box(2.4, .16, 1, '#d3a36e', 0, .72, 0, counterGroup);
-box(1.9, .65, .8, '#729083', 0, .33, 0, potionGroup);
-box(2.1, .16, 1, '#b8c4a2', 0, .72, 0, potionGroup);
+// Simple color blocks replace decorative model furniture.
+const fixtures = createShopFixtures(shopScene);
+const { forge: forgeGroup, alchemy: alchemyGroup, inn: innGroup, counter: counterGroup, potionCounter: potionGroup } = fixtures;
 const supplyRing = ring(1.22, '#f6c16e', -4, -2);
 const alchemyRing = ring(1.2, '#8cceb6', 3, -2);
 const destination = ring(.35, '#fff0a5', 0, 0, .04, scene); destination.visible = false;
@@ -299,141 +279,33 @@ for (const [kind, name] of [['gear', '무기 대금'], ['potion', '물약 대금
 }
 
 const actors = new Map();
-const classGear = new Map();
-const classGeometries = new Set();
 const temporary = [];
-let library;
 let diningVisuals;
-const actorPalette = { player: '#8354a7', warrior: '#b86951', archer: '#4c9373', mage: '#7763b7', staff: '#daac58', orc: '#82a269', soldier: '#a34d61' };
-function basicActor(kind, group, color) {
-  const base = new THREE.Group(); group.add(base);
-  cylinder(.23, .33, .62, color, 0, .52, 0, base, 8);
-  orb(.22, kind === 'orc' ? '#91ae70' : '#e6bd91', 0, .99, 0, base);
-  box(.16, .25, .2, '#5b4b47', -.13, .15, 0, base); box(.16, .25, .2, '#5b4b47', .13, .15, 0, base);
-  return base;
-}
-function addClassGear(root, kind, role, appearance, combat = false) {
-  const key = `${appearance.key}:${kind}:${role}:${combat}`;
-  if (classGear.has(key)) {
-    const copy = classGear.get(key).clone(); root.add(copy); return copy;
-  }
-  const group = new THREE.Group(); root.add(group);
-  if (kind !== 'orc') {
-    // Keep each role readable even when the shared human model is very small.
-    cylinder(.24, .29, .35, appearance.body, 0, .64, .025, group, 8);
-    box(.41, .44, .055, appearance.body, 0, .65, -.23, group);
-  }
-  if (kind === 'player' || kind === 'mage') {
-    const hat = mesh(new THREE.ConeGeometry(.3, .6, 7), appearance.body, group); hat.position.set(0, 1.45, 0);
-    cylinder(.35, .35, .05, appearance.trim, 0, 1.15, 0, group);
-    if (!combat) {
-      cylinder(.035, .035, 1.1, '#8b6844', .4, .7, .05, group, 6);
-      orb(.11, '#a8f0d4', .4, 1.3, .05, group, true);
-    }
-  } else if (kind === 'archer' || role === 'ranged') {
-    if (!combat) {
-      const bow = mesh(new THREE.TorusGeometry(.28, .025, 4, 12, Math.PI), '#cda364', group);
-      bow.position.set(.39, .68, .12); bow.rotation.z = -Math.PI / 2;
-      box(.03, .55, .03, '#eee3c3', .39, .68, .12, group);
-    }
-    const feather = mesh(new THREE.ConeGeometry(.07, .38, 4), '#e1d2a6', group); feather.position.set(-.12, 1.37, -.06); feather.rotation.z = .4;
-  } else if (kind === 'warrior' || kind === 'soldier') {
-    if (!combat) {
-      box(.09, .65, .05, '#cbd3d6', .38, .7, .12, group);
-      box(.27, .06, .07, '#d0ae56', .38, .4, .12, group);
-    }
-    cylinder(.2, .2, .05, kind === 'soldier' ? '#a54d60' : '#b8a683', -.32, .67, .12, group, 8).rotation.x = Math.PI / 2;
-  }
-  if (role === 'elite') {
-    cylinder(.3, .36, .43, '#6b3e54', 0, .68, 0, group, 8);
-    cylinder(.28, .31, .25, '#71495c', 0, 1.22, 0, group, 8);
-    for (const x of [-.24, .24]) {
-      const horn = mesh(new THREE.ConeGeometry(.09, .32, 5), '#e8c376', group);
-      horn.position.set(x, 1.45, 0); horn.rotation.z = -Math.sign(x) * .4;
-    }
-    box(.48, .08, .1, '#d7b163', 0, .81, .28, group);
-  } else if (role === 'raider') {
-    if (!combat) {
-      cylinder(.035, .035, .85, '#654b39', .4, .65, .08, group, 6);
-      box(.31, .26, .07, '#bfc8c7', .4, .99, .08, group);
-    }
-    box(.5, .13, .36, '#995954', 0, .85, 0, group);
-  }
-  // Class accessories are rigid: bake their transforms and colors into one
-  // shared mesh per role, retaining the glowing staff tip as a separate mesh.
-  const parts = [], removed = [];
-  for (const node of group.children) {
-    if (!node.isMesh || node.material.emissiveIntensity > 0 && node.material.emissive.getHex() !== 0) continue;
-    node.updateMatrix();
-    const geometry = node.geometry.index ? node.geometry.toNonIndexed() : node.geometry.clone();
-    geometry.applyMatrix4(node.matrix);
-    const colors = new Float32Array(geometry.attributes.position.count * 3), color = node.material.color;
-    for (let i = 0; i < colors.length; i += 3) { colors[i] = color.r; colors[i + 1] = color.g; colors[i + 2] = color.b; }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3)); parts.push(geometry); removed.push(node);
-  }
-  if (parts.length) {
-    const geometry = mergeGeometries(parts);
-    for (const part of parts) part.dispose();
-    if (geometry) {
-      for (const node of removed) { releaseOwnedGeometry(node); group.remove(node); }
-      group.add(new THREE.Mesh(geometry, material('#ffffff', { vertexColors: true })));
-    }
-  }
-  group.traverse((node) => { if (node.geometry) { geometries.delete(node.geometry); classGeometries.add(node.geometry); } });
-  classGear.set(key, group.clone());
-  return group;
-}
+const actorPalette = { player: '#8354a7', warrior: '#389d7b', archer: '#389d7b', mage: '#389d7b', staff: '#daac58', orc: '#cf534f', soldier: '#cf534f' };
 function createActor(id, kind, role = '') {
   const root = new THREE.Group(); scene.add(root);
   const appearance = getActorPalette({ id, kind });
-  const body = basicActor(kind, root, appearance.body);
   const combat = id.startsWith('d-') || id.startsWith('e-');
-  const gear = addClassGear(root, kind, role, appearance, combat);
-  gear.traverse((node) => { node.castShadow = false; });
-  const carry = new THREE.Group(); carry.position.set(0, 1.8, .14); root.add(carry);
+  const { body, gear, rig } = createSimpleActor(kind, appearance, { role, combat });
+  root.add(body, gear);
+  const carry = new THREE.Group(); carry.position.set(0, 1.4, .14); root.add(carry);
   const marker = { visible: true, x: 0, z: 0, scale: 1, healthVisible: false, healthRatio: 1, enemy: id.startsWith('e-'), ringVisible: false, ringRadius: role === 'elite' ? .46 : .32, ringColor: role === 'elite' ? '#ff9969' : id.startsWith('e-') ? '#d97674' : actorPalette[kind] || '#90cf96' };
   const upper = new THREE.Group(), food = new THREE.Group(); carry.add(upper, food);
-  const actor = { id, kind, appearance, root, body, gear, carry, upper, food, marker, animationClock: 0, x: 0, z: 0, angle: 0, mixer: null, animations: null, currentAnimation: '', count: -1, ready: false };
+  const actor = { id, kind, appearance, root, body, gear, simpleRig: rig, carry, upper, food, marker, animationClock: 0, x: 0, z: 0, angle: 0, currentAnimation: 'idle', count: -1, ready: true };
   actors.set(id, actor);
   if (combat) createCombatRig(actor, kind, role, appearance);
-  if (library) {
-    library.load(kind === 'orc' ? 'orc' : 'human', { height: 1.3 }).then(({ object, animations }) => {
-      if (actors.get(id) !== actor || disposed) return;
-      applyActorAppearance(object, { id, kind });
-      releaseOwnedGeometry(body); root.remove(body); root.add(object); actor.body = object;
-      actor.mixer = new THREE.AnimationMixer(object); actor.animations = animations;
-      if (combat) createCombatRig(actor, kind, role, appearance);
-      actor.ready = true;
-      renderDirty = true;
-    }).catch(() => { /* Procedural character remains usable if an optional model fails. */ });
-  }
   return actor;
 }
 function removeActor(actor) {
-  actor.mixer?.stopAllAction();
   scene.remove(actor.root);
   releaseOwnedGeometry(actor.root);
   const skeletons = new Set();
   actor.root.traverse((node) => { if (node.skeleton && !skeletons.has(node.skeleton)) { skeletons.add(node.skeleton); node.skeleton.dispose(); } });
-  // Actor clones own materials, but share source geometry and texture buffers.
+  // Shared procedural actor materials outlive an individual customer.
   actor.root.traverse((node) => { if (node.isMesh && node.material && ![...materials.values()].includes(node.material)) {
-    for (const m of Array.isArray(node.material) ? node.material : [node.material]) if (!m.userData.diningShared && !m.userData.combatShared) m.dispose();
+    for (const m of Array.isArray(node.material) ? node.material : [node.material]) if (!m.userData.diningShared && !m.userData.combatShared && !m.userData.simpleActorShared) m.dispose();
   } });
   actors.delete(actor.id);
-}
-function animation(actor, name, serial = 0) {
-  if (!actor.mixer || actor.currentAnimation === name && actor.animationSerial === serial) return;
-  const clip = actor.animations.find((a) => a.name === name) || actor.animations.find((a) => a.name === 'idle');
-  if (!clip) return;
-  const next = actor.mixer.clipAction(clip).reset();
-  next.setEffectiveTimeScale(1); next.setEffectiveWeight(1);
-  const attack = ['attack-melee-right', 'holding-right-shoot', 'interact-right'].includes(name) && serial > 0;
-  next.setLoop(attack ? THREE.LoopOnce : THREE.LoopRepeat, attack ? 1 : Infinity);
-  next.clampWhenFinished = attack;
-  if (attack) next.setDuration(COMBAT_ATTACK_SECONDS);
-  next.play();
-  if (actor.action && actor.action !== next) actor.action.crossFadeTo(next, .07, false);
-  actor.action = next; actor.currentAnimation = name; actor.animationSerial = serial;
 }
 function productInstances(parent, count, product, columns = 1, spacing = .17) {
   products.set(parent, count, product, columns, spacing);
@@ -461,19 +333,18 @@ function updateActor(data, id, kind, dt, battle = false) {
   const eating = customer && data.phase === 'eating';
   if (eating) actor.angle = Math.PI;
   else if (moving) actor.angle = Math.atan2(dx, dz);
-  // The source sit clip lowers the small customer's feet .132 below ground.
-  actor.root.position.set(x, eating ? .14 : 0, z); actor.root.rotation.y = actor.angle;
+  actor.root.position.set(x, 0, z); actor.root.rotation.y = actor.angle;
   actor.x = x; actor.z = z;
   actor.gear.visible = !eating;
   const feet = projectXYZ(x, 0, z), head = projectXYZ(x, carryHeight(data.bag) * scale, z);
   const sheltering = state.raid.location === 'outside' && (customer || id.startsWith('s-'));
   actor.root.visible = !sheltering && feet.x > -70 && feet.x < viewport.width + 70 && head.y < viewport.height + 80 && feet.y > -80;
   const combatMotion = actor.combatRig ? updateCombatMotion(actor, data, { time: state.time, dt, moving, battle }) : null;
-  if (actor.ready && actor.root.visible) animation(actor, combatMotion?.clip || (eating ? 'sit' : moving ? 'walk' : data.workKind ? 'interact-right' : 'idle'), combatMotion?.attacking ? combatMotion.attackSerial : 0);
-  else if (!actor.ready) actor.body.rotation.z = moving ? Math.sin(state.time * 15 + x) * .055 : 0;
+  actor.currentAnimation = combatMotion?.clip || (eating ? 'sit' : moving ? 'walk' : data.workKind ? 'interact-right' : 'idle');
   actor.animationClock += dt;
-  if (actor.mixer && actor.root.visible && (kind === 'player' || actor.animationClock >= (mobileRender ? 1 / (customer ? 15 : 30) : 1 / 60))) {
-    actor.mixer.update(Math.min(.1, actor.animationClock)); actor.animationClock = 0; animationUpdates++;
+  if (actor.root.visible && (kind === 'player' || actor.animationClock >= (mobileRender ? 1 / (customer ? 15 : 30) : 1 / 60))) {
+    updateSimpleActor(actor.simpleRig, { time: state.time, moving, eating, carrying: Boolean(data.bag && Object.values(data.bag).some(Boolean)), working: Boolean(data.workKind), combatMotion, attackAt: data.attackAt });
+    actor.animationClock = 0; animationUpdates++;
   }
   const marker = actor.marker;
   marker.visible = actor.root.visible; marker.x = x; marker.z = z; marker.scale = scale;
@@ -487,29 +358,8 @@ function updateActor(data, id, kind, dt, battle = false) {
   return actor;
 }
 
-async function place(key, parent, x, z, height, rotation = 0) {
-  const { object } = await library.load(key, { height });
-  object.position.set(x, 0, z); object.rotation.y = rotation; parent.add(object); return object;
-}
 async function populate() {
-  library = await createAssetLibrary();
-  await library.preload(Object.keys(library.manifest.models));
-  await Promise.all([
-    place('table', alchemyGroup, 0, -.2, .73), place('cauldron', alchemyGroup, -.25, .1, .85),
-    place('potion', alchemyGroup, .6, .1, .6), place('bookshelf', shopScene, 7.9, -7.3, 1.8, -.12),
-    place('barrel', shopScene, -8.2, -7.3, .85), place('barrel', shopScene, -7.5, -7.3, .7),
-    place('bed', innGroup, 0, -.65, .9, Math.PI / 2), place('chair', innGroup, 0, .45, .75),
-    place('chest', shopScene, 7.9, -.1, .65, -.3), place('marketStall', counterGroup, 0, 0, 1.4),
-    place('sword', forgeGroup, 1.2, .3, 1.1, 1.8), place('shield', shopScene, -8.5, -1.2, .8, .9),
-    place('coin', counterGroup, .7, .2, .25), place('lantern', shopScene, -8.6, -6.6, 1.5),
-    place('lantern', shopScene, 8.6, -6.6, 1.5),
-  ]);
-  diningVisuals = await createDiningVisuals(shopScene, library);
-  // Small products are raised to the tables after ground-normalized loading.
-  for (const g of [alchemyGroup, counterGroup]) for (const child of g.children) {
-    if (['asset-potion', 'asset-coin', 'asset-cauldron'].includes(child.name)) child.position.y += .75;
-  }
-  // Actual shopkeeper model is animated; moving customers use the same shared source.
+  diningVisuals = await createDiningVisuals(shopScene);
   createActor('player', 'player');
 }
 
@@ -690,7 +540,6 @@ function syncRegion() {
   for (const [key, group] of [['forge', forgeGroup], ['alchemy', alchemyGroup], ['inn', innGroup], ['counter', counterGroup], ['potionCounter', potionGroup]]) group.position.set(stations[key].x, 0, stations[key].z);
   supplyRing.position.set(stations.forge.x, .025, stations.forge.z + .8);
   alchemyRing.position.set(stations.alchemy.x, .025, stations.alchemy.z + .8);
-  forgeLight.position.set(stations.forge.x - .5, 1, stations.forge.z + .5);
   for (const [key, label] of stationLabels) {
     const station = labelStation(key);
     const side = key === 'counter' ? -1.3 : key === 'potionCounter' ? 1.3 : 0;
@@ -824,11 +673,6 @@ function visuals(dt) {
   destination.visible = Boolean(target) || blinkAim;
   if (target) destination.position.set(target.x, .035, target.z);
   destination.rotation.z += dt * .8;
-  fire.scale.y = 1 + Math.sin(state.time * 8) * .12; forgeLight.intensity = 3.5 + Math.sin(state.time * 7) * .4;
-  for (let i = 0; i < sparks.length; i++) {
-    const a = (state.time * .65 + i / sparks.length) % 1;
-    sparks[i].position.set(stations.forge.x - .5 + Math.sin(a * 6 + i) * .15, .8 + a * 1.25, stations.forge.z + .3); sparks[i].scale.setScalar(1 - a * .8);
-  }
   supplyRing.scale.setScalar(1 + Math.sin(state.time * 2) * .025);
   for (let i = flights.length - 1; i >= 0; i--) {
     const flight = flights[i]; flight.age += dt;
@@ -1240,7 +1084,6 @@ function teardown(event) {
   paused = true; save(); stopInput();
   if (event.persisted) return;
   disposed = true; cancelAnimationFrame(frame); clearTimeout(toastTimer); clearTimeout(transitionTimer); resizeObserver.disconnect(); controller.abort();
-  for (const actor of actors.values()) actor.mixer?.stopAllAction();
   const disposedMaterials = new Set(), disposedGeometries = new Set(), disposedTextures = new Set(), disposedSkeletons = new Set();
   scene.traverse((node) => {
     if (node.isInstancedMesh) node.dispose();
@@ -1253,7 +1096,7 @@ function teardown(event) {
     }
   });
   for (const geometry of geometries) if (!disposedGeometries.has(geometry)) geometry.dispose();
-  for (const geometry of classGeometries) if (!disposedGeometries.has(geometry)) geometry.dispose();
+  disposeSimpleActors(disposedGeometries, disposedMaterials);
   diningVisuals?.dispose(disposedGeometries, disposedMaterials);
   battlefieldVisuals.dispose(disposedGeometries, disposedMaterials);
   disposeCombatMotion(disposedGeometries, disposedMaterials);

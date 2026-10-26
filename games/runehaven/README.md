@@ -11,9 +11,11 @@
 - `game.mjs`: 브라우저 화면·입력·저장 연결
 - `camera.mjs`: 짐 높이·화면 여백을 고려한 추적과 전투 구도
 - `camera-transition.mjs`: 먼 교전 교대의 GPU 화면 교차 페이드
+- `simple-actors.mjs`: 공유하는 단색 인물과 걷기·운반·착석·공격 관절
+- `shop-visuals.mjs`: 무문양 기본 도형으로 구성한 생산·진열·여관 시설
 - `product-visuals.mjs`: 운반·진열품의 공유 geometry와 인스턴스 재사용
 - `actor-markers.mjs`: 군중의 체력바·직업 링 일괄 렌더링
-- `actor-appearance.mjs`: 공유 atlas를 사용하는 실제 인물 모델의 역할별 의상·후드 색상
+- `actor-appearance.mjs`: 역할별 팔레트와 이전 GLB 표현의 보관용 색상 처리
 - `rules.mjs`: 경제·성장·손님·조수·습격 시뮬레이션
 - `battlefield.mjs`, `battlefield-visuals.mjs`: 실내와 분리한 야외 전투 좌표·상점 외벽과 마당
 - `combat-motion.mjs`: 실제 손뼈에 붙는 무기와 타격 1회에 대응하는 단발 공격 모션
@@ -32,7 +34,7 @@
 node games/runehaven/tests/serve.mjs
 ```
 
-이 경우 `http://127.0.0.1:8765/games/runehaven/`로 접속한다. 디렉터리의 `index.html`과 `.mjs`의 JavaScript MIME 타입을 지원하는 서버가 필요하다. 게임 실행을 위한 루트 패키지 설치 과정은 없다. Three.js r170(0.170.0)의 `three.module.js`, `GLTFLoader`, `BufferGeometryUtils`, `SkeletonUtils`는 `vendor/`에 로컬로 제공하고 화면·입력은 일반 ES 모듈로 연결한다. 라이브러리·이미지·글꼴의 출처와 라이선스는 해당 로컬 라이선스 파일 및 `assets/SOURCES.md`에 기록한다.
+이 경우 `http://127.0.0.1:8765/games/runehaven/`로 접속한다. 디렉터리의 `index.html`과 `.mjs`의 JavaScript MIME 타입을 지원하는 서버가 필요하다. 게임 실행을 위한 루트 패키지 설치 과정은 없다. Three.js r170(0.170.0)은 `vendor/`에 로컬로 제공하고 화면·입력은 일반 ES 모듈로 연결한다. 현재 인물·시설·가구는 기본 도형으로 만들며 GLB 모델의 초기 다운로드·사전 로드를 하지 않는다. 이전 GLB와 로더는 보관·자산 회귀 검증용으로 남겨 두었다. 라이브러리·이미지·글꼴의 출처와 라이선스는 해당 로컬 라이선스 파일 및 `assets/SOURCES.md`에 기록한다.
 
 ## 조작과 핵심 규칙
 
@@ -60,7 +62,7 @@ node games/runehaven/tests/serve.mjs
 
 전투 배율은 `min(60, 플레이 영역 폭 / 6.4, 플레이 영역 높이 / 6.5)` CSS px/world unit을 기준으로 고정한다. 인물이 흩어지거나 증원 수가 바뀌어도 확대율이 반복해서 변하지 않는다. 전투 전용 추적은 0.12 월드 단위 안의 작은 목표 흔들림을 무시하고 이동을 완화한다. 선택한 공격자의 몸·무기와 표적에 좌우 40·위 48·아래 52 CSS px의 목표 여백을 잡고, 실제 카메라 위치에는 최소 좌우 24·위 38·아래 42px를 적용한다. 목표 여백이 긴 공격 쌍을 담기에 좁으면 해당 축만 최소 여백으로 맞춘다. 완화된 위치가 최소 여백을 벗어나면 필요한 만큼 바로 보정해 교대 첫 화면에도 여유를 확보한다. 유효한 원거리 교전은 공격 동작 뒤 0.18초 더 유지해 잦은 교대를 줄이되 죽거나 멀어진 교전은 즉시 해제한다. 실제 화면 이동이 한 프레임에 24 CSS px를 넘으면 직전 안전 구도에서 새 안전 구도로 0.26초 교차 페이드한다. 두 화면의 인물 크기는 같고, 축소하거나 빈 중간 지점을 길게 훑지 않는다. 첫 출전·화면 크기 변경은 이전 영상을 버리고 구도를 맞추며, 결과에서는 마지막 위치를 유지한다. 이 수치와 추적 정책은 새 판타지 웹게임 설계다.
 
-영업 시 가로 시야는 기본 9.4 월드 단위다. 일반 고객은 주인공의 동일 몸 모델 대비 72%, 조수 92%, 수호대 90% 크기로 표시한다. 적은 보병 95%·돌격/원거리 90%·정예 122%와 서로 다른 장식으로 구분한다. 실내는 18×18로 넓혀 양옆 생산·진열 시설과 뒤쪽 여관·주방·식탁을 떨어뜨렸다. 실제 모델 크기·높이·회전을 반영한 주요 시설 묶음 11개는 10개 지역 모두 바깥 윤곽 사이 최소 0.6 월드 단위 간격을 둔다. 이 비율·치수는 영상을 참고해 새로 정한 웹게임 값이다.
+영업 시 가로 시야는 기본 9.4 월드 단위다. 일반 고객은 주인공의 동일 몸 모델 대비 72%, 조수 92%, 수호대 90% 크기로 표시한다. 적은 보병 95%·돌격/원거리 90%·정예 122% 크기와 전투 무기로 구분한다. 실내는 18×18로 넓혀 양옆 생산·진열 시설과 뒤쪽 여관·주방·식탁을 떨어뜨렸다. 실제 모델 크기·높이·회전을 반영한 주요 시설 묶음 11개는 10개 지역 모두 바깥 윤곽 사이 최소 0.6 월드 단위 간격을 둔다. 이 비율·치수는 영상을 참고해 새로 정한 웹게임 값이다.
 
 초반에는 실제 미결제 손님 12명까지 유입하고, 판매/시설 개방에 따라 최대 대기 24명·전체 30명까지 늘어난다. 상점 밖에는 최대 24자리의 공통 입구 줄이 있고 맨 앞 손님부터 0.55초 간격으로 입장한다. 입구 안의 분기점을 지난 뒤 구매 품목에 맞는 무기·물약 진열대 앞 6자리 줄로 향한다. 줄이 찬 품목의 손님이 맨 앞이면 자리가 날 때까지 입구에서 기다린다. 바닥의 갈림길과 대기 표식으로 이 흐름을 보여 주며, 줄은 인물을 막는 물리 장벽이 아니다.
 
@@ -68,7 +70,9 @@ node games/runehaven/tests/serve.mjs
 
 상품 줄이 가득 찼을 때 이미 뽑힌 손님의 직업을 다른 직업으로 다시 뽑지 않는다. 입장 가능한 자리가 생길 때까지 그 선택을 유지해 무기 줄 포화가 마법사 위주 유입으로 이어지지 않게 한다. 대기 목표는 최대 24명이지만 직업 선택과 상품별 16자리 제한에 따라 무재고 상태의 실제 대기는 20~24명일 수 있다.
 
-주인공은 보라·아이보리, 일반 고객은 진한 파랑 의상·후드, 조수는 금색, 수호대는 청록, 적은 적색 계열로 구분한다. 직업 장식과 피부·얼굴·눈·무기는 유지한다. 실제 GLB 모델의 공유 atlas에서 옷·머리 덮개 영역만 로드 시 한 번 설정한 UV 셰이더로 바꾸며, 역할별 uniform과 같은 셰이더 프로그램을 쓴다. 원본 geometry·texture를 공유하고 색상 구분을 위한 메시·draw call을 추가하지 않는다.
+주인공은 보라·밝은 머리, 일반 고객은 머리까지 파랑, 조수는 금색, 수호대는 청록, 적은 빨강으로 구분한다. 얼굴·눈·귀·갑옷·후드 장식은 없애고 둥근 몸·머리·팔다리를 공유하는 스킨 메시 1개로 만든다. 기본 몸 높이 1.3과 역할별 배율은 유지한다. 마법사의 작은 모자 1개와 전투의 칼·활·지팡이로 직업을 읽으며 정예는 큰 크기로 구분한다. 몸은 520 triangles·369 vertices·8 bones이고 재질·형상을 공유한다. 텍스처·GLB·AnimationMixer 없이 단순 관절 동작으로 걷기·운반·착석·공격을 표현한다.
+
+바닥은 촘촘한 타일 대신 큰 단색 판과 낮은 대비의 색면 최대 2개, 지역 장식은 대표 실루엣 2개로 줄였다. 시설은 두께 있는 작업대·화덕·침대, 식탁은 판·기둥·단순 의자로 표현한다. 금테·기둥 장식·룬·야외 디딤돌·계속 떠오르는 화덕 불꽃과 추가 포인트 조명을 제거했다. 머리 위 물건·바닥 대금·입구 줄과 분기, 음식·사용한 식탁 상태는 유지한다.
 
 모바일에서는 렌더 해상도 배율을 최대 1.25, 그림자 맵을 512px, 그림자 갱신을 최대 30회/초로 제한한다. 주인공 애니메이션은 렌더 프레임을 따르고 일반 손님은 최대 15회/초, 다른 화면 안 인물은 최대 30회/초로 갱신한다. 화면 밖 인물의 애니메이션은 생략하지만 이동·구매·전투 시뮬레이션은 유지한다. 직업 장식·스택 geometry를 공유하고, 체력바·직업 링은 두 인스턴스 묶음으로 그린다. 이 정책은 실제 휴대폰 자동 벤치마크 결과가 아닌 명시적인 모바일 렌더 예산이다.
 
@@ -109,13 +113,15 @@ node --check games/runehaven/maps.mjs
 node --check games/runehaven/map-scene.mjs
 node --check games/runehaven/camera.mjs
 node --check games/runehaven/camera-transition.mjs
+node --check games/runehaven/simple-actors.mjs
+node --check games/runehaven/shop-visuals.mjs
 node --check games/runehaven/product-visuals.mjs
 node --check games/runehaven/actor-markers.mjs
 node --check games/runehaven/actor-appearance.mjs
 node --check games/runehaven/asset-loader.mjs
 node --check games/runehaven/game.mjs
 node --check games/runehaven/tests/scenarios.mjs
-node --test games/runehaven/tests/rules.test.mjs games/runehaven/tests/scenarios.test.mjs games/runehaven/tests/customers.test.mjs games/runehaven/tests/combat-balance.test.mjs games/runehaven/tests/traffic-workflow.test.mjs games/runehaven/tests/dining.test.mjs games/runehaven/tests/worker-jobs.test.mjs games/runehaven/tests/dining-visuals.test.mjs games/runehaven/tests/maps.test.mjs games/runehaven/tests/camera.test.mjs games/runehaven/tests/camera-transition.test.mjs games/runehaven/tests/product-visuals.test.mjs games/runehaven/tests/actor-markers.test.mjs games/runehaven/tests/actor-appearance.test.mjs games/runehaven/tests/battlefield.test.mjs games/runehaven/tests/battle-transition.test.mjs games/runehaven/tests/combat-motion.test.mjs
+node --test games/runehaven/tests/rules.test.mjs games/runehaven/tests/scenarios.test.mjs games/runehaven/tests/customers.test.mjs games/runehaven/tests/combat-balance.test.mjs games/runehaven/tests/traffic-workflow.test.mjs games/runehaven/tests/dining.test.mjs games/runehaven/tests/worker-jobs.test.mjs games/runehaven/tests/dining-visuals.test.mjs games/runehaven/tests/maps.test.mjs games/runehaven/tests/camera.test.mjs games/runehaven/tests/camera-transition.test.mjs games/runehaven/tests/product-visuals.test.mjs games/runehaven/tests/actor-markers.test.mjs games/runehaven/tests/actor-appearance.test.mjs games/runehaven/tests/simple-actors.test.mjs games/runehaven/tests/battlefield.test.mjs games/runehaven/tests/battle-transition.test.mjs games/runehaven/tests/combat-motion.test.mjs
 git diff --check -- games/runehaven
 ```
 
@@ -123,7 +129,33 @@ git diff --check -- games/runehaven
 
 `data/verification.json`은 원본 추출 산출물과 선택 수치·출처 해시를 대조한 정적 검증 결과다. 이 검증에 사용한 APK 분석 폴더는 저장소 밖에 있으며 게임 실행의 의존성이 아니다. 실제 브라우저·플레이 검증과 자체 평가는 최종 작업 보고에서 범위와 근거를 함께 밝힌다.
 
-### 최신 먼 교전 시점 연결 — 2026-10-24
+### 최신 단색 그래픽 단순화 — 2026-10-27
+
+[원작 재관찰](RESEARCH.md)의 공식 0:05·0:22 장면과 실제 플레이 5:13 부근을 참고해, 디테일한 판타지 모델 대신 단색 인형·큰 색면·간단한 시설로 바꿨다. 얼굴·갑옷·후드·기둥·금테·룬·촘촘한 타일·주변 소품을 줄였다. 판타지 테마는 보라 주인공·작업대·솥·침대·작은 마법사 모자와 전투 무기로 유지한다. 바닥 타일 324개는 단색 판 1개로 바꿨고 지역 장식은 2개만 표시한다. 야외 정적 장면은 28 mesh/1,688 triangles에서 15 mesh/252 triangles로 줄었다. 이는 정적 기하 수치이며 전체 FPS 개선율은 아니다.
+
+시작 때의 GLB 일괄 사전 로드와 인물별 GLB·애니메이션 복제를 제거했다. 몸은 1 draw·520 triangles·8 bones와 공유 재질로 구성하고, 마법사만 작은 모자 1 draw를 더한다. 식당 가구 GLB 11개도 로드하지 않는다. 식당 가구 자체의 mesh 수는 기본 도형 분리로 늘었으므로 모든 모듈의 draw call이 감소했다고 주장하지 않는다. 실제 주방 운반 화면의 22명 고객·DPR 1 표본은 72 draw calls·11,352 triangles였다. 이전 배포본은 카메라 위치·고객 수가 달라 전체 감소율 비교에서 제외했다.
+
+**18개 지정 테스트 파일의 182개 테스트**, 변경 실행 모듈 6개의 구문 검사와 대상 diff 검사가 통과했다. 새 인물 6개 회귀는 단색·공유 버퍼·높이·걷기·운반·착석·오른손 공격과 실제 무기 정점의 모바일 여백을 검사한다. 착석 발이 바닥 아래로 내려가던 문제를 수정했고 실제 변형 정점으로 재검증했다. 시설 간격도 이전 GLB 치수 대신 실제 새 도형의 Box3로 검사해 10개 지역 최소 0.675, 음식 줄·식탁 최소 0.9를 확인했다. 규칙·성장·판매 수치와 v1 저장 형식은 변경하지 않았다.
+
+브라우저 390×844에서 주방의 음식 2개를 머리 위에 싣고 배식대까지 직접 운반해 소지 음식 0·배식 음식 2가 되는 것을 확인했다. 320×568의 인위적 식당 검사 상태에서는 착석·사용한 식탁을 관찰하고 `식탁 1 정리`를 눌러 정리 0→1·해당 식탁 clean을 확인했다. 인위적 공급 재고를 정상 획득 진행으로 간주하지 않는다.
+
+정상 규칙으로 만든 후반 `late-defense`에서는 두 크기 모두 검사 6·궁수 5·마법사 7명이 정예·원거리가 섞인 적 29명을 상대해 승리했다. 칼·활·지팡이 공격과 마지막 정예를 PNG·DOM 표본으로 확인했다. 320/390px 몸 높이는 43.3308/51.9969px, 실제 카메라 검사는 각각 1,423프레임으로 총 **2,846프레임의 선택 교전·실제 무기 최소 여백 위반 0**이었다. 기존 배율·최소 좌우 24/위 38/아래 42px·0.26초 먼 교대 페이드를 유지했다. 후반 검사 탭의 오류·경고는 0건이었다. PC 1280×720에서 7단계 실내 900×477로 복귀했고, QA 초기화로 1단계·판매 0·골드 80을 확인했다. 메뉴·홈 왕복·글꼴 loaded·가로 넘침 0도 확인했다.
+
+| 항목 | 잠정 점수 | 근거와 한계 |
+| --- | ---: | --- |
+| 코어 플레이와 완성도 | 24/25 | 운반·배식·정리·혼합 부대 전투와 182개 회귀 확인. 장기 캠페인은 미검증이다. |
+| 모바일 웹 실행과 조작 | 18/20 | 320/390px 포인터 플레이 확인. 실제 휴대폰 터치는 미검증이다. |
+| 모바일 게임 UI와 시각 품질 | 19/20 | 원작처럼 단색 인물·큰 색면으로 단순화, 크기·여백 유지. 실제 작은 화면의 직업 식별은 더 확인할 필요가 있다. |
+| 게임성 설계와 피드백 | 13/15 | 운영·전투의 동작과 피드백 유지. 장기 재미는 짧은 관찰과 설계 검토 수준이다. |
+| 성능과 리소스 최적화 | 9/10 | GLB 로드 제거·공유 버퍼·정적 장식 축소. 실기기 FPS·발열·장시간 메모리는 미측정이다. |
+| 검증·저장·유지관리 | 9/10 | 실제 도형·착석·공격 회귀, v1 형식 유지. 모바일 GPU 복구는 미검증이다. |
+| 합계 | **92/100 · 잠정** | 브라우저 관찰과 실기기 검증을 구분한 평가다. |
+
+다음 우선순위는 실제 iOS Safari·Android Chrome에서 작은 인물의 직업·작업 상태 식별, 터치·주소창 변화, FPS·발열을 확인하는 것이다. 장식을 다시 늘리기보다 색·실루엣·작업 피드백으로 보완한다.
+
+### 이전 먼 교전 시점 연결 — 2026-10-24
+
+아래 모델·장면·성능 표본은 단색 그래픽으로 바꾸기 전 버전이다. 카메라 정책은 유지하지만 이전 그래픽과 수치를 현재 화면 검증으로 재사용하지 않는다.
 
 고정 배율과 최소 여백을 동시에 지켜야 하는 먼 교대는 두 안전 구도 사이를 0.26초 교차 페이드하도록 바꿨다. 한 프레임의 실제 지면 이동을 CSS px로 투영해 24px를 넘을 때만 시작한다. 일반 추적은 기존 완화를 유지한다. 유효한 원거리 공격은 동작 종료 뒤 0.18초 안정 시간을 주어 교대 왕복을 줄이며, 죽거나 먼 교전은 즉시 해제한다. 선택 정책만 바꾸었고 공격 시각·피해·체력·증원·성장 수치는 유지했다.
 
