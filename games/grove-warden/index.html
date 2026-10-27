@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#102e27">
+  <meta name="description" content="인간 드루이드가 되어 숲을 탐험하고, 전리품을 모아 거점을 키우는 모바일 웹 3D 액션 RPG.">
+  <title>숲의 수호자 · Grove Warden</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="preload" href="./assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main id="game-shell" aria-label="숲의 수호자 게임">
+    <header class="hud">
+      <div class="hud-main">
+        <div class="health">
+          <div class="health-copy"><span id="level-value" class="level-value">Lv.1</span><strong id="hp-value" aria-label="생명">100</strong></div>
+          <div class="health-track" role="presentation"><div id="hp-fill"></div></div>
+        </div>
+        <div class="gold-counter" aria-label="보관 골드"><span class="coin-mark" aria-hidden="true">✦</span><strong id="gold-value">0</strong></div>
+        <button id="pause-btn" class="pause-button" type="button" aria-label="일시 정지">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M17 5v14"/></svg>
+        </button>
+      </div>
+      <div class="progress-row"><span id="zone-value">숲의 거점</span><div class="xp-track" aria-label="경험치"><div id="xp-fill"></div><span id="xp-value">0 / 30</span></div></div>
+      <div class="quest-row"><span id="quest-title">숲의 첫 사냥</span><strong id="quest-count">0 / 5</strong><button id="claim-btn" type="button" hidden>보상</button></div>
+      <div id="boss-track" class="boss-track" role="progressbar" aria-label="수문장 생명" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden><div id="boss-fill"></div></div>
+      <p id="save-warning" class="save-warning" role="status" hidden>저장할 수 없어요. 이 창에서는 계속 플레이할 수 있어요.</p>
+    </header>
+
+    <div class="scene-frame">
+      <div id="viewport" aria-label="숲과 거점"></div>
+      <div class="field-navigation">
+        <span id="camp-direction" class="camp-compass" aria-label="거점 방향">안전 거점</span>
+        <span id="hunt-status" class="hunt-status" role="status">이동</span>
+      </div>
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      <div id="direction-guide" class="direction-guide" aria-label="현재 목표 방향" hidden></div>
+      <div class="cargo-pill" aria-label="가방에 담은 전리품"><span class="bag-mark" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M9 7 7 3h14l-2 4M10 7c-4 4-7 8-7 12 0 5 5 6 11 6s11-1 11-6c0-4-3-8-7-12ZM9 8h10M14 14v6M11 17h6"/></svg></span><div class="cargo-copy"><span id="cargo-value">0 / 24</span><div class="cargo-track"><div id="cargo-fill"></div></div></div></div>
+      <button id="camp-btn" class="field-button camp-button" type="button" hidden><span aria-hidden="true">✦</span> 거점 강화</button>
+    </div>
+
+    <nav class="growth-nav" aria-label="성장">
+      <button id="growth-stats-btn" class="growth-tab" data-growth="stats" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path class="icon-shadow" d="m24 3 17 10v17L24 40 7 30V13Z"/><path fill="#d5e3a0" d="m24 3 17 10-17 10L7 13Z"/><path fill="#8ba966" d="M7 13 24 23v17L7 30Z"/><path fill="#658753" d="m24 23 17-10v17L24 40Z"/><path d="M24 11v19m-9-14 18 10m0-10L15 26" fill="none" stroke="#f6e9b2" stroke-width="3" stroke-linecap="round"/></svg><span>능력치</span></button>
+      <button id="growth-druid-btn" class="growth-tab" data-growth="druid" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path d="m13 14-4-9m4 5L5 8m30 6 4-9m-4 5 8-2" fill="none" stroke="#d2bd7f" stroke-width="3.5" stroke-linecap="round"/><path fill="#5c865a" d="M8 39c0-10 4-13 5-22C14 8 34 8 35 17c1 9 5 12 5 22Z"/><path fill="#9ab66d" d="M15 16c2-7 16-7 18 0l3 14H12Z"/><path fill="#f0c48e" d="M16 20c0-9 16-9 16 0v7c-1 9-15 9-16 0Z"/><path d="M20 23v2m8-2v2" stroke="#304b37" stroke-width="3" stroke-linecap="round"/><path fill="#dce7a5" d="m24 32 5 5-5 4-5-4Z"/></svg><span>드루이드</span></button>
+      <button id="growth-wolf-btn" class="growth-tab" data-growth="wolf" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path fill="#849d9a" d="m8 4 13 9h6l13-9-1 19-6 13-9 5-9-5-6-13Z"/><path fill="#bacac0" d="m24 16 9 20-9 5-9-5Z"/><path fill="#416565" d="m11 9 8 7-7 4m25-11-8 7 7 4"/><path d="m14 23 6 2m14-2-6 2" stroke="#f5e6a5" stroke-width="3" stroke-linecap="round"/><path fill="#365253" d="m19 32 5-2 5 2-5 5Z"/></svg><span>늑대</span></button>
+      <button id="growth-bear-btn" class="growth-tab" data-growth="bear" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><circle cx="11" cy="10" r="8" fill="#aa865e"/><circle cx="37" cy="10" r="8" fill="#aa865e"/><circle cx="11" cy="10" r="4" fill="#665a46"/><circle cx="37" cy="10" r="4" fill="#665a46"/><path fill="#b99a6b" d="M7 19C7 2 41 2 41 19l-2 13-8 8H17l-8-8Z"/><path fill="#deca96" d="M14 29c0-11 20-11 20 0 0 14-20 14-20 0Z"/><path d="M16 20v2m16-2v2" stroke="#3e4936" stroke-width="3" stroke-linecap="round"/><path fill="#4e5940" d="m19 27 5-2 5 2-5 5Z"/></svg><span>곰</span></button>
+      <button id="growth-dragon-btn" class="growth-tab" data-growth="dragon" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path fill="#d1c58c" d="m13 16-3-14 12 11m11 3 6-14-2 19"/><path fill="#6caaa0" d="m10 18 13-9 15 8 4 17-12 7-17-6-8-9Z"/><path fill="#abd2b2" d="m23 22 15-5 4 17-12 7-8-6Z"/><path fill="#477e77" d="m6 15 9 4-10 5m2 7 11-2-8 8"/><path d="m17 20 5 2m10-1 3 1" stroke="#f1d887" stroke-width="3" stroke-linecap="round"/><path fill="#477e77" d="m28 31 5-3 4 3-5 4Z"/></svg><span>용</span></button>
+    </nav>
+    <div id="joystick" aria-hidden="true" hidden><div id="stick-knob"></div></div>
+
+    <section id="menu" class="overlay" aria-labelledby="game-title">
+      <div class="panel title-panel">
+        <img class="hero-mark" src="./icon.svg" alt="" width="92" height="92">
+        <p class="wordmark" lang="en">GROVE WARDEN</p>
+        <h1 id="game-title">숲의 수호자</h1>
+        <p class="menu-subtitle">숲을 누비고, 거점을 키우세요</p>
+        <div class="title-divider" aria-hidden="true"><span></span>✦<span></span></div>
+        <button id="start-btn" class="button primary-button" type="button">모험 시작 <span aria-hidden="true">›</span></button>
+        <button id="help-btn" class="button quiet-button" type="button">플레이 방법</button>
+        <p id="load-status" class="load-status" role="status">숲을 준비하고 있어요</p>
+      </div>
+    </section>
+
+    <section id="pause-menu" class="overlay" aria-labelledby="pause-title" hidden>
+      <div class="panel compact-panel">
+        <p class="panel-eyebrow">잠깐 쉬어가기</p>
+        <h2 id="pause-title">숲이 기다려요</h2>
+        <div class="button-list">
+          <button id="resume-btn" class="button primary-button" type="button">계속</button>
+          <button id="sound-btn" class="button stone-button" type="button" aria-pressed="true">소리 켜짐</button>
+          <button id="pause-help-btn" class="button stone-button" type="button">플레이 방법</button>
+          <a id="home-link" class="button quiet-button" href="../../">홈으로</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="growth-menu" class="overlay growth-overlay" role="dialog" aria-labelledby="growth-title" hidden>
+      <div class="panel growth-panel">
+        <div class="growth-heading"><h2 id="growth-title">능력치</h2><button id="growth-close-btn" class="growth-close" type="button" aria-label="성장 닫기">×</button></div>
+        <div class="growth-content">
+          <div class="growth-resources"><span class="bank-amount"><span class="coin-mark" aria-hidden="true">✦</span><strong id="growth-bank-value" aria-label="보관 골드">0</strong></span><span id="growth-level-value">Lv.1</span></div>
+          <p id="growth-summary" class="growth-summary">성장한 힘은 계속 유지돼요.</p>
+          <div id="growth-list" class="growth-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="down-menu" class="overlay" aria-labelledby="down-title" hidden>
+      <div class="panel down-panel">
+        <div class="recovery-emblem" aria-hidden="true">❋</div>
+        <p class="panel-eyebrow">모닥불 곁으로</p>
+        <h2 id="down-title">잠시 쉬어가요</h2>
+        <p class="recovery-note">레벨과 거점 강화는 유지돼요.</p>
+        <div id="down-stats" class="down-stats"></div>
+        <button id="recover-btn" class="button primary-button" type="button">거점에서 회복</button>
+      </div>
+    </section>
+
+    <section id="help-menu" class="overlay" aria-labelledby="help-title" hidden>
+      <div class="panel help-panel">
+        <button id="help-dismiss" class="help-dismiss" type="button" aria-label="도움말 닫기">×</button>
+        <h2 id="help-title">모험 안내</h2>
+        <p class="help-goal">사냥하고, 거점에서 강해지고,<br>더 깊은 숲으로 나아가세요.</p>
+        <dl class="help-controls">
+          <div><dt>이동</dt><dd>화면을 누른 채 끌어 움직여요. 직접 이동이 자동 추적보다 우선해요. PC는 WASD·방향키를 사용해요.</dd></div>
+          <div><dt>사냥</dt><dd>가까운 적은 원 밖에서도 공격해요. 군락 주변에서 손을 떼면 같은 종류를 추적하고 사거리에서 멈춰요.</dd></div>
+          <div><dt>성장</dt><dd>아래 탭에서 능력치를 강화하고 기술을 배워요. 부엉이는 한 마리가 따라다니며 미사일로 돕고, 배운 덩굴도 자동으로 사용해요.</dd></div>
+          <div><dt>가방</dt><dd>금화는 직접 다가가서 주워요. 가방이 차면 게이지가 붉게 바뀌어요. 거점으로 운반해 보관 골드로 바꾸세요.</dd></div>
+          <div><dt>거점</dt><dd>생명이 위험하면 방향 표시를 보고 직접 돌아오세요. 거점에서 생명을 회복하고 강화해요.</dd></div>
+          <div><dt>의뢰</dt><dd>목표를 달성하면 보상을 누르세요. 수문장 의뢰의 보상을 받으면 다음 숲이 열려요.</dd></div>
+        </dl>
+        <p class="reference-note">XP Hero를 참고해 제작한<br>모바일 웹 액션 RPG</p>
+        <button id="close-help-btn" class="button primary-button" type="button">알겠어요</button>
+      </div>
+    </section>
+    <noscript><div class="noscript-message">게임을 실행하려면 JavaScript를 켜 주세요.</div></noscript>
+  </main>
+  <script type="module" src="./game.mjs"></script>
+</body>
+</html>
