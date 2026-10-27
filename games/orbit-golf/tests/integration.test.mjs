@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { JSDOM } from 'jsdom';
+import { courseSample, LOOP_FIRST_START, LOOP_LENGTH } from '../course.mjs';
 
 // This suite executes the shipped DOM controller and rules unchanged. Only the
 // WebGL scene is replaced: layout, pixels, real touch hardware and GPU rendering
@@ -143,6 +144,47 @@ test('lap changes show the added mechanic and fifth-lap reinforcement in the liv
   assert.match(app.$('track-label').textContent,/5구간/);
   assert.match(app.$('growth-readout').textContent,/기믹 \+3/);
   assert.ok(app.$('growth-readout').classList.contains('milestone'));
+});
+
+test('isolated loop preview traverses the inverted track and returns to the forward course with live progress and pause',async t=>{
+  const app=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?preview=1&encounter=loop'});
+  app.submit('루프 검증');app.tick();
+  assert.equal(app.scene.current.s,LOOP_FIRST_START-10);
+  assert.equal(app.$('speed').textContent,'0');
+  assert.match(app.$('run-goal').textContent,/360° 루프/);
+  assert.equal(app.$('orbit-fill').parentElement.getAttribute('aria-label'),'360도 루프 진행');
+  app.launch();let inverted=false,paused=false,progress=false;
+  for(let frame=0;frame<600&&app.scene.current.phase==='rolling';frame++){
+    app.tick();const run=app.scene.current,sample=courseSample(run.s);
+    if(sample.loop){
+      inverted ||=sample.normalY<-.8;
+      progress ||= /루프 진행 \d+%/.test(app.$('growth-readout').textContent);
+      if(!paused&&sample.loop.progress>.25){
+        app.$('pause').click();const before={s:run.s,elapsed:run.elapsed};app.tick(30);
+        assert.equal(run.s,before.s);assert.equal(run.elapsed,before.elapsed);
+        app.panelButton('계속').click();paused=true;
+      }
+    }
+    if(run.s>LOOP_FIRST_START+LOOP_LENGTH+3)break;
+  }
+  assert.ok(inverted&&paused&&progress,'the real ball must traverse the inverted surface with readable progress');
+  assert.ok(app.scene.current.s>LOOP_FIRST_START+LOOP_LENGTH+3,'the loop must reconnect to the outgoing track');
+  assert.ok(!app.scene.feedback.some(event=>event.kind==='warp'),'a complete loop must use real travel rather than a warp');
+  assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);assert.deepEqual(app.errors,[]);
+});
+
+test('a depleted loop shot stops at its actual point and paid continuation preserves that point',async t=>{
+  const app=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?preview=1&encounter=loop'});
+  app.submit('루프 정지');app.launch();const run=app.scene.current,start=LOOP_FIRST_START+LOOP_LENGTH*.2;
+  Object.assign(run,{s:start,distance:start,speed:3,rollSpeed:150,height:0,vy:0,vx:0,events:[],eventTrack:Math.floor(start/360)});
+  const stopped=app.stop();assert.equal(stopped.stopReason,'natural');
+  assert.ok(Math.abs(stopped.s-start)<2,'a weak shot cannot be pushed or warped over the climb');
+  assert.equal(stopped.speed,0);const before={s:run.s,x:run.x,height:run.height};
+  app.panelButton('이어 달리기').click();
+  for(const key of Object.keys(before))assert.equal(run[key],before[key]);
+  assert.equal(run.continued,true);assert.ok(run.speed>0);app.tick(3);
+  assert.ok(run.s>before.s&&run.s<LOOP_FIRST_START+LOOP_LENGTH,'continuation must resume inside the same loop');
+  assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);
 });
 
 test('speed HUD follows actual motion and marks backward reflection rather than hidden launch energy',async t=>{

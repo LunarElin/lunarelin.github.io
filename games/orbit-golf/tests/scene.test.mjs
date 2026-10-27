@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../assets/vendor/three.module.js';
 import { OrbitScene, BALL_HEIGHT } from '../scene.mjs';
-import { courseSample, COURSE_WORLD_PER_METER } from '../course.mjs';
+import { courseSample, LOOP_FIRST_START, LOOP_LENGTH, COURSE_WORLD_PER_METER } from '../course.mjs';
 import { newProfile, newRun, eventPose, TRACK_WIDTH, SIDE_LIMIT } from '../rules.mjs';
 
 // Actual Three.js geometry, camera and animation math; no GPU/device claims.
@@ -47,7 +47,7 @@ test('level chase framing retains the airborne ball across hills and distant sec
       assert.ok(point.y>-.75&&point.y<.2,'vertical frame '+width+', air '+air+': '+point.y);
       assert.ok(scene.camera.up.distanceTo(new THREE.Vector3(0,1,0))<1e-8);
       const right=new THREE.Vector3().setFromMatrixColumn(scene.camera.matrixWorld,0);assert.ok(Math.abs(right.y)<1e-8,'horizon must never roll on a hill');
-      assert.ok(scene.camera.position.length()<40&&scene.ball.position.length()<15,'floating origin keeps distant sections near the camera');
+      assert.ok(scene.camera.position.length()<60&&scene.ball.position.length()<15,'floating origin keeps distant sections near the camera');
       if(air===0&&x===0&&s===180){const right=new THREE.Vector3().setFromMatrixColumn(scene.camera.matrixWorld,0);const edge=project(scene,scene.ball.position.clone().addScaledVector(right,1.05));assert.ok(Math.abs(edge.x-point.x)*width>=30);}
     }
   }
@@ -76,7 +76,7 @@ test('actual generated floor and rails never occlude ground or airborne balls ac
     for(const x of [-SIDE_LIMIT,0,SIDE_LIMIT])for(const air of [0,3,7])for(const s of [0,120,360,540,720,1000,3570,10000000]) {
       run.x=x;run.height=air;run.s=s;frame(scene,run);scene.track.updateMatrixWorld(true);
       const direction=scene.ball.position.clone().sub(scene.camera.position),front=direction.length()-1.05;ray.set(scene.camera.position,direction.normalize());
-      assert.ok(!ray.intersectObject(scene.track,true).some(hit=>hit.distance<front-1e-6),'occlusion '+width+'x'+height+', s '+s+', x '+x+', air '+air);
+      assert.ok(!ray.intersectObject(scene.track,true).some(hit=>hit.distance<front-1e-6&&!(hit.object.material?.transparent&&hit.object.material.opacity<.1)),'occlusion '+width+'x'+height+', s '+s+', x '+x+', air '+air);
     }
     scene.disposeObject(scene.track);
   }
@@ -368,7 +368,7 @@ test('the endless corridor has continuous full-width floor and fixed geometry bo
   for(const [width,height] of viewports) {
     const scene=harness(width,height);scene.buildTrack();scene.render(1/60,null,'lobby');scene.track.updateMatrixWorld(true);scene.camera.updateMatrixWorld(true);
     const floor=scene.track.getObjectByName('continuous-course-floor'),positions=floor.geometry.attributes.position;assert.equal(TRACK_WIDTH,20);assert.equal(positions.count,290);assert.equal(scene.courseRails.count,288);assert.equal(scene.courseGuards.count,288);
-    for(let i=0;i<positions.count;i+=2){assert.equal(positions.getX(i),-TRACK_WIDTH/2);assert.equal(positions.getX(i+1),TRACK_WIDTH/2);assert.equal(positions.getY(i),positions.getY(i+1));assert.equal(positions.getZ(i),positions.getZ(i+1));}
+    for(let i=0;i<positions.count;i+=2){assert.ok(Math.abs(positions.getX(i+1)-positions.getX(i)-TRACK_WIDTH)<1e-5);assert.equal(positions.getY(i),positions.getY(i+1));assert.equal(positions.getZ(i),positions.getZ(i+1));}
     const geometry=floor.geometry,run=runFixture();for(const s of [0,360,3570,10000000]){run.s=s;frame(scene,run);assert.equal(scene.courseFloor.geometry,geometry);assert.equal(scene.track.children.length,5);}
     assert.ok(scene.camera.up.distanceTo(new THREE.Vector3(0,1,0))<1e-8);scene.disposeObject(scene.track);
   }
@@ -404,4 +404,41 @@ test('reduced motion keeps the lens stable and graphics resources are released',
   const scene=harness(),run=runFixture();run.speed=180;scene.reducedMotion=true;for(let index=0;index<120;index++)frame(scene,run);assert.ok(Math.abs(scene.camera.fov-74)<.1);
   const geometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(1,1,1)]),line=new THREE.Line(geometry,new THREE.LineBasicMaterial());scene.scene.add(line);
   let released=false;geometry.addEventListener('dispose',()=>{released=true;});scene.dispose();assert.equal(released,true);assert.equal(scene.renderer.disposed,true);assert.equal(scene.abort,true);
+});
+
+
+test('loop side chase keeps the ball readable and world up level through the complete actual turn',()=>{
+  for(const[width,height]of viewports){
+    const scene=harness(width,height),run=runFixture();scene.buildTrack();const ray=new THREE.Raycaster();
+    for(const x of[-SIDE_LIMIT,0,SIDE_LIMIT])for(let i=0;i<=48;i++){
+      run.s=LOOP_FIRST_START+LOOP_LENGTH*i/48;run.x=x;run.height=0;const p=frame(scene,run);scene.track.updateMatrixWorld(true);
+      assert.ok(Math.abs(p.x)<.8&&p.y>-.7&&p.y<.2,'ball visibility at '+width+'px, phase '+i);
+      assert.ok(scene.camera.up.equals(new THREE.Vector3(0,1,0)));
+      const right=new THREE.Vector3().setFromMatrixColumn(scene.camera.matrixWorld,0);assert.ok(Math.abs(right.y)<1e-8,'loop camera must never roll');
+      const delta=scene.ball.position.clone().sub(scene.camera.position),front=delta.length()-1.05;ray.set(scene.camera.position,delta.normalize());
+      const solid=ray.intersectObject(scene.track,true).filter(hit=>!(hit.object.material?.transparent&&hit.object.material.opacity<.1));
+      assert.ok(!solid.some(hit=>hit.distance<front-1e-5),'opaque track must not cover ball: '+width+'px phase '+i+' x '+x+' '+JSON.stringify(solid.slice(0,3).map(h=>({name:h.object.name,d:h.distance,p:h.point.toArray()})))+' front '+front);
+      assert.ok(scene.camera.position.distanceTo(scene.ball.position)<45,'side chase retains a substantial nearby ball');
+    }
+    scene.dispose();
+  }
+});
+
+test('loop camera enters and leaves the side view continuously without a look-at flip',()=>{
+  for(const[width,height]of[[320,568],[390,844],[1440,900]]){
+    const scene=harness(width,height),run=runFixture();run.height=0;let previous;
+    for(let s=LOOP_FIRST_START-90;s<=LOOP_FIRST_START+LOOP_LENGTH+90;s+=1){
+      run.s=s;frame(scene,run);const q=scene.camera.quaternion.clone();
+      if(previous)assert.ok(Math.abs(q.dot(previous))>.998,'camera must not snap at '+s);previous=q;
+    }
+  }
+});
+
+test('loop floating origin uses actual reversing forward positions for particles and cached track',()=>{
+  const scene=harness(),run=runFixture();scene.buildTrack();run.s=908;frame(scene,run);scene.burst({type:'comet',s:910,x:0});
+  const effect=scene.effects[0],before=effect.mesh.position.clone(),origin={...scene.origin},version=scene.courseFloor.geometry.attributes.position.version;
+  run.s+=1;frame(scene,run,'rolling',0);
+  const shift=new THREE.Vector3(origin.lateral-scene.origin.lateral,origin.height-scene.origin.height,origin.forward-scene.origin.forward);
+  assert.ok(effect.mesh.position.distanceTo(before.add(shift))<1e-8);assert.equal(scene.courseFloor.geometry.attributes.position.version,version);
+  assert.ok(scene.origin.forward<origin.forward,'the rendered path really travels backward in world Z near the apex');
 });

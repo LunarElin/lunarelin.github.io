@@ -1,4 +1,4 @@
-import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261025-course2';
+import { COURSE_WORLD_PER_METER, courseSample, loopAt } from './course.mjs?v=20261028-loop1';
 
 export const TRACK_LENGTH = 360;
 export const DISTANCE_PER_GOLD = 8;
@@ -198,9 +198,9 @@ export function generateTrack(track, seed = 1) {
   }
   add('coins',track*TRACK_LENGTH+337,(random()-.5)*14);
   add(special,track*TRACK_LENGTH+350,(random()-.5)*14);
-  const config=lapConfig(track+1);
+  const config=lapConfig(track+1),loop=loopAt(track*TRACK_LENGTH+180);
   for(const [index,wave] of config.activeWaves.entries()) {
-    const at=track*TRACK_LENGTH+58+index*(config.guardian?22:31)+random(),x=(random()-.5)*9,sign=(wave.index+track)%2?1:-1;
+    const at=(loop?(index<4?track*TRACK_LENGTH+4+index*8:loop.end+8+(index-4)*12):track*TRACK_LENGTH+58+index*(config.guardian?22:31))+random(),x=(random()-.5)*9,sign=(wave.index+track)%2?1:-1;
     const extra=(type,offset,side,options={})=>{
       add(type,at+offset,side);Object.assign(events[events.length-1],{gimmick:wave.id,variant:wave.tier},options);
     };
@@ -235,7 +235,9 @@ export function generateTrack(track, seed = 1) {
     for(let index=events.length-1;index>=0;index--)if(events[index].at>=config.lap*TRACK_LENGTH-100)events.splice(index,1);
     events.push(guardianEvent(config.lap));
   }
-  return events.sort((a,b)=>a.at-b.at);
+  // The magnetic loop is a clear rail segment. Keep each wave on its entry/exit
+  // rather than putting jump pads or warps on the inverted part of the track.
+  return events.filter(event=>!loopAt(event.at,4)).sort((a,b)=>a.at-b.at);
 }
 
 function idleX(event, elapsed = 0) {
@@ -329,7 +331,12 @@ function advanceProps(run,dt) {
     body.life-=dt;
     if(body.life<=0){body.active=false;consumeEvent(run,event);continue;}
     const damping=Math.exp(-dt*(body.height<=0?.8:.2));
-    body.vs*=damping;body.vx*=damping;body.vy-=GRAVITY*dt;
+    body.vs*=damping;body.vx*=damping;
+    const terrain=courseSample(body.s);
+    if(terrain.loop){
+      body.vs-=14*(terrain.gravitySlope??terrain.tangentY)*dt;
+      body.vy+=(-36*body.height-12*body.vy)*dt;
+    }else body.vy-=GRAVITY*dt;
     body.s+=body.vs*dt;body.x+=body.vx*dt;body.height+=body.vy*dt;
     if(body.height<0){body.height=0;body.vy=Math.abs(body.vy)>2.5?-body.vy*.32:0;}
     if(body.height>8){body.height=8;body.vy=Math.min(0,body.vy);}
@@ -355,11 +362,12 @@ function collideProps(run,feedback,dt) {
   const sources=run.events.filter(e=>e.body?.active&&e.body.wheel===run.wheel);
   const handled=new Set();
   for(const source of sources) {
-    const a=source.body;if(a.impacts>=4)continue;
+    const a=source.body;if(a.impacts>=4||loopAt(a.s,4)||loopAt(a.previousS,4))continue;
     for(const target of run.events) {
       if(source===target||!SOLIDS.has(target.type)||target.used||target.body?.wheel!==undefined&&target.body.wheel!==run.wheel)continue;
       if((a.contacts[target.id]||0)>run.elapsed)continue;
       const targetS=target.body?.s??finite(target.at);
+      if(loopAt(targetS,4))continue;
       if(Math.abs((a.s-targetS)*WORLD_PER_METER)>8+Math.abs(a.vs*WORLD_PER_METER*dt))continue;
       const pair=source.id<target.id?`${source.id}|${target.id}`:`${target.id}|${source.id}`;
       if(handled.has(pair))continue;
@@ -486,14 +494,14 @@ export function resolveEvent(run, event, profile, normal) {
 }
 
 function physicsStep(run, profile, dt, feedback) {
-  const stats = ballStats(profile), grounded = run.height <= .0001 && run.vy <= 0;
+  const stats = ballStats(profile),terrain=courseSample(run.s),captured=Boolean(terrain.loop),grounded=captured||run.height<=.0001&&run.vy<=0;
   const previousS = run.s, previousX = run.x, previousHeight = run.height;
   // speed is the actual signed travel velocity. rollSpeed mirrors positive travel
   // for the existing HUD/steering contract; it never restores lost velocity.
   run.slowTime=Math.max(0,run.slowTime-dt);
   if (grounded) {
     if(Math.abs(run.speed)>.05){
-      const sign=Math.sign(run.speed),slope=courseSample(run.s).slope;
+      const sign=Math.sign(run.speed),slope=terrain.gravitySlope??(captured?terrain.tangentY:terrain.slope);
       const acceleration=-14*slope-sign*stats.drag*(run.slowTime>0?1.9:1);
       const next=run.speed+acceleration*dt;
       run.speed=Math.sign(next)===sign?next:0;
@@ -508,7 +516,10 @@ function physicsStep(run, profile, dt, feedback) {
   run.vx = clamp(run.vx, -23, 23);
   run.s += run.speed * dt;
   run.x += run.vx * dt;
-  run.vy -= GRAVITY * dt;
+  // The loop's magnetic guide holds the ball against the same moving surface
+  // without adding forward energy. Incoming jumps settle smoothly onto its rail.
+  if(captured)run.vy+=(-36*run.height-12*run.vy)*dt;
+  else run.vy-=GRAVITY*dt;
   run.height += run.vy * dt;
   if (run.height <= 0) {
     const landing = -run.vy;run.height = 0;
@@ -539,6 +550,7 @@ function physicsStep(run, profile, dt, feedback) {
   for (const event of run.events) {
     if (event.used || (event.cooldown || 0) > run.elapsed || event.body?.wheel!==undefined&&event.body.wheel!==run.wheel) continue;
     const body=event.body?.active?event.body:null,eventS=event.body?.s??finite(event.at);
+    if(captured||loopAt(run.s,4)||loopAt(eventS,4))continue;
     if(Math.abs((eventS-previousS)*WORLD_PER_METER)>6+Math.abs((run.s-previousS)*WORLD_PER_METER)+Math.abs(body?.vs||0)*dt*WORLD_PER_METER)continue;
     const pose=eventPose(event,run.elapsed);
     const normal=sweptContact(

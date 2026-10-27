@@ -1,7 +1,7 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261025-course2';
-import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261025-course2';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261028-loop1';
+import { courseSample, loopAt, COURSE_WORLD_PER_METER } from './course.mjs?v=20261028-loop1';
 
 const TAU = Math.PI * 2;
 export const BALL_HEIGHT = 1.08;
@@ -77,20 +77,20 @@ export class OrbitScene {
   }
   updateTrack(distance) {
     if(!this.courseFloor)return;
-    const start=Math.floor(distance/COURSE_STEP)*COURSE_STEP-96,origin=this.origin||{s:0,height:0};
-    if(this.courseStart===start){this.track.position.set(0,this.courseOriginHeight-origin.height,(this.courseOrigin-origin.s)*COURSE_WORLD_PER_METER);return;}
-    this.courseStart=start;this.courseOrigin=origin.s;this.courseOriginHeight=origin.height;this.track.position.set(0,0,0);
+    const start=Math.floor(distance/COURSE_STEP)*COURSE_STEP-96,origin=this.origin||{s:0,height:0,forward:0,lateral:0};
+    if(this.courseStart===start){this.track.position.set(this.courseOriginLateral-origin.lateral,this.courseOriginHeight-origin.height,this.courseOriginForward-origin.forward);return;}
+    this.courseStart=start;this.courseOrigin=origin.s;this.courseOriginHeight=origin.height;this.courseOriginForward=origin.forward;this.courseOriginLateral=origin.lateral;this.track.position.set(0,0,0);
     const vertices=this.courseFloor.geometry.attributes.position,instance=new THREE.Object3D();
     for(let i=0;i<=COURSE_SEGMENTS;i++) {
       const s=start+i*COURSE_STEP,p=this.position(s,0,-.025);
-      vertices.setXYZ(i*2,-HALF_WIDTH,p.y,p.z);vertices.setXYZ(i*2+1,HALF_WIDTH,p.y,p.z);
+      vertices.setXYZ(i*2,p.x-HALF_WIDTH,p.y,p.z);vertices.setXYZ(i*2+1,p.x+HALF_WIDTH,p.y,p.z);
       if(i===COURSE_SEGMENTS)continue;
-      const middle=s+COURSE_STEP/2,pitch=-Math.atan(courseSample(middle).slope);
+      const middle=s+COURSE_STEP/2,sample=courseSample(middle),pitch=-sample.pitch,edgeStart=this.position(s,0,.25),edgeEnd=this.position(s+COURSE_STEP,0,.25),edgeMid=edgeStart.clone().add(edgeEnd).multiplyScalar(.5),edgeLength=edgeStart.distanceTo(edgeEnd);
       for(const [side,x]of[-HALF_WIDTH,HALF_WIDTH].entries()) {
-        instance.position.copy(this.position(middle,x,.25));instance.rotation.set(pitch,0,0);instance.scale.set(1,1,Math.sqrt(1+courseSample(middle).slope**2));instance.updateMatrix();this.courseRails.setMatrixAt(i*2+side,instance.matrix);
+        instance.position.set(edgeMid.x-x,edgeMid.y,edgeMid.z);instance.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),edgeEnd.clone().sub(edgeStart).normalize());instance.scale.set(1,1,edgeLength/(COURSE_STEP*COURSE_WORLD_PER_METER));instance.updateMatrix();this.courseRails.setMatrixAt(i*2+side,instance.matrix);
         instance.position.copy(this.position(middle,x,4));instance.updateMatrix();this.courseGuards.setMatrixAt(i*2+side,instance.matrix);
       }
-      instance.position.copy(this.position(s,0,.008));instance.rotation.set(-Math.atan(courseSample(s).slope),0,0);instance.scale.set(1,1,1);instance.updateMatrix();this.courseRibs.setMatrixAt(i,instance.matrix);
+      instance.position.copy(this.position(s,0,.008));instance.rotation.set(-courseSample(s).pitch,0,0);instance.scale.set(1,1,1);instance.updateMatrix();this.courseRibs.setMatrixAt(i,instance.matrix);
       if(i%4===0){instance.position.copy(this.position(s,0,-.65));instance.updateMatrix();this.courseSupports.setMatrixAt(i/4,instance.matrix);}
     }
     vertices.needsUpdate=true;this.courseFloor.geometry.computeVertexNormals();
@@ -122,8 +122,8 @@ export class OrbitScene {
     }));
   }
   position(distance,x=0,height=.1) {
-    const sample=courseSample(distance),origin=this.origin||{s:0,height:0},normal=1/Math.sqrt(1+sample.slope**2);
-    return new THREE.Vector3(-x,sample.height-origin.height+height*normal,(distance-origin.s)*COURSE_WORLD_PER_METER-height*sample.slope*normal);
+    const sample=courseSample(distance),origin=this.origin||{s:0,height:0,forward:0,lateral:0};
+    return new THREE.Vector3(sample.lateral-origin.lateral-x,sample.height-origin.height+height*sample.normalY,sample.forward-origin.forward+height*sample.normalZ);
   }
   directionArrow(parent,color,size=1) {
     const shape=new THREE.Shape();shape.moveTo(-.16,-.5);shape.lineTo(.16,-.5);shape.lineTo(.16,.08);shape.lineTo(.42,.08);shape.lineTo(0,.55);shape.lineTo(-.42,.08);shape.lineTo(-.16,.08);shape.closePath();
@@ -243,7 +243,7 @@ export class OrbitScene {
     for(const child of visual.children)child.position.y-=h;
     visual.position.y=h;
     if(mechanism.cap)mechanism.capRest=mechanism.cap.position.y;
-    const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-Math.atan(courseSample(pose.s).slope);
+    const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-courseSample(pose.s).pitch;
     const cue=this.createCue(type,r);cue.position.y=h;g.add(cue);
     g.userData={type,event,visual,centerHeight:h,cue,mechanism};return g;
   }
@@ -282,11 +282,11 @@ export class OrbitScene {
     const duration=Math.max(.45,Math.min(1.8,feedback.kind==='guardian-break'?1.6:feedback.effectDuration||.65));
     this.hitAnimations||=new Map();if(feedback.eventId)this.hitAnimations.set(feedback.eventId,{life:duration,total:duration,type:feedback.type,kind:feedback.kind,strength,effect:feedback.effect,direction:feedback.effectDirection,powered:feedback.kind!=='chain'&&feedback.powered!==false});
     const event=this.eventMeshes?.get(feedback.eventId)?.userData.event,pose=event?eventPose(event,this.runElapsed||0):null;
-    const distance=feedback.type==='guardian'&&Number.isFinite(feedback.s)?feedback.s:pose?.s??(Number.isFinite(feedback.s)?feedback.s:this.distance||0),slope=courseSample(distance).slope;
+    const distance=feedback.type==='guardian'&&Number.isFinite(feedback.s)?feedback.s:pose?.s??(Number.isFinite(feedback.s)?feedback.s:this.distance||0),sample=courseSample(distance);
     const origin=feedback.type==='guardian'?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):pose?this.position(pose.s,pose.x,pose.height+(event.height||1.05)):
       Number.isFinite(feedback.s)?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):this.ball.position.clone();
     const color=feedback.type==='guardian'?0xe4b86e:feedback.type==='comet'?0xbba58d:0xc4d8df;
-    const inward=new THREE.Vector3(0,1,-slope).normalize(),forward=new THREE.Vector3(0,slope,1).normalize();
+    const inward=new THREE.Vector3(0,sample.normalY,sample.normalZ),forward=new THREE.Vector3(sample.tangentX,sample.tangentY,sample.tangentZ);
     this.effectGeometry||=new THREE.OctahedronGeometry(.14);this.effects||=[];
     const guardianBreak=feedback.kind==='guardian-break',count=guardianBreak?14:feedback.kind==='guardian-block'?5:feedback.type==='comet'?6:feedback.type==='landing'?4:feedback.type==='shot'?6:feedback.type==='rail'?3:0;
     for(let i=0;i<count;i++) {
@@ -294,7 +294,7 @@ export class OrbitScene {
       const material=guardianBreak?new THREE.MeshStandardMaterial({color:i%4===0?0xba8745:0x738b9c,roughness:.42,metalness:.65,transparent:true,opacity,depthWrite:false}):new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthWrite:false});
       const mesh=new THREE.Mesh(this.effectGeometry,material);mesh.position.copy(origin);mesh.scale.setScalar(scale);if(guardianBreak)mesh.rotation.set(Math.random()*TAU,Math.random()*TAU,Math.random()*TAU);this.scene.add(mesh);
       const velocity=inward.clone().multiplyScalar(1+Math.random()*3*strength).addScaledVector(forward,(Math.random()-.5)*5*strength);velocity.x=(Math.random()-.5)*6*strength;
-      this.effects.push({mesh,life,total:life,v:velocity,gravity:inward.clone().multiplyScalar(-10),opacity,scale,spin:guardianBreak?new THREE.Vector3(3+i*.2,2,4-i*.15):null});
+      this.effects.push({mesh,life,total:life,v:velocity,gravity:new THREE.Vector3(0,-10,0),opacity,scale,spin:guardianBreak?new THREE.Vector3(3+i*.2,2,4-i*.15):null});
     }
     while(this.effects.length>MAX_EFFECTS){const effect=this.effects.shift();this.scene.remove(effect.mesh);effect.mesh.material.dispose();}
   }
@@ -305,7 +305,7 @@ export class OrbitScene {
       const {event,visual,type,centerHeight,cue,mechanism}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=eventPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
       const flying=Boolean(event.body?.active),sameWheel=!active||!event.body||event.body.wheel===run.wheel;
       mesh.visible=sameWheel&&(type==='guardian'||flying||!event.used||Boolean(hit)&&!event.body)&&(!active||(ahead>-65&&ahead<190));
-      mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-Math.atan(courseSample(pose.s).slope);
+      mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-courseSample(pose.s).pitch;
       visual.position.set(0,centerHeight,0);visual.rotation.set(pose.rx||0,pose.ry||0,pose.rz||0);visual.scale.setScalar(1);
       cue.visible=Boolean(hit?.powered)&&Boolean(cue.userData.kind);cue.position.set(0,centerHeight,0);cue.rotation.set(0,0,0);cue.scale.setScalar(1);
       if(cue.userData.material)cue.userData.material.opacity=0;
@@ -350,9 +350,9 @@ export class OrbitScene {
   render(dt,run,mode='lobby',power=0,upgrades={pilot:0,ball:0}) {
     const animDt=mode==='paused'?0:dt;this.time+=animDt;this.frame++;
     const active=run&&mode!=='lobby', rolling=active&&run.phase==='rolling'&&mode==='rolling';
-    const orbit=active?run.wheel||0:0,newS=active?run.s:28,newHeight=courseSample(newS).height;
-    const oldOrigin=this.origin||{s:0,height:0},shift=new THREE.Vector3(0,oldOrigin.height-newHeight,(oldOrigin.s-newS)*COURSE_WORLD_PER_METER);
-    this.origin={s:newS,height:newHeight};
+    const orbit=active?run.wheel||0:0,newS=active?run.s:28,newSample=courseSample(newS),newHeight=newSample.height;
+    const oldOrigin=this.origin||{s:0,height:0,forward:0,lateral:0},shift=new THREE.Vector3(oldOrigin.lateral-newSample.lateral,oldOrigin.height-newHeight,oldOrigin.forward-newSample.forward);
+    this.origin={s:newS,height:newHeight,forward:newSample.forward,lateral:newSample.lateral};
     // Historical paths and fragments share the same floating-origin translation.
     for(const point of this.trailHistory||[])point.add(shift);
     for(const effect of this.effects)effect.mesh.position.add(shift);
@@ -360,7 +360,7 @@ export class OrbitScene {
     else{this.distance=28;this.x=0;this.syncEvents(this.previewEvents,0);}
     this.updateTrack(this.distance);
     this.runElapsed=active?run.elapsed:this.time;
-    const airborne=active?run.height||0:0,speed=rolling?Math.abs(run.speed):0,pitch=-Math.atan(courseSample(this.distance).slope);
+    const airborne=active?run.height||0:0,speed=rolling?Math.abs(run.speed):0,pitch=-newSample.pitch;
     const pos=this.position(this.distance,this.x,BALL_HEIGHT+airborne);this.ball.position.copy(pos);
     this.ballBody.rotation.x-=rolling?run.speed*animDt*.13:animDt*.2;this.ballBody.rotation.z-=rolling?(run.vx||0)*animDt*.6:0;this.ballBody.rotation.y-=rolling?(run.curveSpin||0)*animDt*.55:0;this.ball.rotation.set(pitch,0,0);
     this.squash=Math.max(0,(this.squash||0)-animDt*5);const squash=Math.min(.22,this.squash*.15),stretch=Math.min(.16,Math.abs(run?.vy||0)*.008);
@@ -370,7 +370,7 @@ export class OrbitScene {
     this.ballLight?.position.copy(this.position(this.distance,this.x,BALL_HEIGHT+airborne+2));
     if(this.aimGuide){this.aimGuide.visible=mode==='ready';const angle=(run?.aim||0)*Math.PI/180;
       this.aimGuide.children.forEach((part,index)=>{const ahead=3+index*1.8,x=this.x+Math.tan(angle)*ahead*COURSE_WORLD_PER_METER;part.position.copy(this.position(this.distance+ahead,x,.2));});
-      const tangent=new THREE.Vector3(-Math.sin(angle),courseSample(this.distance+15.6).slope*Math.cos(angle),Math.cos(angle)).normalize();this.aimTip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),tangent);
+      const tipSample=courseSample(this.distance+15.6),tangent=new THREE.Vector3(tipSample.tangentX*Math.cos(angle)-Math.sin(angle),tipSample.tangentY*Math.cos(angle),tipSample.tangentZ*Math.cos(angle)).normalize();this.aimTip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),tangent);
     }
     this.astronaut.visible=mode==='ready'||mode==='lobby';this.astronaut.position.copy(this.position(this.distance-4,-1.5,1.1));this.astronaut.rotation.set(pitch,0,0);
     if(upgrades.pilot)this.astronaut.scale.setScalar(2.7+upgrades.pilot*.05);
@@ -387,6 +387,14 @@ export class OrbitScene {
     const ready=mode==='ready',ground=this.position(this.distance,this.cameraX*.9,0);
     const target=active?ground.clone().add(new THREE.Vector3(0,9+airborne*.55,-24)):new THREE.Vector3((this.mobile?34:32)*fit,26,-38);
     const look=active?ground.clone().add(new THREE.Vector3(0,1+airborne*.85,this.cameraAim*COURSE_WORLD_PER_METER)):new THREE.Vector3(0,-1,27);
+    const loop=active?loopAt(this.distance,80):null;
+    if(loop){
+      const edge=this.distance<loop.start?(this.distance-loop.start+80)/80:this.distance>loop.end?(loop.end+80-this.distance)/80:1,blend=Math.max(0,Math.min(1,edge)),weight=blend*blend*(3-2*blend);
+      const normal=new THREE.Vector3(0,newSample.normalY,newSample.normalZ),tangent=new THREE.Vector3(newSample.tangentX,newSample.tangentY,newSample.tangentZ);
+      const sideTarget=ground.clone().add(new THREE.Vector3(-30,0,0)).addScaledVector(normal,12+airborne*.55).addScaledVector(tangent,-2);
+      const sideLook=ground.clone().add(new THREE.Vector3(0,2,0)).addScaledVector(normal,1+airborne*.85);
+      target.lerp(sideTarget,weight);look.lerp(sideLook,weight);
+    }
     this.camera.position.copy(target);this.look.copy(look);
     const up=new THREE.Vector3(0,1,0);
     this.impact=Math.max(0,(this.impact||0)-animDt*4);
