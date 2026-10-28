@@ -1,5 +1,6 @@
 import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, getSkillOffer, learnSkill, respawnAtCamp } from './rules.mjs';
 import { createRenderer } from './renderer.mjs';
+import { createGameAudio } from './audio.mjs';
 
 const $ = id => document.getElementById(id);
 const lifetime = new AbortController();
@@ -38,31 +39,77 @@ function saveProgress(force = false) {
   $('save-warning').hidden = !storageFailed;
 }
 
-let audioContext, master;
-const voices = new Set(), lastSound = new Map();
-function wakeAudio() {
-  if (!settings.sound) return;
-  try {
-    if (!audioContext) { audioContext = new (window.AudioContext || window.webkitAudioContext)(); master = audioContext.createGain(); master.gain.value = .13; master.connect(audioContext.destination); }
-    audioContext.resume().catch(() => {});
-  } catch { /* Silent play is supported. */ }
-}
-function sound(type) {
-  if (!settings.sound || !audioContext || audioContext.state !== 'running' || voices.size >= 8) return;
-  const now = audioContext.currentTime;
-  if (now - (lastSound.get(type) ?? -10) < (type === 'hit' ? .09 : .14)) return;
-  lastSound.set(type, now);
-  const notes = { shoot: [620, 390, .065, 'sine'], 'owl-shoot': [710, 1020, .075, 'sine', .1], hit: [270, 160, .065, 'triangle'], 'player-hit': [140, 65, .19, 'triangle'], skill: [320, 800, .27, 'sine'], burst: [260, 110, .18, 'triangle'], upgrade: [540, 1080, .3, 'sine'], pickup: [760, 980, .09, 'sine'], deposit: [620, 1240, .3, 'sine'], quest: [660, 1320, .4, 'sine'], 'level-up': [480, 1440, .45, 'sine'], down: [230, 100, .45, 'triangle'] };
-  const note = notes[type]; if (!note) return;
-  const [start, end, duration, waveform, peak = .22] = note, oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
-  oscillator.type = waveform; oscillator.frequency.setValueAtTime(start, now); oscillator.frequency.exponentialRampToValueAtTime(end, now + duration);
-  gain.gain.setValueAtTime(.001, now); gain.gain.linearRampToValueAtTime(peak, now + .01); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
-  oscillator.connect(gain); gain.connect(master); voices.add(oscillator);
-  oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); voices.delete(oscillator); };
-  oscillator.start(now); oscillator.stop(now + duration + .02);
-}
+const audio = createGameAudio({ enabled: settings.sound });
+const wakeAudio = () => audio.wake();
+const sound = type => audio.play(type);
 
 const shell = $('game-shell'), joystick = $('joystick'), knob = $('stick-knob');
+const acknowledgedUIEvents = new WeakSet(), skillHudCache = new Map();
+let rewardUntil = 0, rewardPriority = 0;
+function pulse(id, kind = 'reward-pop') { $(id).classList.add(kind); }
+for (const name of ['animationend', 'animationcancel']) listen(shell, name, e => {
+  if (e.target instanceof Element) e.target.classList.remove('reward-pop', 'hurt-pop');
+});
+function showReward(title, detail, priority = 1) {
+  if (visualTime < rewardUntil && priority < rewardPriority) return;
+  const banner = $('reward-banner');
+  $('toast').textContent = ''; $('direction-guide').hidden = true;
+  banner.hidden = true;
+  $('reward-title').textContent = title; $('reward-detail').textContent = detail;
+  banner.classList.toggle('major', priority >= 3);
+  // Only a reward event restarts this short animation, never the frame loop.
+  void banner.offsetWidth;
+  banner.hidden = false; rewardPriority = priority; rewardUntil = visualTime + 1.4;
+}
+function presentEvent(event) {
+  sound(event.type);
+  if (event.type === 'player-hit') pulse('hp-value', 'hurt-pop');
+  if (event.type === 'pickup') pulse('cargo-value');
+  if (event.type === 'deposit') {
+    pulse('gold-value'); pulse('cargo-value');
+    showReward(`보관 +${event.amount}`, '거점에서 강화하세요', 2);
+  }
+  if (event.type === 'level-up') {
+    pulse('level-value'); pulse('hp-value'); pulse('xp-value');
+    showReward(`레벨 ${event.level}`, '생명과 공격력 상승', 3);
+  }
+  if (event.type === 'kill' && event.bossId) showReward('수문장 토벌', '의뢰 보상을 받으세요!', 4);
+  if (event.type === 'quest') {
+    pulse('gold-value');
+    showReward('의뢰 완료', `보관 골드 +${event.reward}`, 3);
+  }
+  if (event.type === 'upgrade') {
+    const definition = [...UPGRADES, ...SKILLS].find(item => item.id === event.id);
+    pulse('growth-bank-value'); pulse('gold-value');
+    showReward(definition?.name ?? '성장 완료', '성장이 영구 적용됐어요', 2);
+  }
+  if (event.type === 'down') { $('reward-banner').hidden = true; rewardUntil = 0; }
+}
+function presentQueuedUIEvent() {
+  const event = state.queuedEvents.at(-1);
+  if (!event || !['upgrade', 'quest'].includes(event.type)) return;
+  acknowledgedUIEvents.add(event); presentEvent(event);
+}
+function updateSkillHud() {
+  const available = ['owl', 'roots'].some(id => state.progress.skills[id] > 0);
+  $('skill-status').hidden = !ready || !available || state.phase === 'ready' || state.phase === 'down';
+  for (const id of ['owl', 'roots']) {
+    const learned = state.progress.skills[id] > 0;
+    const cooldown = id === 'owl' ? state.owl.fireCd : state.player.skillCd;
+    const duration = id === 'owl' ? state.owl.fireCooldown : state.player.skillCooldown;
+    const resting = state.inCamp || state.phase === 'down';
+    const casting = !resting && (id === 'roots' ? state.pendingSkills.length > 0 : cooldown > duration - .15);
+    const readyToUse = !resting && cooldown <= 0;
+    const label = resting ? (id === 'owl' ? '동행' : '대기') : casting ? '발동' : readyToUse ? '준비' : `${Math.ceil(cooldown * 10) / 10}초`;
+    const fill = resting ? 100 : Math.round(Math.max(0, Math.min(1, 1 - cooldown / Math.max(.1, duration))) * 20) * 5;
+    const signature = `${learned}:${label}:${fill}:${readyToUse}:${casting}`;
+    if (skillHudCache.get(id) === signature) continue;
+    const chip = $(`${id}-status`); chip.hidden = !learned;
+    chip.classList.toggle('ready', readyToUse); chip.classList.toggle('casting', casting);
+    $(`${id}-cooldown`).textContent = label; $(`${id}-cooldown-fill`).style.width = `${fill}%`;
+    skillHudCache.set(id, signature);
+  }
+}
 const MOVEMENT_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight']);
 const input = { moveX: 0, moveZ: 0, manual: false }, keys = new Set();
 let joystickPointer = null, stickOrigin = null, stick = { x: 0, z: 0 };
@@ -87,7 +134,7 @@ function startGame() {
 function pauseGame(kind = 'pause') {
   clearInput();
   if (setPaused(state, true)) {
-    pauseKind = kind; accumulator = 0; saveProgress(true); audioContext?.suspend().catch(() => {}); updateUI();
+    pauseKind = kind; accumulator = 0; saveProgress(true); audio.suspend(); updateUI();
   }
 }
 function resumeGame() {
@@ -202,7 +249,7 @@ listen($('growth-list'), 'click', e => {
   if (!definition || category !== growthCategory) return;
   const purchased = category === 'stats' ? buyUpgrade(state, definition.id) : learnSkill(state, definition.id);
   if (!purchased) return;
-  wakeAudio(); sound('upgrade'); saveProgress(true); toast(`${definition.name} 성장 완료`); lastHud = ''; lastGrowth = ''; updateUI();
+  wakeAudio(); presentQueuedUIEvent(); saveProgress(true); lastHud = ''; lastGrowth = ''; updateUI();
 });
 for (const button of growthButtons) listen(button, 'click', () => openGrowth(button.dataset.growth));
 listen($('growth-close-btn'), 'click', resumeGame);
@@ -210,9 +257,10 @@ listen($('camp-btn'), 'click', () => openGrowth('stats'));
 listen($('start-btn'), 'click', startGame);
 listen($('pause-btn'), 'click', () => pauseGame()); listen($('resume-btn'), 'click', resumeGame);
 listen($('claim-btn'), 'click', () => {
-  const wasUnlocked = state.progress.unlockedDeep, reward = getQuest(state).rewardGold;
+  const wasUnlocked = state.progress.unlockedDeep;
   if (claimQuest(state)) {
-    sound('quest'); saveProgress(true); toast(!wasUnlocked && state.progress.unlockedDeep ? '깊은 숲으로 가는 길이 열렸어요!' : `의뢰 완료 · 보관 골드 +${reward}`);
+    presentQueuedUIEvent(); saveProgress(true);
+    if (!wasUnlocked && state.progress.unlockedDeep) toast('깊은 숲으로 가는 길이 열렸어요!');
     lastHud = ''; updateUI(); focusGame();
   }
 });
@@ -221,7 +269,7 @@ listen($('recover-btn'), 'click', () => {
   clearInput(); wakeAudio(); saveProgress(true); lastPhase = ''; lastTime = performance.now(); accumulator = 0; updateUI(); focusGame(); toast('모닥불에서 회복했어요 · 성장은 그대로');
 });
 listen($('sound-btn'), 'click', () => {
-  settings.sound = !settings.sound; if (settings.sound) wakeAudio(); else audioContext?.suspend().catch(() => {});
+  settings.sound = !settings.sound; audio.setEnabled(settings.sound);
   saveProgress(true); lastHud = ''; updateUI();
 });
 listen($('help-btn'), 'click', () => showHelp('menu'));
@@ -268,7 +316,7 @@ function directionTo(target) {
   return { arrow: ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'][Math.round(angle / (Math.PI / 4)) % 8], distance: Math.ceil(Math.hypot(dx, dz)) };
 }
 function guideText(quest) {
-  if (state.phase !== 'playing' || $('toast').textContent) return '';
+  if (state.phase !== 'playing' || $('toast').textContent || !$('reward-banner').hidden) return '';
   let target, label;
   if (state.player.hp < state.player.maxHp * .28 || state.cargo >= state.player.capacity || (quest.id === 'bank' && state.cargo > 0) || quest.id === 'attack') {
     return '';
@@ -287,6 +335,7 @@ function guideText(quest) {
 }
 function updateUI() {
   const player = state.player, progress = state.progress, quest = getQuest(state), zone = HUNT_ZONES.find(item => item.id === state.huntZoneId), fighting = state.fightTargetId != null;
+  updateSkillHud(); shell.classList.toggle('game-paused', state.phase !== 'playing');
   const guide = guideText(quest); $('direction-guide').hidden = !guide;
   if ($('direction-guide').textContent !== guide) $('direction-guide').textContent = guide;
   const campDirection = directionTo(WORLD.camp);
@@ -347,18 +396,16 @@ function animate(now) {
   if (state.phase === 'playing' || state.phase === 'ready') visualTime += delta;
   state.events = events;
   for (const event of events) {
-    sound(event.type);
-    if (event.type === 'deposit') toast(`전리품 보관 +${event.amount} 골드 · 모닥불에서 회복`);
-    if (event.type === 'level-up') toast(`레벨 ${event.level} · 더 강해졌어요!`);
-    if (event.type === 'kill' && event.bossId) toast('수문장 토벌 · 의뢰 보상을 받으세요!');
+    if (!acknowledgedUIEvents.has(event)) presentEvent(event);
   }
+  if (!$('reward-banner').hidden && visualTime >= rewardUntil) $('reward-banner').hidden = true;
   if ($('toast').textContent && now > toastUntil) $('toast').textContent = '';
   updateUI(); saveProgress(); view?.draw(state, delta, visualTime); state.events = [];
   frameId = requestAnimationFrame(animate);
 }
 listen(window, 'pagehide', e => {
-  clearInput(); saveProgress(true); pauseGame(); cancelAnimationFrame(frameId); audioContext?.suspend().catch(() => {});
-  if (!e.persisted) { stopped = true; lifetime.abort(); view?.dispose(); audioContext?.close().catch(() => {}); }
+  clearInput(); saveProgress(true); pauseGame(); cancelAnimationFrame(frameId); audio.suspend();
+  if (!e.persisted) { stopped = true; lifetime.abort(); view?.dispose(); audio.dispose(); }
 });
 listen(window, 'pageshow', e => { if (e.persisted && !stopped) { cancelAnimationFrame(frameId); lastTime = performance.now(); frameId = requestAnimationFrame(animate); } });
 

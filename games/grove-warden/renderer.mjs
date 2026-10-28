@@ -59,18 +59,19 @@ function makeDruid() {
   for (let i = 0; i < 3; i++) mesh(bag, 'CylinderGeometry', [.14, .14, .065, 10], palette.gold, (i - 1) * .13, 1.24 + i * .04, -.39);
   bone(rig, [-.45, 1.05, 0], [-.48, .72, .25], .13, palette.green);
   ball(rig, palette.skin, .62, .79, .23, .135); ball(rig, palette.skin, -.48, .72, .25, .135);
-  bone(rig, [.69, .08, .25], [.69, 2.03, .25], .055, palette.bark);
-  bone(rig, [.69, 1.72, .25], [.43, 2.14, .25], .045, palette.bark);
-  bone(rig, [.69, 1.86, .25], [.91, 2.14, .25], .04, palette.bark);
-  const jewel = mesh(rig, 'OctahedronGeometry', [.18, 0], 0xc8f6a4, .69, 2.15, .25, [1, 1.4, 1], { emissive: 0x85b567, emissiveIntensity: .5 });
-  const castGlow = ball(rig, 0xf4ffb7, .69, 2.15, .25, .27); castGlow.material = new THREE.MeshBasicMaterial({ color: 0xe3ffae, transparent: true, opacity: .8, depthWrite: false }); castGlow.castShadow = false; castGlow.visible = false;
+  const staff = new THREE.Group(); staff.position.set(.69, .8, .25); rig.add(staff);
+  bone(staff, [0, -.72, 0], [0, 1.23, 0], .055, palette.bark);
+  bone(staff, [0, .92, 0], [-.26, 1.34, 0], .045, palette.bark);
+  bone(staff, [0, 1.06, 0], [.22, 1.34, 0], .04, palette.bark);
+  const jewel = mesh(staff, 'OctahedronGeometry', [.18, 0], 0xc8f6a4, 0, 1.35, 0, [1, 1.4, 1], { emissive: 0x85b567, emissiveIntensity: .5 });
+  const castGlow = ball(staff, 0xf4ffb7, 0, 1.35, 0, .27); castGlow.material = new THREE.MeshBasicMaterial({ color: 0xe3ffae, transparent: true, opacity: .8, depthWrite: false }); castGlow.castShadow = false; castGlow.visible = false;
   for (const sign of [-1, 1]) {
     bone(rig, [sign * .24, 1.81, 0], [sign * .4, 2.17, 0], .055, palette.bark);
     bone(rig, [sign * .4, 2.17, 0], [sign * .36, 2.4, .04], .04, palette.bark);
     bone(rig, [sign * .37, 2.08, 0], [sign * .61, 2.17, .02], .04, palette.bark);
     const leaf = ball(rig, 0xaedc59, sign * .57, 2.18, .03, .17, .075, .09); leaf.rotation.z = sign * .4;
   }
-  return { root, rig, left, right, jewel, arm, shoulders, bag, castGlow };
+  return { root, rig, left, right, jewel, arm, shoulders, bag, staff, castGlow };
 }
 function makeOwl() {
   const root = new THREE.Group(), rig = new THREE.Group(); root.name = 'owl-companion'; root.add(rig); root.visible = false;
@@ -104,7 +105,7 @@ function makeOwl() {
   return { root, rig, shadow, wings, launchGlow, irisMaterial };
 }
 function makeEnemy(type) {
-  const root = new THREE.Group(), rig = new THREE.Group(); root.add(rig);
+  const root = new THREE.Group(), rig = new THREE.Group(); root.name = `enemy-${type}`; root.add(rig);
   const boss = type === 'boss';
   circle(root, boss ? 1.25 : .47, 0x18352c, .22);
   if (type === 'boar') {
@@ -136,7 +137,20 @@ function makeEnemy(type) {
   const danger = new THREE.Group(); root.add(danger); danger.visible = false;
   const warningDisk = circle(danger, 1, 0xff6048, .25), warningRing = ring(danger, .94, 1, 0xffa044, .95);
   const warningLine = mesh(danger, 'PlaneGeometry', [1, 1], 0xff6945, 0, .045, 0, [1, 1, 1], { transparent: true, opacity: .35, depthWrite: false, side: THREE.DoubleSide }); warningLine.rotation.x = -Math.PI / 2; warningLine.castShadow = false;
-  return { root, rig, bar, fill, danger, warningDisk, warningRing, warningLine, type };
+  // Only the visual body owns flash materials; health bars and telegraphs stay unchanged.
+  const copies = new Map(), hitMaterials = [];
+  rig.traverse(part => {
+    if (!part.isMesh) return;
+    const own = base => {
+      if (!copies.has(base)) {
+        const copy = base.clone(); copies.set(base, copy);
+        hitMaterials.push({ material: copy, emissive: base.emissive.clone(), intensity: base.emissiveIntensity });
+      }
+      return copies.get(base);
+    };
+    part.material = Array.isArray(part.material) ? part.material.map(own) : own(part.material);
+  });
+  return { root, rig, bar, fill, danger, warningDisk, warningRing, warningLine, type, hitMaterials, hitTime: 0, recoilX: 0, recoilZ: 0 };
 }
 
 export async function createRenderer(container) {
@@ -218,6 +232,18 @@ export async function createRenderer(container) {
   const owl = makeOwl(); scene.add(owl.root);
   const aimMarker = new THREE.Group(); ring(aimMarker, .96, 1, 0xe3ffb3, .9); circle(aimMarker, 1, 0xc8f2a1, .14); scene.add(aimMarker); aimMarker.visible = false;
   const actors = new Map(), actorPool = [], bolts = new Map(), boltPool = [], fx = new Map(), fxPool = [], coins = new Map(), coinPool = [];
+  const dyingActors = [], pulsePool = [], pulses = [], feedbackMaterials = new Set();
+  const motionPreference = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
+  const hitColor = new THREE.Color(0xffefbd);
+  // One fixed-size instance buffer handles all sparks, fragments and reward motes.
+  const particleCapacity = 96, particleData = Array.from({ length: particleCapacity }, () => ({ life: 0 }));
+  const particleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }); feedbackMaterials.add(particleMaterial);
+  const particles = new THREE.InstancedMesh(geometry('OctahedronGeometry', [1, 0]), particleMaterial, particleCapacity);
+  particles.name = 'feedback-particles'; particles.castShadow = particles.receiveShadow = false; particles.frustumCulled = false;
+  particles.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(particles);
+  const particleDummy = new THREE.Object3D(), particleColor = new THREE.Color(); let particleCursor = 0;
+  particleDummy.scale.setScalar(0); particleDummy.updateMatrix();
+  for (let i = 0; i < particleCapacity; i++) particles.setMatrixAt(i, particleDummy.matrix);
   const boltMaterials = {
     player: material(0xdbffab, { emissive: 0x669656, emissiveIntensity: .7 }),
     enemy: material(0xf5b36f, { emissive: 0x8c4837, emissiveIntensity: .7 }),
@@ -228,7 +254,7 @@ export async function createRenderer(container) {
   const labels = document.createElement('div'); labels.className = 'combat-labels'; container.append(labels);
   const floaters = []; const vector = new THREE.Vector3();
   for (const territory of territories) { const label = document.createElement('span'); label.className = 'territory-label'; label.textContent = `${territory.zone.name} · Lv.${territory.zone.level}`; labels.append(label); territory.label = label; }
-  let width = 1, height = 1, lastPlayer = { x: 0, z: WORLD.camp.z }, previousHp = 100, shake = 0, castFlash = 0, castAngle = 0, owlFlash = 0, owlAngle = 0, owlAppeared = 0, owlWasActive = false, disposed = false;
+  let width = 1, height = 1, lastPlayer = { x: 0, z: WORLD.camp.z }, previousHp = 100, shake = 0, castFlash = 0, castAngle = 0, owlFlash = 0, owlAngle = 0, owlAppeared = 0, owlWasActive = false, depositFlash = 0, renderTime = 0, walkBlend = 0, disposed = false;
   const resize = () => {
     const rect = container.getBoundingClientRect(); width = Math.max(1, rect.width); height = Math.max(1, rect.height); renderer.setSize(width, height, false);
     const ratio = width / height, horizontal = width > 500 ? 18.8 : 15.6, vertical = horizontal / ratio;
@@ -275,9 +301,52 @@ export async function createRenderer(container) {
     }
   }));
   if (sceneryStatus.some(r => r.status === 'rejected')) console.warn('일부 숲 장식을 불러오지 못했습니다. 전투는 정상 실행됩니다.');
+  function tintActor(actor, strength) {
+    for (const part of actor.hitMaterials) {
+      part.material.emissive.copy(part.emissive).lerp(hitColor, strength);
+      part.material.emissiveIntensity = part.intensity + strength * .65;
+    }
+  }
+  function recycleActor(actor) {
+    actor.root.visible = false; scene.remove(actor.root); actor.root.scale.setScalar(1);
+    actor.rig.position.set(0, 0, 0); actor.rig.rotation.x = actor.rig.rotation.z = 0; actor.rig.scale.setScalar(1);
+    actor.hitTime = 0; actor.recoilX = actor.recoilZ = 0; tintActor(actor, 0); actorPool.push(actor);
+  }
   function getActor(enemy) {
-    if (!actors.has(enemy.id)) { const i = actorPool.findIndex(a => a.type === enemy.type); const a = i < 0 ? makeEnemy(enemy.type) : actorPool.splice(i, 1)[0]; a.root.visible = true; scene.add(a.root); actors.set(enemy.id, a); }
+    if (!actors.has(enemy.id)) {
+      const i = actorPool.findIndex(a => a.type === enemy.type), a = i < 0 ? makeEnemy(enemy.type) : actorPool.splice(i, 1)[0];
+      for (const part of a.hitMaterials) feedbackMaterials.add(part.material);
+      a.root.visible = true; scene.add(a.root); actors.set(enemy.id, a);
+    }
     return actors.get(enemy.id);
+  }
+  function emitParticles(x, y, z, color, count, kind = 'burst', target = null) {
+    const reduce = motionPreference?.matches;
+    for (let i = 0, total = reduce ? Math.ceil(count / 2) : count; i < total; i++) {
+      const index = particleCursor++ % particleCapacity, particle = particleData[index], angle = random() * TAU;
+      const speed = kind === 'hit' ? .6 + random() * 1.2 : 1 + random() * 2;
+      Object.assign(particle, {
+        x, y, z, vx: Math.cos(angle) * speed, vz: Math.sin(angle) * speed, vy: 1.1 + random() * 1.8,
+        life: kind === 'hit' ? .2 + random() * .12 : .4 + random() * .22,
+        size: kind === 'hit' ? .045 + random() * .025 : .06 + random() * .055,
+        kind, targetX: target?.x ?? x, targetZ: target?.z ?? z, spin: random() * TAU,
+      });
+      particle.maxLife = particle.life;
+      particles.setColorAt(index, particleColor.setHex(color));
+    }
+    if (particles.instanceColor) particles.instanceColor.needsUpdate = true;
+  }
+  function rewardPulse(x, z, level = false) {
+    if (pulses.length >= 4) return;
+    let pulse = pulsePool.pop();
+    if (!pulse) {
+      const root = new THREE.Group(), edge = ring(root, .92, 1, palette.gold, .8);
+      edge.material = new THREE.MeshBasicMaterial({ color: palette.gold, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide });
+      feedbackMaterials.add(edge.material); pulse = { root, edge };
+    }
+    pulse.age = 0; pulse.life = level ? .75 : .55; pulse.level = level;
+    pulse.root.position.set(x, .06, z); pulse.root.visible = true; pulse.edge.material.color.setHex(level ? 0xb9ff9c : palette.gold);
+    scene.add(pulse.root); pulses.push(pulse);
   }
   function makeFx() {
     const g = new THREE.Group(); const disk = circle(g, 1, 0xaddd8a, .2), edge = ring(g, .92, 1, 0xd4efae, .9);
@@ -297,7 +366,7 @@ export async function createRenderer(container) {
   }
   function showNumber(e) {
     if (floaters.length >= 24) return;
-    const el = document.createElement('span'); el.className = `combat-number ${e.type === 'player-hit' ? 'hurt' : ''}`; el.textContent = e.damage ? `${e.type === 'player-hit' ? '−' : ''}${Math.round(e.damage)}` : e.type === 'skill' ? '덩굴' : e.type === 'pickup' ? `+${e.amount}` : e.type === 'level-up' ? '레벨 업!' : '';
+    const el = document.createElement('span'); el.className = `combat-number ${e.type === 'player-hit' ? 'hurt' : ''}`; el.textContent = e.damage ? `${e.type === 'player-hit' ? '−' : ''}${Math.round(e.damage)}` : e.type === 'skill' ? '덩굴' : e.type === 'pickup' ? `+${e.amount}` : e.type === 'deposit' ? `보관 +${e.amount}` : e.type === 'level-up' ? '레벨 업!' : '';
     if (!el.textContent) return; labels.append(el); floaters.push({ el, x: e.x ?? 0, z: e.z ?? 0, age: 0 });
   }
   return {
@@ -308,7 +377,28 @@ export async function createRenderer(container) {
     },
     draw(state, dt, visualTime) {
       if (disposed) return;
+      // Simulation owns time and collisions; all extra motion is render-only and freezes with menus/tabs.
+      dt = !document.hidden && (state.phase === 'playing' || state.phase === 'ready') ? Math.max(0, Math.min(.1, dt)) : 0;
+      visualTime = renderTime += dt;
+      const reduceMotion = !!motionPreference?.matches, motion = reduceMotion ? .25 : 1;
+      const events = state.events || [], hits = new Map(), kills = new Set();
       const p = state.player, moving = Math.hypot(p.x - lastPlayer.x, p.z - lastPlayer.z) > .005;
+      for (const e of events) {
+        if (e.type === 'hit') {
+          hits.set(e.targetId, e); emitParticles(e.x, .9, e.z, 0xffefbd, 3, 'hit');
+        } else if (e.type === 'kill') {
+          kills.add(e.targetId);
+          const color = e.enemyType === 'boar' ? 0xf18c9d : e.enemyType === 'caster' ? 0x85d0e5 : e.enemyType === 'boss' ? 0xa6c084 : palette.red;
+          emitParticles(e.x, e.enemyType === 'boss' ? 1.2 : .7, e.z, color, e.bossId ? 16 : 8);
+        } else if (e.type === 'pickup') emitParticles(e.x, .35, e.z, palette.gold, 5, 'pickup', p);
+        else if (e.type === 'deposit') {
+          depositFlash = .65; rewardPulse(p.x, p.z);
+          emitParticles(chest.position.x + WORLD.camp.x, .9, chest.position.z + WORLD.camp.z, palette.gold, 14);
+        } else if (e.type === 'level-up' || e.type === 'quest' || e.type === 'upgrade') {
+          rewardPulse(p.x, p.z, e.type === 'level-up');
+          emitParticles(p.x, .5, p.z, e.type === 'level-up' ? 0xd6ff96 : palette.gold, e.type === 'level-up' ? 18 : 8, 'rise');
+        }
+      }
       for (const tree of occludingTrees) {
         const dx = tree.instance.position.x - p.x, dz = tree.instance.position.z - p.z;
         // Layered leaves accumulate alpha; keep overlapping trees almost invisible.
@@ -320,7 +410,7 @@ export async function createRenderer(container) {
           m.opacity = fading ? tree.opacity : 1;
         }
       }
-      shake = Math.max(0, shake - dt); camera.position.set(p.x + (shake ? Math.sin(visualTime * 130) * shake : 0), 27, 21 + p.z); camera.lookAt(p.x, 0, p.z); camera.updateMatrixWorld();
+      shake = Math.max(0, shake - dt); camera.position.set(p.x + (shake && !reduceMotion ? Math.sin(visualTime * 50) * shake * .45 : 0), 27, 21 + p.z); camera.lookAt(p.x, 0, p.z); camera.updateMatrixWorld();
       light.position.set(p.x - 8, 19, p.z + 12); light.target.position.set(p.x, 0, p.z); light.target.updateMatrixWorld();
       for (const territory of territories) {
         const { zone, root, edge, label } = territory, active = state.huntZoneId === zone.id;
@@ -335,20 +425,31 @@ export async function createRenderer(container) {
       fire.scale.set(1 + Math.sin(visualTime * 8) * .05, 1 + Math.sin(visualTime * 11) * .1, 1); fire.rotation.y = Math.sin(visualTime * 2) * .12;
       questMark.position.y = 2.27 + Math.sin(visualTime * 3) * .1; questMark.visible = (state.progress?.questIndex ?? 0) < 6;
       barrier.visible = !state.progress?.unlockedDeep;
+      depositFlash = Math.max(0, depositFlash - dt);
+      const chestPop = depositFlash > 0 ? Math.sin((1 - depositFlash / .65) * Math.PI) : 0;
+      chest.position.y = chestPop * .18 * motion; chest.rotation.z = Math.sin((1 - depositFlash / .65) * TAU * 1.5) * depositFlash * .06 * motion;
       castFlash = Math.max(0, castFlash - dt);
-      for (const e of state.events || []) if (e.type === 'shoot') { castFlash = .22; castAngle = Math.atan2(e.aimX ?? p.facingX, e.aimZ ?? p.facingZ); }
-      druid.root.position.set(p.x, .035, p.z); druid.rig.rotation.y = castFlash > 0 ? castAngle : Math.atan2(p.facingX ?? 0, p.facingZ ?? 1); druid.rig.position.y = moving ? Math.abs(Math.sin(visualTime * 13)) * .075 : Math.sin(visualTime * 2) * .025;
-      druid.arm.rotation.x = castFlash > 0 ? -.6 * Math.sin(castFlash / .22 * Math.PI) : 0; druid.castGlow.visible = castFlash > .1; druid.castGlow.scale.setScalar(.27 * (.7 + castFlash * 3));
+      for (const e of events) if (e.type === 'shoot') { castFlash = .22; castAngle = Math.atan2(e.aimX ?? p.facingX, e.aimZ ?? p.facingZ); }
+      walkBlend += ((moving ? 1 : 0) - walkBlend) * Math.min(1, dt * 14);
+      const stride = Math.sin(visualTime * 13) * walkBlend * motion;
+      const castPose = castFlash > 0 ? Math.sin(castFlash / .22 * Math.PI) : 0;
+      druid.root.position.set(p.x, .035, p.z); druid.rig.rotation.y = castFlash > 0 ? castAngle : Math.atan2(p.facingX ?? 0, p.facingZ ?? 1);
+      druid.rig.position.y = (Math.abs(stride) * .075 + Math.sin(visualTime * 2) * .025 * (1 - walkBlend)) * motion;
+      druid.rig.rotation.x = (walkBlend * .055 - castPose * .055) * motion; druid.rig.rotation.z = stride * .035;
+      druid.arm.rotation.x = -.6 * castPose; druid.staff.rotation.x = -.14 * castPose * motion; druid.staff.rotation.z = -.05 * castPose * motion;
+      druid.castGlow.visible = castFlash > .1; druid.castGlow.scale.setScalar(.27 * (.7 + castFlash * 3)); druid.castGlow.material.opacity = reduceMotion ? .3 : .8;
       druid.bag.visible = state.cargo > 0; druid.bag.scale.setScalar(.75 + Math.min(1, (state.cargo || 0) / (p.capacity || 24)) * .4);
-      druid.left.position.z = .06 + (moving ? Math.sin(visualTime * 13) * .17 : 0); druid.right.position.z = .06 - (moving ? Math.sin(visualTime * 13) * .17 : 0); druid.jewel.rotation.y = visualTime;
-      druid.rig.visible = !(p.invuln > 0 && Math.floor(visualTime * 22) % 2); lastPlayer = { x: p.x, z: p.z };
+      druid.bag.rotation.z = -stride * .07;
+      druid.left.position.z = .06 + stride * .17; druid.right.position.z = .06 - stride * .17;
+      druid.left.position.y = .15 + Math.max(0, stride) * .08; druid.right.position.y = .15 + Math.max(0, -stride) * .08; druid.jewel.rotation.y = visualTime;
+      druid.rig.visible = reduceMotion || !(p.invuln > 0 && Math.floor(visualTime * 22) % 2); lastPlayer = { x: p.x, z: p.z };
       const owlActive = state.owl?.active === true && p.hp > 0 && state.phase !== 'down';
       const owlDelta = state.phase === 'playing' || state.phase === 'ready' ? dt : 0;
       if (owlActive && !owlWasActive) { owlAppeared = 0; owlFlash = 0; }
       owl.root.visible = owlActive;
       if (owlActive) {
         owlAppeared = Math.min(1, owlAppeared + owlDelta / .25); owlFlash = Math.max(0, owlFlash - owlDelta);
-        for (const event of state.events || []) if (event.type === 'owl-shoot') {
+        for (const event of events) if (event.type === 'owl-shoot') {
           owlFlash = .24;
           const target = state.enemies.find(enemy => enemy.id === event.targetId && enemy.hp > 0);
           owlAngle = target ? Math.atan2(target.x - state.owl.x, target.z - state.owl.z) : Math.atan2(event.aimX ?? p.facingX ?? 0, event.aimZ ?? p.facingZ ?? 1);
@@ -357,17 +458,26 @@ export async function createRenderer(container) {
         owl.root.position.set(state.owl.x, .04, state.owl.z);
         owl.rig.position.y = 1.9 + Math.sin(visualTime * 3.6) * .065;
         owl.rig.scale.setScalar(appear * 1.12); owl.rig.rotation.set(-.1, owlFlash > 0 ? owlAngle : .2, Math.sin(visualTime * 3) * .045);
-        const flap = Math.sin(visualTime * (moving ? 17 : 8)) * (moving ? .62 : .3);
+        const flap = Math.sin(visualTime * (walkBlend > .3 ? 17 : 8)) * (walkBlend > .3 ? .62 : .3);
         owl.wings[0].rotation.z = -.08 - flap; owl.wings[1].rotation.z = .08 + flap;
         owl.shadow.scale.setScalar(.85 + Math.sin(visualTime * 3.6) * .04);
         owl.launchGlow.visible = pulse > .15; owl.launchGlow.scale.setScalar(.1 + pulse * .15);
         owl.irisMaterial.emissiveIntensity = .15 + pulse * 1.4;
       } else { owlAppeared = 0; owlFlash = 0; }
       owlWasActive = owlActive;
-      if (p.hp < previousHp) shake = .16; previousHp = p.hp;
+      if (p.hp < previousHp && !reduceMotion) shake = .12; previousHp = p.hp;
       const alive = new Set();
       for (const enemy of state.enemies) {
         if (enemy.hp <= 0) continue; alive.add(enemy.id); const a = getActor(enemy); a.root.position.set(enemy.x, .03, enemy.z);
+        a.hitTime = Math.max(0, a.hitTime - dt);
+        if (hits.has(enemy.id)) {
+          a.hitTime = .18; const distance = Math.hypot(enemy.x - p.x, enemy.z - p.z) || 1;
+          a.recoilX = (enemy.x - p.x) / distance; a.recoilZ = (enemy.z - p.z) / distance;
+        }
+        const impact = a.hitTime / .18, recoil = impact * (enemy.type === 'boss' ? .045 : .13) * motion;
+        a.rig.position.x = a.recoilX * recoil; a.rig.position.z = a.recoilZ * recoil;
+        a.rig.scale.set(1 + impact * .1 * motion, 1 - impact * .15 * motion, 1 + impact * .1 * motion);
+        tintActor(a, impact * (reduceMotion ? .12 : .58));
         if (enemy.phase === 'windup' || enemy.phase === 'charge') a.rig.rotation.y = enemy.angle ?? Math.atan2(enemy.aimX ?? 0, enemy.aimZ ?? 1);
         else if (enemy.phase === 'return') a.rig.rotation.y = Math.atan2(enemy.homeX - enemy.x, enemy.homeZ - enemy.z);
         else if (enemy.phase !== 'idle') a.rig.rotation.y = Math.atan2(p.x - enemy.x, p.z - enemy.z);
@@ -383,7 +493,19 @@ export async function createRenderer(container) {
           a.warningRing.material.opacity = .65 + Math.sin(visualTime * 14) * .3;
         }
       }
-      for (const [id, a] of actors) if (!alive.has(id)) { a.root.visible = false; scene.remove(a.root); actorPool.push(a); actors.delete(id); }
+      for (const [id, a] of actors) if (!alive.has(id)) {
+        actors.delete(id);
+        if (kills.has(id) && dyingActors.length < 12 && !reduceMotion) {
+          a.deathTime = .26; a.bar.visible = a.danger.visible = false; tintActor(a, 0); dyingActors.push(a);
+        } else recycleActor(a);
+      }
+      for (let i = dyingActors.length - 1; i >= 0; i--) {
+        const a = dyingActors[i]; a.deathTime = Math.max(0, a.deathTime - dt);
+        if (a.deathTime === 0) { recycleActor(a); dyingActors.splice(i, 1); continue; }
+        const remaining = a.deathTime / .26, collapse = 1 - remaining;
+        a.rig.scale.set(remaining * (1 + collapse * .25), remaining * remaining, remaining * (1 + collapse * .25));
+        a.rig.position.y = -.1 * collapse; a.rig.rotation.z = collapse * .18;
+      }
       const activeBolts = new Set();
       for (const b of state.projectiles) {
         activeBolts.add(b.id);
@@ -416,22 +538,56 @@ export async function createRenderer(container) {
         const f = fx.get(e.id), progress = 1 - e.life / (e.maxLife || .6), warning = e.type.includes('warning');
         const hostile = e.team === 'enemy' || e.type === 'charge';
         f.disk.material.color.setHex(hostile ? 0xff7548 : 0x78e8a4); f.edge.material.color.setHex(hostile ? 0xffcf68 : 0xe1ffae);
+        f.disk.visible = e.type !== 'death'; f.edge.material.color.setHex(e.type === 'death' ? 0xffd58b : hostile ? 0xffcf68 : 0xe1ffae);
         f.root.position.set(e.x, .045, e.z); f.root.rotation.y = e.angle || 0;
         const scale = (e.radius || .7) * (warning ? 1 : .65 + progress * .5); f.root.scale.set(scale, scale, e.type === 'charge' ? (e.length || 5) * .5 : scale);
         f.spikes.visible = e.type === 'root-burst'; f.spikes.scale.y = Math.max(.04, Math.sin(progress * Math.PI) * .8); f.disk.material.opacity = warning ? .12 + progress * .18 : (1 - progress) * .32; f.edge.material.opacity = warning ? .8 : 1 - progress;
       }
       for (const [id, f] of fx) if (!activeFx.has(id)) { scene.remove(f.root); f.root.visible = false; fxPool.push(f); fx.delete(id); }
-      for (const e of state.events || []) if (['hit', 'enemy-hit', 'player-hit', 'pickup', 'level-up', 'skill'].includes(e.type)) showNumber(e);
-      for (let i = floaters.length - 1; i >= 0; i--) { const f = floaters[i]; f.age += dt; if (f.age > .8) { f.el.remove(); floaters.splice(i, 1); continue; } vector.set(f.x, 1.8 + f.age * 1.5, f.z).project(camera); f.el.style.transform = `translate(${(vector.x * .5 + .5) * width}px,${(-vector.y * .5 + .5) * height}px)`; f.el.style.opacity = String(Math.min(1, (1 - f.age / .8) * 2)); }
+      let activeParticles = 0;
+      for (let i = 0; i < particleCapacity; i++) {
+        const particle = particleData[i]; particle.life = Math.max(0, particle.life - dt);
+        if (particle.life > 0) {
+          activeParticles++; const age = particle.maxLife - particle.life, progress = age / particle.maxLife;
+          if (particle.kind === 'pickup') {
+            const travel = progress * progress;
+            particleDummy.position.set(particle.x + (particle.targetX - particle.x) * travel, .35 + progress * .65 + Math.sin(progress * Math.PI) * .3, particle.z + (particle.targetZ - particle.z) * travel);
+          } else {
+            const rising = particle.kind === 'rise';
+            particleDummy.position.set(particle.x + particle.vx * age * (rising ? .35 : 1), Math.max(.05, particle.y + particle.vy * age - (rising ? .4 : 3.5) * age * age), particle.z + particle.vz * age * (rising ? .35 : 1));
+          }
+          particleDummy.rotation.set(age * 5 + particle.spin, particle.spin + age * 3, age * 2);
+          particleDummy.scale.setScalar(particle.size * Math.min(1, particle.life / .15));
+        } else particleDummy.scale.setScalar(0);
+        particleDummy.updateMatrix(); particles.setMatrixAt(i, particleDummy.matrix);
+      }
+      particles.visible = activeParticles > 0; particles.instanceMatrix.needsUpdate = true;
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        const pulse = pulses[i]; pulse.age += dt;
+        if (pulse.age >= pulse.life) { scene.remove(pulse.root); pulse.root.visible = false; pulsePool.push(pulse); pulses.splice(i, 1); continue; }
+        const progress = pulse.age / pulse.life, ease = 1 - (1 - progress) ** 3;
+        pulse.root.scale.setScalar((pulse.level ? .75 : .55) + ease * (pulse.level ? 1.35 : .8) * motion);
+        pulse.edge.material.opacity = (1 - progress) * (reduceMotion ? .3 : .75);
+      }
+      for (const e of events) if (['hit', 'enemy-hit', 'player-hit', 'pickup', 'deposit', 'level-up', 'skill'].includes(e.type)) showNumber(e);
+      for (let i = floaters.length - 1; i >= 0; i--) {
+        const f = floaters[i]; f.age += dt;
+        if (f.age > .8) { f.el.remove(); floaters.splice(i, 1); continue; }
+        const pop = reduceMotion ? 1 : 1 + Math.sin(Math.min(1, f.age / .18) * Math.PI) * .2;
+        vector.set(f.x, 1.8 + f.age * 1.3 * motion, f.z).project(camera);
+        f.el.style.transform = `translate(${(vector.x * .5 + .5) * width}px,${(-vector.y * .5 + .5) * height}px) translate(-50%,-50%) scale(${pop})`;
+        f.el.style.opacity = String(Math.min(1, (1 - f.age / .8) * 2));
+      }
       renderer.render(scene, camera);
     },
     stats() { return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries }; },
     dispose() {
       disposed = true; observer.disconnect(); for (const f of floaters) f.el.remove(); labels.remove();
       for (const f of [...fx.values(), ...fxPool]) { f.disk.material.dispose(); f.edge.material.dispose(); }
-      const ownedGeometry = new Set(geometries.values()), ownedMaterials = new Set(materials.values()), externalGeometry = new Set(), externalMaterials = new Set();
+      const ownedGeometry = new Set(geometries.values()), ownedMaterials = new Set([...materials.values(), ...feedbackMaterials]), externalGeometry = new Set(), externalMaterials = new Set();
       scene.traverse(o => { if (!o.isMesh) return; if (o.geometry && !ownedGeometry.has(o.geometry)) externalGeometry.add(o.geometry); for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && !ownedMaterials.has(m)) externalMaterials.add(m); });
-      for (const g of externalGeometry) g.dispose(); for (const m of externalMaterials) m.dispose(); light.shadow.dispose();
+      for (const g of externalGeometry) g.dispose(); for (const m of externalMaterials) m.dispose(); light.shadow.dispose(); particles.dispose();
+      for (const m of feedbackMaterials) m.dispose(); feedbackMaterials.clear();
       for (const g of geometries.values()) g.dispose(); for (const m of materials.values()) m.dispose(); geometries.clear(); materials.clear(); renderer.dispose(); renderer.domElement.remove();
     },
   };

@@ -227,6 +227,7 @@ export function claimQuest(state) {
 
 function clearCombatSession(state) {
   state.player.castId++;
+  state.queuedEvents = state.queuedEvents.filter(item => !['skill', 'zone-enter', 'zone-leave'].includes(item.type));
   state.fightTargetId = null;
   state.owl.active = false; state.owl.targetId = null; state.owl.fireCd = 0;
   state.pendingSkills = [];
@@ -310,7 +311,7 @@ function hurtEnemy(state, enemy, damage, rooted = 0) {
     state.loot.push({ id: state.nextId++, zoneId: enemy.zoneId, enemyType: enemy.type, x: enemy.x, z: enemy.z, value, life: enemy.type === 'boss' ? 600 : 180 });
     state.revision++;
     effect(state, 'death', enemy.x, enemy.z, 0.55, enemy.radius * 1.6);
-    event(state, 'kill', enemy.x, enemy.z, { enemyType: enemy.type, bossId: enemy.bossId });
+    event(state, 'kill', enemy.x, enemy.z, { targetId: enemy.id, enemyType: enemy.type, bossId: enemy.bossId });
   } else if (rooted > 0) {
     enemy.phase = 'stunned';
     enemy.phaseTime = rooted * (enemy.type === 'boss' ? 0.4 : 1);

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#102e27">
+  <meta name="theme-color" content="#19785d">
   <meta name="description" content="인간 드루이드가 되어 숲을 탐험하고, 전리품을 모아 거점을 키우는 모바일 웹 3D 액션 RPG.">
   <title>숲의 수호자 · Grove Warden</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
@@ -37,8 +37,21 @@
       </div>
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
       <div id="direction-guide" class="direction-guide" aria-label="현재 목표 방향" hidden></div>
+      <div id="reward-banner" class="reward-banner" role="status" aria-live="polite" hidden><strong id="reward-title"></strong><span id="reward-detail"></span></div>
       <div class="cargo-pill" aria-label="가방에 담은 전리품"><span class="bag-mark" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M9 7 7 3h14l-2 4M10 7c-4 4-7 8-7 12 0 5 5 6 11 6s11-1 11-6c0-4-3-8-7-12ZM9 8h10M14 14v6M11 17h6"/></svg></span><div class="cargo-copy"><span id="cargo-value">0 / 24</span><div class="cargo-track"><div id="cargo-fill"></div></div></div></div>
       <button id="camp-btn" class="field-button camp-button" type="button" hidden><span aria-hidden="true">✦</span> 거점 강화</button>
+      <div id="skill-status" class="skill-status" role="group" aria-label="배운 자동 기술" hidden>
+        <div id="owl-status" class="skill-chip owl-chip" hidden>
+          <svg class="skill-mark" viewBox="0 0 32 32" aria-hidden="true"><path fill="#c58e52" d="m6 3 9 5h2l9-5-1 12c4 12-2 15-9 15S3 27 7 15Z"/><path fill="#ffe4a3" d="M6 14c0-9 10-9 10-2 0-7 10-7 10 2 0 8-6 11-10 14C12 25 6 22 6 14Z"/><path fill="#3b3d65" d="M11 11a3 4 0 1 0 0 8 3 4 0 1 0 0-8Zm10 0a3 4 0 1 0 0 8 3 4 0 1 0 0-8Z"/><path fill="#fff" d="M10 12h2v3h-2Zm10 0h2v3h-2Z"/><path fill="#efac35" d="m13 19 3-3 3 3-3 4Z"/></svg>
+          <div class="skill-copy"><span class="skill-name">부엉이</span><strong id="owl-cooldown">대기</strong></div>
+          <div class="skill-cooldown-track" aria-hidden="true"><div id="owl-cooldown-fill"></div></div>
+        </div>
+        <div id="roots-status" class="skill-chip roots-chip" hidden>
+          <svg class="skill-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28V9m0 11L7 12m9 13 9-9M16 14l6-7" fill="none" stroke="#d6ec9b" stroke-width="3" stroke-linecap="round"/><path fill="#80e56b" d="M14 13C4 16 1 8 3 4c7-1 12 2 11 9Zm4 7c0-9 6-13 12-11 1 7-4 12-12 11Zm-1-9c-3-7 1-12 7-10 2 6-1 10-7 10Z"/><path d="m16 25-5 5m5-5 5 5" fill="none" stroke="#effac5" stroke-width="3" stroke-linecap="round"/></svg>
+          <div class="skill-copy"><span class="skill-name">덩굴</span><strong id="roots-cooldown">대기</strong></div>
+          <div class="skill-cooldown-track" aria-hidden="true"><div id="roots-cooldown-fill"></div></div>
+        </div>
+      </div>
     </div>
 
     <nav class="growth-nav" aria-label="성장">

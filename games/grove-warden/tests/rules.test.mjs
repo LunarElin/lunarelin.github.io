@@ -106,6 +106,68 @@ test('non-piercing bolts hit the earliest target, independent of array order', (
   assert.equal(state.projectiles.length, 0);
 });
 
+test('a lethal hit identifies its kill actor and simultaneous bolts grant its rewards once', () => {
+  const state = playing();
+  state.player.z = 4; state.player.skillCd = 999;
+  const target = enemy(state, 0, 0, { hp: 10, maxHp: 10 });
+  for (let i = 0; i < 2; i++) {
+    state.projectiles.push({ id: state.nextId++, x: -1, z: 0, dx: 30, dz: 0, team: 'player', damage: 20, life: 1, radius: 0.17, hitIds: [], pierce: 0 });
+  }
+  stepGame(state, { manual: true }, 0.05);
+  const hits = state.events.filter(item => item.type === 'hit');
+  const kills = state.events.filter(item => item.type === 'kill');
+  assert.equal(hits.length, 1);
+  assert.equal(kills.length, 1);
+  assert.equal(kills[0].targetId, target.id);
+  assert.equal(kills[0].targetId, hits[0].targetId);
+  assert.equal(state.enemies.some(item => item.id === target.id), false);
+  assert.equal(state.progress.totals.kills, 1);
+  assert.equal(state.progress.totals.mushrooms, 1);
+  assert.equal(state.progress.xp, MONSTER_STATS.mushroom.xp);
+  assert.equal(state.loot.length, 1);
+  assert.equal(state.loot[0].value, MONSTER_STATS.mushroom.loot);
+  const progress = exportProgress(state);
+  advance(state, 1, { manual: true });
+  assert.deepEqual(exportProgress(state), progress);
+  assert.equal(state.loot.length, 1);
+});
+
+test('death cancels an automatic root cast without replaying its queued feedback after recovery', () => {
+  const state = playing();
+  state.player.x = 0; state.player.z = 0; state.player.hp = 1;
+  enemy(state, 0, 0, { phase: 'windup', phaseTime: 0.001, damage: 2, warnX: 0, warnZ: 0, attackRadius: 1.4 });
+  stepGame(state, { manual: true }, 1 / 60);
+  assert.equal(state.phase, 'down');
+  assert.equal(state.player.skillCd, state.player.skillCooldown);
+  assert.equal(state.pendingSkills.length, 0);
+  assert.equal(state.events.some(item => item.type === 'down'), true);
+  assert.equal(state.queuedEvents.some(item => ['skill', 'zone-enter', 'zone-leave'].includes(item.type)), false);
+  assert.equal(respawnAtCamp(state), true);
+  stepGame(state, { manual: true }, 1 / 60);
+  assert.equal(state.inCamp, true);
+  assert.equal(state.pendingSkills.length, 0);
+  assert.equal(state.events.some(item => ['skill', 'burst', 'zone-enter', 'zone-leave'].includes(item.type)), false);
+});
+
+test('recovery preserves queued purchase and quest feedback without applying their rewards twice', () => {
+  const state = createGame(12, { gold: 100, xp: 60, totals: { mushrooms: 5 } });
+  state.phase = 'playing';
+  assert.equal(buyUpgrade(state, 'bag'), true);
+  assert.equal(claimQuest(state), true);
+  const economicEvents = [...state.queuedEvents];
+  const progress = exportProgress(state);
+  state.queuedEvents.push({ type: 'skill', x: 0, z: 0 }, { type: 'zone-enter', zoneId: 'meadow-mushrooms', x: 0, z: 0 }, { type: 'zone-leave', zoneId: 'meadow-mushrooms', x: 0, z: 0 });
+  state.phase = 'down'; state.player.hp = 0;
+  assert.equal(respawnAtCamp(state), true);
+  assert.deepEqual(state.queuedEvents, economicEvents);
+  for (let i = 0; i < economicEvents.length; i++) assert.equal(state.queuedEvents[i], economicEvents[i]);
+  stepGame(state, { manual: true }, 1 / 60);
+  assert.deepEqual(state.events, economicEvents);
+  assert.deepEqual(exportProgress(state), progress);
+  stepGame(state, { manual: true }, 1 / 60);
+  assert.equal(state.events.length, 0);
+});
+
 test('a projectile resolves the final fraction of its lifetime before removal', () => {
   const state = playing();
   const target = enemy(state, 0, 0);
