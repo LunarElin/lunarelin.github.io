@@ -1,0 +1,21 @@
+<!-- Original seamless walnut board texture drawn for Wild Oath. No external images, fonts or filters. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="a"><stop stop-color="#563821"/><stop offset=".12" stop-color="#79512f"/><stop offset=".52" stop-color="#895b32"/><stop offset=".91" stop-color="#704725"/><stop offset="1" stop-color="#49311f"/></linearGradient>
+    <linearGradient id="b"><stop stop-color="#4c3220"/><stop offset=".13" stop-color="#76502e"/><stop offset=".47" stop-color="#94643a"/><stop offset=".9" stop-color="#7e512d"/><stop offset="1" stop-color="#523620"/></linearGradient>
+    <linearGradient id="c"><stop stop-color="#49311f"/><stop offset=".13" stop-color="#7c522d"/><stop offset=".55" stop-color="#8b5d34"/><stop offset=".92" stop-color="#6a4529"/><stop offset="1" stop-color="#422c1d"/></linearGradient>
+    <linearGradient id="d"><stop stop-color="#513620"/><stop offset=".1" stop-color="#765132"/><stop offset=".46" stop-color="#875e37"/><stop offset=".91" stop-color="#6a4529"/><stop offset="1" stop-color="#49311f"/></linearGradient>
+    <radialGradient id="n"><stop stop-color="#dfc48d"/><stop offset=".3" stop-color="#b89353"/><stop offset="1" stop-color="#473021"/></radialGradient>
+  </defs>
+  <path fill="url(#a)" d="M0 0h128v512H0z"/><path fill="url(#b)" d="M128 0h128v512H128z"/><path fill="url(#c)" d="M256 0h128v512H256z"/><path fill="url(#d)" d="M384 0h128v512H384z"/>
+  <g fill="none" stroke="#372419" stroke-width="1.3" opacity=".29">
+    <path d="M17 0c7 74-8 134 2 196S7 297 18 365s-3 103 0 147M31 0c-5 85 7 138 0 196s5 151-3 216 2 74 2 100M45 0c9 84 2 163 3 213s-9 80 1 121 3 106 1 178M60 0c-7 73 11 103 1 184s-3 138-2 165 9 87 1 163M83 0c-7 48-1 111-5 167s7 131 0 206 4 97 2 139M98 0c-4 53 7 147 1 198s7 98 1 163 3 88 0 151M111 0c7 97-3 173 0 219s-7 92-3 137 10 106 3 156"/>
+    <path d="M144 0c7 103-7 164 3 218s-8 136 1 186-3 76 0 108M159 0c-6 68 3 106 1 176s-4 104-1 154-6 130 1 182M175 0c7 83-3 135-1 203s8 76 1 132-6 104 0 177M192 0c-7 68 8 140 1 204s5 122 2 172-6 90-2 136M209 0c-4 61 6 134 1 195s-6 106-2 172 6 85 2 145M227 0c4 103-6 160-2 216s7 121 1 166 0 86 0 130M243 0c-7 59 4 149 0 214s-5 103 0 174-2 86 0 124"/>
+    <path d="M272 0c-5 95 9 138 0 215s7 125 2 174-6 84 0 123M289 0c6 47-5 124-1 193s-5 123-3 187 6 102 3 132M306 0c-6 97 9 152 0 218s0 110 4 163-6 86-3 131M325 0c4 63-5 124 0 189s7 136 1 205-2 79 0 118M345 0c-7 68 4 134-2 194s5 118 0 182 7 83 2 136M364 0c3 73-5 124-1 197s3 136-1 191 5 99 1 124"/>
+    <path d="M399 0c5 79-6 148-1 217s-3 89 1 156 3 100 0 139M417 0c-7 77 7 132 0 205s8 121 2 179 1 85 0 128M434 0c6 62-4 127 1 194s-3 115 1 183-7 100-1 135M452 0c-6 96 3 142 0 210s7 123 1 176 4 84 1 126M471 0c6 90-4 118 0 196s-5 126-2 198 7 81 1 118M491 0c-7 92 4 151-1 211s-2 102 1 173-5 96 0 128"/>
+  </g>
+  <g fill="none" stroke="#c2955c" opacity=".16"><path d="M26 0c4 103-7 186 0 239s-7 175 2 273M72 0c-3 93 5 178 0 249s3 172 1 263M166 0c5 92-7 169 0 240s-3 166 0 272M216 0c-5 95 5 170-2 251s4 161 1 261M300 0c6 116-5 196 1 265s-5 180 0 247M355 0c-7 95 6 167 0 239s4 177 0 273M428 0c-6 114 7 199 0 259s6 184 1 253M481 0c5 102-5 180-1 239s3 170 0 273"/></g>
+  <g fill="none" stroke="#40291a" opacity=".34"><ellipse cx="71" cy="298" rx="9" ry="32"/><ellipse cx="71" cy="298" rx="4" ry="19"/><path d="M71 241c-18 22-20 79-4 115m8-120c17 32 16 88 0 127"/><ellipse cx="333" cy="112" rx="8" ry="23"/><ellipse cx="333" cy="112" rx="3" ry="12"/><path d="M331 72c-16 25-12 63 2 81m5-85c13 19 12 68 1 89"/><ellipse cx="462" cy="426" rx="6" ry="21"/></g>
+  <g fill="none" stroke-width="2"><path stroke="#2c1e16" d="M0 0v512M128 0v512M256 0v512M384 0v512"/><path stroke="#b48a51" opacity=".4" d="M2 0v512M130 0v512M258 0v512M386 0v512"/></g>
+  <g fill="url(#n)" stroke="#38291d" stroke-width="1.5"><circle cx="12" cy="15" r="3"/><circle cx="116" cy="497" r="3"/><circle cx="140" cy="497" r="3"/><circle cx="244" cy="15" r="3"/><circle cx="268" cy="15" r="3"/><circle cx="372" cy="497" r="3"/><circle cx="396" cy="497" r="3"/><circle cx="500" cy="15" r="3"/></g>
+</svg>

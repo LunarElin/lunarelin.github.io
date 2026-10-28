@@ -1,5 +1,5 @@
 import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs';
-import { presentationTiming, effectKind, impactBeats, impactTotals, cardPlayStatus } from './combat-presentation.mjs?v=ui-art-2';
+import { presentationTiming, effectKind, impactBeats, impactTotals, cardPlayStatus, impactFeedback } from './combat-presentation.mjs?v=tavern-3';
 import { analyzeDeck } from './deck-analysis.mjs';
 import { cardArtClass } from './card-art.mjs';
 
@@ -38,8 +38,8 @@ function clearEffects() {
   for (const timer of effectTimers) clearTimeout(timer);
   effectTimers.clear(); $('effects').replaceChildren();
   document.querySelectorAll('.flying-card').forEach(node => node.remove());
-  document.querySelectorAll('.side-draw-pile,.active-card').forEach(node=>node.classList.remove('drawing','dealing','is-playing'));
-  for (const id of ['hero','enemy','battlefield']) $(id).classList.remove('hit','heavy-hit','casting','lunge','shake','shake-heavy','flash','morph','countering','reacting');
+  document.querySelectorAll('.side-draw-pile,.active-card').forEach(node=>node.classList.remove('drawing','dealing','card-slam','is-playing'));
+  for (const id of ['hero','enemy','battlefield']) $(id).classList.remove('hit','heavy-hit','hit-stop','casting','lunge','shake','shake-heavy','flash','morph','countering','reacting');
   delete $('battlefield').dataset.presentation; delete $('battlefield').dataset.caster; delete $('battlefield').dataset.beat;
 }
 function stopLoop() { clearTimeout(mainTimer); mainTimer = null; clearEffects(); if(state.battle)renderHealth(state.battle); }
@@ -84,11 +84,16 @@ async function enableAudio() {
 function track(source) { activeSources.add(source); source.onended = () => { activeSources.delete(source); source.disconnect(); }; }
 function sound(kind, strength = 1) {
   if (!soundEnabled || !audioContext || audioContext.state !== 'running' || document.hidden) return;
-  const sample={claw:'hit',counter:'heavy',heavy:'heavy',shield:'shield',form:'soft'}[kind];
-  if(audioBuffers[sample]) { const source=audioContext.createBufferSource();source.buffer=audioBuffers[sample];source.playbackRate.value=kind==='heavy'?.83:kind==='counter'?.94:1;source.connect(master);track(source);source.start(); }
-  const voices={draw:[180,420,.09,.055,'triangle'],cast:[260,95,.13,.08,'triangle'],claw:[135,42,.18,.32,'sine'],heavy:[95,28,.24,.42,'sine'],counter:[170,55,.18,.28,'triangle'],shield:[520,180,.22,.15,'triangle'],heal:[520,840,.28,.10,'sine'],energy:[640,1040,.20,.10,'triangle'],form:[220,660,.32,.13,'sine'],poison:[190,75,.22,.13,'triangle'],fire:[150,45,.20,.14,'sawtooth'],shock:[880,160,.12,.12,'square']};
+  const sample={draw:'soft',slam:'shield',claw:'hit',counter:'heavy',heavy:'heavy',shield:'shield',form:'soft'}[kind];
+  if(audioBuffers[sample]) {
+    const source=audioContext.createBufferSource(),level=audioContext.createGain();
+    source.buffer=audioBuffers[sample];source.playbackRate.value=kind==='heavy'?.78:kind==='slam'?.72:kind==='counter'?.9:1;
+    level.gain.value={draw:.16,slam:.34,heavy:.9,counter:.75,shield:.65,form:.35}[kind]??.75;
+    source.connect(level);level.connect(master);track(source);source.addEventListener('ended',()=>level.disconnect(),{once:true});source.start();
+  }
+  const voices={draw:[260,105,.075,.045,'triangle'],slam:[110,44,.13,.12,'triangle'],cast:[330,90,.13,.075,'triangle'],claw:[115,35,.18,.29,'sine'],heavy:[74,24,.26,.38,'sine'],counter:[185,45,.2,.26,'triangle'],shield:[720,210,.24,.13,'triangle'],heal:[520,840,.28,.10,'sine'],energy:[640,1040,.20,.10,'triangle'],form:[110,330,.42,.12,'triangle'],poison:[175,65,.24,.13,'triangle'],fire:[130,38,.22,.13,'sawtooth'],shock:[1040,130,.12,.1,'square']};
   const [from,to,duration,gain,wave]=voices[kind]||voices.heal,now=audioContext.currentTime;
-  const layers=['heal','energy','form'].includes(kind)?2:1;
+  const layers=['heal','energy','form','shield'].includes(kind)?2:1;
   for(let i=0;i<layers;i++){
     const oscillator=audioContext.createOscillator(),envelope=audioContext.createGain(),at=now+i*.065;
     oscillator.type=wave;oscillator.frequency.setValueAtTime(from*(i?1.5:1)*strength,at);oscillator.frequency.exponentialRampToValueAtTime(to*(i?1.5:1),at+duration);
@@ -148,7 +153,7 @@ function renderExplore() {
   $('explore-kicker').textContent = `${state.stage+1} / ${ENCOUNTERS.length} 시련 · 숲의 갈림길`;
   $('explore-title').textContent = state.stage === 0 ? '첫 발걸음은 어디로?' : '다음 길을 골라요';
   $('explore-subtitle').textContent = '한 곳을 탐험한 뒤 전투를 준비합니다';
-  $('explore-supplies').innerHTML = `<span>생명 <b>${state.hp}</b></span><span>골드 <b>${state.gold}</b></span><span>내 덱 <b>${activeDeck(state).length}장</b></span>`;
+  $('explore-supplies').innerHTML = `<span>생명 <b>${state.hp}</b></span><span>골드 <b>${state.gold}</b></span><span>덱 <b>${activeDeck(state).length}장</b></span>`;
   $('explore-options').innerHTML = state.exploration.offers.map(offer=>{
     const event = EVENTS[offer.eventId];
     const cardRoom = Math.max(0,36-state.collection.length), converted = Math.max(0,event.total-cardRoom);
@@ -309,17 +314,28 @@ function effectChip(text,id,kind,index=0) {
   const node=fxNode(`effect-chip kind-${kind}`,p,1050,`--chip-index:${Math.min(index,1)};`);node.dataset.slot=slot;node.textContent=text;
 }
 function aura(id,kind) {fxNode(`support-aura kind-${kind}`,point($(id).querySelector('.portrait-ring')),900);}
-function impact(id,heavy,kind='claw',form='wolf') {
-  playClass($(id),heavy?'heavy-hit':'hit',heavy?460:380);
+function impact(id,heavy,kind='claw',form='wolf',tier='normal',stopMs=0) {
+  $(id).classList.remove(heavy?'hit':'heavy-hit');
+  playClass($(id),heavy?'heavy-hit':'hit',(heavy?460:380)+stopMs);
+  if(stopMs)playClass($(id),'hit-stop',stopMs);
   if(!reducedMotion)playClass($('battlefield'),heavy?'shake-heavy':'shake',heavy?320:240);
   const p=point($(id).querySelector('.portrait-ring'));
-  fxNode(`hit-burst kind-${kind}`,p,560,`--fx-size:${heavy?130:90}px;`);
+  fxNode(`hit-burst kind-${kind} tier-${tier}`,p,560,`--fx-size:${heavy?130:tier==='linked'?105:90}px;`);
   fxNode(`effect-ripple kind-${kind}`,p,600);
   if(reducedMotion)return;
   for(let i=0;i<(heavy?8:5);i++){
     const angle=i/8*Math.PI*2,distance=25+(i%3)*13;
-    fxNode(`spark ${form}`,p,550,`--sx:${Math.cos(angle)*distance}px;--sy:${Math.sin(angle)*distance}px;`);
+    fxNode(`spark ${form} kind-${kind}`,p,550,`--sx:${Math.cos(angle)*distance}px;--sy:${Math.sin(angle)*distance}px;`);
   }
+}
+function landCard(actor) {
+  const slot=$(`${actor}-active-card`);
+  if(!reducedMotion){
+    playClass(slot,'card-slam',180);
+    const card=slot.getBoundingClientRect(),field=$('battlefield').getBoundingClientRect();
+    fxNode('card-landing',{x:card.left+card.width/2-field.left,y:card.bottom-field.top-3},420);
+  }
+  sound('slam');
 }
 function flyCard(instance,actor) {
   if(reducedMotion)return;
@@ -355,24 +371,28 @@ function beginStep() {
     later(()=>{
       $('battlefield').dataset.presentation='cast';
       if(ready){
-        const hostile=card.type==='attack'?effectKind(card):card.shock?'shock':card.burn?'fire':card.poison?'poison':null;
-        if(hostile)castEffect(actor,hostile,timing.travel);
-        else playClass($(actor==='player'?'hero':'enemy'),'casting',340);
-        sound('cast');
+        landCard(actor);
+        later(()=>{
+          const hostile=card.type==='attack'?effectKind(card):card.shock?'shock':card.burn?'fire':card.poison?'poison':null;
+          if(hostile)castEffect(actor,hostile,timing.travel);
+          else playClass($(actor==='player'?'hero':'enemy'),'casting',340);
+          sound('cast');later(resolveStep,timing.travel);
+        },timing.contact);
+      } else {
+        later(resolveStep,timing.travel);
       }
-      later(resolveStep,timing.travel);
     },timing.reveal);
   },timing.draw);
 }
 function showImpactBeat(beat,event,health) {
   const targetId=beat.target==='player'?'hero':'enemy',sourceId=beat.actor==='player'?'hero':'enemy';
   const kind={counter:'counter',reaction:'poison',shock:'shock',poison:'poison',burn:'fire',fatigue:'claw'}[beat.kind]||effectKind(CARDS[event.cardId]);
-  const heavy=beat.rawDamage>=14||beat.kind==='reaction'&&beat.rawDamage>=6;
+  const feedback=impactFeedback(beat,reducedMotion),heavy=feedback.heavy;
   health[beat.target].hp=Math.max(0,health[beat.target].hp-beat.damage);
   if(beat.kind==='reaction')health[beat.actor].hp=Math.min(health[beat.actor].maxHp,health[beat.actor].hp+event.reactionHeal);
   renderHealth(health);
   $('battlefield').dataset.presentation='impact';$('battlefield').dataset.beat=String(beat.index+1);
-  if(beat.damage||beat.absorbed)impact(targetId,heavy,beat.damage?kind:'shield',beat.kind==='counter'?'bear':event.formAfter);
+  if(beat.damage||beat.absorbed)impact(targetId,heavy,beat.damage?kind:'shield',beat.kind==='counter'?'bear':event.formAfter,feedback.tier,feedback.stopMs);
   if(!reducedMotion&&(beat.damage||beat.absorbed)){
     $('effects').querySelectorAll('.damage-float[data-damage-target]').forEach(node=>{if(node.dataset.damageTarget===targetId)node.remove();});
     if(beat.damage){floatText(`−${beat.damage}`,targetId,heavy?'critical':kind==='poison'?'poison':'',beat.index);$('effects').lastElementChild.dataset.damageTarget=targetId;}

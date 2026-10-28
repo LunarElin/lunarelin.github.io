@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRun,chooseDraft,chooseEncounter,chooseReward,startBattle,stepBattle,describeCard,serialize,restoreRun} from '../rules.mjs';
-import {presentationTiming,effectKind,impactBeats,impactTotals,cardPlayStatus} from '../combat-presentation.mjs';
+import {presentationTiming,effectKind,impactBeats,impactTotals,cardPlayStatus,impactFeedback} from '../combat-presentation.mjs';
 
 function battle(seed=1) {
   const state=createRun(seed);
@@ -52,20 +52,21 @@ function verifyHealthTimeline(before,event,state,label='') {
 
 test('every supported speed keeps a readable reveal, travel and impact interval',()=>{
   const expected=[
-    [1,{draw:260,reveal:420,travel:280,impactGap:160,settle:620,formSettle:1050}],
-    [2,{draw:140,reveal:260,travel:180,impactGap:160,settle:380,formSettle:650}],
-    [4,{draw:140,reveal:260,travel:180,impactGap:160,settle:380,formSettle:650}],
+    [1,{draw:260,reveal:420,contact:80,travel:280,impactGap:160,settle:620,formSettle:1050}],
+    [2,{draw:140,reveal:260,contact:80,travel:180,impactGap:160,settle:380,formSettle:650}],
+    [4,{draw:140,reveal:260,contact:80,travel:180,impactGap:160,settle:380,formSettle:650}],
   ];
   for(const [speed,timing] of expected){
     assert.deepEqual(presentationTiming(speed),timing);
     assert.ok(timing.draw>=140&&timing.reveal>=260&&timing.travel>=180);
+    assert.equal(timing.contact,80,'card contact has a separate beat before the projectile moves');
     assert.ok(timing.impactGap>=160&&timing.settle>=380&&timing.formSettle>=650);
   }
   for(const invalid of [0,-1,3,8,Infinity,NaN,'2',null])assert.deepEqual(presentationTiming(invalid),presentationTiming(1));
 });
 
 test('reduced motion removes travel and stagger while keeping card and result readable',()=>{
-  const reduced={draw:0,reveal:320,travel:0,impactGap:0,settle:440,formSettle:700};
+  const reduced={draw:0,reveal:320,contact:0,travel:0,impactGap:0,settle:440,formSettle:700};
   for(const speed of [1,2,4])assert.deepEqual(presentationTiming(speed,true),reduced);
   const beats=impactBeats({actor:'player',target:'enemy',strikes:[{damage:4,absorbed:0,rawDamage:4},{damage:4,absorbed:0,rawDamage:4}]},reduced.impactGap);
   assert.deepEqual(beats.map(beat=>beat.delay),[0,0]);
@@ -82,6 +83,32 @@ test('effect colors follow the card effect and preserve readable support priorit
   ])assert.equal(effectKind(describeCard(id)),kind,id);
   assert.equal(effectKind({type:'attack',damage:1,shock:1,burn:1,poison:1}),'shock');
   assert.equal(effectKind({type:'attack',damage:1,burn:1,poison:1}),'fire');
+});
+
+test('real damage separates ordinary, linked and heavy feedback without changing the event',()=>{
+  const fixtures=[
+    [play('claw').event,0,'normal',false],
+    [play('ancient').event,0,'heavy',true],
+    [play('pounce',{target:{form:'bear',shield:10}}).event,2,'linked',false],
+    [play('storm',{source:{form:'wyvern'},target:{poison:1}}).event,1,'linked',false],
+    [play('storm',{source:{form:'wyvern'},target:{poison:4}}).event,1,'heavy',true],
+  ];
+  for(const [event,index,tier,heavy] of fixtures){
+    const before=structuredClone(event),beat=Object.freeze(impactBeats(event)[index]);
+    assert.deepEqual(impactFeedback(beat),{tier,heavy,stopMs:heavy?60:0});
+    assert.deepEqual(impactFeedback(beat,true),{tier,heavy,stopMs:0},'reduced motion never freezes or delays the impact');
+    assert.deepEqual(event,before,'feedback never changes rule output');
+  }
+});
+
+test('blocked and zero-damage overkill beats never receive heavy hit-stop',()=>{
+  const blocked=impactBeats(play('ancient',{target:{shield:100}}).event)[0];
+  assert.equal(blocked.rawDamage,24);assert.equal(blocked.damage,0);
+  assert.deepEqual(impactFeedback(blocked),{tier:'blocked',heavy:false,stopMs:0});
+  const overkill=impactBeats(play('storm',{source:{form:'wyvern'},target:{hp:1,poison:4}}).event).at(-1);
+  assert.equal(overkill.rawDamage,8);assert.equal(overkill.damage,0);
+  assert.deepEqual(impactFeedback(overkill),{tier:'none',heavy:false,stopMs:0});
+  assert.deepEqual(impactFeedback(),{tier:'none',heavy:false,stopMs:0});
 });
 
 test('two real strikes report separate shield absorption and capped lethal damage',()=>{

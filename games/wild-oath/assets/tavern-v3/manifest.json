@@ -1,0 +1,431 @@
+{
+  "version": 3,
+  "date": "2026-10-29",
+  "family": "Wild Oath tavern heroic fantasy",
+  "visual_target": "Root selected new painterly mature portrait atlas after viewing full source and 90px contact sheet; deep blue-green shadows, saturated jewel highlights, upper-left warm key light; no commercial IP assets used",
+  "sources": {
+    "portraits": {
+      "kind": "generated",
+      "tool": "OpenAI built-in image_gen",
+      "model": "not exposed by tool",
+      "generation_id": "01a18311-10e5-73f0-8baa-8530896ecf51",
+      "reference": "../characters-pop.webp (identity only; visual style explicitly redesigned)",
+      "original": "exec-2d7bce1b-cba2-4412-96a9-44770490e78d.png retained in generated-image archive; not shipped",
+      "size": [
+        1536,
+        1024
+      ]
+    },
+    "cards": {
+      "kind": "generated",
+      "tool": "OpenAI built-in image_gen",
+      "model": "not exposed by tool",
+      "generation_id": "01a18311-10e5-73f0-8baa-8530896ecf51",
+      "reference": "approved portrait generation exec-2d7bce1b-cba2-4412-96a9-44770490e78d.png",
+      "original": "exec-1e26dc8b-d4ac-42e2-9a8d-98b930e2fbcf.png retained in generated-image archive; not shipped",
+      "size": [
+        1448,
+        1086
+      ]
+    }
+  },
+  "normalization": {
+    "method": "deterministic grid slice, central horizontal half crop, Lanczos resize and WebP conversion; no semantic content edit",
+    "webp_quality": 82,
+    "webp_method": 6,
+    "card_grid": [
+      4,
+      3
+    ],
+    "card_cell": [
+      362,
+      362
+    ],
+    "card_output": [
+      320,
+      160
+    ]
+  },
+  "portrait": {
+    "file": "portraits.webp",
+    "size": [
+      1152,
+      768
+    ],
+    "grid": [
+      3,
+      2
+    ],
+    "cell": [
+      384,
+      384
+    ],
+    "subjects": [
+      "wolf",
+      "bear",
+      "wyvern",
+      "druid",
+      "guardian",
+      "clearing"
+    ],
+    "bytes": 283048,
+    "sha256": "68b35e4fda1bbb0299ffdab49130d049ebaf97f6be930ccd2a14543fbec91e7f",
+    "alpha": "opaque",
+    "color_space": "sRGB",
+    "filtering": "smooth; original 3x2 background coordinates",
+    "status": "visual target selected by root; native-size contact sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+  },
+  "assets": [
+    {
+      "id": "claw",
+      "file": "cards/claw.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 18830,
+      "sha256": "645d3f893e0b2dc664cab10db20c8c9294623d9da3abc8143c3141acca5957b4",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        90,
+        362,
+        271
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "bite",
+      "file": "cards/bite.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 21904,
+      "sha256": "15ecc225037d9c24e1e8b6018533907c56e4041e6a3193a2c1c7e38c73a983dd",
+      "atlas_cell": [
+        1,
+        0
+      ],
+      "crop_box": [
+        362,
+        90,
+        724,
+        271
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "bark",
+      "file": "cards/bark.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 22258,
+      "sha256": "08d85302bb0389138cde8713a8fc76196f9e9287d42d283d4bb89f5095e0169b",
+      "atlas_cell": [
+        2,
+        0
+      ],
+      "crop_box": [
+        724,
+        90,
+        1086,
+        271
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "mend",
+      "file": "cards/mend.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14900,
+      "sha256": "a706bc612e216cf4994b07b9c74db900af7fa912b479484efc9cb8087d136c6c",
+      "atlas_cell": [
+        3,
+        0
+      ],
+      "crop_box": [
+        1086,
+        90,
+        1448,
+        271
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "sap",
+      "file": "cards/sap.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 20116,
+      "sha256": "892577b46c24c6656c3008239f5f63646416222424800d689b543ad09ad80ac3",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        452,
+        362,
+        633
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "venom",
+      "file": "cards/venom.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13616,
+      "sha256": "87e981a34b3c1c6d9397dc01b3329fa54c1b8279da5f2b04c828d717c90a2324",
+      "atlas_cell": [
+        1,
+        1
+      ],
+      "crop_box": [
+        362,
+        452,
+        724,
+        633
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "ember",
+      "file": "cards/ember.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 19522,
+      "sha256": "e4b1e66e3b9ff22882aabd7d0cf8c820d7444e87205b9f08ddfbb46c5d94a60f",
+      "atlas_cell": [
+        2,
+        1
+      ],
+      "crop_box": [
+        724,
+        452,
+        1086,
+        633
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "storm",
+      "file": "cards/storm.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 17616,
+      "sha256": "424f478a76365a967dc209a2ab99089fd4604e3c63d26fcaaeca9c0d357e61ec",
+      "atlas_cell": [
+        3,
+        1
+      ],
+      "crop_box": [
+        1086,
+        452,
+        1448,
+        633
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "pounce",
+      "file": "cards/pounce.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 21518,
+      "sha256": "5193c4711d611729e3dbafc0e6de5a91762577ab2c6352d5684c0036bbcb3f7b",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        814,
+        362,
+        995
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "ancient",
+      "file": "cards/ancient.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 22838,
+      "sha256": "f7036293c349078aa98e8f048dfe0ccc5eedfde25e555069aeaf1725d7b5809b",
+      "atlas_cell": [
+        1,
+        2
+      ],
+      "crop_box": [
+        362,
+        814,
+        724,
+        995
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "frost",
+      "file": "cards/frost.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 21636,
+      "sha256": "40b3f5ccbe5b9673f58b176dd7dc811079b8d85d5cf8ce31a36eac915089fa60",
+      "atlas_cell": [
+        2,
+        2
+      ],
+      "crop_box": [
+        724,
+        814,
+        1086,
+        995
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    },
+    {
+      "id": "moonwell",
+      "file": "cards/moonwell.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 21286,
+      "sha256": "70be0013f43d3eac498a73fd2e77e088e142ba7a2307fe9b8a9cdea386642523",
+      "atlas_cell": [
+        3,
+        2
+      ],
+      "crop_box": [
+        1086,
+        814,
+        1448,
+        995
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; cover center",
+      "status": "technical/contact-sheet QA passed; in-game family reviewed in Codex IAB at PC and 320-390px; see ../../TAVERN-REDESIGN.md; no real-device QA"
+    }
+  ],
+  "card_bytes": 236040,
+  "total_bytes": 519088,
+  "rights_note": "Original generated project artwork using project-owned generated identity reference. No game screenshots, third-party artwork, logos or recognizable proprietary character designs shipped. Not claimed as CC0. Original PNGs retain generation archive provenance; WebP conversion may not preserve embedded metadata."
+}

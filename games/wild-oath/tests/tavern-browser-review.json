@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-29",
+  "browser": "Codex in-app browser, desktop Chromium",
+  "origin": "http://localhost:8765/games/wild-oath/",
+  "method": "Natural visible UI actions only; no storage, RNG, HP, card or outcome injection. Separate origin from the user's 127.0.0.1 save.",
+  "viewports": [[1280,720],[390,640],[320,640],[844,390]],
+  "observations": {
+    "same_state_comparison": {"stage":2,"hp":63,"gold":19,"deck":10,"views":["PC camp","390px camp"]},
+    "horizontal_overflow": false,
+    "font_loaded": "DoHyeon",
+    "mobile_card_body_css_px":16,
+    "mobile_card_name_css_px":20,
+    "mobile_hud_number_css_px":28,
+    "critical_button_min_css_px":44,
+    "smallest_analysis_close_css_px":44,
+    "landscape_lanes": [{"x":21,"y":74,"width":395,"height":203.90625},{"x":428,"y":74,"width":395,"height":203.90625}],
+    "landscape_footer_bottom_css_px":383,
+    "pause_reload": {"before_hp":[54,51],"after_hp":[54,51],"effects_after_stop":0,"new_animation_classes_after_stop":0,"resumed":true},
+    "modals": ["deck analysis -> pounce detail -> analysis -> camp","catalog form filter -> wyvern detail -> catalog -> game","shop purchase -> bench","failure result -> new draft","victory reward -> next exploration"],
+    "wolf": {"stage":2,"initial_deck":["wolf","harry","hide","sap","ember","mend","talon","pounce","pounce","frost"],"bulk_merge":"pounce tier 2; active deck 9","observed":["enemy and player wolf form","pounce two-hit block 6","wolf pursuit extra hit","casting from separate deck/slot"],"outcome":"lost stage 2, result 1/5; new-deck restart worked"},
+    "wyvern": {"draft":["wyvern","static","bark","kindle","storm","mend","trample","claw"],"exploration":"merchant, sprout tier 2","camp":"wyvern first sticker; buy claw, bulk merge claw tier 2","observed":["both sides transformed to wyvern","ordinary fire burst","heavy poison explosion raw 8 and healing 4","distinct damage and healing badges"],"observed_effect_nodes":25,"stage_1_result":"won; reward dialog appeared","reward":"nettle","next_exploration_hp":28,"next_camp_hp":40,"next_camp_gold":12,"next_camp_deck":10},
+    "console_errors_or_warnings":0
+  },
+  "corrections": ["invalid layered board background shorthand", "320px journey studs clipped", "instant-cast label on parchment had low contrast", "black shuffle icon on dark leather", "shortened exploration deck label and protected HUD numbers from wrapping"],
+  "automated_tests": {"passed":71,"rules":41,"presentation":19,"deck_analysis":5,"instance_integrity":4,"art":2},
+  "limits": ["No real iOS/Android touch or browser chrome/safe-area testing", "No speaker/headphone listening", "No measured FPS/GPU/thermal budget", "No OS reduced-motion change, tab-hide event or audio-decode failure injection this time", "No complete five-stage campaign for all three forms this time", "60ms hit-stop duration and linked-tier boundaries verified in source/unit tests, not human millisecond perception"],
+  "evidence_directory": "C:/Users/BeX/.codex/visualizations/2026/10/21/01a15e8e-97b4-7fb0-b8bd-d7e699a3c9c7",
+  "evidence_prefix": "wild-oath-tavern-"
+}

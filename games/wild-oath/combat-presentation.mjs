@@ -1,9 +1,10 @@
 export function presentationTiming(speed=1,reducedMotion=false) {
-  if(reducedMotion)return {draw:0,reveal:320,travel:0,impactGap:0,settle:440,formSettle:700};
+  if(reducedMotion)return {draw:0,reveal:320,contact:0,travel:0,impactGap:0,settle:440,formSettle:700};
   const rate=[1,2,4].includes(speed)?speed:1;
   return {
     draw:Math.max(140,260/rate),
     reveal:Math.max(260,420/rate),
+    contact:80,
     travel:Math.max(180,280/rate),
     impactGap:160,
     settle:Math.max(380,620/rate),
@@ -28,6 +29,13 @@ export function effectKind(card={}) {
 export function cardPlayStatus(event) {
   if(event.preview)return event.ready?'사용 준비':'충전 부족 · 버림 예정';
   return event.type==='charge'?'충전 부족으로 버림':'자동 발동';
+}
+
+export function impactFeedback(beat={},reducedMotion=false) {
+  const actual=beat.damage>0,blocked=!actual&&beat.absorbed>0;
+  const heavy=actual&&(beat.rawDamage>=14||beat.kind==='reaction'&&beat.rawDamage>=6);
+  const tier=heavy?'heavy':actual?(['reaction','counter'].includes(beat.kind)?'linked':'normal'):blocked?'blocked':'none';
+  return {tier,heavy,stopMs:heavy&&!reducedMotion?60:0};
 }
 
 export function impactBeats(event={},gap=160) {

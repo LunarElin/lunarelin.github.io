@@ -1,15 +1,36 @@
 # 리소스 출처
 
-## 액션 카드 삽화 v2
+## 현행 UI·캐릭터·카드 아트 v3 · 2026-10-29
 
-2026-10-28 추가. 기존 생성 캐릭터를 참고해 내장 ImageGen으로 카드 효과 삽화 12종을 만들었다. 320×160 WebP 총153,470 bytes만 배포하며 기존 초상화는 유지한다. [제작·프롬프트·제한](cards-v2/ART.md), [출처·정규화·체크섬 manifest](cards-v2/manifest.json), [아트 방향](art-direction-brief.md)을 참고한다. 생성 원본 PNG는 게임 폴더에 포함하지 않는다.
+현행 방향은 짙은 목재·황동·양피지와 선명한 사파이어·루비·비취 강조색이다. UI의 재질·광원·그림자는 게임의 CSS로 만들고, 캐릭터와 카드 액션은 OpenAI 내장 ImageGen으로 이 프로젝트를 위해 새로 생성했다. 밝은 파스텔·클레이 방향의 기존 이미지는 이력용으로 보존한다.
 
-## 캐릭터·전장 아틀라스
+| 현행 런타임 이미지 | 규격 | 용량 |
+| --- | --- | ---: |
+| `tavern-v3/portraits.webp` | 1152×768, 3열×2행, 셀 384×384 | 283,048 bytes |
+| `tavern-v3/cards/*.webp` 12개 | 각각 320×160, 불투명 sRGB | 236,040 bytes |
+| 합계 | 13개 이미지, WebP 품질 82 | **519,088 bytes** |
+
+이미지 family 예산은 **550KB**다. `card-art.css`가 새 초상화와 카드 12계열을 연결하고 `index.html`이 새 초상화를 미리 읽는다. 카드 그림은 필요한 요소가 표시될 때 CSS에서 사용한다. `characters-pop.webp`와 `cards-v2/`는 현행 런타임에서 사용하지 않는다. 생성 원본 PNG·접촉 시트·전체 생성 아틀라스는 게임 배포에 추가하지 않는다.
+
+각 대상의 초점·명암·붓질과 원본 및 작은 접촉 시트를 검토했고, 13개 WebP의 실제 치수·파일 용량·SHA256을 manifest와 대조했다. PC와 320~390px 내부 브라우저에서 초안·덱·상점·도감·변신·전투의 crop·색감·가독성을 확인했다. 실제 휴대폰 검증과는 구분한다. 전체 프롬프트·원본 식별자·좌표·가공 및 제한은 [tavern-v3/ART.md](tavern-v3/ART.md), 파일별 메타데이터는 [tavern-v3/manifest.json](tavern-v3/manifest.json)에 기록했다.
+
+공식 참고 자료는 다음과 같다. 화면과 연출 원칙을 검토한 참고 출처이며, 이 자료의 이미지를 추출해 런타임 자산으로 사용한 것은 아니다.
+
+- [Hearthstone: Battlegrounds Press Kit](https://blizzard.gamespress.com/en/Hearthstone-Battlegrounds-Press-Kit), Blizzard Press Center, 2019-11-05. 보드·카드의 재질과 깊이, 억제된 배경과 강조색을 살펴본 시각 참고다.
+- [Developer Insights: The Art Behind THE SCIENCE](https://hearthstone.blizzard.com/en-us/news/22552047), Blizzard Entertainment, 2018-10-26. 효과가 정보를 전달하고 색·형태로 정체성을 드러내며 중요한 순간에 강약을 주는 접근을 참고했다.
+
+참고작의 특정 카드 프레임·캐릭터·로고·텍스처·음원은 복제하지 않았다. 생성한 오리지널 이미지를 Kenney의 CC0 자산과 같은 라이선스라고 표기하지 않는다. 사용 조건·출처 구분은 v3 제작 기록을 따른다. 전체 방향은 [art-direction-brief.md](art-direction-brief.md), 구현 및 최종 QA 진행은 [TAVERN-REDESIGN.md](../TAVERN-REDESIGN.md)를 참고한다.
+
+## 액션 카드 삽화 v2 · 이력용, 런타임 미사용
+
+2026-10-28 추가. 당시 기존 생성 캐릭터를 참고해 내장 ImageGen으로 카드 효과 삽화 12종을 만들었다. 당시 배포 규격은 320×160 WebP 총153,470 bytes였고 기존 초상화를 유지했다. 현재는 v3로 교체했으며 아래 제작 이력을 보존한다. [제작·프롬프트·제한](cards-v2/ART.md), [출처·정규화·체크섬 manifest](cards-v2/manifest.json), [아트 방향](art-direction-brief.md)을 참고한다. 생성 원본 PNG는 게임 폴더에 포함하지 않는다.
+
+## 초기 캐릭터·전장 아틀라스 · 이력용, 런타임 미사용
 
 - 파일: `characters-pop.webp` (1536×1024, 295,712 bytes).
 - 제작: OpenAI 내장 ImageGen 도구로 야생의 서약을 위해 생성한 오리지널 이미지. 참고 게임의 설치 파일이나 Steam의 이미지를 추출·복제하지 않았다.
 - 가공: 원본 PNG를 같은 해상도의 WebP 품질 86으로 인코딩했다. 원본 PNG는 게임 배포에 포함하지 않는다.
-- 배열: 3열×2행, 각 셀 512×512. CSS `background-size: 300% 200%`로 사용한다.
+- 배열: 3열×2행, 각 셀 512×512. 당시 CSS `background-size: 300% 200%`로 사용했다. 현행 v3는 같은 셀 좌표에 별도 이미지를 연결한다.
 
 | 셀 | 대상 | background-position |
 | --- | --- | --- |

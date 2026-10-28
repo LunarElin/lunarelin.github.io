@@ -1,18 +1,19 @@
-/* Action art uses an undistorted 2:1 crop; portraits retain the original atlas. */
+/* Painterly action art uses an undistorted 2:1 crop; portraits use the 3x2 heroic atlas. */
+.art{background-image:url('assets/tavern-v3/portraits.webp')}
 .card-illustration{background-image:var(--card-image);background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#fff7d8}
 .draft-option .card-art.card-illustration{background-size:cover;background-position:center}
-.illustration-claw{--card-image:url('assets/cards-v2/claw.webp')}
-.illustration-bite{--card-image:url('assets/cards-v2/bite.webp')}
-.illustration-bark{--card-image:url('assets/cards-v2/bark.webp')}
-.illustration-mend{--card-image:url('assets/cards-v2/mend.webp')}
-.illustration-sap{--card-image:url('assets/cards-v2/sap.webp')}
-.illustration-venom{--card-image:url('assets/cards-v2/venom.webp')}
-.illustration-ember{--card-image:url('assets/cards-v2/ember.webp')}
-.illustration-storm{--card-image:url('assets/cards-v2/storm.webp')}
-.illustration-pounce{--card-image:url('assets/cards-v2/pounce.webp')}
-.illustration-ancient{--card-image:url('assets/cards-v2/ancient.webp')}
-.illustration-frost{--card-image:url('assets/cards-v2/frost.webp')}
-.illustration-moonwell{--card-image:url('assets/cards-v2/moonwell.webp')}
+.illustration-claw{--card-image:url('assets/tavern-v3/cards/claw.webp')}
+.illustration-bite{--card-image:url('assets/tavern-v3/cards/bite.webp')}
+.illustration-bark{--card-image:url('assets/tavern-v3/cards/bark.webp')}
+.illustration-mend{--card-image:url('assets/tavern-v3/cards/mend.webp')}
+.illustration-sap{--card-image:url('assets/tavern-v3/cards/sap.webp')}
+.illustration-venom{--card-image:url('assets/tavern-v3/cards/venom.webp')}
+.illustration-ember{--card-image:url('assets/tavern-v3/cards/ember.webp')}
+.illustration-storm{--card-image:url('assets/tavern-v3/cards/storm.webp')}
+.illustration-pounce{--card-image:url('assets/tavern-v3/cards/pounce.webp')}
+.illustration-ancient{--card-image:url('assets/tavern-v3/cards/ancient.webp')}
+.illustration-frost{--card-image:url('assets/tavern-v3/cards/frost.webp')}
+.illustration-moonwell{--card-image:url('assets/tavern-v3/cards/moonwell.webp')}
 .detail-card.card-illustration{width:min(100%,320px);height:auto;aspect-ratio:2/1;border-radius:22px}
 .detail-art.card-illustration{width:min(calc(100% - 32px),320px);height:auto;aspect-ratio:2/1;border-radius:22px}
 .opponent-card>.card-illustration{width:64px;aspect-ratio:2/1;height:auto;border-radius:12px}
