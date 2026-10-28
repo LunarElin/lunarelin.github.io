@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../assets/vendor/three.module.js';
 import { OrbitScene, BALL_HEIGHT } from '../scene.mjs';
-import { courseSample, LOOP_FIRST_START, LOOP_LENGTH, COURSE_WORLD_PER_METER } from '../course.mjs';
+import { courseSample, coursePattern, COURSE_WORLD_PER_METER } from '../course.mjs';
 import { newProfile, newRun, eventPose, TRACK_WIDTH, SIDE_LIMIT } from '../rules.mjs';
 
 // Actual Three.js geometry, camera and animation math; no GPU/device claims.
@@ -407,38 +407,44 @@ test('reduced motion keeps the lens stable and graphics resources are released',
 });
 
 
-test('loop side chase keeps the ball readable and world up level through the complete actual turn',()=>{
-  for(const[width,height]of viewports){
-    const scene=harness(width,height),run=runFixture();scene.buildTrack();const ray=new THREE.Raycaster();
-    for(const x of[-SIDE_LIMIT,0,SIDE_LIMIT])for(let i=0;i<=48;i++){
-      run.s=LOOP_FIRST_START+LOOP_LENGTH*i/48;run.x=x;run.height=0;const p=frame(scene,run);scene.track.updateMatrixWorld(true);
-      assert.ok(Math.abs(p.x)<.8&&p.y>-.7&&p.y<.2,'ball visibility at '+width+'px, phase '+i);
-      assert.ok(scene.camera.up.equals(new THREE.Vector3(0,1,0)));
-      const right=new THREE.Vector3().setFromMatrixColumn(scene.camera.matrixWorld,0);assert.ok(Math.abs(right.y)<1e-8,'loop camera must never roll');
-      const delta=scene.ball.position.clone().sub(scene.camera.position),front=delta.length()-1.05;ray.set(scene.camera.position,delta.normalize());
-      const solid=ray.intersectObject(scene.track,true).filter(hit=>!(hit.object.material?.transparent&&hit.object.material.opacity<.1));
-      assert.ok(!solid.some(hit=>hit.distance<front-1e-5),'opaque track must not cover ball: '+width+'px phase '+i+' x '+x+' '+JSON.stringify(solid.slice(0,3).map(h=>({name:h.object.name,d:h.distance,p:h.point.toArray()})))+' front '+front);
-      assert.ok(scene.camera.position.distanceTo(scene.ball.position)<45,'side chase retains a substantial nearby ball');
-    }
+test('new seeds regenerate the actual drawn hills without changing the straight forward axis',()=>{
+  const scene=harness(),run=runFixture();scene.buildTrack();run.s=190;run.seed=17;frame(scene,run);
+  const before=scene.courseFloor.geometry.attributes.position.array.slice(),version=scene.courseFloor.geometry.attributes.position.version;
+  assert.equal(scene.courseSeed,17);run.seed=23;frame(scene,run);
+  assert.equal(scene.courseSeed,23);assert.ok(scene.courseFloor.geometry.attributes.position.version>version);
+  assert.notDeepEqual(scene.courseFloor.geometry.attributes.position.array,before);
+  for(const s of[0,120,220,360,700,1800]){
+    const p=scene.position(s,0,0),origin=courseSample(run.s,23),sample=courseSample(s,23);
+    assert.ok(Math.abs(p.x)<1e-8);assert.ok(Math.abs(p.y-(sample.height-origin.height))<1e-8);
+    assert.ok(Math.abs(p.z-(s-run.s)*COURSE_WORLD_PER_METER)<1e-8);assert.ok(sample.normalY>0);
+  }
+  scene.dispose();
+});
+
+test('giant encounter art follows the actual collider body while keeping a large readable silhouette',()=>{
+  for(const[type,radius,height]of[['beast',2.6,2.3],['giant-alien',2.5,2.4],['cookie',2.25,2.1]]){
+    const scene=harness(),run=runFixture(),event={id:type,type,at:110,x:0,radius,height,direction:1,phase:.7};
+    run.s=80;run.events=[event];frame(scene,run);const mesh=scene.eventMeshes.get(type),art=mesh.userData.mechanism.encounter;
+    assert.ok(art,'giants need actual shaped art rather than a generic old prop');
+    mesh.updateMatrixWorld(true);const size=new THREE.Box3().setFromObject(mesh.userData.visual).getSize(new THREE.Vector3());
+    assert.ok(size.x>3&&size.y>3,'large encounters must exceed the ball silhouette');
+    event.body={active:true,wheel:run.wheel,s:118,x:2,height:1.3,rx:.4,ry:.7,rz:-.3,life:3};run.elapsed=.6;frame(scene,run);
+    const pose=eventPose(event,run.elapsed);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);
+    scene.burst({type,eventId:type,kind:'bounce',powered:true,effectDuration:.8});frame(scene,run,'rolling',.1);
+    assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8,'reaction animation cannot teleport the collider');
     scene.dispose();
   }
 });
 
-test('loop camera enters and leaves the side view continuously without a look-at flip',()=>{
+test('every terrain archetype keeps the chased ball visible and the camera level across seeds and heights',()=>{
   for(const[width,height]of[[320,568],[390,844],[1440,900]]){
-    const scene=harness(width,height),run=runFixture();run.height=0;let previous;
-    for(let s=LOOP_FIRST_START-90;s<=LOOP_FIRST_START+LOOP_LENGTH+90;s+=1){
-      run.s=s;frame(scene,run);const q=scene.camera.quaternion.clone();
-      if(previous)assert.ok(Math.abs(q.dot(previous))>.998,'camera must not snap at '+s);previous=q;
+    const scene=harness(width,height),run=runFixture();scene.buildTrack();const ray=new THREE.Raycaster();
+    for(const seed of[17,23,42])for(let track=0;track<8;track++)for(const part of[.2,.5,.8]){
+      run.seed=seed;run.s=track*360+part*360;run.x=part===.5?SIDE_LIMIT:-SIDE_LIMIT;run.height=track%3;
+      const p=frame(scene,run);assert.ok(Math.abs(p.x)<.8&&p.y>-.75&&p.y<.2);assert.ok(scene.camera.up.equals(new THREE.Vector3(0,1,0)));
+      scene.track.updateMatrixWorld(true);const delta=scene.ball.position.clone().sub(scene.camera.position),front=delta.length()-1.05;
+      ray.set(scene.camera.position,delta.normalize());assert.ok(!ray.intersectObject(scene.courseFloor,true).some(hit=>hit.distance<front-1e-5),'seeded hills must not cover the chased ball');
     }
+    scene.dispose();
   }
-});
-
-test('loop floating origin uses actual reversing forward positions for particles and cached track',()=>{
-  const scene=harness(),run=runFixture();scene.buildTrack();run.s=908;frame(scene,run);scene.burst({type:'comet',s:910,x:0});
-  const effect=scene.effects[0],before=effect.mesh.position.clone(),origin={...scene.origin},version=scene.courseFloor.geometry.attributes.position.version;
-  run.s+=1;frame(scene,run,'rolling',0);
-  const shift=new THREE.Vector3(origin.lateral-scene.origin.lateral,origin.height-scene.origin.height,origin.forward-scene.origin.forward);
-  assert.ok(effect.mesh.position.distanceTo(before.add(shift))<1e-8);assert.equal(scene.courseFloor.geometry.attributes.position.version,version);
-  assert.ok(scene.origin.forward<origin.forward,'the rendered path really travels backward in world Z near the apex');
 });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { JSDOM } from 'jsdom';
-import { courseSample, LOOP_FIRST_START, LOOP_LENGTH } from '../course.mjs';
+import { courseSample, coursePattern } from '../course.mjs';
 
 // This suite executes the shipped DOM controller and rules unchanged. Only the
 // WebGL scene is replaced: layout, pixels, real touch hardware and GPU rendering
@@ -24,7 +24,7 @@ const sceneSource = `
     render(dt, run, mode, power, upgrades) {
       this.mode = mode; this.power = power; this.current = run;
       this.snapshot = run ? Object.fromEntries(
-        ['s','distance','x','vx','height','vy','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit','guardiansBroken'].map(key => [key,run[key]])
+        ['s','distance','x','vx','height','vy','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit','guardiansBroken','seed'].map(key => [key,run[key]])
       ) : null;
     }
   }
@@ -34,7 +34,7 @@ function profile(overrides = {}) {
   return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [], tutorialComplete: true, ...overrides };
 }
 
-async function game(t, { stored = JSON.stringify(profile()), blockRead = false, blockWrite = false, url = 'https://orbit-golf.test/games/orbit-golf/' } = {}) {
+async function game(t, { stored = JSON.stringify(profile()), blockRead = false, blockWrite = false, url = 'https://orbit-golf.test/games/orbit-golf/', seeds=[0xffffffff] } = {}) {
   const dom = new JSDOM(html, {
     url,
     runScripts: 'outside-only', pretendToBeVisual: true,
@@ -45,7 +45,7 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   assert.equal(entryURL.pathname, '/games/orbit-golf/game.mjs');
   assert.ok(entryURL.searchParams.get('v'), 'The HTML entry must include a cache version');
   let raw = stored;
-  let now = 1000;
+  let now = 1000;let seedIndex=0;
   let nextFrame = 0;
   let hidden = false;
   const frames = new Map();
@@ -58,7 +58,7 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   Object.defineProperty(document, 'hidden', { get: () => hidden });
   Object.defineProperty(document, 'visibilityState', { get: () => hidden ? 'hidden' : 'visible' });
   Object.defineProperty(window.crypto, 'getRandomValues', {
-    value: values => { values.fill(0xffffffff); return values; },
+    value: values => { values.fill(seeds[Math.min(seedIndex++,seeds.length-1)]); return values; },
   });
   Object.defineProperty(window, 'localStorage', { value: {
     getItem(key) { storageAccess.reads++; if (blockRead) throw new window.DOMException('Blocked', 'SecurityError'); return key === KEY ? raw : null; },
@@ -139,52 +139,42 @@ test('lap changes show the added mechanic and fifth-lap reinforcement in the liv
   const run=app.scene.current;
   Object.assign(run,{s:360,distance:360,eventTrack:-1,events:[]});app.tick(3);
   assert.match(app.$('track-label').textContent,/2구간/);
-  assert.match(app.$('growth-readout').textContent,/추가/);
+  assert.match(app.$('growth-readout').textContent,new RegExp(coursePattern(1,run.seed).label));
   Object.assign(run,{s:1440,distance:1440,eventTrack:-1,events:[]});app.tick(3);
   assert.match(app.$('track-label').textContent,/5구간/);
   assert.match(app.$('growth-readout').textContent,/기믹 \+3/);
   assert.ok(app.$('growth-readout').classList.contains('milestone'));
 });
 
-test('isolated loop preview traverses the inverted track and returns to the forward course with live progress and pause',async t=>{
-  const app=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?preview=1&encounter=loop'});
-  app.submit('루프 검증');app.tick();
-  assert.equal(app.scene.current.s,LOOP_FIRST_START-10);
-  assert.equal(app.$('speed').textContent,'0');
-  assert.match(app.$('run-goal').textContent,/360° 루프/);
-  assert.equal(app.$('orbit-fill').parentElement.getAttribute('aria-label'),'360도 루프 진행');
-  app.launch();let inverted=false,paused=false,progress=false;
-  for(let frame=0;frame<600&&app.scene.current.phase==='rolling';frame++){
-    app.tick();const run=app.scene.current,sample=courseSample(run.s);
-    if(sample.loop){
-      inverted ||=sample.normalY<-.8;
-      progress ||= /루프 진행 \d+%/.test(app.$('growth-readout').textContent);
-      if(!paused&&sample.loop.progress>.25){
-        app.$('pause').click();const before={s:run.s,elapsed:run.elapsed};app.tick(30);
-        assert.equal(run.s,before.s);assert.equal(run.elapsed,before.elapsed);
-        app.panelButton('계속').click();paused=true;
-      }
-    }
-    if(run.s>LOOP_FIRST_START+LOOP_LENGTH+3)break;
-  }
-  assert.ok(inverted&&paused&&progress,'the real ball must traverse the inverted surface with readable progress');
-  assert.ok(app.scene.current.s>LOOP_FIRST_START+LOOP_LENGTH+3,'the loop must reconnect to the outgoing track');
-  assert.ok(!app.scene.feedback.some(event=>event.kind==='warp'),'a complete loop must use real travel rather than a warp');
-  assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);assert.deepEqual(app.errors,[]);
+test('each new flight owns a different seeded straight terrain and retry keeps the shown pattern consistent',async t=>{
+  const app=await game(t,{seeds:[17,23]});app.submit('새 길');app.launch();
+  const first=app.scene.current;assert.equal(first.seed,17);
+  assert.match(app.$('growth-readout').textContent,new RegExp(coursePattern(0,17).label));
+  const heights=[90,180,270,540].map(s=>courseSample(s,first.seed).height);
+  app.stop();app.panelButton('다시 타격').click();app.launch();
+  const second=app.scene.current;assert.equal(second.seed,23);
+  assert.notDeepEqual([90,180,270,540].map(s=>courseSample(s,second.seed).height),heights);
+  assert.match(app.$('growth-readout').textContent,new RegExp(coursePattern(0,23).label));
+  assert.ok(!app.document.body.textContent.includes('360°'));
 });
 
-test('a depleted loop shot stops at its actual point and paid continuation preserves that point',async t=>{
-  const app=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?preview=1&encounter=loop'});
-  app.submit('루프 정지');app.launch();const run=app.scene.current,start=LOOP_FIRST_START+LOOP_LENGTH*.2;
-  Object.assign(run,{s:start,distance:start,speed:3,rollSpeed:150,height:0,vy:0,vx:0,events:[],eventTrack:Math.floor(start/360)});
-  const stopped=app.stop();assert.equal(stopped.stopReason,'natural');
-  assert.ok(Math.abs(stopped.s-start)<2,'a weak shot cannot be pushed or warped over the climb');
-  assert.equal(stopped.speed,0);const before={s:run.s,x:run.x,height:run.height};
-  app.panelButton('이어 달리기').click();
-  for(const key of Object.keys(before))assert.equal(run[key],before[key]);
-  assert.equal(run.continued,true);assert.ok(run.speed>0);app.tick(3);
-  assert.ok(run.s>before.s&&run.s<LOOP_FIRST_START+LOOP_LENGTH,'continuation must resume inside the same loop');
-  assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);
+test('isolated giant previews use real generated encounters and distinct collision paths without touching storage',async t=>{
+  for(const type of ['beast','giant-alien','cookie']){
+    const app=await game(t,{url:`https://orbit-golf.test/games/orbit-golf/?preview=1&seed=42&encounter=${type}`});
+    app.submit('거대 만남');app.tick();let run=app.scene.current;const target=run.events.find(event=>event.id===run.previewTargetId);
+    assert.ok(target&&target.type===type);assert.equal(run.seed,42);assert.equal(app.$('speed').textContent,'0');
+    assert.match(app.$('run-goal').textContent,/거대/);app.launch();run=app.scene.current;
+    let feedback;
+    for(let count=0;count<180&&run.phase==='rolling'&&!feedback;count++){app.tick();feedback=app.scene.feedback.find(event=>event.eventId===target.id);}
+    assert.ok(feedback,`the ${type} preview must collide using the shipped rules`);
+    assert.ok(feedback.effect);assert.equal(app.$('toast').classList.contains('visible'),false);
+    if(type==='cookie'){assert.equal(feedback.kind,'cookie-break');assert.ok(run.events.some(event=>event.fragment));}
+    app.$('pause').click();const before={s:run.s,elapsed:run.elapsed,seed:run.seed};app.tick(20);
+    for(const key of Object.keys(before))assert.equal(run[key],before[key]);app.panelButton('계속').click();
+    assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);assert.deepEqual(app.errors,[]);
+  }
+  const ignored=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?encounter=beast&seed=42'});
+  ignored.submit('일반 비행');ignored.tick();assert.equal(ignored.scene.current.s,0);assert.equal(ignored.scene.current.seed,0xffffffff);
 });
 
 test('speed HUD follows actual motion and marks backward reflection rather than hidden launch energy',async t=>{

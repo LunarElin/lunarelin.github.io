@@ -41,3 +41,9 @@ GLB는 외부 이미지나 버퍼 없이 독립 실행 가능하다. 모두 꼭�
 - 가공: 두 보조 모듈의 `three` import를 `./three.module.js`로, GLTFLoader의 유틸리티 import를 `./BufferGeometryUtils.js`로 바꿨다. 나머지 구현은 변경하지 않았다. 런타임 패키지 설치·외부 import map이 필요 없다.
 
 트랙·골프공·범퍼와 장치 표식·거대한 갑옷 수문장과 파괴 잔해·배경 별·이펙트는 게임 코드에서 기하 도형으로 생성한다. 효과음은 Web Audio로 생성하므로 별도의 외부 음원은 사용하지 않는다.
+
+## 대형 동물·외계인·과자
+
+2026-10-28에 추가한 우주 하마·팬더, 세 눈 외계인, 초콜릿 과자와 실제 물리 과자 조각은 [`../encounter-art.mjs`](../encounter-art.mjs)의 원본 3D 기하 코드다. 새 외부 모델·텍스처·이미지 생성 결과를 반입하지 않았다. 기존 Kenney Space Kit와 같은 조명 아래 둥근 실루엣·거칠기·재질 대비를 맞췄다.
+
+새 `create-game-assets`·`threejs-materials-lighting` 스킬에 따른 방향·크기·피벗·예산·출처·검증 상태는 [art-direction.md](art-direction.md)와 [asset-manifest.json](asset-manifest.json)에 기록한다. Kenney Food Kit·Cube Pets는 후보로 검토했으며 이 두 팩의 파일을 실제로 사용한 것은 아니다. 전체 과자가 깨진 뒤에는 규칙이 만든 별도 물체의 실제 위치와 회전을 따라 과자 조각을 표시한다.

@@ -1,7 +1,9 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261028-loop1';
-import { courseSample, loopAt, COURSE_WORLD_PER_METER } from './course.mjs?v=20261028-loop1';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261028-wild1';
+import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261028-wild1';
+
+import { createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261028-wild1';
 
 const TAU = Math.PI * 2;
 export const BALL_HEIGHT = 1.08;
@@ -50,7 +52,7 @@ export class OrbitScene {
     this.models = {}; this.loader = new GLTFLoader(); this.abort = false;
     this.astronaut = this.fallbackAstronaut(); this.scene.add(this.astronaut);
     this.loadModels();
-    this.previewEvents=[{id:'preview1',at:72,x:0,type:'bumper'},{id:'preview2',at:48,x:5,type:'coins'},{id:'preview3',at:82,x:-3.5,type:'alien'},{id:'preview4',at:92,x:2.2,type:'spring'},{id:'preview5',at:155,x:6,type:'punch'},{id:'preview6',at:215,x:-6,type:'alien'}];
+    this.previewEvents=[{id:'preview1',at:72,x:0,type:'bumper'},{id:'preview2',at:48,x:5,type:'coins'},{id:'preview-beast',at:100,x:1.7,type:'beast',radius:2.6,height:2.3,phase:.8,direction:1,skin:'hippo'},{id:'preview-cookie',at:174,x:-4,type:'cookie',radius:2.25,height:2.1,phase:0,direction:1},{id:'preview-alien',at:230,x:4,type:'giant-alien',radius:2.5,height:2.4,phase:1,direction:-1}];
     this.x = 0; this.distance = 0; this.lastTrack = -1; this.time = 0; this.impact = 0; this.frame = 0;
     this.look = new THREE.Vector3(); this.cameraTarget = new THREE.Vector3();
     this.resize();
@@ -85,12 +87,12 @@ export class OrbitScene {
       const s=start+i*COURSE_STEP,p=this.position(s,0,-.025);
       vertices.setXYZ(i*2,p.x-HALF_WIDTH,p.y,p.z);vertices.setXYZ(i*2+1,p.x+HALF_WIDTH,p.y,p.z);
       if(i===COURSE_SEGMENTS)continue;
-      const middle=s+COURSE_STEP/2,sample=courseSample(middle),pitch=-sample.pitch,edgeStart=this.position(s,0,.25),edgeEnd=this.position(s+COURSE_STEP,0,.25),edgeMid=edgeStart.clone().add(edgeEnd).multiplyScalar(.5),edgeLength=edgeStart.distanceTo(edgeEnd);
+      const middle=s+COURSE_STEP/2,sample=this.sample(middle),pitch=-sample.pitch,edgeStart=this.position(s,0,.25),edgeEnd=this.position(s+COURSE_STEP,0,.25),edgeMid=edgeStart.clone().add(edgeEnd).multiplyScalar(.5),edgeLength=edgeStart.distanceTo(edgeEnd);
       for(const [side,x]of[-HALF_WIDTH,HALF_WIDTH].entries()) {
         instance.position.set(edgeMid.x-x,edgeMid.y,edgeMid.z);instance.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),edgeEnd.clone().sub(edgeStart).normalize());instance.scale.set(1,1,edgeLength/(COURSE_STEP*COURSE_WORLD_PER_METER));instance.updateMatrix();this.courseRails.setMatrixAt(i*2+side,instance.matrix);
         instance.position.copy(this.position(middle,x,4));instance.updateMatrix();this.courseGuards.setMatrixAt(i*2+side,instance.matrix);
       }
-      instance.position.copy(this.position(s,0,.008));instance.rotation.set(-courseSample(s).pitch,0,0);instance.scale.set(1,1,1);instance.updateMatrix();this.courseRibs.setMatrixAt(i,instance.matrix);
+      instance.position.copy(this.position(s,0,.008));instance.rotation.set(-this.sample(s).pitch,0,0);instance.scale.set(1,1,1);instance.updateMatrix();this.courseRibs.setMatrixAt(i,instance.matrix);
       if(i%4===0){instance.position.copy(this.position(s,0,-.65));instance.updateMatrix();this.courseSupports.setMatrixAt(i/4,instance.matrix);}
     }
     vertices.needsUpdate=true;this.courseFloor.geometry.computeVertexNormals();
@@ -121,8 +123,9 @@ export class OrbitScene {
       this.lastTrack=-1;
     }));
   }
+  sample(distance) { return courseSample(distance,this.courseSeed??1); }
   position(distance,x=0,height=.1) {
-    const sample=courseSample(distance),origin=this.origin||{s:0,height:0,forward:0,lateral:0};
+    const sample=this.sample(distance),origin=this.origin||{s:0,height:0,forward:0,lateral:0};
     return new THREE.Vector3(sample.lateral-origin.lateral-x,sample.height-origin.height+height*sample.normalY,sample.forward-origin.forward+height*sample.normalZ);
   }
   directionArrow(parent,color,size=1) {
@@ -175,7 +178,9 @@ export class OrbitScene {
     const g=new THREE.Group(),visual=new THREE.Group(),type=event.type,r=event.radius||.95,h=event.height||1.05,mechanism={};g.add(visual);
     const useModel=(name,scale)=>{if(!this.models[name])return false;const m=this.models[name].clone(true);m.scale.setScalar(scale);m.position.y=h;visual.add(m);return true;};
     const eyes=(y,z,spread=.35)=>{for(const sign of [-1,1]){const eye=this.mesh(new THREE.SphereGeometry(.25,12,8),mat(0xffffff,.35,0),visual);eye.position.set(sign*spread,y,z);const pupil=this.mesh(new THREE.SphereGeometry(.115,10,8),mat(0x111c35,.3,0),visual);pupil.position.set(sign*spread,y-.025,z-.2);}};
-    if(type==='guardian') {
+    if(['beast','giant-alien','cookie'].includes(type)) {
+      const art=createEncounterVisual(event);visual.add(art);mechanism.encounter=art;
+    } else if(type==='guardian') {
       this.buildGuardian(visual,event,mechanism);
     } else if(type==='bumper') {
       const body=this.mesh(new THREE.SphereGeometry(r*.88,16,12),mat(0xf8b93b,.28,.35),visual);body.name='elastic-shield';body.position.y=h;body.scale.z=.8;
@@ -243,7 +248,7 @@ export class OrbitScene {
     for(const child of visual.children)child.position.y-=h;
     visual.position.y=h;
     if(mechanism.cap)mechanism.capRest=mechanism.cap.position.y;
-    const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-courseSample(pose.s).pitch;
+    const pose=eventPose(event,0);g.position.copy(this.position(pose.s,pose.x,pose.height));g.rotation.x=-this.sample(pose.s).pitch;
     const cue=this.createCue(type,r);cue.position.y=h;g.add(cue);
     g.userData={type,event,visual,centerHeight:h,cue,mechanism};return g;
   }
@@ -282,13 +287,13 @@ export class OrbitScene {
     const duration=Math.max(.45,Math.min(1.8,feedback.kind==='guardian-break'?1.6:feedback.effectDuration||.65));
     this.hitAnimations||=new Map();if(feedback.eventId)this.hitAnimations.set(feedback.eventId,{life:duration,total:duration,type:feedback.type,kind:feedback.kind,strength,effect:feedback.effect,direction:feedback.effectDirection,powered:feedback.kind!=='chain'&&feedback.powered!==false});
     const event=this.eventMeshes?.get(feedback.eventId)?.userData.event,pose=event?eventPose(event,this.runElapsed||0):null;
-    const distance=feedback.type==='guardian'&&Number.isFinite(feedback.s)?feedback.s:pose?.s??(Number.isFinite(feedback.s)?feedback.s:this.distance||0),sample=courseSample(distance);
+    const distance=feedback.type==='guardian'&&Number.isFinite(feedback.s)?feedback.s:pose?.s??(Number.isFinite(feedback.s)?feedback.s:this.distance||0),sample=this.sample(distance);
     const origin=feedback.type==='guardian'?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):pose?this.position(pose.s,pose.x,pose.height+(event.height||1.05)):
       Number.isFinite(feedback.s)?this.position(distance,feedback.x||0,BALL_HEIGHT+(feedback.height||0)):this.ball.position.clone();
-    const color=feedback.type==='guardian'?0xe4b86e:feedback.type==='comet'?0xbba58d:0xc4d8df;
+    const color=feedback.type==='cookie'?0xdba965:feedback.type==='guardian'?0xe4b86e:feedback.type==='comet'?0xbba58d:0xc4d8df;
     const inward=new THREE.Vector3(0,sample.normalY,sample.normalZ),forward=new THREE.Vector3(sample.tangentX,sample.tangentY,sample.tangentZ);
     this.effectGeometry||=new THREE.OctahedronGeometry(.14);this.effects||=[];
-    const guardianBreak=feedback.kind==='guardian-break',count=guardianBreak?14:feedback.kind==='guardian-block'?5:feedback.type==='comet'?6:feedback.type==='landing'?4:feedback.type==='shot'?6:feedback.type==='rail'?3:0;
+    const cookieBreak=feedback.kind==='cookie-break',guardianBreak=feedback.kind==='guardian-break',count=cookieBreak?8:guardianBreak?14:feedback.kind==='guardian-block'?5:feedback.type==='comet'?6:feedback.type==='landing'?4:feedback.type==='shot'?6:feedback.type==='rail'?3:0;
     for(let i=0;i<count;i++) {
       const scale=guardianBreak?2.4:feedback.type==='comet'?1:.55,life=guardianBreak?.85:.45,opacity=guardianBreak?.95:.7;
       const material=guardianBreak?new THREE.MeshStandardMaterial({color:i%4===0?0xba8745:0x738b9c,roughness:.42,metalness:.65,transparent:true,opacity,depthWrite:false}):new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthWrite:false});
@@ -305,10 +310,11 @@ export class OrbitScene {
       const {event,visual,type,centerHeight,cue,mechanism}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=eventPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
       const flying=Boolean(event.body?.active),sameWheel=!active||!event.body||event.body.wheel===run.wheel;
       mesh.visible=sameWheel&&(type==='guardian'||flying||!event.used||Boolean(hit)&&!event.body)&&(!active||(ahead>-65&&ahead<190));
-      mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-courseSample(pose.s).pitch;
+      mesh.position.copy(this.position(pose.s,pose.x,pose.height));mesh.rotation.x=-this.sample(pose.s).pitch;
       visual.position.set(0,centerHeight,0);visual.rotation.set(pose.rx||0,pose.ry||0,pose.rz||0);visual.scale.setScalar(1);
       cue.visible=Boolean(hit?.powered)&&Boolean(cue.userData.kind);cue.position.set(0,centerHeight,0);cue.rotation.set(0,0,0);cue.scale.setScalar(1);
       if(cue.userData.material)cue.userData.material.opacity=0;
+      if(mechanism.encounter)animateEncounterVisual(mechanism.encounter,event,active?run.elapsed:this.time,hit,dt);
       if(mechanism.guardian) {
         const guardian=mechanism.guardian,broken=Boolean(event.broken),progress=broken&&hit?.kind==='guardian-break'?1-hit.life/hit.total:1;
         const recoil=!broken&&hit?.kind==='guardian-block'?Math.sin((1-hit.life/hit.total)*Math.PI):0;
@@ -350,7 +356,9 @@ export class OrbitScene {
   render(dt,run,mode='lobby',power=0,upgrades={pilot:0,ball:0}) {
     const animDt=mode==='paused'?0:dt;this.time+=animDt;this.frame++;
     const active=run&&mode!=='lobby', rolling=active&&run.phase==='rolling'&&mode==='rolling';
-    const orbit=active?run.wheel||0:0,newS=active?run.s:28,newSample=courseSample(newS),newHeight=newSample.height;
+    const nextSeed=active?run.seed:1;
+    if(this.courseSeed!==nextSeed){this.courseSeed=nextSeed;this.courseStart=undefined;this.lastTrack=-1;this.trailHistory.length=0;this.hitAnimations?.clear();for(const effect of this.effects){this.scene.remove(effect.mesh);effect.mesh.material.dispose();}this.effects.length=0;}
+    const orbit=active?run.wheel||0:0,newS=active?run.s:28,newSample=this.sample(newS),newHeight=newSample.height;
     const oldOrigin=this.origin||{s:0,height:0,forward:0,lateral:0},shift=new THREE.Vector3(oldOrigin.lateral-newSample.lateral,oldOrigin.height-newHeight,oldOrigin.forward-newSample.forward);
     this.origin={s:newS,height:newHeight,forward:newSample.forward,lateral:newSample.lateral};
     // Historical paths and fragments share the same floating-origin translation.
@@ -370,7 +378,7 @@ export class OrbitScene {
     this.ballLight?.position.copy(this.position(this.distance,this.x,BALL_HEIGHT+airborne+2));
     if(this.aimGuide){this.aimGuide.visible=mode==='ready';const angle=(run?.aim||0)*Math.PI/180;
       this.aimGuide.children.forEach((part,index)=>{const ahead=3+index*1.8,x=this.x+Math.tan(angle)*ahead*COURSE_WORLD_PER_METER;part.position.copy(this.position(this.distance+ahead,x,.2));});
-      const tipSample=courseSample(this.distance+15.6),tangent=new THREE.Vector3(tipSample.tangentX*Math.cos(angle)-Math.sin(angle),tipSample.tangentY*Math.cos(angle),tipSample.tangentZ*Math.cos(angle)).normalize();this.aimTip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),tangent);
+      const tipSample=this.sample(this.distance+15.6),tangent=new THREE.Vector3(tipSample.tangentX*Math.cos(angle)-Math.sin(angle),tipSample.tangentY*Math.cos(angle),tipSample.tangentZ*Math.cos(angle)).normalize();this.aimTip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),tangent);
     }
     this.astronaut.visible=mode==='ready'||mode==='lobby';this.astronaut.position.copy(this.position(this.distance-4,-1.5,1.1));this.astronaut.rotation.set(pitch,0,0);
     if(upgrades.pilot)this.astronaut.scale.setScalar(2.7+upgrades.pilot*.05);
@@ -387,14 +395,6 @@ export class OrbitScene {
     const ready=mode==='ready',ground=this.position(this.distance,this.cameraX*.9,0);
     const target=active?ground.clone().add(new THREE.Vector3(0,9+airborne*.55,-24)):new THREE.Vector3((this.mobile?34:32)*fit,26,-38);
     const look=active?ground.clone().add(new THREE.Vector3(0,1+airborne*.85,this.cameraAim*COURSE_WORLD_PER_METER)):new THREE.Vector3(0,-1,27);
-    const loop=active?loopAt(this.distance,80):null;
-    if(loop){
-      const edge=this.distance<loop.start?(this.distance-loop.start+80)/80:this.distance>loop.end?(loop.end+80-this.distance)/80:1,blend=Math.max(0,Math.min(1,edge)),weight=blend*blend*(3-2*blend);
-      const normal=new THREE.Vector3(0,newSample.normalY,newSample.normalZ),tangent=new THREE.Vector3(newSample.tangentX,newSample.tangentY,newSample.tangentZ);
-      const sideTarget=ground.clone().add(new THREE.Vector3(-30,0,0)).addScaledVector(normal,12+airborne*.55).addScaledVector(tangent,-2);
-      const sideLook=ground.clone().add(new THREE.Vector3(0,2,0)).addScaledVector(normal,1+airborne*.85);
-      target.lerp(sideTarget,weight);look.lerp(sideLook,weight);
-    }
     this.camera.position.copy(target);this.look.copy(look);
     const up=new THREE.Vector3(0,1,0);
     this.impact=Math.max(0,(this.impact||0)-animDt*4);

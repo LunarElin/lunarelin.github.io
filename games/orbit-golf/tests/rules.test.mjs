@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';
-import { courseSample, loopAt, LOOP_FIRST_START, LOOP_INTERVAL, LOOP_LENGTH } from '../course.mjs';
+import { courseSample } from '../course.mjs';
 import {
   TRACK_LENGTH, TRACK_WIDTH, DISTANCE_PER_GOLD, SIDE_LIMIT, WORLD_PER_METER, MAX_PROP_BODIES, MAX_CHAIN_DEPTH,
   UPGRADE_DEFS, COLLISION_EFFECTS, TUTORIAL_DURATION, RUN_DURATION, MAX_GIMMICK_WAVES, lapConfig, guardianPower,
@@ -48,58 +48,44 @@ test('purchases charge the displayed price and reject invalid, poor or maxed upg
   profile.upgrades.ball = 5;assert.equal(upgradeCost(profile, 'ball'), Infinity);
   assert.equal(buyUpgrade(profile, 'ball'), false);
 });
-test('seeded tracks scatter continuous moving colliders with no lane field', () => {
-  assert.deepEqual(generateTrack(1, 42), generateTrack(1, 42));
-  assert.notDeepEqual(generateTrack(1, 42), generateTrack(1, 43));
-  let warps = 0;
-  for (let seed = 1; seed <= 80; seed++) {
-    const events = generateTrack(1, seed);
-    assert.equal(events.length, 22+lapConfig(2).activeWaves.length*2);
-    assert.equal(new Set(events.map(event => event.id)).size, events.length);
-    assert.ok(events.some(event => !Number.isInteger(event.x)));
-    for (let index = 0; index < events.length; index++) {
-      const event = events[index];
-      assert.equal(Object.hasOwn(event, 'lane'), false);
-      assert.ok(Math.abs(event.x) <= 7.7 && event.radius > 0);
-      assert.ok(event.at > 1 * TRACK_LENGTH && event.at < 2 * TRACK_LENGTH);
-      if (index) assert.ok(event.at > events[index - 1].at);
-    }
-    assert.ok(['bumper','spring','punch','alien','comet','trap','coins','boost'].every(type => events.some(e => e.type === type)));
-    assert.ok(events.filter((event,index)=>index&&event.at-events[index-1].at<10).length>=10,'nearby props must support physical chains');
-    if (events.some(e => ['hole','ufo'].includes(e.type))) warps++;
+test('seeded encounters reproduce exactly while count, spacing, formations and large subjects change',()=>{
+  assert.deepEqual(generateTrack(1,42),generateTrack(1,42));assert.notDeepEqual(generateTrack(1,42),generateTrack(1,43));
+  const counts=new Set(),signatures=new Set(),subjects=new Set();let warps=0;
+  for(let seed=1;seed<=100;seed++){
+    const events=generateTrack(1,seed);counts.add(events.length);signatures.add(events.map(event=>event.type).join(','));
+    assert.ok(events.length>=10&&events.length<=55);assert.equal(new Set(events.map(event=>event.id)).size,events.length);
+    for(const event of events){assert.equal(Object.hasOwn(event,'lane'),false);assert.ok(Math.abs(event.x)<=7.7);assert.ok(event.at>360&&event.at<720);assert.ok(event.radius>0);if(['beast','giant-alien','cookie'].includes(event.type))subjects.add(event.type);}
+    if(events.some(event=>['hole','ufo'].includes(event.type)))warps++;
   }
-  assert.ok(warps > 0 && warps < 80);
+  assert.ok(counts.size>=8&&signatures.size>=90,'variety must change encounter structure, not just small offsets');
+  assert.deepEqual([...subjects].sort(),['beast','cookie','giant-alien']);assert.ok(warps>0&&warps<100);
 });
 
-test('the opening course teaches rebounds and jumps before introducing hard braking and meteors',()=>{
+test('the opening introduces rebounds and a giant subject before hard hazards',()=>{
+  const subjects=new Set(),sides=new Set(),positions=new Set();
   for(let seed=1;seed<=100;seed++){
-    const opening=generateTrack(0,seed),early=opening.filter(event=>event.at<150);
+    const events=generateTrack(0,seed),early=events.filter(event=>event.at<100),giant=events.find(event=>event.encounter);
     assert.ok(early.some(event=>event.type==='spring')&&early.some(event=>event.type==='bumper'));
     assert.ok(!early.some(event=>event.type==='trap'||event.type==='comet'));
-    assert.ok(opening.some(event=>event.type==='trap'||event.type==='comet'));
+    assert.ok(giant&&giant.at>=120&&giant.at<=180&&giant.radius>=2.25&&giant.radius<TRACK_WIDTH/2);subjects.add(giant.type);
+    sides.add(Math.sign(giant.x));positions.add(giant.x);
   }
+  assert.equal(subjects.size,3);assert.equal(sides.size,2);assert.ok(positions.size>90);
 });
 
-test('every lap introduces another physical gimmick wave and fifth laps introduce three within a bounded track',()=>{
-  assert.equal(lapConfig(1).additions,0);
-  for(let lap=2;lap<=40;lap++){
-    const plan=lapConfig(lap),events=generateTrack(lap-1,42);
+test('each section adds seeded formation choices and every fifth adds three without unbounded density',()=>{
+  assert.equal(lapConfig(1).additions,0);const orders=new Set();
+  for(let seed=1;seed<=30;seed++)orders.add(lapConfig(8,seed).activeWaves.map(w=>w.id).join(','));
+  assert.ok(orders.size>=25,'every run must not unlock the same ordered pattern');
+  for(let lap=2;lap<=80;lap++){
+    const plan=lapConfig(lap,42),events=generateTrack(lap-1,42);
     assert.equal(plan.additions,lap%5===0?3:1);assert.equal(plan.newGimmicks.length,plan.additions);
-    assert.ok(plan.activeWaves.length<=MAX_GIMMICK_WAVES);assert.ok(events.length<=55);
+    assert.ok(plan.activeWaves.length<=MAX_GIMMICK_WAVES&&events.length<=55);
     assert.ok(plan.newGimmicks.every(wave=>events.some(event=>event.gimmick===wave.id)));
     assert.equal(events.some(event=>event.type==='guardian'),lap%10===0);
     if(lap%10===0)assert.ok(events.filter(event=>event.type!=='guardian').every(event=>event.at<lap*TRACK_LENGTH-100));
   }
-  const sweep=generateTrack(1,42).find(event=>event.motion==='sweep');
-  assert.ok(sweep&&Math.abs(eventX(sweep,.2)-eventX(sweep,.4))>.01);
-  const catchPad=generateTrack(2,42).find(event=>event.airborne);
-  assert.equal(catchPad.type,'spring');assert.equal(eventPose(catchPad).height,3.2);
-  assert.ok(generateTrack(15,42).length>generateTrack(6,42).length,'later formations must add actual physical props');
-  assert.ok(lapConfig(15).newGimmicks.every(wave=>wave.label.includes('형')));
-  for(const value of [Number.MAX_VALUE,-Infinity,Infinity,NaN]){
-    const plan=lapConfig(value);assert.ok(Number.isFinite(plan.lap)&&Number.isFinite(plan.additions));
-    assert.ok(plan.activeWaves.every(wave=>wave.id&&Number.isFinite(wave.tier)));
-  }
+  for(const value of[Number.MAX_VALUE,-Infinity,Infinity,NaN]){const plan=lapConfig(value);assert.ok(Number.isFinite(plan.lap)&&Number.isFinite(plan.additions));assert.ok(plan.activeWaves.every(wave=>wave.id&&Number.isFinite(wave.tier)));}
 });
 
 test('the elevated second spring catches an airborne ball and launches another actual arc',()=>{
@@ -353,17 +339,67 @@ test('a warp preserves reduced travel instead of enforcing an unexplained minimu
 });
 
 test('grounded slope force follows the rendered course and uphill loses more speed than downhill',()=>{
-  const profile=ordinary(0),positions=Array.from({length:300},(_,index)=>index+1);
-  const down=positions.find(s=>courseSample(s).slope<-.15),up=positions.find(s=>courseSample(s).slope>.07);
+  const profile=ordinary(0),seed=83,positions=Array.from({length:1800},(_,index)=>index+1);
+  const down=positions.find(s=>courseSample(s,seed).slope<-.15),up=positions.find(s=>courseSample(s,seed).slope>.07);
   assert.ok(down!==undefined&&up!==undefined);
   const changes=[];
   for(const s of [down,up]){
-    const run=newRun(profile,1,1,0);Object.assign(run,{s,distance:s,speed:30,rollSpeed:30,events:[],eventTrack:0});
+    const run=newRun(profile,1,seed,0);Object.assign(run,{s,distance:s,speed:30,rollSpeed:30,events:[],eventTrack:Math.floor(s/TRACK_LENGTH)});
     stepRun(run,profile,1/120);
-    const expected=30+(-14*courseSample(s).slope-ballStats(profile).drag)/120;
+    const expected=30+(-14*courseSample(s,seed).slope-ballStats(profile).drag)/120;
     assert.ok(Math.abs(run.speed-expected)<1e-8);changes.push(run.speed);
   }
   assert.ok(changes[0]>changes[1]);
+});
+
+test('giant encounters give separate belly arcs, directional tentacle spin and brittle cookie breaks',()=>{
+  const profile=ordinary(0),results=new Map();
+  for(const type of ['beast','giant-alien','cookie']){
+    const run=newRun(profile,1,1,0),event={id:type,type,at:100,x:0,radius:2.4,height:2.2,direction:1};
+    Object.assign(run,{s:100,distance:100,speed:70,rollSpeed:70,vx:0,events:[event],eventTrack:0});
+    const feedback=resolveEvent(run,event,profile,{x:.6,s:-.8});
+    assert.equal(feedback.text,'');assert.equal(feedback.effect,COLLISION_EFFECTS[type].effect);
+    results.set(type,{run,event,feedback});
+  }
+  const beast=results.get('beast'),alien=results.get('giant-alien'),cookie=results.get('cookie');
+  assert.equal(beast.run.vy,11);assert.ok(beast.run.speed>alien.run.speed+4&&beast.run.curveSpin===0);
+  assert.equal(alien.run.curveSpin,28);assert.ok(alien.run.vx>beast.run.vx*2);assert.equal(alien.run.vy,5.5);
+  assert.equal(cookie.feedback.kind,'cookie-break');assert.equal(cookie.run.vy,7.5);
+  assert.ok(cookie.event.broken&&cookie.event.used&&!cookie.event.body.active);
+  assert.equal(cookie.run.events.filter(event=>event.fragment&&event.body?.active).length,4);
+  const left=newRun(profile,1,1,0);Object.assign(left,{speed:70,rollSpeed:70,vx:0});
+  resolveEvent(left,{id:'left-tentacle',type:'giant-alien',direction:-1},profile,{x:-.6,s:-.8});
+  assert.equal(left.curveSpin,-28);assert.ok(left.vx<0);
+});
+
+test('cookie fragments carry a finite shared energy budget, strike other props and reward only one break',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0);
+  const cookie={id:'biscuit',type:'cookie',at:100,x:0,radius:2.25,height:2.1,direction:1};
+  const target={id:'crumb-target',type:'bumper',at:113,x:-1,radius:1,height:1.05};
+  Object.assign(run,{s:100,distance:100,speed:70,rollSpeed:70,vx:0,events:[cookie,target],eventTrack:0});
+  resolveEvent(run,cookie,profile,{x:.1,s:-.995});
+  const crumbs=run.events.filter(event=>event.fragment),budget=2*((cookie.body.vs*WORLD_PER_METER)**2+cookie.body.vx**2);
+  const energy=crumbs.reduce((sum,event)=>sum+.5*((event.body.vs*WORLD_PER_METER)**2+event.body.vx**2),0);
+  assert.equal(crumbs.length,4);assert.ok(energy<=budget+1e-9,'pieces must share the energy removed from their parent');
+  assert.ok(crumbs.every(event=>event.skin==='crumb'&&event.radius===.55&&event.body.depth===2));
+  assert.equal(run.bonusGold,18);assert.equal(resolveEvent(run,cookie,profile),null);
+  assert.equal(resolveEvent(run,{...cookie,used:false,body:undefined},profile),null,'regenerated parent remains consumed');
+  const piece=crumbs[0];run.elapsed=.2;
+  resolveEvent(run,piece,profile,{x:1,s:0});assert.equal(run.bonusGold,18);
+  assert.equal(run.events.filter(event=>event.fragment).length,4,'a crumb must never split recursively');
+  Object.assign(run,{s:80,x:7,speed:10,rollSpeed:10});
+  const feedback=[];for(let frame=0;frame<120;frame++)feedback.push(...stepRun(run,profile,1/120));
+  assert.ok(feedback.some(event=>event.kind==='chain'&&event.eventId===target.id&&event.sourceId.includes(':crumb:')));
+  assert.equal(run.bonusGold,18);assert.ok(run.events.filter(event=>event.body?.active).length<=MAX_PROP_BODIES);
+});
+
+test('cookie shattering respects the active body cap when the playfield is already crowded',()=>{
+  const profile=ordinary(0),run=newRun(profile,1,1,0),cookie={id:'crowded-cookie',type:'cookie',at:100,x:0};
+  run.events=Array.from({length:MAX_PROP_BODIES},(_,index)=>({id:`crowd-${index}`,type:'bumper',body:{active:true,wheel:run.wheel}}));
+  run.events.push(cookie);resolveEvent(run,cookie,profile,{s:-1,x:0});
+  assert.equal(run.events.filter(event=>event.body?.active).length,MAX_PROP_BODIES);
+  assert.equal(run.events.filter(event=>event.fragment).length,0);assert.equal(run.bonusGold,18);
+  assert.ok(cookie.used&&cookie.broken);
 });
 
 test('a stopped upgraded ball cannot restart itself on the steepest descent or at the start boundary',()=>{
@@ -672,7 +708,7 @@ test('a free shot follows rolling friction and the actual course elevation withi
     while (run.phase === 'rolling') {
       run.events = [];run.eventTrack = run.track;stepRun(run, profile, 1 / 60);
     }
-    const stats=ballStats(level),work=stats.drag*run.distance+14*(courseSample(run.distance).height-courseSample(0).height)/WORLD_PER_METER;
+    const stats=ballStats(level),work=stats.drag*run.distance+14*(courseSample(run.distance,run.seed).height-courseSample(0,run.seed).height)/WORLD_PER_METER;
     assert.ok(Math.abs(work/(stats.launchSpeed**2/2)-1)<.005,'friction and signed elevation work must account for travel');
   }
 });
@@ -709,81 +745,6 @@ test('100 paired seeds show a clear first upgrade and every later level increase
   assert.ok(paired.filter(ratio => ratio > 1).length >= 95);
   assert.ok(paired.filter(ratio => ratio >= 1.45).length >= 75);
 });
-function loopRun(speed, ballLevel=1, s=LOOP_FIRST_START){
-  const profile=ordinary(ballLevel),run=newRun(profile,1,42,0);
-  Object.assign(run,{s,distance:s,speed,rollSpeed:speed,x:0,vx:0,height:0,vy:0,track:Math.floor(s/TRACK_LENGTH),eventTrack:Math.floor(s/TRACK_LENGTH),events:[]});
-  return{profile,run};
-}
-
-test('each magnetic loop keeps ordinary obstacles and warps outside its captured span while retaining section gimmicks',()=>{
-  for(let index=0;index<8;index++){
-    const start=LOOP_FIRST_START+index*LOOP_INTERVAL,track=Math.floor(start/TRACK_LENGTH),events=generateTrack(track,42);
-    assert.ok(events.every(event=>!loopAt(event.at,4)));
-    assert.ok(lapConfig(track+1).newGimmicks.every(wave=>events.some(event=>event.gimmick===wave.id)));
-    const corridor=[...events,...generateTrack(track+1,42)];
-    assert.ok(corridor.some(event=>event.at<start)&&corridor.some(event=>event.at>start+LOOP_LENGTH));
-  }
-});
-
-test('adequate actual momentum traverses the complete inverted loop and exits without an artificial speed refill',()=>{
-  const {profile,run}=loopRun(135),initial=run.speed,end=LOOP_FIRST_START+LOOP_LENGTH;
-  let climbed=false,inverted=false,descended=false,minimum=initial,descentGain=false;
-  for(let frame=0;frame<1500&&run.s<=end+3&&run.phase==='rolling';frame++){
-    const before=run.speed,shape=courseSample(run.s);stepRun(run,profile,1/120);
-    if(shape.loop&&shape.tangentY>.3){climbed=true;assert.ok(run.speed<before);}
-    if(shape.loop&&shape.normalY<-.9)inverted=true;
-    if(shape.loop&&shape.tangentY<-.3){descended=true;descentGain ||=run.speed>before;}
-    minimum=Math.min(minimum,run.speed);
-    assert.ok(Number.isFinite(run.s)&&Number.isFinite(run.speed)&&run.height===0);
-  }
-  assert.ok(climbed&&inverted&&descended&&descentGain,'the flight must physically climb, invert, descend and recover only downhill energy');
-  assert.ok(run.s>end&&run.phase==='rolling');assert.ok(run.speed<initial&&minimum<initial-3);
-});
-
-test('insufficient momentum stops on the rising loop and a held spin cannot restart or skip it',()=>{
-  const {profile,run}=loopRun(18),end=LOOP_FIRST_START+LOOP_LENGTH;steerRun(run,1);
-  for(let frame=0;frame<1200&&run.phase==='rolling';frame++)stepRun(run,profile,1/120);
-  assert.equal(run.phase,'stopped');assert.equal(run.stopReason,'natural');
-  assert.ok(run.s>LOOP_FIRST_START&&run.s<end);assert.equal(run.speed,0);assert.equal(run.rollSpeed,0);assert.equal(run.steer,0);
-  const stopped=run.s;stepRun(run,profile,60);assert.equal(run.s,stopped);
-});
-
-test('a stopped ball on the inverted loop stays captured without downhill auto-start or forced clearance',()=>{
-  const s=LOOP_FIRST_START+LOOP_LENGTH*.7,{profile,run}=loopRun(0,5,s);run.steer=1;run.vx=12;
-  stepRun(run,profile,1);assert.equal(run.phase,'stopped');assert.equal(run.s,s);assert.equal(run.speed,0);assert.equal(run.height,0);
-});
-
-test('one paid continuation from a loop restores a shot at the exact captured position',()=>{
-  const {profile,run}=loopRun(18);profile.gold=100;
-  for(let frame=0;frame<1200&&run.phase==='rolling';frame++)stepRun(run,profile,1/120);
-  const before={s:run.s,x:run.x,height:run.height,distance:run.distance,elapsed:run.elapsed};
-  assert.equal(continueRun(profile,run),true);
-  for(const [key,value]of Object.entries(before))assert.equal(run[key],value);
-  assert.equal(profile.gold,100+run.earned-40);assert.ok(run.speed>100);
-  for(let frame=0;frame<1500&&run.s<=LOOP_FIRST_START+LOOP_LENGTH+3&&run.phase==='rolling';frame++)stepRun(run,profile,1/120);
-  assert.ok(run.s>LOOP_FIRST_START+LOOP_LENGTH);assert.equal(run.continued,true);
-});
-
-test('loop rail capture settles an incoming jump continuously and fixed steps agree for a slow frame',()=>{
-  const fixtures=[loopRun(130),loopRun(130)];
-  for(const {run}of fixtures){run.height=3;run.vy=4;}
-  const first=fixtures[0],second=fixtures[1];
-  stepRun(first.run,first.profile,1/120);
-  assert.ok(first.run.height>2.5,'capture cannot teleport an incoming airborne ball to the floor');
-  for(let frame=1;frame<120;frame++)stepRun(first.run,first.profile,1/120);
-  stepRun(second.run,second.profile,1);
-  for(const key of['s','speed','height','vy','distance','elapsed'])assert.ok(Math.abs(first.run[key]-second.run[key])<1e-7,key);
-  assert.ok(first.run.height<.15&&first.run.height>=0);
-});
-
-test('ordinary injected colliders and flying bodies cannot cause false contacts between loop branches',()=>{
-  const {profile,run}=loopRun(100,1,LOOP_FIRST_START+LOOP_LENGTH*.5),s=run.s;
-  run.events=[{id:'inverted-brake',type:'trap',at:s,x:0,height:1.05,radius:1,direction:1},
-    {id:'inverted-body',type:'comet',at:s,x:0,height:1.05,radius:1,body:{active:true,wheel:0,s:s+1,x:0,height:0,vs:-40,vx:0,vy:0,rx:0,ry:0,rz:0,wx:0,wy:0,wz:0,life:4,depth:1,chainId:1,contacts:{},impacts:0}}];
-  const feedback=stepRun(run,profile,.1);
-  assert.equal(run.collisions,0);assert.equal(run.chainHits,0);assert.ok(!feedback.some(event=>event.eventId));assert.ok(run.speed>90);
-});
-
 test('an unsteered first shot produces autonomous rebounds, airborne motion and active chains', () => {
   const { run, types } = finish(ordinary(0), 2);
   assert.ok(run.collisions >= 5);assert.ok(run.maxHeight > .1);

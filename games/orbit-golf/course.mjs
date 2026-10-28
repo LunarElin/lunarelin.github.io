@@ -1,44 +1,69 @@
-// Shared path frame. s is game metres; lateral/height/forward are world X/Y/Z.
-// The expanding turn drops and moves sideways so the broad entry/exit decks never cross.
+// Straight, seed-owned terrain. s is game metres; heights are world Y.
 export const COURSE_WORLD_PER_METER = Math.PI * 2 * 23 / 360;
-export const LOOP_FIRST_START = 780;
-export const LOOP_INTERVAL = 1800;
-export const LOOP_RADIUS = 14;
-const TAU=Math.PI*2,DRIFT=16,DROP=14,SHIFT=40,STEPS=512;
-const radius=u=>LOOP_RADIUS+DROP*u*u*(3-2*u),radiusRate=u=>DROP*6*u*(1-u);
-const arc=new Float64Array(STEPS+1),rate=u=>{const a=TAU*u,r=radius(u),dr=radiusRate(u);return Math.hypot(SHIFT*6*u*(1-u),DRIFT+dr*Math.sin(a)+TAU*r*Math.cos(a),-dr*Math.cos(a)+TAU*r*Math.sin(a));};
-for(let i=1;i<=STEPS;i++){const a=(i-1)/STEPS,b=i/STEPS;arc[i]=arc[i-1]+(rate(a)+4*rate((a+b)/2)+rate(b))*(b-a)/6;}
-export const LOOP_LENGTH = arc[STEPS]/COURSE_WORLD_PER_METER;
-const FORWARD_LOSS=arc[STEPS]-DRIFT;
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function baseSample(s){const d=s*COURSE_WORLD_PER_METER;return{height:-.06*d-4.5*Math.sin(d/30)+1.4*Math.sin(d/67),slope:-.06-.15*Math.cos(d/30)+1.4/67*Math.cos(d/67)};}
-export function loopAt(s=0,margin=0){
-  if(!Number.isFinite(s))return null;
-  margin=Number.isFinite(margin)?Math.max(0,Math.min(200,margin)):0;
-  const index=Math.max(0,Math.floor((s-LOOP_FIRST_START+margin)/LOOP_INTERVAL)),start=LOOP_FIRST_START+index*LOOP_INTERVAL,end=start+LOOP_LENGTH;
-  return s>=start-margin&&s<=end+margin?{index,start,end,section:Math.floor(start/360)+1,progress:clamp((s-start)/LOOP_LENGTH,0,1),radius:LOOP_RADIUS}:null;
-}
-// Invert the sampled arc with a local Hermite curve, including its endpoint derivative.
-function loopParameter(metres){
-  const distance=clamp(metres*COURSE_WORLD_PER_METER,0,arc[STEPS]);let lo=0,hi=STEPS;
-  while(hi-lo>1){const m=(lo+hi)>>1;if(arc[m]<=distance)lo=m;else hi=m;}
-  const length=arc[hi]-arc[lo],m0=rate(lo/STEPS)/STEPS,m1=rate(hi/STEPS)/STEPS;
-  let t=clamp((distance-arc[lo])/length,0,1),derivative=length;
-  for(let n=0;n<3;n++){
-    const t2=t*t,t3=t2*t,value=(-2*t3+3*t2)*length+(t3-2*t2+t)*m0+(t3-t2)*m1;
-    derivative=(-6*t2+6*t)*length+(3*t2-4*t+1)*m0+(3*t2-2*t)*m1;
-    t=clamp(t-(arc[lo]+value-distance)/derivative,0,1);
+export const COURSE_SECTION_LENGTH = 360;
+const DESCENT = -.052, MIN_SLOPE = -.32, MAX_SLOPE = .26;
+const PROFILES = Object.freeze([
+  {id:'long-descent',label:'긴 내리막',breaks:[0,.16,.32,.82,1],heights:[0,0,1,-.6,0]},
+  {id:'crest',label:'큰 언덕',breaks:[0,.16,.53,.84,1],heights:[0,0,1,0,0]},
+  {id:'valley',label:'깊은 골짜기',breaks:[0,.16,.53,.84,1],heights:[0,0,-1,0,0]},
+  {id:'double-hill',label:'연속 언덕',breaks:[0,.16,.34,.52,.70,.86,1],heights:[0,0,.8,-.45,.65,0,0]},
+  {id:'terraces',label:'계단 고원',breaks:[0,.16,.31,.53,.72,.90,1],heights:[0,0,.65,.65,-.65,-.65,0]},
+  {id:'tableland',label:'넓은 고원',breaks:[0,.16,.34,.70,.88,1],heights:[0,0,.8,.8,0,0]},
+  {id:'dip-ramp',label:'골짜기와 오르막',breaks:[0,.16,.42,.72,.90,1],heights:[0,0,-.8,.4,0,0]},
+  {id:'long-climb',label:'완만한 고개',breaks:[0,.16,.65,.86,1],heights:[0,0,.9,.2,0]},
+]);
+const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+const normalizedSeed=seed=>Number.isFinite(seed)?seed>>>0:1;
+function mix(value){value=Math.imul(value^(value>>>16),0x7feb352d);value=Math.imul(value^(value>>>15),0x846ca68b);return(value^(value>>>16))>>>0;}
+function randomFor(seed){let state=seed>>>0;return()=>{state=(state+0x6d2b79f5)>>>0;let n=state;n=Math.imul(n^(n>>>15),n|1);n^=n+Math.imul(n^(n>>>7),n|61);return((n^(n>>>14))>>>0)/4294967296;};}
+function shuffle(items,random){for(let i=items.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[items[i],items[j]]=[items[j],items[i]];}return items;}
+function boundaryHeight(track,seed){return track===0?0:(mix(seed^Math.imul(track,0x9e3779b1)^0x71c3a52d)/4294967296-.5)*5;}
+const smooth=t=>t*t*t*(t*(t*6-15)+10);
+const smoothRate=t=>30*t*t*(t-1)*(t-1);
+let cachedSeed,order=[];
+const patterns=new Map();
+
+export function coursePattern(track=0,seed=1){
+  seed=normalizedSeed(seed);track=Math.max(0,Math.floor(Number.isFinite(track)?track:0));
+  if(cachedSeed!==seed){cachedSeed=seed;patterns.clear();order=shuffle(PROFILES.map((_,index)=>index),randomFor(mix(seed^0x632be59b)));}
+  if(patterns.has(track))return patterns.get(track);
+  const bag=Math.floor(track/PROFILES.length),slot=track%PROFILES.length;
+  // Distinct boundary sentinels prevent repeats without generating earlier bags.
+  const first=order[bag%order.length],last=order[(bag+2)%order.length];
+  const random=randomFor(mix(seed^Math.imul(bag+1,0x85ebca6b)^0xa14f2d39));
+  const middle=shuffle(order.filter(index=>index!==first&&index!==last),random);
+  const index=[first,...middle,last][slot],profile=PROFILES[index];
+  const shapeRandom=randomFor(mix(seed^Math.imul(track+1,0xc2b2ae35)^0x28e7195b));
+  const breaks=profile.breaks.map((value,i,all)=>i===0||i===all.length-1?value:value+(shapeRandom()-.5)*.035);
+  if(track===0)breaks[1]=Math.max(1/6,breaks[1]);
+  const anchor0=boundaryHeight(track,seed),anchor1=boundaryHeight(track+1,seed),anchorDelta=anchor1-anchor0;
+  let maximum=Infinity;
+  for(let i=1;i<breaks.length;i++){
+    const span=breaks[i]-breaks[i-1],change=profile.heights[i]-profile.heights[i-1];
+    if(change===0)continue;
+    // A quintic span's maximum derivative is 1.875; solve its height budget.
+    const allowed=(change>0?MAX_SLOPE-DESCENT:MIN_SLOPE-DESCENT)*span*COURSE_SECTION_LENGTH*COURSE_WORLD_PER_METER/1.875;
+    maximum=Math.min(maximum,(allowed-anchorDelta*span)/change);
   }
-  return{u:(lo+t)/STEPS,du:COURSE_WORLD_PER_METER/(derivative*STEPS)};
+  const amplitude=maximum*(.62+shapeRandom()*.33)*(track===0?.75:1);
+  const heights=profile.heights.map((value,i)=>anchor0+anchorDelta*breaks[i]+value*amplitude);
+  const pattern=Object.freeze({id:profile.id,label:profile.label,index,track,seed,length:COURSE_SECTION_LENGTH,amplitude,
+    breaks:Object.freeze(breaks),heights:Object.freeze(heights)});
+  patterns.set(track,pattern);if(patterns.size>128)patterns.delete(patterns.keys().next().value);
+  return pattern;
 }
-export function courseSample(s=0){
-  s=Number.isFinite(s)?s:0;const base=baseSample(s),loop=loopAt(s);
-  const complete=s<LOOP_FIRST_START?0:Math.max(0,Math.floor((s-LOOP_FIRST_START)/LOOP_INTERVAL)+1-(loop?1:0));
-  let lateral=complete*SHIFT,dx=0,forward=s*COURSE_WORLD_PER_METER-complete*FORWARD_LOSS,dy=base.slope*COURSE_WORLD_PER_METER,dz=COURSE_WORLD_PER_METER,height=base.height-complete*DROP;
-  if(loop){const{u,du}=loopParameter(s-loop.start),theta=TAU*u,r=radius(u),dr=radiusRate(u);lateral+=SHIFT*u*u*(3-2*u);dx=SHIFT*6*u*(1-u)*du;forward=loop.start*COURSE_WORLD_PER_METER-loop.index*FORWARD_LOSS+DRIFT*u+r*Math.sin(theta);height+=LOOP_RADIUS-r*Math.cos(theta);dy+=(-dr*Math.cos(theta)+r*TAU*Math.sin(theta))*du;dz=(DRIFT+dr*Math.sin(theta)+r*TAU*Math.cos(theta))*du;}
-  // Width stays along world X; the YZ normal remains perpendicular to that whole ribbon.
-  const metric=Math.hypot(dx,dy,dz),verticalMetric=Math.hypot(dy,dz),tangentX=dx/metric,tangentY=dy/metric,tangentZ=dz/metric;
-  let pitch=Math.atan2(tangentY,tangentZ);if(loop&&loop.progress>.4&&pitch<0)pitch+=TAU;
-  // Keep the legacy landscape slope separate from the exact elevation-work gradient.
-  return{height,forward,lateral,slope:base.slope,gravitySlope:dy/COURSE_WORLD_PER_METER,tangentX,tangentY,tangentZ,normalY:dz/verticalMetric,normalZ:-dy/verticalMetric,pitch,loop};
+
+export function courseSample(s=0,seed=1){
+  s=Number.isFinite(s)?s:0;
+  const forward=s*COURSE_WORLD_PER_METER,track=Math.max(0,Math.floor(s/COURSE_SECTION_LENGTH)),pattern=coursePattern(track,seed);
+  let height=DESCENT*forward,slope=DESCENT;
+  if(s>=0){
+    const u=clamp((s-track*COURSE_SECTION_LENGTH)/COURSE_SECTION_LENGTH,0,1),points=pattern.breaks;
+    let i=1;while(i<points.length-1&&u>points[i])i++;
+    const span=points[i]-points[i-1],t=clamp((u-points[i-1])/span,0,1),change=pattern.heights[i]-pattern.heights[i-1];
+    height+=pattern.heights[i-1]+change*smooth(t);
+    slope+=change*smoothRate(t)/(span*COURSE_SECTION_LENGTH*COURSE_WORLD_PER_METER);
+  }
+  const scale=1/Math.sqrt(1+slope*slope),tangentY=slope*scale,tangentZ=scale;
+  return{height,forward,lateral:0,slope,gravitySlope:slope,tangentX:0,tangentY,tangentZ,normalY:tangentZ,normalZ:-tangentY,pitch:Math.atan(slope),pattern};
 }

@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#090e23">
-  <meta name="description" content="360도 루프와 오르내리는 넓은 우주 코스에서 반발·추진·회전 효과를 이용해 더 멀리 보내는 3D 물리 골프.">
+  <meta name="description" content="매번 다른 언덕과 거대한 동물·외계인·과자가 등장하는 우주 코스에서 반발·추진·회전 효과를 이용해 더 멀리 보내는 3D 물리 골프.">
   <title>오빗 골프 · ORBIT GOLF</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20261028-loop1">
-  <script type="module" src="game.mjs?v=20261028-loop1"></script>
+  <link rel="stylesheet" href="styles.css?v=20261028-wild1">
+  <script type="module" src="game.mjs?v=20261028-wild1"></script>
 </head>
 <body>
   <main id="game" aria-label="오빗 골프">
-    <canvas id="space" aria-label="완만한 언덕과 수직 360도 루프를 통과하는 3차원 우주 물리 골프"></canvas>
+    <canvas id="space" aria-label="매번 다른 언덕과 거대 동물·외계인·과자를 만나는 3차원 우주 물리 골프"></canvas>
     <div class="vignette" aria-hidden="true"></div>
     <div id="speed-lines" aria-hidden="true"></div>
     <header class="topbar">
@@ -25,7 +25,7 @@
 
     <section id="lobby" class="lobby">
       <div class="lobby-title"><p class="kicker">스페이스 물리 골프</p><h1>한 번의 타격,<br><em>더 먼 우주로.</em></h1><p class="tagline">충돌을 타고, 더 멀리.</p></div>
-      <div class="orbit-caption"><span class="live-dot"></span>끝없는 코스 · 반발과 회전<span class="caption-line"></span></div>
+      <div class="orbit-caption"><span class="live-dot"></span>매번 다른 길 · 거대한 만남<span class="caption-line"></span></div>
       <div class="lobby-dock">
         <div class="wallet-row"><span>최고 기록 <strong id="best">0 <small>m</small></strong></span><span class="gold-pill"><i aria-hidden="true">◆</i><b id="gold">0</b> G</span></div>
         <form id="name-form"><label for="pilot-name">파일럿 이름</label><div class="name-row"><input id="pilot-name" name="pilot" maxlength="12" placeholder="이름을 입력하세요" autocomplete="nickname" required aria-describedby="name-error"><button class="primary" type="submit">출발 <span aria-hidden="true">↗</span></button></div><p id="name-error" class="form-error" aria-live="polite"></p></form>
