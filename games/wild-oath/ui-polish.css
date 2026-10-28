@@ -1,0 +1,76 @@
+/* Woodland toy materials. Layout heights, cast timing and game input stay in their existing files. */
+body{background:#7cb8ac}
+.game-shell{background:radial-gradient(ellipse at 12% 0,#fff1c5,transparent 48%),linear-gradient(#dceecb,#b8dcc9);border-inline-color:#5d9488}
+.game-shell:before{opacity:.11;background-size:58px 58px}
+.topbar,.camp-footer,.battle-footer{border-color:#7eaa8e66}
+.wordmark>span{color:#315f57;text-shadow:0 1px #fff9d8}
+.wordmark h1{color:#3d6a5a}
+.icon-button{border-color:#48766a;background:linear-gradient(#fff9de,#e9dfb8);box-shadow:inset 0 2px #fffbed,0 4px #729379,0 7px #4169501c}
+.icon-button[aria-pressed=true]{background:linear-gradient(#ffe795,#f5c264)}
+.primary-button{border-color:#697746;background:linear-gradient(#ffe58d,#efbe5c);box-shadow:inset 0 3px #fff3bd,0 5px #8d9963,0 8px #456c4b20;color:#3e5d3e}
+.secondary-button,.deck-links{border-color:#6e947c;background:linear-gradient(#fffbe9,#dbe8c9);box-shadow:inset 0 2px #fffdf0,0 4px #8aa480;color:#355f50}
+.bulk-upgrade{border-color:#83905c;background:linear-gradient(#ffedaa,#edca7c);box-shadow:inset 0 2px #fff6ce,0 3px #a1ad79}
+.camp-portrait{border-color:#668e70;box-shadow:0 5px #8ca67e}
+.camp-title h2,.journey-heading h2{color:#315f50;text-shadow:0 1px #fff9dc}
+.camp-currency>span,.explore-supplies>span{border-color:#91ac7d;background:linear-gradient(#fff9e3,#e6eac6);box-shadow:inset 0 2px #fffdf1,0 3px #a5b28a}
+.camp-currency b,.explore-supplies b{color:#345e47}
+.camp-tabs button{border-color:#73937a;background:linear-gradient(#e9f1d8,#c9dfc1);box-shadow:inset 0 2px #f7fbe8,0 4px #94aa82;color:#416a54}
+.camp-tabs button[aria-selected=true]{border-color:#8f8d4f;background:linear-gradient(#ffe89b,#f1cb72);box-shadow:inset 0 2px #fff3be,0 4px #a6a46a;color:#4c603c}
+.collection{background:#719b7b0c;border-radius:20px;box-shadow:inset 0 2px 6px #3d6a5b10}
+.card,.draft-option{border-color:#78927a;background:linear-gradient(#fff9e8,#f3dfb5);box-shadow:inset 0 2px #fffbee,0 5px #9dad83,0 8px #42684d20}
+.card:before,.draft-option:before,.encounter-option:before{border-color:#fff8d94d}
+.card[data-type=defense],.draft-option[data-type=defense]{border-color:#749ca8;background:linear-gradient(#e7f3f7,#c4dee7)}
+.card[data-type=form],.draft-option[data-type=form]{border-color:#9a8cb0;background:linear-gradient(#eee7fa,#d8c9ed)}
+.card[data-type=heal],.draft-option[data-type=heal]{border-color:#8ca66c;background:linear-gradient(#eff7d8,#d3e7b1)}
+.card[data-type=energy],.draft-option[data-type=energy]{border-color:#b29a5e;background:linear-gradient(#fff1be,#f2d78c)}
+.card-art{border-color:#91a581;box-shadow:inset 0 1px #fff7,0 2px #496b4920}
+.card-cost{border-color:#548b96;background:linear-gradient(#c5eff5,#8ecdd9);box-shadow:inset 0 2px #e8fcfc,0 3px #6b99a0;color:#315d68}
+.card-name{color:#2d5347;text-shadow:0 1px #fff7}
+.card-text{color:#365749}
+.card-bottom{color:#55734e}
+.card-link-hint{color:#715730}
+.card-tier{color:#99742d}
+.card-sticker{border-color:#a29f68;background:#fff0b4;color:#5e7040;box-shadow:0 2px #b7b483}
+.draft-dots i{border-color:#9bae84;background:#e9efd0;box-shadow:inset 0 1px #fff9,0 2px #b0bd94}
+.draft-dots i.done{background:#91c89a;border-color:#659770;box-shadow:inset 0 2px #c6e8be,0 2px #82a77d}
+.picked-card{border-color:#a0b38a;background:linear-gradient(#fff9e5,#e8eac9);box-shadow:inset 0 1px #fff9,0 2px #b1bd98}
+.encounter-option{border-color:#93a47e;background:linear-gradient(#fff8df,#e7e7bf);box-shadow:inset 0 3px #fffbed,0 6px #adb78a,0 9px #42684d1c}
+.encounter-option[data-event=thicket]{border-color:#b09273;background:linear-gradient(#fff0d8,#efd0ac);box-shadow:inset 0 3px #fff6e4,0 6px #baa17c,0 9px #42684d1c}
+.encounter-option[data-event=merchant]{border-color:#b1a06a;background:linear-gradient(#fff0ba,#edda9c)}
+.encounter-option[data-event=spring]{border-color:#7eaa9b;background:linear-gradient(#e9f9ec,#c5e5d4)}
+.battle-lane{box-shadow:inset 0 3px #ffffff73,0 4px #8aaa98}
+.enemy-lane{border-color:#b28774;background:linear-gradient(#ffe6d2,#f0c7b1);box-shadow:inset 0 3px #fff0e1,0 4px #c4a18b}
+.player-lane{border-color:#6c9e9a;background:linear-gradient(#e3f6ef,#bfe1d7);box-shadow:inset 0 3px #f0fff5,0 4px #8caf9d}
+.lane-heading>strong{color:#376e64}.enemy-lane .lane-heading>strong{color:#8a5748}
+.lane-turn{background:#fff0b2;color:#75643b;box-shadow:inset 0 1px #fff6d4}
+.active-card{border-color:#9bbcaf;background:#edf8e759}.enemy-lane .active-card{border-color:#c8a78e;background:#fff8e559}
+.battle-caption{color:#345e4e}
+.game-dialog{border-color:#6e8c6c;background:linear-gradient(#fff9e8,#e8edce);box-shadow:0 7px #8ba07a88,0 20px 50px #2b564e55,inset 0 3px #fffdf2}
+.game-dialog::backdrop{background:#244f576b}
+.game-dialog h2{color:#365f4c;text-shadow:0 1px #fff9d8}
+.analysis-title{background:#fff9e8;border-bottom:2px solid #a9bb9273;border-radius:0;padding-bottom:10px}
+.analysis-close{border-color:#87a078;background:linear-gradient(#fff3c6,#e8e7bb);box-shadow:inset 0 2px #fff9df,0 3px #b1b58c;color:#476b47}
+.deck-summary>span{border-color:#9bac7c;background:linear-gradient(#f9f7d7,#e0e8ba);box-shadow:inset 0 2px #fffbe5,0 3px #b4bf91}
+.deck-summary b,.deck-summary>span:last-child b{font-size:28px;color:#3e654a}
+.deck-analysis h3,.analysis-heading{color:#4b6e43}
+.cost-curve i{border-color:#99ac83;background:#e0e9ca;box-shadow:inset 0 3px 5px #6981601a}
+.cost-curve i:after{background:linear-gradient(#f2d989,#ddb565);box-shadow:inset 0 2px #fff1b4}
+.cost-curve b{color:#795e32}
+.deck-roles>span{border-color:#a5b68a;background:#eef3d7;border-radius:13px;box-shadow:inset 0 1px #fff8,0 2px #bac49a}
+.deck-marks,.deck-combo{border-color:#b6b78b;background:linear-gradient(#fff5d5,#ecebc6);box-shadow:inset 0 2px #fff9e7,0 3px #c2c49b}
+.form-guide{border-color:#a1b38b;background:linear-gradient(#edf5d8,#dceac8);box-shadow:inset 0 2px #faffeb,0 3px #b4c39e}
+.form-guide strong{color:#456a45}
+.combo-partners>span{background:#f5f0d2;border-color:#babb92}.combo-partners>span.in-deck{background:#deedc8;border-color:#98b486;color:#42673e}
+button:focus-visible,a:focus-visible{outline:3px solid #936127;outline-offset:3px}
+@media(max-width:700px){
+  .collection{border-radius:16px}
+  .analysis-title{padding-top:3px;padding-bottom:8px}
+  .deck-summary{gap:10px}.deck-summary>span{border-radius:17px}
+  .deck-summary>span:last-child{padding-block:9px}
+  .cost-curve{gap:8px}
+  .deck-roles{gap:9px}.deck-roles>span{padding:6px 8px}
+}
+@media(max-width:350px){
+  .deck-summary>span:last-child{gap:8px;padding-inline:10px}
+  .deck-summary>span:last-child b{font-size:28px}
+}

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRun,chooseDraft,chooseEncounter,chooseReward,startBattle,stepBattle,describeCard,serialize,restoreRun} from '../rules.mjs';
-import {presentationTiming,effectKind,impactBeats,impactTotals} from '../combat-presentation.mjs';
+import {presentationTiming,effectKind,impactBeats,impactTotals,cardPlayStatus} from '../combat-presentation.mjs';
 
 function battle(seed=1) {
   const state=createRun(seed);
@@ -25,6 +25,18 @@ function play(id,{actor='player',source={},target={}}={}) {
 function healthSnapshot(fighters) {
   return Object.fromEntries(['player','enemy'].map(actor=>[actor,{hp:fighters[actor].hp,maxHp:fighters[actor].maxHp}]));
 }
+
+test('card preview distinguishes pending success and insufficient charge from resolved effects on either side',()=>{
+  for(const actor of ['player','enemy']){
+    const failed=play('ancient',{actor,source:{energy:1}}).event;
+    assert.equal(failed.type,'charge');
+    assert.equal(cardPlayStatus({...failed,preview:true,ready:false}),'충전 부족 · 버림 예정');
+    assert.equal(cardPlayStatus(failed),'충전 부족으로 버림');
+    const successful=play('claw',{actor}).event;
+    assert.equal(cardPlayStatus({...successful,preview:true,ready:true}),'사용 준비');
+    assert.equal(cardPlayStatus(successful),'자동 발동');
+  }
+});
 
 function verifyHealthTimeline(before,event,state,label='') {
   const saved=serialize(state),shown=structuredClone(before);

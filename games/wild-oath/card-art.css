@@ -1,0 +1,22 @@
+/* Action art uses an undistorted 2:1 crop; portraits retain the original atlas. */
+.card-illustration{background-image:var(--card-image);background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#fff7d8}
+.draft-option .card-art.card-illustration{background-size:cover;background-position:center}
+.illustration-claw{--card-image:url('assets/cards-v2/claw.webp')}
+.illustration-bite{--card-image:url('assets/cards-v2/bite.webp')}
+.illustration-bark{--card-image:url('assets/cards-v2/bark.webp')}
+.illustration-mend{--card-image:url('assets/cards-v2/mend.webp')}
+.illustration-sap{--card-image:url('assets/cards-v2/sap.webp')}
+.illustration-venom{--card-image:url('assets/cards-v2/venom.webp')}
+.illustration-ember{--card-image:url('assets/cards-v2/ember.webp')}
+.illustration-storm{--card-image:url('assets/cards-v2/storm.webp')}
+.illustration-pounce{--card-image:url('assets/cards-v2/pounce.webp')}
+.illustration-ancient{--card-image:url('assets/cards-v2/ancient.webp')}
+.illustration-frost{--card-image:url('assets/cards-v2/frost.webp')}
+.illustration-moonwell{--card-image:url('assets/cards-v2/moonwell.webp')}
+.detail-card.card-illustration{width:min(100%,320px);height:auto;aspect-ratio:2/1;border-radius:22px}
+.detail-art.card-illustration{width:min(calc(100% - 32px),320px);height:auto;aspect-ratio:2/1;border-radius:22px}
+.opponent-card>.card-illustration{width:64px;aspect-ratio:2/1;height:auto;border-radius:12px}
+.reward>.card-illustration{width:64px;height:44px;border-radius:12px}
+.card-illustration.dealt-card{background-size:cover}
+@media(max-height:620px) and (max-width:700px){.active-card .card-art.card-illustration{height:30px}}
+@media(max-height:500px) and (min-width:701px){.active-card .card-art.card-illustration{height:30px}}

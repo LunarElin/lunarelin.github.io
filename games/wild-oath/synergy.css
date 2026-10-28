@@ -1,5 +1,28 @@
 .deck-links{min-height:44px;min-width:72px;flex-shrink:0;padding:6px 10px;border:3px solid #54837d;border-radius:15px;box-shadow:inset 0 3px #fff,0 3px #729e8f;background:linear-gradient(#eefaf0,#c5e9d1);font-size:18px;color:#315e54;white-space:nowrap}
 .deck-links:active{transform:translateY(3px);box-shadow:inset 0 2px #fff,0 0 #729e8f}
+.deck-analysis{text-align:left;margin-top:18px;color:#345f50}
+.analysis-title{display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:2;background:#fffbed;padding:5px 0;border-radius:10px}
+.analysis-close{width:44px;min-height:44px;flex-shrink:0;font-size:30px;line-height:1;border:2px solid #6b947d;border-radius:14px;color:#386957;background:linear-gradient(#fff8d7,#dfebc2);box-shadow:inset 0 2px #fff,0 3px #a5bb91}
+.deck-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.deck-summary>span{display:grid;align-content:center;gap:4px;padding:10px 5px;border:2px solid #8aaa83;border-radius:16px;background:linear-gradient(#f4fbd9,#d2e8be);box-shadow:inset 0 3px #fff9,0 3px #a4bb8e;text-align:center;font-size:16px;min-width:0}
+.deck-summary b{font-size:28px;line-height:1.1;color:#37664c}
+.deck-summary>span:last-child b{font-size:22px}
+.deck-analysis h3,.analysis-heading{font-size:22px;color:#476746;margin:22px 0 12px}
+.cost-curve{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.cost-curve>div{display:grid;justify-items:center;gap:7px;font-size:16px;min-width:0}
+.cost-curve>div>span{min-height:40px;display:grid;place-items:center;text-align:center;line-height:1.2}
+.cost-curve i{position:relative;display:block;width:min(52px,100%);height:62px;border:2px solid #85a78c;border-radius:12px;background:#dfebc7;box-shadow:inset 0 3px #8cab912b;overflow:hidden}
+.cost-curve i:after{content:'';position:absolute;inset:auto 0 0;height:var(--cost-fill);background:linear-gradient(#f7db7d,#e6b65e);border-radius:8px 8px 0 0;box-shadow:inset 0 3px #fff7}
+.cost-curve b{font-size:28px;line-height:1.1;color:#6d5931}
+.game-dialog .analysis-note{font-size:16px!important;line-height:1.4!important;margin:13px 0!important;color:#536b4d}
+.deck-roles{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.deck-roles>span{padding:6px 9px;border:2px solid #9cb18c;border-radius:12px;background:#edf6d6;font-size:16px}
+.deck-roles b{color:#315d46}
+.deck-marks{border:2px solid #a4b48d;border-radius:16px;background:linear-gradient(#fff8db,#ebedc6);padding:3px 11px;box-shadow:inset 0 3px #fff8,0 3px #b7bd96}
+.game-dialog .deck-marks p{display:flex;align-items:baseline;gap:10px;font-size:16px!important;line-height:1.4!important;margin:9px 0!important}
+.deck-marks strong{color:#806434;white-space:nowrap}
+.deck-marks span{min-width:0;overflow-wrap:anywhere}
+@media(max-width:700px){.deck-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.deck-summary>span:last-child{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-inline:12px}}
 .card-link-hint{display:block;margin-top:3px;color:#664a20;font-size:16px;line-height:1.15}
 .camp-view .card{height:242px}.card-bottom{gap:5px}.card-bottom>span{min-width:0}
 .focus-tag{display:inline-block;margin-left:5px;border:2px solid #ba9c54;border-radius:10px;background:#fff0ab;box-shadow:inset 0 2px #fff9cf;padding:1px 4px;color:#755427;font-size:14px;white-space:nowrap}

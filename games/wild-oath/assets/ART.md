@@ -1,5 +1,9 @@
 # 리소스 출처
 
+## 액션 카드 삽화 v2
+
+2026-10-28 추가. 기존 생성 캐릭터를 참고해 내장 ImageGen으로 카드 효과 삽화 12종을 만들었다. 320×160 WebP 총153,470 bytes만 배포하며 기존 초상화는 유지한다. [제작·프롬프트·제한](cards-v2/ART.md), [출처·정규화·체크섬 manifest](cards-v2/manifest.json), [아트 방향](art-direction-brief.md)을 참고한다. 생성 원본 PNG는 게임 폴더에 포함하지 않는다.
+
 ## 캐릭터·전장 아틀라스
 
 - 파일: `characters-pop.webp` (1536×1024, 295,712 bytes).

@@ -1,0 +1,197 @@
+{
+  "date": "2026-10-28",
+  "browser": "Codex in-app browser (IAB), desktop Chromium",
+  "input": "Ordinary UI actions only; separate localhost QA progress; no game state injection; Chrome not used",
+  "viewports": [
+    [
+      1280,
+      720
+    ],
+    [
+      320,
+      568
+    ],
+    [
+      390,
+      640
+    ],
+    [
+      844,
+      390
+    ]
+  ],
+  "analysis320": {
+    "horizontalOverflow": false,
+    "dialogOverflow": false,
+    "numericFontPx": 28,
+    "bodyFontPx": 16,
+    "closeSize": [
+      44,
+      44
+    ],
+    "afterNestedCardClose": {
+      "openDialogs": [
+        "links-dialog"
+      ],
+      "focused": "덱 분석 닫기",
+      "bottomMark": "쌍발톱 ★★"
+    },
+    "afterPurchasesAndMerge": {
+      "deckSize": 11,
+      "opponentSize": 10,
+      "costCounts": [
+        4,
+        4,
+        3,
+        0
+      ],
+      "roles": {
+        "attack": 4,
+        "shield": 5,
+        "heal": 1,
+        "energy": 3,
+        "charge": 0
+      },
+      "top": "달빛 늑대 ★★",
+      "bottom": "쌍발톱 ★★"
+    }
+  },
+  "battle390": {
+    "caption": "내 · 쌍발톱\n집중 발동 · 피해 +2",
+    "cards": [
+      {
+        "art": 30.160003662109375,
+        "background": "cover",
+        "chargeTop": 474.3117370605469,
+        "height": 144.55999755859375,
+        "label": "내 카드, 쌍발톱, 자동 발동, 충전 1/1",
+        "textBottom": 461.1004943847656
+      }
+    ],
+    "footer": 632,
+    "overflow": false,
+    "viewport": [
+      390,
+      640
+    ]
+  },
+  "smallBattle320": {
+    "cards": [
+      {
+        "art": 32.4000244140625,
+        "chargeTop": 419.9731140136719,
+        "label": "내 카드, 기력 사냥, 사용 준비, 충전 2/2",
+        "textBottom": 405.6631164550781
+      }
+    ],
+    "footer": 563,
+    "overflow": false,
+    "viewport": [
+      320,
+      568
+    ]
+  },
+  "landscape": {
+    "cards": [
+      {
+        "art": 30.6484375,
+        "chargeTop": 235.56134033203125,
+        "label": "상대 카드, 불타는 가시, 자동 발동, 충전 2/2",
+        "textBottom": 213.85202026367188
+      },
+      {
+        "art": 30,
+        "chargeTop": 229.40625,
+        "label": "내 카드, 생명의 수액, 자동 발동, 충전 0/0",
+        "textBottom": 196.546875
+      }
+    ],
+    "footer": 383,
+    "overflow": false,
+    "viewport": [
+      844,
+      390
+    ]
+  },
+  "pauseReload": {
+    "before": {
+      "decks": [
+        "덱 7\n버림 1",
+        "덱 8\n버림 0"
+      ],
+      "hp": [
+        "70",
+        "70"
+      ]
+    },
+    "after": {
+      "decks": [
+        "덱 7\n버림 1",
+        "덱 8\n버림 0"
+      ],
+      "hp": [
+        "70",
+        "70"
+      ]
+    },
+    "identical": true
+  },
+  "continuedRun": {
+    "stage2Victory": {
+      "caption": "내 · 쌍발톱\n맹독 사냥 · 타격마다 피해 +3",
+      "hp": [
+        "9",
+        "0"
+      ],
+      "rewardArts": [
+        "art art-wyvern",
+        "art art-bear",
+        "art card-illustration illustration-ember"
+      ]
+    },
+    "stage3Result": "Defeat; result modal 2 / 5; total damage 209",
+    "restartWorked": true
+  },
+  "freshRun": {
+    "draftChoices": [
+      "달빛 늑대",
+      "기력 사냥",
+      "굳은 가죽",
+      "생명의 수액",
+      "잿불 가시",
+      "숲의 숨결",
+      "바람 송곳",
+      "쌍발톱"
+    ],
+    "firstBattleVictory": {
+      "caption": "내 · 쌍발톱\n2연격 · 총 피해 14",
+      "hp": [
+        "45",
+        "0"
+      ]
+    },
+    "homeRoundTrip": "Explore stage 2; HP 63; gold 19; deck 9 preserved"
+  },
+  "catalog320": {
+    "detailArtworkSize": [
+      225,
+      112.5
+    ],
+    "backgroundSize": "cover",
+    "horizontalOverflow": false
+  },
+  "draft320": {
+    "optionSize": [
+      292,
+      98
+    ],
+    "actionImageBackgroundSize": "cover",
+    "horizontalOverflow": false
+  },
+  "unverified": [
+    "Physical iOS Safari / Android Chrome touch and address bar",
+    "Low-end-device FPS and memory",
+    "Speaker/headphone listening",
+    "Live failed-charge preview frame (covered by rule/presentation regression test)"
+  ]
+}

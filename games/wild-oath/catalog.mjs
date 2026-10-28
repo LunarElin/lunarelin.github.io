@@ -1,4 +1,5 @@
 import { CARDS, FORMS, describeCard } from './rules.mjs';
+import { cardArtClass } from './card-art.mjs';
 
 const $ = id => document.getElementById(id);
 const typeNames = { attack: '공격', defense: '방어', heal: '회복', energy: '기력', form: '변신', support: '지원' };
@@ -13,7 +14,6 @@ const node = (tag, className, text) => {
   return element;
 };
 const typeName = type => typeNames[type] || type;
-const illustration = card => ['wolf','bear','wyvern','druid','forest','enemy'].includes(card.art) ? card.art : 'forest';
 const searchText = text => text.toLocaleLowerCase('ko').replace(/\s+/g, '');
 
 for (const type of new Set(cards.map(card => card.type))) {
@@ -35,7 +35,7 @@ function cardButton(card) {
   const form = card.form ? FORMS[card.form] : null;
   button.setAttribute('aria-label', `${card.name}, 기력 ${card.cost}, ${state.tier}등급. ${card.text}.${card.linkText ? ` 연계: ${card.linkText}.` : ''}${form ? ` 고유 능력: ${form.detail || form.rule}.` : ''} 상세 보기`);
   button.append(node('span', 'card-cost', String(card.cost)));
-  button.append(node('span', `card-art art art-${illustration(card)}`));
+  button.append(node('span', `card-art ${cardArtClass(card)}`));
   button.append(node('strong', 'card-name', card.name));
   const effects = node('span', 'card-effects');
   for (const effect of card.text.split(' · ')) effects.append(node('span', '', effect));
@@ -81,7 +81,7 @@ function showCard(id) {
   $('detail-cost').textContent = card.cost;
   $('detail-kind').textContent = typeName(card.type);
   $('detail-tier').textContent = `${'★'.repeat(state.tier)} ${state.tier}등급 · 구매 ${card.price}골드`;
-  $('detail-art').className = `detail-art art art-${illustration(card)}`;
+  $('detail-art').className = `detail-art ${cardArtClass(card)}`;
   $('detail-effects').replaceChildren(...card.text.split(' · ').map(effect => node('li', '', effect)));
   $('detail-form').hidden = !card.form;
   $('detail-form').textContent = card.form ? `${FORMS[card.form].name} 고유 능력: ${FORMS[card.form].detail || FORMS[card.form].rule}` : '';

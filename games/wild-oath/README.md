@@ -8,11 +8,14 @@
 - 카드 도감: [cards.html](cards.html), 목록·검색·등급 비교: [catalog.mjs](catalog.mjs), 스타일: [catalog.css](catalog.css).
 - 화면·입력·타이밍·저장: [game.mjs](game.mjs), 전투·야영지 스타일: [styles.css](styles.css), 시작 선택·탐험 스타일: [journey.css](journey.css), 연계 안내·발동 연출: [synergy.css](synergy.css).
 - 카드 사용·타격 연출: [combat-fx.css](combat-fx.css), 순수 타이밍·타격 순서: [combat-presentation.mjs](combat-presentation.mjs), 회귀 테스트: [tests/combat-presentation.test.mjs](tests/combat-presentation.test.mjs).
+- 덱의 비용 분포·역할·정렬·선공 분석: [deck-analysis.mjs](deck-analysis.mjs). 야영지 **덱 분석**에서 변신·연계 안내와 함께 확인한다.
+- UI 재질·정보 위계: [ui-polish.css](ui-polish.css). 카드 삽화 선택·표시: [card-art.mjs](card-art.mjs), [card-art.css](card-art.css).
 - 순수 규칙·상태: [rules.mjs](rules.mjs), 규칙 테스트: [tests/rules.test.mjs](tests/rules.test.mjs).
 - 이미지 생성 프롬프트·글꼴·음원 출처와 라이선스: [assets/ART.md](assets/ART.md).
 - 카드 구성과 참고 자료의 적용 범위: [CARD-REFERENCE.md](CARD-REFERENCE.md).
 - 실제 검증 범위와 자체 평가: [VERIFICATION.md](VERIFICATION.md).
 - 2026-10-24 카드 가시성·타격감 개선과 검증: [COMBAT-FEEDBACK.md](COMBAT-FEEDBACK.md).
+- 2026-10-28 카드 게임 스킬 기준 중간 검토: [CARD-GAME-REVIEW.md](CARD-GAME-REVIEW.md). 후속 내부 브라우저 검증·UI·아트 개선: [UI-ART-UPDATE.md](UI-ART-UPDATE.md).
 - 런타임 외부 의존성·빌드·패키지 설치 없음. 로컬 이미지·글꼴·효과음을 사용한다.
 
 저장소 루트에서 실행한다. 기존 서버와 8765 포트를 먼저 확인하고 재사용한다.
@@ -35,6 +38,10 @@ node games/wild-oath/tests/serve.mjs
 
 둥근 형태·밝은 색·두꺼운 테두리·입체 그림자를 사용하고 캐릭터·카드·시작 선택·탐험·야영지·도감·팝업에 같은 스타일을 적용한다. Kenney UI Pack 2.0의 CC0 별·화살표·재생·재섞기 SVG를 실제 화면에 사용한다. 캐릭터 아틀라스의 생성 프롬프트, 리소스 원본 경로와 라이선스는 [assets/ART.md](assets/ART.md)에 기록한다.
 
+일반 카드는 발톱·바위 주먹·나무 방패·치유·기력·독니·화염·번개·쌍공격·뿌리·얼음·달샘의 12종 액션 삽화 계열로 구분한다. 변신 카드와 전투 초상화는 기존 캐릭터를 사용한다. 새 삽화는 선택·덱·상점·보상·도감·전투에 일관되게 적용하며 작은 세로/가로 전투에서도 일반 카드의 그림 높이를 30px 확보한다. 그림·프롬프트·매핑·정규화·체크섬은 [카드 아트 기록](assets/cards-v2/ART.md)과 [manifest](assets/cards-v2/manifest.json)에 보관한다.
+
+덱 분석 위에서 연계 카드를 열면 상세 창이 위에 쌓인다. 상세를 닫거나 편입/제외하면 분석으로 돌아오고 현재 덱의 비용·역할·등급·정렬 표식을 다시 계산한다. 분석의 상단 닫기 버튼은 스크롤 중에도 유지된다.
+
 ## 플레이 구조
 
 1. 빈 덱으로 시작한다. 무작위 카드 세 장 중 한 장씩 8번 골라 첫 덱을 만든다.
@@ -43,7 +50,7 @@ node games/wild-oath/tests/serve.mjs
 4. 전투를 시작하면 현재 차례인 쪽이 덱 맨 위부터 기력이 허용하는 만큼 카드를 연속 사용한다. 플레이어가 카드를 고르거나 변신을 지시하지 않는다.
 5. 승리하면 카드 세 장 중 하나를 받고 다음 탐험 갈림길로 간다. 다섯 시련을 통과하면 성공하며, 패배하면 이번 여정이 끝난다.
 
-카드의 충전 비용, 덱 두께, 변신 카드의 비중과 상태 이상 조합이 준비 단계의 판단 요소다. 야영지의 **연계** 버튼에서 내 덱의 변신 고유 능력·연계 조건·함께 쓰는 카드의 보유 여부를 확인한다. 카드 표면에는 짧은 연계 요약을, 상세 창에는 정확한 조건을 표시한다. 전투에서는 집중과 연타 진행, 추격·반격·독성 폭발의 발동을 표시한다.
+카드의 충전 비용, 덱 두께, 변신 카드의 비중과 상태 이상 조합이 준비 단계의 판단 요소다. 야영지의 **덱 분석** 버튼에서 비용별 장수(0·1·2·3 이상)·평균 비용·공격/보호막/회복/기력 공급/선충전 카드 수·앞장/뒷장·상대와의 선공을 확인한다. 기력 공급은 실제 기력을 더하는 카드이며 선충전은 다음 카드의 빈 충전 칸을 채우는 별도 효과다. 여러 역할을 가진 카드는 각 역할에 포함되며 통계는 승률이나 발동 순서를 보장하지 않는다. 같은 창에서 변신 고유 능력·연계 조건·추천 카드의 보유 여부를 확인한다. 카드 표면에는 짧은 연계 요약을, 상세 창에는 정확한 조건을 표시한다. 전투에서는 집중과 연타 진행, 추격·반격·독성 폭발의 발동을 표시한다.
 
 ## 덱 구성·상점
 
@@ -108,6 +115,12 @@ node games/wild-oath/tests/serve.mjs
 
 예시는 카드가 해당 순서로 발동하고 필요한 기력·상태가 남았을 때의 조합이다. 실제 드로는 덱 섞기와 앞장·뒷장 표식에 따른다. 추가 타격은 상태 이상·기력 등 카드 전체 효과를 반복하지 않는다.
 
+### 효과 처리 순서
+
+한 장의 충전이 성공하면 직접 타격 → 보호막·회복 → 상태 부여·집중·상대 기력 감소·다음 카드 선충전 → 기력 획득과 감전 → 와이번 독성 폭발과 회복 → 곰 반격 순서로 처리한다. 연계의 조건은 카드 사용 전 상태로 판정한다. 차례가 끝나면 양측 생존 시 기력 1 회복과 감전, 그 뒤 피로를 처리하고 승패를 판정한다. 무효 준비 입력은 상태를 바꾸지 않는다.
+
+직접 타격으로 상대가 쓰러져도 이미 사용한 카드의 후속 효과와 폭발 회복은 마저 처리한다. 실제 생명 피해는 남은 생명까지만 기록한다. 곰 반격은 양측이 살아 있을 때만 발생하며 죽은 시전자를 폭발 회복으로 되살리지 않는다. 이 고정 순서를 양쪽이 동일하게 사용한다.
+
 ### 상태 이상
 
 | 상태 | 발동 시점 |
@@ -143,11 +156,13 @@ node games/wild-oath/tests/serve.mjs
 node --check games/wild-oath/rules.mjs
 node --check games/wild-oath/game.mjs
 node --check games/wild-oath/combat-presentation.mjs
+node --check games/wild-oath/deck-analysis.mjs
+node --check games/wild-oath/card-art.mjs
 node --check games/wild-oath/catalog.mjs
 node --check games/wild-oath/tests/serve.mjs
-node --test games/wild-oath/tests/rules.test.mjs games/wild-oath/tests/combat-presentation.test.mjs
+node --test games/wild-oath/tests/rules.test.mjs games/wild-oath/tests/combat-presentation.test.mjs games/wild-oath/tests/deck-analysis.test.mjs games/wild-oath/tests/card-integrity.test.mjs games/wild-oath/tests/card-art.test.mjs
 node games/wild-oath/tests/balance-campaigns.mjs --seeds 100 --compare-baseline
-git diff --check -- games/wild-oath index.html portfolio/style.css
+git diff --check -- games/wild-oath
 ```
 
 밸런스 명령은 형태별 동일한 1~100 시드와 고정 선택 정책으로 자연 탐험을 실행한다. 생산 규칙 파일을 변경하지 않고 격리한 모듈에서 와이번 회복만 0으로 바꾼 기준과 비교한다. 결과는 [tests/balance-results.json](tests/balance-results.json), 실제 UI로 세 형태를 다섯 시련까지 플레이한 기록은 [tests/browser-playthroughs.json](tests/browser-playthroughs.json)에 보관한다. 시뮬레이션과 브라우저 플레이는 별도 검증이다.

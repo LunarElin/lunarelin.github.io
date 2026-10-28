@@ -25,6 +25,11 @@ export function effectKind(card={}) {
   return 'form';
 }
 
+export function cardPlayStatus(event) {
+  if(event.preview)return event.ready?'사용 준비':'충전 부족 · 버림 예정';
+  return event.type==='charge'?'충전 부족으로 버림':'자동 발동';
+}
+
 export function impactBeats(event={},gap=160) {
   let impacts=event.impacts;
   if(!Array.isArray(impacts)){

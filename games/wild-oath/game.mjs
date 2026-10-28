@@ -1,5 +1,7 @@
 import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs';
-import { presentationTiming, effectKind, impactBeats, impactTotals } from './combat-presentation.mjs';
+import { presentationTiming, effectKind, impactBeats, impactTotals, cardPlayStatus } from './combat-presentation.mjs?v=ui-art-2';
+import { analyzeDeck } from './deck-analysis.mjs';
+import { cardArtClass } from './card-art.mjs';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'wild-oath:v5';
@@ -42,7 +44,11 @@ function clearEffects() {
 }
 function stopLoop() { clearTimeout(mainTimer); mainTimer = null; clearEffects(); if(state.battle)renderHealth(state.battle); }
 function showDialog(id) { stopLoop(); stopAudio(); if (!$(id).open) $(id).showModal(); }
-function closeDialog(id) { $(id).close(); if (!modalOpen()) resume(); }
+function closeDialog(id) {
+  $(id).close();
+  if(id==='card-dialog'&&$('links-dialog').open){showDeckLinks();$('links-dialog').querySelector('.analysis-close').focus({preventScroll:true});}
+  if (!modalOpen()) resume();
+}
 function resume() {
   if (document.hidden || modalOpen()) return;
   if (soundEnabled) enableAudio();
@@ -101,7 +107,7 @@ function cardMarkup(instance, { offer = null, displayedCharge = null } = {}) {
   const cardLines = card.text.split(' · ').filter(line=>!card.form || !line.endsWith(' 변신'));
   const sticker = instance.sticker && instance.sticker !== 'none' ? `<span class="card-sticker">${instance.sticker === 'top' ? '앞장' : '뒷장'}</span>` : '';
   const bubbles = displayedCharge !== null ? `<span class="charge-bubbles" aria-label="충전 ${displayedCharge} / ${cost}">${Array.from({length:cost},(_,i)=>`<i class="${i < displayedCharge ? 'full' : ''}"></i>`).join('')}${!cost ? '<small>즉시 발동</small>' : ''}</span>` : '';
-  return `<span class="card-cost">${cost}</span>${sticker}<div class="card-art art art-${card.art}"></div><strong class="card-name">${card.name}</strong><span class="card-text">${cardLines.join('\n')}${linkHint ? `<span class="card-link-hint">↳ ${linkHint}</span>` : ''}</span><span class="card-bottom">${displayedCharge !== null ? bubbles : `<span class="card-tier">${'★'.repeat(card.tier)}</span>${offer ? `<span class="card-price ${state.gold < offer.price ? 'unaffordable' : ''}">${offer.price} 골드</span>` : `<span>${typeLabel}</span>`}`}</span>`;
+  return `<span class="card-cost">${cost}</span>${sticker}<div class="card-art ${cardArtClass(card)}"></div><strong class="card-name">${card.name}</strong><span class="card-text">${cardLines.join('\n')}${linkHint ? `<span class="card-link-hint">↳ ${linkHint}</span>` : ''}</span><span class="card-bottom">${displayedCharge !== null ? bubbles : `<span class="card-tier">${'★'.repeat(card.tier)}</span>${offer ? `<span class="card-price ${state.gold < offer.price ? 'unaffordable' : ''}">${offer.price} 골드</span>` : `<span>${typeLabel}</span>`}`}</span>`;
 }
 
 function render() {
@@ -229,7 +235,8 @@ function renderActive(event) {
   if (!event.cardId) { slot.innerHTML = '<span class="await-card"><img class="shuffle-icon" src="assets/kenney-pop/repeat.svg" alt=""><br>덱 재섞기<br><small>한 턴 휴식</small></span>'; return; }
   const info = { id:event.cardId, tier:event.tier || 1 };
   const card = describeCard(info);
-  slot.innerHTML = `<div class="card" data-type="${card.type}" aria-label="${owner} 카드, ${event.name || card.name}, ${event.type === 'charge' ? '충전 부족으로 버림' : '자동 발동'}, 충전 ${event.charged || 0}/${card.cost}">${cardMarkup(info,{displayedCharge:event.charged || 0})}</div>`;
+  const status=cardPlayStatus(event);
+  slot.innerHTML = `<div class="card" data-type="${card.type}" aria-label="${owner} 카드, ${event.name || card.name}, ${status}, 충전 ${event.charged || 0}/${card.cost}">${cardMarkup(info,{displayedCharge:event.charged || 0})}</div>`;
 }
 function showCard(kind, uid) {
   if (state.phase !== 'camp') return;
@@ -238,7 +245,7 @@ function showCard(kind, uid) {
   detail = { kind, uid };
   const card = describeCard(instance), shop = kind === 'shop';
   $('detail-overline').textContent = shop ? `FOREST MARKET · ${instance.price} 골드` : `${instance.inDeck ? 'MY DECK' : 'COLLECTION'} · ${card.tier}등급`;
-  $('detail-card').className = `detail-card art art-${card.art}`;
+  $('detail-card').className = `detail-card ${cardArtClass(card)}`;
   $('detail-title').textContent = card.name;
   $('detail-text').textContent = `기력 ${card.cost} · ${card.text}${card.form ? `\n${FORMS[card.form].detail}` : ''}`;
   $('detail-link').hidden = !card.linkText;
@@ -258,6 +265,9 @@ function showCard(kind, uid) {
 function showDeckLinks() {
   if(state.phase!=='camp')return;
   const deck=activeDeck(state), ids=new Set(deck.map(card=>card.id));
+  const analysis=analyzeDeck(deck,enemyDeck(state).length),roleNames={attack:'공격',shield:'보호막',heal:'회복',energy:'기력 공급',charge:'선충전'};
+  const marked=card=>card?`${CARDS[card.id].name} ${'★'.repeat(card.tier)}`:'없음 · 무작위';
+  $('deck-analysis').innerHTML=`<div class="deck-summary"><span>내 덱 <b>${analysis.size}장</b></span><span>평균 기력 <b>${analysis.averageCost.toFixed(1)}</b></span><span>${analysis.firstActor==='player'?'내가 선공':'상대 선공'}<b>${analysis.size} : ${analysis.opponentSize}장</b></span></div><h3>기력 비용</h3><div class="cost-curve" aria-label="기력 비용별 카드 수">${analysis.costs.map((count,index)=>`<div><span>${index===3?'3 이상':index} 기력</span><i style="--cost-fill:${count/Math.max(1,...analysis.costs)*100}%" aria-hidden="true"></i><b>${count}장</b></div>`).join('')}</div><p class="analysis-note">시작 기력 4 · 덱이 두꺼운 쪽 선공 · 동률이면 나</p><div class="deck-roles">${Object.entries(roleNames).map(([role,label])=>`<span>${label} <b>${analysis.roles[role]}장</b></span>`).join('')}</div><p class="analysis-note">한 카드가 여러 역할에 포함됩니다. 선충전은 다음 카드의 충전 칸을 채우며 기력을 늘리지 않습니다.</p><div class="deck-marks"><p><strong>앞장</strong><span>${marked(analysis.top)}</span></p><p><strong>뒷장</strong><span>${marked(analysis.bottom)}</span></p></div>`;
   const forms=[...new Set(deck.map(card=>CARDS[card.id].form).filter(Boolean))];
   $('deck-forms').innerHTML=forms.length ? forms.map(form=>`<article class="form-guide"><span class="art art-${form}"></span><div><strong>${FORMS[form].name} · ${FORMS[form].label}</strong><p>${FORMS[form].detail}</p></div></article>`).join('') : '<p>변신 카드를 넣으면 고유 규칙이 열립니다.</p>';
   const cards=[...new Map(deck.map(card=>[`${card.id}-${card.tier}`,card])).values()].filter(card=>describeCard(card).linkText);
@@ -274,7 +284,7 @@ function showOpponent() {
   $('opponent-info').textContent = `생명 ${ENCOUNTERS[state.stage].hp} · ${cards.length}장 · 드루이드로 시작`;
   $('opponent-cards').innerHTML = cards.map(instance => {
     const card = describeCard(instance);
-    return `<div class="opponent-card"><span class="art art-${card.art}"></span><span><strong>${card.name} <small>${'★'.repeat(card.tier)}${instance.sticker === 'top' ? ' · 앞장' : instance.sticker === 'bottom' ? ' · 뒷장' : ''}</small></strong><span>기력 ${card.cost} · ${card.text}${card.linkText ? `<br>연계 · ${card.linkText}` : ''}${card.form ? `<br>${FORMS[card.form].rule}` : ''}</span></span></div>`;
+    return `<div class="opponent-card"><span class="${cardArtClass(card)}"></span><span><strong>${card.name} <small>${'★'.repeat(card.tier)}${instance.sticker === 'top' ? ' · 앞장' : instance.sticker === 'bottom' ? ' · 뒷장' : ''}</small></strong><span>기력 ${card.cost} · ${card.text}${card.linkText ? `<br>연계 · ${card.linkText}` : ''}${card.form ? `<br>${FORMS[card.form].rule}` : ''}</span></span></div>`;
   }).join('');
   showDialog('opponent-dialog');
 }
@@ -315,7 +325,7 @@ function flyCard(instance,actor) {
   if(reducedMotion)return;
   const origin=$(`${actor}-draw-pile`).querySelector('.card-back').getBoundingClientRect(),dest=$(`${actor}-active-card`).getBoundingClientRect(),card=describeCard(instance),node=document.createElement('div');
   const duration=presentationTiming(speed).draw;
-  node.className=`flying-card dealt-card art art-${card.art}`;node.dataset.owner=actor;
+  node.className=`flying-card dealt-card ${cardArtClass(card)}`;node.dataset.owner=actor;
   node.style.cssText=`left:${origin.x+origin.width/2}px;top:${origin.y+origin.height/2}px;--dx:${dest.x+dest.width/2-origin.x-origin.width/2}px;--dy:${dest.y+dest.height/2-origin.y-origin.height/2}px;animation-duration:${duration}ms;`;
   node.innerHTML=`<span>${card.name}</span>`;document.body.append(node);effectLater(()=>node.remove(),duration+30);
 }
@@ -335,7 +345,7 @@ function beginStep() {
   $('battle-caption').classList.remove('has-link');$('battle-caption').classList.add('card-cast-title');
   if(!instance){renderActive({actor});$('battle-caption').textContent=`${actor==='player'?'내':'상대'} 덱 재섞기 · 한 턴 휴식`;later(resolveStep,timing.reveal);return;}
   const card=describeCard(instance),charged=Math.min(card.cost,instance.charge+fighter.energy),ready=charged>=card.cost;
-  renderActive({cardId:instance.id,tier:instance.tier,name:card.name,actor,charged});
+  renderActive({cardId:instance.id,tier:instance.tier,name:card.name,actor,charged,preview:true,ready});
   $(`${actor}-active-card`).classList.add('is-playing');
   $(`${actor}-turn-label`).textContent=`${(state.battle.turnCard||0)+1}장째${fighter.form==='wolf'?` · 연타 ${fighter.combo%3}/3`:''}`;
   $('battle-caption').innerHTML=`<strong>${actor==='player'?'내 카드':'상대 카드'} · ${card.name}</strong><span class="link-caption-detail">${ready?`${typeNames[card.type]} · 기력 ${card.cost}`:`충전 ${charged}/${card.cost} · 이번에는 버림`}</span>`;
@@ -433,7 +443,7 @@ function resolveStep() {
 function showPhase() {
   if (document.hidden || modalOpen()) return;
   if (state.phase === 'reward') {
-    $('rewards').innerHTML=state.rewards.map(reward=>{ const card=describeCard(reward.cardId); return `<button class="reward" data-reward="${reward.id}"><span class="art art-${card.art}"></span><span><strong>${card.name}</strong><small>기력 ${card.cost} · ${card.text}</small>${card.linkShort || card.form ? `<small class="reward-link">↳ ${card.linkShort || FORMS[card.form].rule}</small>` : ''}</span><span class="arrow">›</span></button>`; }).join('');
+    $('rewards').innerHTML=state.rewards.map(reward=>{ const card=describeCard(reward.cardId); return `<button class="reward" data-reward="${reward.id}"><span class="${cardArtClass(card)}"></span><span><strong>${card.name}</strong><small>기력 ${card.cost} · ${card.text}</small>${card.linkShort || card.form ? `<small class="reward-link">↳ ${card.linkShort || FORMS[card.form].rule}</small>` : ''}</span><span class="arrow">›</span></button>`; }).join('');
     $('reward-note').textContent=state.collection.length>=36?'보관 한도 · 골드 +9 · 생명 +18':'카드 1장 · 골드 +6 · 생명 +18';
     showDialog('reward-dialog');
   } else if (state.phase === 'won' || state.phase === 'lost') {
@@ -481,7 +491,7 @@ listen($('explore-options'),'click',event=>{
 document.querySelectorAll('[data-tab]').forEach(button=>listen(button,'click',()=>{activeTab=button.dataset.tab;$('collection').scrollTop=0;renderCamp();}));
 listen($('collection'),'click',event=>{const button=event.target.closest('[data-owned],[data-offer]');if(button)showCard(button.dataset.offer?'shop':'owned',button.dataset.offer||button.dataset.owned);});
 listen($('deck-links'),'click',showDeckLinks);
-listen($('deck-combos'),'click',event=>{const button=event.target.closest('[data-link-card]');if(!button)return;$('links-dialog').close();showCard('owned',button.dataset.linkCard);});
+listen($('deck-combos'),'click',event=>{const button=event.target.closest('[data-link-card]');if(button)showCard('owned',button.dataset.linkCard);});
 listen($('upgrade-all'),'click',()=>{
   const result=upgradeAll(state);
   if(!result.ok)return toast(result.error);
@@ -501,7 +511,7 @@ listen($('detail-actions'),'click',event=>{
   if(!result?.ok){$('detail-feedback').textContent=result?.error||'카드를 찾을 수 없습니다.';return;}
   save();renderCamp();
   if(['upgrade','sticker'].includes(button.dataset.action)){showCard('owned',detail.uid);return;}
-  $('card-dialog').close(); if(button.dataset.action==='buy'){activeTab='bench';renderCamp();toast('보관함에 추가했습니다. 덱에 넣어보세요.');}
+  closeDialog('card-dialog'); if(button.dataset.action==='buy'){activeTab='bench';renderCamp();toast('보관함에 추가했습니다. 덱에 넣어보세요.');}
 });
 listen($('launch'),'click',()=>{
   const result=startBattle(state);if(!result.ok)return toast(result.error);

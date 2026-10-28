@@ -1,0 +1,420 @@
+{
+  "version": 1,
+  "date": "2026-10-28",
+  "family": "Wild Oath card actions v2",
+  "visual_target": "Existing characters-pop.webp: rounded toy/clay woodland characters, upper-left light, mint/sky/cream/orange",
+  "source": {
+    "kind": "generated",
+    "tool": "OpenAI built-in image_gen",
+    "model": "not exposed by tool",
+    "generation_id": "01a182f6-4da2-7e30-8f63-89fb4362d86c",
+    "reference": "../characters-pop.webp",
+    "original": "exec-2630b50f-d15f-4dd1-9056-e20fc5b439c1.png retained in generation archive, not shipped",
+    "original_size": [
+      1448,
+      1086
+    ],
+    "license_note": "Original generated project artwork; not represented as CC0 or third-party licensed content. Existing project-owned generated reference only.",
+    "provenance_note": "PNG source retained in generation archive; deterministic crop and WebP conversion may not retain embedded metadata."
+  },
+  "normalization": {
+    "grid": [
+      4,
+      3
+    ],
+    "cell": [
+      362,
+      362
+    ],
+    "crop": "central horizontal half of each cell",
+    "output": [
+      320,
+      160
+    ],
+    "format": "WebP",
+    "quality": 85,
+    "method": 6,
+    "resample": "Lanczos"
+  },
+  "assets": [
+    {
+      "id": "claw",
+      "file": "claw.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 10618,
+      "sha256": "2af4229578ea7a405eab0b69c9ea5c7a1724b3399e8491db5c86ca007770b3f6",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        90,
+        362,
+        271
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "bite",
+      "file": "bite.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14720,
+      "sha256": "755e841e2ea4a6be0298e56a9a87e9503cb3a9a7e5d47defe9c80d398564b409",
+      "atlas_cell": [
+        1,
+        0
+      ],
+      "crop_box": [
+        362,
+        90,
+        724,
+        271
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "bark",
+      "file": "bark.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14162,
+      "sha256": "bf1c8453caa1ed132e55af251b0fed37f95625670d0ae04890256e8a9b1d8ed2",
+      "atlas_cell": [
+        2,
+        0
+      ],
+      "crop_box": [
+        724,
+        90,
+        1086,
+        271
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "mend",
+      "file": "mend.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 10790,
+      "sha256": "ed36aa05d2c0b864f0fc9f8190f91e41dbbfb9b7099574ca15fce8a2cfdb4ed0",
+      "atlas_cell": [
+        3,
+        0
+      ],
+      "crop_box": [
+        1086,
+        90,
+        1448,
+        271
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "sap",
+      "file": "sap.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 11576,
+      "sha256": "0bf7bd742105a01b97bc4f68419499c75326e15974481946cec2346f8a2d7ce3",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        452,
+        362,
+        633
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "venom",
+      "file": "venom.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 7890,
+      "sha256": "7cc4604db789c1beba91e9681fbe95bd25179ad4812ad91840f1a91553bff2e6",
+      "atlas_cell": [
+        1,
+        1
+      ],
+      "crop_box": [
+        362,
+        452,
+        724,
+        633
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "ember",
+      "file": "ember.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13752,
+      "sha256": "b235e6a64f7e43c35bd1ad36462671d93e97045701621be59960622f8e712754",
+      "atlas_cell": [
+        2,
+        1
+      ],
+      "crop_box": [
+        724,
+        452,
+        1086,
+        633
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "storm",
+      "file": "storm.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 11152,
+      "sha256": "b866e2e97864f5a05f1fc89bec2ddcafe5112b68e802f6b40b226e4e8ca98a52",
+      "atlas_cell": [
+        3,
+        1
+      ],
+      "crop_box": [
+        1086,
+        452,
+        1448,
+        633
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "pounce",
+      "file": "pounce.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13614,
+      "sha256": "241329eddd923ad56edf63760a21f2f7bf16aa50bb1c7becc0ffdac1f4e93444",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        814,
+        362,
+        995
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "ancient",
+      "file": "ancient.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14516,
+      "sha256": "bdc2ff702cd99d6a36d1a02136ef1704a1c121778fcf08d0a2bc588b66e8d9cb",
+      "atlas_cell": [
+        1,
+        2
+      ],
+      "crop_box": [
+        362,
+        814,
+        724,
+        995
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "frost",
+      "file": "frost.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13538,
+      "sha256": "5b4e353402061e50085232db0ed6bb7e2ec9fbb113250969e996d993274515a4",
+      "atlas_cell": [
+        2,
+        2
+      ],
+      "crop_box": [
+        724,
+        814,
+        1086,
+        995
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    },
+    {
+      "id": "moonwell",
+      "file": "moonwell.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 17142,
+      "sha256": "1424f8eea1241593d1425273f2db14978748fdf717903b93e7cd82b4aa6e6c9d",
+      "atlas_cell": [
+        3,
+        2
+      ],
+      "crop_box": [
+        1086,
+        814,
+        1448,
+        995
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; decorative card illustration",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "browser default smooth; cover crop",
+      "status": "technical/contact-sheet QA passed; representative family integration verified in Codex IAB"
+    }
+  ],
+  "total_bytes": 153470,
+  "runtime_validation": {
+    "date": "2026-10-28",
+    "browser": "Codex in-app browser",
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        320,
+        568
+      ],
+      [
+        390,
+        640
+      ],
+      [
+        844,
+        390
+      ]
+    ],
+    "representative_contexts": [
+      "draft",
+      "deck/shop",
+      "reward",
+      "catalog detail",
+      "combat"
+    ],
+    "physical_mobile_tested": false
+  }
+}
