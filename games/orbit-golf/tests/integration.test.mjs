@@ -22,9 +22,9 @@ const sceneSource = `
     resize() { this.resizes++; }
     dispose() { this.disposed = true; }
     render(dt, run, mode, power, upgrades) {
-      this.mode = mode; this.power = power; this.current = run;
+      this.mode = mode; this.power = power; this.current = run;this.dt=dt;
       this.snapshot = run ? Object.fromEntries(
-        ['s','distance','x','vx','height','vy','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit','guardiansBroken','seed'].map(key => [key,run[key]])
+        ['s','distance','x','vx','height','vy','worldY','worldVy','grounded','exhausted','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit','guardiansBroken','seed'].map(key => [key,run[key]])
       ) : null;
     }
   }
@@ -128,6 +128,7 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
   return {
     window, document, $, tick, pointer, input, submit, launch, stop, visibility, panelButton, frames, errors, storageAccess,
     get scene() { return window.__testScene; },
+    place(run,pose) { return modules.get('./rules.mjs').namespace.placeRun(run,pose); },
     get raw() { return raw; },
     saved() { return raw === null ? null : JSON.parse(raw); },
   };
@@ -137,10 +138,10 @@ test('lap changes show the added mechanic and fifth-lap reinforcement in the liv
   const app=await game(t,{stored:JSON.stringify(profile({tutorialComplete:false}))});app.submit('구간 검증');app.launch();
   assert.match(app.$('track-label').textContent,/1구간/);
   const run=app.scene.current;
-  Object.assign(run,{s:360,distance:360,eventTrack:-1,events:[]});app.tick(3);
+  Object.assign(run,{s:360,distance:360,eventTrack:-1,events:[]});app.place(run,{s:360});app.tick(3);
   assert.match(app.$('track-label').textContent,/2구간/);
   assert.match(app.$('growth-readout').textContent,new RegExp(coursePattern(1,run.seed).label));
-  Object.assign(run,{s:1440,distance:1440,eventTrack:-1,events:[]});app.tick(3);
+  Object.assign(run,{s:1440,distance:1440,eventTrack:-1,events:[]});app.place(run,{s:1440});app.tick(3);
   assert.match(app.$('track-label').textContent,/5구간/);
   assert.match(app.$('growth-readout').textContent,/기믹 \+3/);
   assert.ok(app.$('growth-readout').classList.contains('milestone'));
@@ -199,10 +200,25 @@ test('hill previews use the real steep terrain with the same seed and normal run
   for(const kind of['climb','drop']){
     const app=await game(t,{url:`https://orbit-golf.test/games/orbit-golf/?preview=1&seed=42&encounter=${kind}`});
     app.submit('큰 고개');app.tick();const run=app.scene.current;
-    assert.ok(courseSample(run.s+36,run.seed).slope*(kind==='climb'?1:-1)>.6);
+    assert.ok(courseSample(run.s+36,run.seed).slope*(kind==='climb'?1:-1)>.18);
     assert.ok(coursePattern(run.track,run.seed).verticalSpan>15);
     assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);assert.deepEqual(app.errors,[]);
   }
+});
+
+test('the spring preview follows a real world-space jump and freezes it when paused',async t=>{
+  const app=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?preview=1&seed=42&encounter=spring'});
+  app.submit('포물선');app.tick();app.launch();const run=app.scene.current;
+  let launched=false;
+  for(let count=0;count<300&&run.phase==='rolling';count++){
+    app.tick(1,1000/60);
+    if(!run.grounded&&run.height>1.5){launched=true;break;}
+  }
+  assert.ok(launched,'an actual generated spring must launch a world-space flight');
+  assert.ok(Number.isFinite(run.worldY)&&Number.isFinite(run.worldVy));
+  app.$('pause').click();const before={worldY:run.worldY,worldVy:run.worldVy,s:run.s};app.tick(20);
+  for(const key of Object.keys(before))assert.equal(run[key],before[key]);
+  assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);assert.deepEqual(app.errors,[]);
 });
 
 test('speed HUD follows actual motion and marks backward reflection rather than hidden launch energy',async t=>{
@@ -212,12 +228,13 @@ test('speed HUD follows actual motion and marks backward reflection rather than 
   app.launch();
   const run=app.scene.current;
   Object.assign(run,{s:200,distance:200,speed:-34,rollSpeed:190,height:1,vy:-1,events:[],eventTrack:0});
+  app.place(run,{s:200,height:1,vy:-1});
   app.tick(3);
   assert.equal(app.$('speed-label').textContent,'후진');
   assert.ok(Math.abs(Number(app.$('speed').textContent.replaceAll(',',''))-Math.abs(run.speed))<2);
   app.tick(12);
   assert.ok(run.speed<0,'landing cannot restore the old positive launch speed');
-  Object.assign(run,{speed:12,rollSpeed:190,height:0,vy:0});app.tick(3);
+  Object.assign(run,{speed:12,rollSpeed:190,height:0,vy:0});app.place(run,{s:run.s});app.tick(3);
   assert.equal(app.$('speed-label').textContent,'속도');
   assert.ok(Number(app.$('speed').textContent)<13,'a small actual speed must remain small on screen');
 });
@@ -373,6 +390,7 @@ test('holding spin cannot keep an exhausted forward shot alive and continuation 
     s: 100, distance: 100, speed: .25, rollSpeed: .2, vx: 7,
     height: 1.5, vy: 0, restTime: 0, accumulator: 0, events: [], eventTrack: 0,
   });
+  app.place(run,{s:100,height:1.5,vy:0});
   app.input('spin-control', 1);
   assert.equal(run.steer, 1, 'The regression must keep the input held while lateral motion is still present');
   const beforeElapsed = run.elapsed;
@@ -411,7 +429,7 @@ test('a complete free shot still ends naturally while spin is held for the whole
   assert.equal(app.scene.snapshot.stopReason, 'natural');
   assert.ok(run.elapsed < 50 && run.elapsed < run.durationLimit - 30,
     'Constant steering must not stretch an exhausted free shot to the normal time limit');
-  assert.ok(run.distance > 500, 'The regression must exercise a real full shot before its forward energy runs out');
+  assert.ok(run.distance > 100, 'The regression must exercise real travel before held steering spends the remaining forward energy');
   assert.equal(Number(app.$('spin-control').value), 0);
   assert.equal(run.steer, 0);
   assert.deepEqual(app.errors, []);
@@ -647,6 +665,7 @@ for (const frameMilliseconds of [100, 1000]) {
     app.submit('느린 화면'); app.launch();
     const startElapsed = app.scene.snapshot.elapsed;
     app.tick(5, frameMilliseconds);
+    assert.ok(Math.abs(app.scene.dt-frameMilliseconds/1000)<1e-9,'Rendering must receive the same foreground clock as physics');
     let activeMilliseconds = 5 * frameMilliseconds;
     assert.ok(Math.abs(app.scene.snapshot.elapsed - startElapsed - activeMilliseconds / 1000) < 0.000001,
       'Physics and the first-flight timer must use actual foreground delta at a low frame rate');

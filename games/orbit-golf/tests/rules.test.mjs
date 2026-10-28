@@ -7,9 +7,23 @@ import {
   TRACK_LENGTH, TRACK_WIDTH, DISTANCE_PER_GOLD, SIDE_LIMIT, WORLD_PER_METER, MAX_PROP_BODIES, MAX_CHAIN_DEPTH,
   UPGRADE_DEFS, COLLISION_EFFECTS, TUTORIAL_DURATION, RUN_DURATION, MAX_GIMMICK_WAVES, lapConfig, guardianPower,
   newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade,
-  generateTrack, eventX, eventPose, ballStats, newRun, steerRun, resolveEvent, stepRun,
+  generateTrack, eventX, eventPose, ballStats, newRun, placeRun, steerRun, resolveEvent as rawResolveEvent, stepRun as rawStepRun,
   collectRunGold, canContinue, continueRun, settleRun,
 } from '../rules.mjs';
+
+// Existing rule fixtures place the ball with legacy s/height/vy fields. Convert
+// those explicit fixture edits at the test boundary; shipped physics never infers
+// or snaps an externally changed world pose. New world-flight tests use rawStepRun.
+const fixturePose=new WeakMap();
+function prepareFixture(run){
+ const old=fixturePose.get(run);
+ if(!old||run.s!==old.s||run.height!==old.height||run.vy!==old.vy)placeRun(run,{s:run.s,x:run.x,height:run.height,vy:run.vy});
+ for(const event of run.events)prepareEventFixture(event,run.seed);
+}
+function prepareEventFixture(event,seed){event.seed??=seed;if(event.body&&!Number.isFinite(event.body.worldY)){event.body.worldY=courseSample(event.body.s,seed).height+(event.height||1.05)/courseSample(event.body.s,seed).normalY+(event.body.height||0);event.body.worldVy=event.body.vy||0;event.body.previousWorldY=event.body.worldY;}}
+function rememberFixture(run){fixturePose.set(run,{s:run.s,height:run.height,vy:run.vy});}
+function stepRun(run,profile,dt){prepareFixture(run);const result=rawStepRun(run,profile,dt);rememberFixture(run);return result;}
+function resolveEvent(run,event,profile,normal){prepareFixture(run);prepareEventFixture(event,run.seed);const result=rawResolveEvent(run,event,profile,normal);rememberFixture(run);return result;}
 
 const ordinary = level => ({ ...newProfile(), tutorialComplete: true, upgrades: { pilot: 0, ball: level } });
 function finish(profile, seed = 1, power = 1, dt = .2, aim = 8) {
@@ -113,8 +127,8 @@ test('heavy and sticky impacts remove a large amount of actual speed at every up
     const after=run.speed;stepRun(run,profile,.5);
     assert.ok(run.speed<96&&run.speed<after+12,'500ms of empty track cannot restore the launch velocity');
     if(type==='anvil'){
-      assert.ok(event.body?.active);assert.ok(event.body.vy<=2.1&&Math.abs(event.body.vs)<160*.15);
-      const mass=1+ball*2.8,energy=mass*(after*WORLD_PER_METER)**2+8*((event.body.vs*WORLD_PER_METER)**2+event.body.vx**2);
+      assert.ok(event.body?.active);assert.ok(Number.isFinite(event.body.worldY)&&Math.abs(event.body.vs)<160*.3);
+      const mass=2+(ball?8+ball*12:0),energy=mass*(after*WORLD_PER_METER)**2+8*((event.body.vs*WORLD_PER_METER)**2+event.body.vx**2);
       assert.ok(energy<mass*(160*WORLD_PER_METER)**2*.4,'the anvil dissipates energy instead of storing it in a fast return projectile');
     }
     if(type==='tar')assert.ok(event.used&&!event.body&&run.slowTime>2&&run.curveSpin<1);
@@ -142,7 +156,7 @@ test('the elevated second spring catches an airborne ball and launches another a
   run.events=[{id:'air-catch',type:'spring',at:120,x:0,elevation:3.2,airborne:true}];
   const feedback=[];for(let frame=0;frame<120;frame++)feedback.push(...stepRun(run,profile,1/120));
   assert.ok(feedback.some(event=>event.eventId==='air-catch'&&event.effect==='jump'));
-  assert.equal(run.maxHeight,7.5,'second aerial contact must create a higher arc than the first jump alone');
+  assert.ok(run.maxHeight>6,'an elevated powered spring can extend the world-space arc without a height ceiling');
 });
 
 test('a ground-level flying prop cannot falsely hit an elevated spring through a phantom vertical sweep',()=>{
@@ -199,7 +213,7 @@ test('a powerful guardian break persists across cache eviction and continuation 
   assert.equal(run.events.find(event=>event.id===guardian.id).broken,true);
   run.events=run.events.filter(event=>event.type==='guardian');run.eventTrack=run.track;
   run.phase='stopped';profile.gold=100;assert.equal(continueRun(profile,run),true);
-  stepRun(run,profile,.35);assert.equal(run.guardiansBroken,1);assert.equal(run.bonusGold,bonus);assert.ok(run.s>3570);
+  stepRun(run,profile,1);assert.equal(run.guardiansBroken,1);assert.equal(run.bonusGold,bonus);assert.ok(run.s>3570);
 });
 test('warps are clamped before the first unbroken guardian even outside the event cache',()=>{
   const profile=ordinary(0),run=guardianRun(profile,30);
@@ -239,7 +253,7 @@ test('power, continuous shot angle and ball upgrades change actual launch veloci
   assert.ok(newRun(profile, 0, 1).speed < straight.speed);
   assert.ok(angled.vx > 0 && angled.speed < straight.speed);
   assert.equal(angled.aim, 13.75);assert.equal(Object.hasOwn(angled, 'lane'), false);
-  assert.ok(newRun(ordinary(1), 1, 1).rollSpeed > straight.rollSpeed * 1.3);
+  assert.ok(newRun(ordinary(1), 1, 1, 0).rollSpeed > straight.rollSpeed * 1.27);
   assert.ok(ballStats(1).range > ballStats(0).range * 1.95);
 });
 test('spin applies force continuously rather than snapping to discrete positions', () => {
@@ -342,7 +356,7 @@ test('a field of fresh passive bumpers cannot refill forward travel',()=>{
 
 test('moving prop contacts exchange finite mass impulses without manufacturing kinetic energy',()=>{
   for(const level of [0,2,5]){
-    const profile=ordinary(level),run=newRun(profile,1,1,0),mass=1+level*2.8;
+    const profile=ordinary(level),run=newRun(profile,1,1,0),mass=2+(level?8+level*12:0);
     Object.assign(run,{speed:0,rollSpeed:0,vx:0,vy:0});
     const event={id:'moving-energy',type:'bumper',direction:1,body:{active:true,vs:60,vx:0,vy:0}};
     const energy=()=>mass*((run.speed*WORLD_PER_METER)**2+run.vx**2)+1.1*((event.body.vs*WORLD_PER_METER)**2+event.body.vx**2);
@@ -354,7 +368,7 @@ test('moving prop contacts exchange finite mass impulses without manufacturing k
 
 test('a passive hit budgets launched prop energy and its later rebound against the same ball',()=>{
   for(const level of [0,5])for(const type of ['bumper','comet']){
-    const profile=ordinary(level),run=newRun(profile,1,1,0),mass=1+level*2.8,propMass=type==='comet'?1.4:1.1;
+    const profile=ordinary(level),run=newRun(profile,1,1,0),mass=2+(level?8+level*12:0),propMass=type==='comet'?12:1.1;
     Object.assign(run,{speed:70,rollSpeed:70,vx:3,vy:0});
     const initial=mass*((run.speed*WORLD_PER_METER)**2+run.vx**2),event={id:'rebound-energy',type,direction:1};
     const energy=()=>mass*((run.speed*WORLD_PER_METER)**2+run.vx**2)+propMass*((event.body.vs*WORLD_PER_METER)**2+event.body.vx**2);
@@ -386,30 +400,20 @@ test('a warp preserves reduced travel instead of enforcing an unexplained minimu
   assert.equal(run.speed,4.5);assert.equal(run.rollSpeed,4.5);
 });
 
-test('grounded slope force follows the rendered course and uphill loses more speed than downhill',()=>{
-  const profile=ordinary(0),seed=83,positions=Array.from({length:1800},(_,index)=>index+1);
-  const down=positions.find(s=>courseSample(s,seed).slope<-.15),up=positions.find(s=>courseSample(s,seed).slope>.07);
-  assert.ok(down!==undefined&&up!==undefined);
-  const changes=[];
-  for(const s of [down,up]){
-    const run=newRun(profile,1,seed,0);Object.assign(run,{s,distance:s,speed:30,rollSpeed:30,events:[],eventTrack:Math.floor(s/TRACK_LENGTH)});
-    stepRun(run,profile,1/120);
-    const expected=30+(-19/WORLD_PER_METER*courseSample(s,seed).slope-ballStats(profile).drag)/120;
-    assert.ok(Math.abs(run.speed-expected)<1e-8);changes.push(run.speed);
-  }
-  assert.ok(changes[0]>changes[1]);
+test('grounded motion projects gravity and rolling resistance onto the real surface tangent',()=>{
+ const p=ordinary(0),seed=83,positions=Array.from({length:1800},(_,i)=>i+1),down=positions.find(s=>courseSample(s,seed).slope<-.15),up=positions.find(s=>courseSample(s,seed).slope>.07),changes=[];
+ for(const at of[down,up]){assert.ok(at!==undefined);const run=newRun(p,1,seed,0);run.events=[];run.eventTrack=Math.floor(at/TRACK_LENGTH);run.speed=30;placeRun(run,{s:at});
+  const terrain=courseSample(at,seed),u=30*WORLD_PER_METER/terrain.tangentZ,next=u+(-19*terrain.tangentY-ballStats(p).drag*WORLD_PER_METER)/120;
+  rawStepRun(run,p,1/120);const expected=next*courseSample(run.s,seed).tangentZ/WORLD_PER_METER;
+  assert.ok(Math.abs(run.speed-expected)<1e-8);changes.push(run.speed);
+ }assert.ok(changes[0]>changes[1]);
 });
 
-test('airborne floor-relative arcs pay uphill work and receive only the matching downhill work',()=>{
-  const profile=ordinary(0),seed=83,positions=Array.from({length:1800},(_,index)=>index+1);
-  const down=positions.find(s=>courseSample(s,seed).slope<-.6),up=positions.find(s=>courseSample(s,seed).slope>.6);
-  assert.ok(down!==undefined&&up!==undefined);
-  for(const s of [down,up])for(const speed of [80,-80]){
-    const run=newRun(profile,1,seed,0);Object.assign(run,{s,distance:s,speed,rollSpeed:Math.max(0,speed),height:2,vy:0,events:[],eventTrack:Math.floor(s/TRACK_LENGTH)});
-    const expected=(speed-19/WORLD_PER_METER*courseSample(s,seed).slope/120)*Math.exp(-.012/120);
-    stepRun(run,profile,1/120);assert.ok(Math.abs(run.speed-expected)<1e-8);
-    if(speed>0)assert.ok(s===up?run.speed<speed:run.speed>speed);
-  }
+test('world-space airborne arcs obey gravity and ignore the terrain moving underneath them',()=>{
+ const p=ordinary(0),runs=[];
+ for(const at of[250,850]){const run=newRun(p,1,83,0);run.events=[];run.eventTrack=Math.floor(at/TRACK_LENGTH);placeRun(run,{s:at,height:100});run.worldY=100;run.worldVy=6;run.grounded=false;run.speed=80;
+  rawStepRun(run,p,.5);assert.ok(Math.abs(run.worldVy-(6-19*.5))<1e-8);assert.ok(run.worldY>99&&run.height>70,'there is no artificial 7.5-world ceiling');runs.push(run);
+ }assert.ok(Math.abs(runs[0].worldY-runs[1].worldY)<1e-9);assert.ok(Math.abs(runs[0].speed-runs[1].speed)<1e-9,'airborne horizontal speed cannot receive slope acceleration');
 });
 
 test('giant encounters give separate belly arcs, directional tentacle spin and brittle cookie breaks',()=>{
@@ -422,9 +426,9 @@ test('giant encounters give separate belly arcs, directional tentacle spin and b
     results.set(type,{run,event,feedback});
   }
   const beast=results.get('beast'),alien=results.get('giant-alien'),cookie=results.get('cookie');
-  assert.equal(beast.run.vy,11);assert.ok(beast.run.speed>alien.run.speed+4&&beast.run.curveSpin===0);
-  assert.equal(alien.run.curveSpin,28);assert.ok(alien.run.vx>beast.run.vx*2);assert.equal(alien.run.vy,5.5);
-  assert.equal(cookie.feedback.kind,'cookie-break');assert.equal(cookie.run.vy,7.5);
+  assert.ok(Math.abs(beast.run.vy-11)<.1);assert.ok(beast.run.speed>0&&beast.run.curveSpin===0&&beast.run.vy>alien.run.vy*1.8,'belly impact favors height while the tentacle favors spin');
+  assert.equal(alien.run.curveSpin,28);assert.ok(alien.run.vx>beast.run.vx);assert.ok(Math.abs(alien.run.vy-5.5)<.1);
+  assert.equal(cookie.feedback.kind,'cookie-break');assert.ok(Math.abs(cookie.run.vy)<.1,'a breaking passive cookie cannot invent a vertical launch');
   assert.ok(cookie.event.broken&&cookie.event.used&&!cookie.event.body.active);
   assert.equal(cookie.run.events.filter(event=>event.fragment&&event.body?.active).length,4);
   const left=newRun(profile,1,1,0);Object.assign(left,{speed:70,rollSpeed:70,vx:0});
@@ -435,7 +439,7 @@ test('giant encounters give separate belly arcs, directional tentacle spin and b
 test('cookie fragments carry a finite shared energy budget, strike other props and reward only one break',()=>{
   const profile=ordinary(0),run=newRun(profile,1,1,0);
   const cookie={id:'biscuit',type:'cookie',at:100,x:0,radius:2.25,height:2.1,direction:1};
-  const target={id:'crumb-target',type:'bumper',at:113,x:-1,radius:1,height:1.05};
+  const target={id:'crumb-target',type:'bumper',at:111,x:-.7,radius:1.3,height:1.4};
   Object.assign(run,{s:100,distance:100,speed:70,rollSpeed:70,vx:0,events:[cookie,target],eventTrack:0});
   resolveEvent(run,cookie,profile,{x:.1,s:-.995});
   const crumbs=run.events.filter(event=>event.fragment),budget=2*((cookie.body.vs*WORLD_PER_METER)**2+cookie.body.vx**2);
@@ -489,7 +493,7 @@ test('each collision object applies a distinct measurable movement effect withou
   assert.ok(Object.isFrozen(COLLISION_EFFECTS));
   for(const type of ['bumper','spring','punch','alien','comet','trap','boost']){
     const run=newRun(profile,1,1,0);Object.assign(run,{speed:70,rollSpeed:70,vx:3,vy:0,curveSpin:2});
-    const feedback=resolveEvent(run,{id:type,type,x:0,at:20,direction:1},profile,{x:.6,s:-.8});
+    const feedback=resolveEvent(run,{id:type,type,x:0,at:20,direction:1},profile,type==='comet'?{x:0,s:-1}:{x:.6,s:-.8});
     assert.equal(feedback.text,'');assert.equal(feedback.effect,COLLISION_EFFECTS[type].effect);
     assert.equal(feedback.effectDirection,1);assert.ok(Object.isFrozen(COLLISION_EFFECTS[type]));
     results.set(type,run);
@@ -506,8 +510,8 @@ test('each collision object applies a distinct measurable movement effect withou
 test('matched impacts remain visibly different over the following second of actual travel',()=>{
   const profile=ordinary(0),sample=(type,direction=1)=>{
     const run=newRun(profile,1,1,0);
-    Object.assign(run,{s:100,distance:100,speed:70,rollSpeed:70,vx:0,vy:0,events:[],eventTrack:0});
-    resolveEvent(run,{id:type,type,at:100,x:0,direction},profile,{x:0,s:-1});
+    Object.assign(run,{s:0,distance:0,speed:70,rollSpeed:70,vx:0,vy:0,events:[],eventTrack:0});
+    resolveEvent(run,{id:type,type,at:0,x:0,direction},profile,{x:0,s:-1});
     const frames=[];
     for(let frame=0;frame<120;frame++){
       // Observe the struck object's effect in isolation, without later objects or input.
@@ -520,8 +524,8 @@ test('matched impacts remain visibly different over the following second of actu
   assert.ok(spring[0].height>3.3&&spring[1].height>4.5,'spring must produce a high sustained arc');
   assert.ok(punch.every(frame=>frame.height<.2),'piston thrust must stay close to the tread');
   assert.ok(punch[1].s>bumper[1].s+12,'piston must travel visibly farther forward than the elastic bumper');
-  assert.ok(comet[0].s<90&&bumper[0].s>115,'a meteor reflects backward while the elastic bumper continues forward');
-  assert.ok(trap[1].s<bumper[1].s-15&&Math.abs(trap[1].x)<.1,'brake removes travel instead of throwing the ball');
+  assert.ok(comet[0].s<1&&bumper[0].s>5,'a meteor reflects backward while the elastic bumper continues forward');
+  assert.ok(trap[1].s<bumper[1].s-5&&Math.abs(trap[1].x)<.1,'brake removes travel instead of throwing the ball');
   assert.ok(alien[1].x>4&&alien[1].x>bumper[1].x+3&&alien[1].curve>4,'gyro continues curving rather than applying a one-frame knock');
   const reversed=sample('alien',-1);
   assert.ok(reversed[1].x< -4);assert.ok(Math.abs(alien[1].x+reversed[1].x)<1e-8,'gyro direction marks must match the physical curvature');
@@ -573,23 +577,23 @@ test('the physical track is wider than twice the old cylinder and the ball freel
   for(let i=0;i<100;i++){run.events=[];run.eventTrack=run.track;stepRun(run,profile,1/120);}
   assert.ok(run.x>3.05&&run.x<SIDE_LIMIT);
 });
-test('side rails reflect lateral velocity and create an airborne cushion bounce', () => {
+test('side rails reflect lateral velocity without inventing an upward jump', () => {
   const profile = ordinary(0), run = newRun(profile, 1, 1, 0);
   run.x = SIDE_LIMIT - .01;run.vx = 8;run.events = [];
   const feedback = stepRun(run, profile, .05);
-  assert.ok(run.x <= SIDE_LIMIT);assert.ok(run.vx < 0);assert.ok(run.vy > 0 || run.height > 0);
+  assert.ok(run.x <= SIDE_LIMIT);assert.ok(run.vx < 0);assert.equal(run.height,0);
   assert.ok(feedback.some(event => event.type === 'rail'));
 });
-test('a physical prop reflects the ball backwards and sideways and sends it into the air', () => {
+test('a heavy physical prop reflects the ball backwards and sideways without a fake vertical impulse', () => {
   const profile = ordinary(0), run = newRun(profile, 1, 1, 0);
   const before = run.speed;
   const event = { id: 'impact', type: 'comet', x: 0, at: 20, direction: 1 };
   const feedback = resolveEvent(run, event, profile, { x: .6, s: -.8 });
-  assert.ok(run.speed < 0 && run.speed < before);assert.ok(run.vx > 0);assert.ok(run.vy > 0);
+  assert.ok(run.speed < 0 && run.speed < before);assert.ok(run.vx > 0);assert.ok(Math.abs(run.vy)<.1);
   assert.equal(feedback.eventId, 'impact');assert.equal(feedback.kind, 'danger');
   assert.equal(run.collisions, 1);assert.equal(event.used, false);
   assert.equal(event.body.active,true);assert.ok(Math.abs(event.body.vs)>0&&Math.abs(event.body.vx)>0);
-  stepRun(run, profile, .1);assert.ok(run.height > 0);
+  stepRun(run, profile, .1);assert.ok(Number.isFinite(run.worldY));
 });
 test('springs launch a real arc and floor contact bounces without restoring lost speed', () => {
   const profile = ordinary(0), run = newRun(profile, 1, 1, 0);
@@ -688,7 +692,7 @@ test('a moving obstacle can return and physically hit the ball',()=>{
   run.events=[prop];run.eventTrack=0;
   const feedback=stepRun(run,profile,.2);
   assert.ok(feedback.some(event=>event.eventId==='return'));
-  assert.ok(run.speed<0&&run.height>0,'the returning body must cause real backward and upward motion');
+  assert.ok(run.speed<0&&Number.isFinite(run.worldY),'a returning dense body transfers its real backward momentum');
 });
 
 test('dynamic bodies have finite lifetimes, pair cooldowns and bounded active work',()=>{
@@ -759,19 +763,16 @@ test('higher upgraded balls retain a material speed advantage after dense repeat
     }
     speeds.push(run.speed);
   }
-  assert.ok(speeds[1]>speeds[0]*1.3,'a dense boost field must not flatten different ball upgrades to the same forward speed');
+  assert.ok(speeds[1]>speeds[0]*1.25,'a dense boost field must not flatten different ball upgrades to the same forward speed');
 });
-test('a free shot follows rolling friction and the actual course elevation within integration tolerance', () => {
-  for (const level of [0,1]) {
-    const profile = ordinary(level), run = newRun(profile, 1, 1, 0);
-    run.nextGuardianLap=1000000; // This fixture measures only empty-course gravity and friction.
-    while (run.phase === 'rolling') {
-      run.events = [];run.eventTrack = run.track;stepRun(run, profile, 1 / 60);
-    }
-    const stats=ballStats(level),work=stats.drag*run.distance+19*(courseSample(run.distance,run.seed).height-courseSample(0,run.seed).height)/(WORLD_PER_METER**2);
-    assert.ok(Math.abs(work/(stats.launchSpeed**2/2)-1)<.005,'friction and signed elevation work must account for travel');
-  }
+test('an empty-course rolling and ballistic shot never gains unpowered world mechanical energy',()=>{
+ for(const level of[0,1,4]){const p=ordinary(level),run=newRun(p,1,83,0);run.nextGuardianLap=1000000;
+  const energy=()=>.5*((run.speed*WORLD_PER_METER)**2+run.vx**2+run.worldVy**2)+19*run.worldY,initial=energy();let peak=initial;
+  for(let frame=0;frame<1200&&run.phase==='rolling';frame++){run.events=[];run.eventTrack=run.track;rawStepRun(run,p,1/120);peak=Math.max(peak,energy());}
+  assert.ok(peak<=initial*1.005,'gravity, projection and surface contact cannot create mechanical energy');
+ }
 });
+
 test('100 paired seeds show a clear first upgrade and every later level increases the median', async t => {
   const medians = [], distances = [], calibration=[];
   const workers=new Set(),results=Array.from({length:6},()=>[]);
@@ -888,4 +889,38 @@ test('training and normal shots enforce foreground time caps even with endless e
     assert.equal(run.phase, 'stopped');assert.equal(run.elapsed, limit);
     assert.equal(run.stopReason, 'time');assert.equal(canContinue(profile, run), false);
   }
+});
+
+
+test('a flat rolling shot remains in contact without fabricated hops and accumulates a unit quaternion',()=>{
+ const p=ordinary(0),r=newRun(p,1,42,0);r.events=[];r.eventTrack=0;let max=0;
+ for(let frame=0;frame<70;frame++){r.events=[];r.eventTrack=r.track;rawStepRun(r,p,1/120);max=Math.max(max,r.height);assert.ok(Math.abs(Math.hypot(...r.rotation)-1)<1e-10);}
+ assert.ok(max<.005);assert.ok(Math.abs(r.rotation[0])>.05);assert.ok(r.previousWorldY!==undefined&&r.angularVelocity.x>0);
+});
+
+test('a crest releases the ball into an independent ballistic arc when the normal support force vanishes',()=>{
+ const p=ordinary(4),r=newRun(p,1,42,0);r.events=[];r.eventTrack=0;
+ const crest=Array.from({length:1080},(_,s)=>s+1).sort((a,b)=>courseSample(a,42).curvature-courseSample(b,42).curvature)[0];assert.ok(courseSample(crest,42).curvature<-.005);
+ r.speed=230;placeRun(r,{s:crest});rawStepRun(r,p,1/120);assert.equal(r.grounded,false);
+ const vy=r.worldVy,y=r.worldY;rawStepRun(r,p,1/120);assert.ok(Math.abs(r.worldVy-(vy-19/120))<1e-8);assert.ok(r.worldY>y-1);
+});
+
+test('a forward-exhausted airborne ball falls to its real landing before ending and cannot steer for distance',()=>{
+ const p=ordinary(0),r=newRun(p,1,42,0);r.speed=.1;r.events=[];r.eventTrack=0;placeRun(r,{s:100,height:15,vy:0});
+ const initial=r.worldY;for(let i=0;i<80;i++){steerRun(r,1);rawStepRun(r,p,1/120);}assert.equal(r.exhausted,true);assert.equal(r.phase,'rolling');assert.ok(r.worldY<initial&&r.height>0);
+ const frozenS=r.s;for(let i=0;i<600&&r.phase==='rolling';i++){steerRun(r,1);rawStepRun(r,p,1/120);}assert.equal(r.phase,'stopped');assert.equal(r.s,frozenS);assert.equal(r.height,0);assert.equal(r.speed,0);assert.equal(r.vx,0);
+});
+
+test('fixed-step motion and authoritative rotation agree across render delta partitions',()=>{
+ const p=ordinary(1),runs=[newRun(p,1,42,0),newRun(p,1,42,0)];for(const r of runs){r.events=[];r.eventTrack=0;placeRun(r,{s:0,height:12,vy:8});}
+ for(let frame=0;frame<120;frame++)rawStepRun(runs[0],p,1/120);for(let frame=0;frame<10;frame++)rawStepRun(runs[1],p,.1);
+ for(const key of['s','x','worldY','worldVy','speed'])assert.ok(Math.abs(runs[0][key]-runs[1][key])<1e-8,key);assert.deepEqual(runs[0].rotation,runs[1].rotation);
+});
+
+
+test('a spring moved by another prop still activates only once on its first ball contact',()=>{
+ const p=ordinary(1),r=newRun(p,1,42,0);r.events=[];const event={id:'carried-spring',type:'spring',seed:42,at:0,x:0,height:1.05,radius:.85,direction:1};
+ event.body={active:true,s:0,x:0,height:0,worldY:r.worldY,worldVy:0,vs:0,vx:0,vy:0,rx:0,ry:0,rz:0};
+ const first=rawResolveEvent(r,event,p,{s:-1,x:0,y:0});assert.equal(first.powered,true);assert.equal(event.activated,true);assert.ok(r.vy>14);
+ r.elapsed=.3;r.worldVy=0;r.grounded=true;const second=rawResolveEvent(r,event,p,{s:-1,x:0,y:0});assert.equal(second.powered,false);assert.ok(r.worldVy<1,'a returning coil cannot add a second launch');
 });

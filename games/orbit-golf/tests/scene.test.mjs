@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../assets/vendor/three.module.js';
 import { OrbitScene, BALL_HEIGHT } from '../scene.mjs';
 import { courseSample, coursePattern, COURSE_WORLD_PER_METER } from '../course.mjs';
-import { newProfile, newRun, eventPose, TRACK_WIDTH, SIDE_LIMIT } from '../rules.mjs';
+import { newProfile, newRun, placeRun, eventPose, BALL_RADIUS, TRACK_WIDTH, SIDE_LIMIT } from '../rules.mjs';
 
 // Actual Three.js geometry, camera and animation math; no GPU/device claims.
 function harness(width=390,height=844) {
@@ -22,7 +22,18 @@ function harness(width=390,height=844) {
 }
 function runFixture(){const profile=newProfile();profile.tutorialComplete=true;const run=newRun(profile,1,42);run.events=[];return run;}
 function project(scene,point=scene.ball.position){scene.camera.updateMatrixWorld();return point.clone().project(scene.camera);}
-function frame(scene,run,mode='rolling',dt=1/60){scene.render(dt,run,mode);return project(scene);}
+// These are deliberately posed scene fixtures, not simulated flights. Reposition
+// them through the same explicit API as QA; temporal physics tests live in motion.test.
+function frame(scene,run,mode='rolling',dt=1/60){
+  placeRun(run,{s:run.s,x:run.x,height:run.height,vy:run.vy});
+  for(const event of run.events){
+    event.seed??=run.seed;
+    if(event.body){const b=event.body;b.worldY=courseSample(b.s,run.seed).height+(event.height||1.05)+(b.height||0);b.worldVy=b.vy||0;}
+  }
+  scene.render(dt,run,mode);return project(scene);
+}
+function worldPoint(scene,s,x,worldY){return new THREE.Vector3(-x,worldY-scene.origin.height,s*COURSE_WORLD_PER_METER-scene.origin.forward);}
+function posePosition(scene,pose,h=1.05){return Number.isFinite(pose.worldY)?worldPoint(scene,pose.s,pose.x,pose.worldY-h):scene.position(pose.s,pose.x,pose.height);}
 const viewports=[[320,568],[320,844],[390,844],[1440,900]];
 
 test('continuous x and airborne height map directly without snapping to lanes',()=>{
@@ -33,7 +44,7 @@ test('continuous x and airborne height map directly without snapping to lanes',(
     assert.ok(Math.abs(base.y-courseSample(s).height)<1e-8);assert.ok(Math.abs(base.z-s*COURSE_WORLD_PER_METER)<1e-8);
   }
   run.distance=500;run.s=157.4;run.x=1.73;run.height=3.2;frame(scene,run);
-  assert.ok(scene.ball.position.distanceTo(scene.position(run.s,run.x,BALL_HEIGHT+run.height))<1e-8);
+  assert.ok(scene.ball.position.distanceTo(worldPoint(scene,run.s,run.x,run.worldY))<1e-8);
   const before=scene.position(run.s,run.x,0);run.s-=11.5;run.x=-.61;run.speed=-24;frame(scene,run);
   assert.equal(scene.distance,run.s);assert.equal(run.distance,500);assert.ok(Math.abs(before.x-scene.ball.position.x)>2);
 });
@@ -65,9 +76,13 @@ test('ready mode clears mobile launch controls and transitions without a sudden 
   }
 });
 
-test('arbitrary left and right positions retain screen direction through every hill',()=>{
+test('logical left and right positions retain screen direction independently of camera centering',()=>{
   const scene=harness(),run=runFixture();
-  for(let s=0;s<360;s+=15){const positions=[];for(const x of [-8.37,-2.63,1.49,8.64]){run.s=s;run.x=x;positions.push(frame(scene,run).x);}assert.ok(positions.every((x,i)=>i===0||x>positions[i-1]),'steering reverses at '+s);}
+  for(let s=0;s<360;s+=15){
+    run.s=s;run.x=0;frame(scene,run);
+    const positions=[-8.37,-2.63,1.49,8.64].map(x=>project(scene,worldPoint(scene,s,x,run.worldY)).x);
+    assert.ok(positions.every((x,i)=>i===0||x>positions[i-1]),'steering reverses at '+s);
+  }
 });
 
 test('actual generated floor and rails never occlude ground or airborne balls across four viewports',()=>{
@@ -85,7 +100,7 @@ test('actual generated floor and rails never occlude ground or airborne balls ac
 test('static props share their collider poses across the expanded width',()=>{
   const scene=harness(),run=runFixture();run.s=20;
   run.events=['alien','punch','bumper','spring','trap'].map((type,i)=>({id:type,type,at:40+i*20,x:.43,radius:.9,height:1.05,phase:.7,used:false}));
-  for(const elapsed of [0,.37,1.4,2.9]){run.elapsed=elapsed;frame(scene,run);for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,elapsed);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.ok(mesh.userData.visual.children.length>0);}}
+  for(const elapsed of [0,.37,1.4,2.9]){run.elapsed=elapsed;frame(scene,run);for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,elapsed);assert.ok(mesh.position.distanceTo(posePosition(scene,pose,event?.height||1.05))<1e-8);assert.ok(mesh.userData.visual.children.length>0);}}
 });
 
 test('adjacent track changes reuse shared event geometry and cues while disposing only departed objects',()=>{
@@ -171,11 +186,14 @@ test('both spin signs agree between the entry curve, rotating guide and physical
   }
 });
 
-test('the ball shows actual imposed spin without rotating while paused',()=>{
-  const scene=harness(),run=runFixture();run.speed=30;run.vx=0;run.curveSpin=18;
-  frame(scene,run,'rolling',.1);const angle=scene.ballBody.rotation.y;assert.ok(angle<-.5);
-  frame(scene,run,'paused',1);assert.equal(scene.ballBody.rotation.y,angle);
-  run.curveSpin=-18;frame(scene,run,'rolling',.1);assert.ok(Math.abs(scene.ballBody.rotation.y)<1e-8);
+test('the ball uses the physics quaternion without adding velocity-based render rotation',()=>{
+  const scene=harness(),run=runFixture(),orientation=new THREE.Quaternion().setFromEuler(new THREE.Euler(.4,.7,-.2));
+  run.rotation=orientation.toArray();run.speed=30;run.vx=5;run.curveSpin=18;
+  frame(scene,run,'rolling',.1);assert.ok(scene.ballBody.quaternion.angleTo(orientation)<1e-7);
+  frame(scene,run,'paused',1);assert.ok(scene.ballBody.quaternion.angleTo(orientation)<1e-7);
+  run.speed=-80;run.vx=-12;run.curveSpin=-18;frame(scene,run,'rolling',.1);
+  assert.ok(scene.ballBody.quaternion.angleTo(orientation)<1e-7,'rendering cannot invent another rotation outside the simulation');
+  assert.ok(scene.ball.quaternion.angleTo(new THREE.Quaternion())<1e-7,'the parent must not re-attach the airborne ball to terrain pitch');
 });
 
 const guardianFixture=()=>({id:'guardian:10',type:'guardian',at:3570,x:0,width:20,height:5,barrierHeight:10,radius:10,requiredForce:170,broken:false,used:false});
@@ -263,7 +281,7 @@ test('compound wave marks describe the actual object motion instead of inventing
     {id:'piston',type:'punch',at:60,x:0,gimmick:'piston-bank'},
     {id:'recovery',type:'punch',at:75,x:0,gimmick:'brake-gauntlet'},
   ];frame(scene,run);run.elapsed=1;frame(scene,run);
-  const moving=scene.eventMeshes.get('moving'),pose=eventPose(run.events[0],run.elapsed);assert.ok(moving.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);
+  const moving=scene.eventMeshes.get('moving'),pose=eventPose(run.events[0],run.elapsed);assert.ok(moving.position.distanceTo(posePosition(scene,pose))<1e-8);
   for(const id of ['boost','piston'])for(const arrow of scene.eventMeshes.get(id).userData.mechanism.gimmick.children.filter(part=>part.geometry?.type==='ExtrudeGeometry'))assert.ok(new THREE.Vector3(0,1,0).applyQuaternion(arrow.quaternion).z>.99,'propulsion arrows must remain forward');
   assert.equal(scene.eventMeshes.get('recovery').userData.mechanism.gimmick.children.length,0,'a recovery piston must not wear braking jaws');
 });
@@ -275,13 +293,13 @@ test('flying props follow actual body position and orientation through a chain w
   frame(scene,run,'rolling',.2);scene.scene.updateMatrixWorld(true);
   for(const event of run.events){
     const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed),visual=mesh.userData.visual;
-    assert.equal(mesh.visible,true);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);
-    assert.ok(visual.getWorldPosition(new THREE.Vector3()).distanceTo(scene.position(pose.s,pose.x,pose.height+event.height))<1e-8,'tumble pivot must remain at collider center');
+    assert.equal(mesh.visible,true);assert.ok(mesh.position.distanceTo(posePosition(scene,pose,event?.height||1.05))<1e-8);
+    assert.ok(visual.getWorldPosition(new THREE.Vector3()).distanceTo(worldPoint(scene,pose.s,pose.x,pose.worldY))<1e-8,'tumble pivot must remain at collider center');
     assert.ok(Math.abs(visual.rotation.x-pose.rx)<1e-8&&Math.abs(visual.rotation.y-pose.ry)<1e-8&&Math.abs(visual.rotation.z-pose.rz)<1e-8);
     event.body.s+=9;event.body.x-=.7;event.body.height+=.6;event.body.rx+=2;
   }
   frame(scene,run,'rolling',1.1);
-  for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed);assert.equal(mesh.visible,true,'physical lifetime must outlast short hit effect');assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);}
+  for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed);assert.equal(mesh.visible,true,'physical lifetime must outlast short hit effect');assert.ok(mesh.position.distanceTo(posePosition(scene,pose,event?.height||1.05))<1e-8);}
   run.events[0].body.active=false;frame(scene,run);assert.equal(scene.eventMeshes.get('alien').visible,false);
   run.events[1].body.wheel=1;frame(scene,run);assert.equal(scene.eventMeshes.get('punch').visible,false,'warped wheels must not inherit flying bodies');
 });
@@ -312,7 +330,7 @@ test('each mechanical effect has a distinct local cue without a generic chain sh
   assert.equal(cue('alien').userData.kind,'spin');assert.ok(cue('alien').rotation.y>0);
   assert.equal(cue('trap').userData.kind,'damping');assert.equal(cue('trap').position.y,.1);
   assert.equal(cue('boost').userData.kind,'thrust');
-  for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed);assert.equal(mesh.userData.cue.parent,mesh);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.equal(mesh.userData.cue.visible,true);}
+  for(const event of run.events){const mesh=scene.eventMeshes.get(event.id),pose=eventPose(event,run.elapsed);assert.equal(mesh.userData.cue.parent,mesh);assert.ok(mesh.position.distanceTo(posePosition(scene,pose,event?.height||1.05))<1e-8);assert.equal(mesh.userData.cue.visible,true);}
   const opacity=cue('alien').userData.material.opacity;frame(scene,run,'paused',1);assert.equal(cue('alien').userData.material.opacity,opacity);
   frame(scene,run,'rolling',1);assert.ok(run.events.every(event=>!cue(event.type).visible));
 });
@@ -336,7 +354,7 @@ test('impact fragments originate on the struck object rather than on the remote 
   const scene=harness(),run=runFixture();run.s=20;run.x=-6;
   const event={id:'comet',type:'comet',at:50,x:4,height:1.05,used:false,body:{active:true,wheel:0,s:55,x:5,height:2,rx:.2,ry:1,rz:.4,life:3}};
   run.events=[event];frame(scene,run);
-  const expected=scene.position(55,5,3.05);scene.burst({type:'comet',eventId:'comet',s:run.s,x:run.x,height:0,kind:'chain',strength:1});
+  const expected=worldPoint(scene,55,5,event.body.worldY);scene.burst({type:'comet',eventId:'comet',s:run.s,x:run.x,height:0,kind:'chain',strength:1});
   assert.equal(scene.effects.length,6);assert.ok(scene.effects.every(effect=>effect.mesh.position.distanceTo(expected)<1e-8));
   const colors=new Set(scene.effects.map(effect=>effect.mesh.material.color.getHex()));assert.equal(colors.size,1);
 });
@@ -347,14 +365,14 @@ test('object cues reflect the applied effect duration and remain attached while 
   run.events=[alien];frame(scene,run);scene.burst({type:'alien',eventId:alien.id,effect:'spin',effectDirection:1,effectDuration:1.5});
   alien.body.s+=7;alien.body.x+=2;alien.body.height+=.4;frame(scene,run,'rolling',.8);
   const mesh=scene.eventMeshes.get(alien.id),cue=mesh.userData.cue,pose=eventPose(alien,run.elapsed);
-  assert.equal(cue.visible,true);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);assert.ok(cue.rotation.y<0);
+  assert.equal(cue.visible,true);assert.ok(mesh.position.distanceTo(posePosition(scene,pose,alien.height))<1e-8);assert.ok(cue.rotation.y<0);
   frame(scene,run,'rolling',.8);assert.equal(cue.visible,false);
 });
 
 test('the trail records actual sideways airborne and backwards paths and clears on warp',()=>{
   const scene=harness(),run=runFixture();for(let i=0;i<4;i++)scene.trail.push(new THREE.Mesh(new THREE.SphereGeometry(.2),new THREE.MeshBasicMaterial()));
-  const samples=[[10,.5,0],[15,1.73,2],[12,-1.4,4]];for(const [s,x,air]of samples){run.s=s;run.x=x;run.height=air;frame(scene,run);}const path=samples.toReversed().map(([s,x,air])=>scene.position(s,x,BALL_HEIGHT+air));
-  assert.ok(scene.trail[0].position.distanceTo(path[0])<1e-8);assert.ok(scene.trail[1].position.distanceTo(path[2])<1e-8);
+  const samples=[[10,.5,0],[15,1.73,2],[12,-1.4,4]];for(const [s,x,air]of samples){run.s=s;run.x=x;run.height=air;frame(scene,run,'rolling',.1);}const path=samples.toReversed().map(([s,x,air])=>{const terrain=courseSample(s,run.seed);return worldPoint(scene,s,x,terrain.height+BALL_RADIUS/terrain.normalY+air);});
+  assert.ok(scene.trail[0].position.distanceTo(path[0])<1e-8);assert.ok(scene.trailHistory.some(point=>point.distanceTo(path[2])<1e-8),'the real previous path must remain in the trail');
   run.wheel=1;frame(scene,run);assert.equal(scene.trailHistory.length,1);assert.equal(scene.trail[1].material.opacity,0);
 });
 
@@ -401,7 +419,7 @@ test('pausing freezes chase interpolation, lens, aim and scenery animation',()=>
 });
 
 test('reduced motion keeps the lens stable and graphics resources are released',()=>{
-  const scene=harness(),run=runFixture();run.speed=180;scene.reducedMotion=true;for(let index=0;index<120;index++)frame(scene,run);assert.ok(Math.abs(scene.camera.fov-74)<.1);
+  const scene=harness(),run=runFixture();run.speed=180;scene.reducedMotion=true;for(let index=0;index<120;index++)frame(scene,run);assert.ok(Math.abs(scene.camera.fov-64)<.1);
   const geometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(1,1,1)]),line=new THREE.Line(geometry,new THREE.LineBasicMaterial());scene.scene.add(line);
   let released=false;geometry.addEventListener('dispose',()=>{released=true;});scene.dispose();assert.equal(released,true);assert.equal(scene.renderer.disposed,true);assert.equal(scene.abort,true);
 });
@@ -429,9 +447,9 @@ test('giant encounter art follows the actual collider body while keeping a large
     mesh.updateMatrixWorld(true);const size=new THREE.Box3().setFromObject(mesh.userData.visual).getSize(new THREE.Vector3());
     assert.ok(size.x>3&&size.y>3,'large encounters must exceed the ball silhouette');
     event.body={active:true,wheel:run.wheel,s:118,x:2,height:1.3,rx:.4,ry:.7,rz:-.3,life:3};run.elapsed=.6;frame(scene,run);
-    const pose=eventPose(event,run.elapsed);assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);
+    const pose=eventPose(event,run.elapsed);assert.ok(mesh.position.distanceTo(posePosition(scene,pose,event?.height||1.05))<1e-8);
     scene.burst({type,eventId:type,kind:'bounce',powered:true,effectDuration:.8});frame(scene,run,'rolling',.1);
-    assert.ok(mesh.position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8,'reaction animation cannot teleport the collider');
+    assert.ok(mesh.position.distanceTo(posePosition(scene,pose,event?.height||1.05))<1e-8,'reaction animation cannot teleport the collider');
     scene.dispose();
   }
 });
@@ -449,12 +467,15 @@ test('every terrain archetype keeps the chased ball visible and the camera level
   }
 });
 
-test('steep crests and deep drops keep the chase arm above the rendered floor through the entire descent',()=>{
+test('macro crests and drops retain the ball and keep the chase camera above the actual road',()=>{
   for(const[width,height]of[[320,568],[390,844],[1440,900]]){
     const scene=harness(width,height),run=runFixture(),ray=new THREE.Raycaster();scene.buildTrack();
-    let raised=0;
+    let low=Infinity,high=-Infinity;
     for(const seed of[23,42])for(let s=1080;s<=2520;s+=16)for(const air of[0,6]){
       run.seed=seed;run.s=s;run.height=air;run.x=s%3===0?SIDE_LIMIT:0;
+      // This grid poses unrelated heights; reset the follow offset rather than
+      // treating each sample as a physically impossible instantaneous flight.
+      scene.followRun=null;
       const point=frame(scene,run);scene.track.updateMatrixWorld(true);
       const delta=scene.ball.position.clone().sub(scene.camera.position),front=delta.length()-1.05;
       ray.set(scene.camera.position,delta.normalize());
@@ -462,10 +483,10 @@ test('steep crests and deep drops keep the chase arm above the rendered floor th
       assert.ok(point.y>-.75&&point.y<.2&&Math.abs(point.x)<.8,'large hills must preserve the ball in frame');
       assert.equal(scene.camera.up.y,1);
       const behind=courseSample((scene.camera.position.z+scene.origin.forward)/COURSE_WORLD_PER_METER,seed).height-scene.origin.height;
-      assert.ok(scene.camera.position.y-behind>=8.79,'the camera must look down onto a drop rather than skim its surface');
-      if(scene.camera.position.y>10+air*.55)raised++;
+      assert.ok(scene.camera.position.y-behind>=3.9,'the camera must remain above the road rather than skim its surface');
+      const y=courseSample(s,seed).height;low=Math.min(low,y);high=Math.max(high,y);
     }
-    assert.ok(raised>20,'the fixture must actually exercise the raised chase arm on steep drops');scene.dispose();
+    assert.ok(high-low>20,'the fixture must actually exercise substantial elevation changes');scene.dispose();
   }
 });
 
@@ -478,6 +499,6 @@ test('consumed tar remains a visible fixed puddle while an anvil follows its rea
   frame(scene,run,'rolling',.4);
   const puddle=scene.eventMeshes.get('tar');assert.equal(puddle.visible,true);assert.ok(puddle.position.equals(originalTar));
   assert.equal(puddle.userData.mechanism.encounter.visible,true);
-  const pose=eventPose(anvil,run.elapsed);assert.ok(scene.eventMeshes.get('anvil').position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);
+  const pose=eventPose(anvil,run.elapsed);assert.ok(scene.eventMeshes.get('anvil').position.distanceTo(posePosition(scene,pose,anvil.height))<1e-8);
   scene.dispose();
 });

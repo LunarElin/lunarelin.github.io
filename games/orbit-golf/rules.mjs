@@ -1,4 +1,4 @@
-import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261029-risk2';
+import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261029-motion1';
 
 export const TRACK_LENGTH = 360;
 export const DISTANCE_PER_GOLD = 8;
@@ -12,7 +12,7 @@ export const UPGRADE_DEFS = Object.freeze({
     label: '슈트', description: '충돌 추진 보존 +1.8% · 반발 강화', baseCost: 70, growth: 1.6, maxLevel: MAX_UPGRADE_LEVEL,
   }),
   ball: Object.freeze({
-    label: '골프공', description: '타격 속도 +45% · 마찰 8% 감소', baseCost: 90, growth: 1.65, maxLevel: MAX_UPGRADE_LEVEL,
+    label: '골프공', description: '단계별 타격 위력 · 마찰 감소', baseCost: 90, growth: 1.65, maxLevel: MAX_UPGRADE_LEVEL,
   }),
 });
 
@@ -94,10 +94,11 @@ export const MAX_GIMMICK_WAVES = 8;
 export const GUARDIAN_INTERVAL = 10;
 const FIXED_DT = 1 / 120;
 const GRAVITY = 19;
-const ROLLING_GRAVITY = GRAVITY / WORLD_PER_METER;
+const AIR_DRAG = .018;
 const SOLIDS = new Set(['bumper','alien','comet','punch','spring','trap','beast','giant-alien','cookie','anvil']);
-const PROP_MASS = { bumper: 1.1, alien: .7, comet: 1.4, punch: .8, spring: .65, trap: .6, beast:2.4, 'giant-alien':1.8, cookie:2, anvil:8 };
+const PROP_MASS = { bumper: 1.1, alien: .7, comet: 12, punch: .8, spring: .65, trap: .6, beast:2.4, 'giant-alien':1.8, cookie:2, anvil:8 };
 const propMass=event=>event.fragment ? .5 : PROP_MASS[event.type]||1;
+const BRAKE_RETENTION=Object.freeze({anvil:Object.freeze([.30,.40,.45,.50,.52,.52]),tar:Object.freeze([.16,.26,.30,.38,.39,.40]),trap:Object.freeze([.25,.45,.50,.57,.59,.60])});
 export const COLLISION_EFFECTS = Object.freeze({
   bumper: Object.freeze({ effect:'impact', label:'탄성 반발', restitution:.88, forward:0, lift:2.5, lateral:1 }),
   spring: Object.freeze({ effect:'jump', label:'수직 도약', restitution:.65, forward:0, lift:14.5, lateral:.5 }),
@@ -116,9 +117,10 @@ export const COLLISION_EFFECTS = Object.freeze({
 export function ballStats(profileOrLevel = 0) {
   const value = typeof profileOrLevel === 'number' ? profileOrLevel : level(profileOrLevel, 'ball');
   const ballLevel = Math.floor(clamp(finite(value), 0, MAX_UPGRADE_LEVEL));
-  const launchSpeed = 106 * 1.45 ** ballLevel;
-  const drag = 4.3 * .92 ** ballLevel;
-  return { level: ballLevel, launchSpeed, drag, range: launchSpeed ** 2 / (2 * drag), rangeGain: 1.45 ** 2 / .92 - 1 };
+  const launchAt=stage=>76*1.32**stage*(stage===3?1.08:1);
+  const launchSpeed=launchAt(ballLevel);
+  const drag = 1.8 * .72 ** ballLevel;
+  return { level: ballLevel, launchSpeed, drag, range: launchSpeed ** 2 / (2 * drag), airDrag:AIR_DRAG*.72**ballLevel,rangeGain:ballLevel<MAX_UPGRADE_LEVEL?launchAt(ballLevel+1)**2/(1.8*.72**(ballLevel+1))/(launchSpeed**2/drag)-1:0 };
 }
 
 const GIMMICKS = Object.freeze([
@@ -167,7 +169,7 @@ function collideGuardian(run,profile,feedback) {
   const force=guardianPower(run,profile);
   if(force>=event.requiredForce) {
     consumeEvent(run,event);event.broken=true;run.guardiansBroken=(run.guardiansBroken||0)+1;
-    run.speed*=.76;run.rollSpeed=Math.max(0,run.speed);run.vx*=.75;run.curveSpin*=.6;run.vy=Math.max(run.vy,2);run.restTime=0;
+    run.speed*=.76;run.rollSpeed=Math.max(0,run.speed);run.vx*=.75;run.curveSpin*=.6;run.worldVy=Math.max(run.worldVy,2);run.grounded=false;run.restTime=0;
     run.bonusGold+=40;refreshEarnings(run);
     feedback.push({...feedbackFor(run,'guardian','guardian-break',event,1.5),s:event.at-finite(event.depth,3.2)/2/WORLD_PER_METER,force,requiredForce:event.requiredForce,passed:true});
     nextGuardian(run);return;
@@ -175,7 +177,7 @@ function collideGuardian(run,profile,feedback) {
   run.s=contact;
   const contacts=run.guardianContacts||(run.guardianContacts=new Map());
   if((contacts.get(event.id)||-1)<=run.elapsed) {
-    run.speed=-Math.abs(run.speed)*.35;run.rollSpeed=0;run.vx*=.5;run.curveSpin*=.35;run.vy=Math.max(run.vy,2.5);
+    run.speed=-Math.abs(run.speed)*.35;run.rollSpeed=0;run.vx*=.5;run.curveSpin*=.35;run.worldVy=Math.max(run.worldVy,2.5);run.grounded=false;
     contacts.set(event.id,run.elapsed+.65);run.collisions++;run.lastImpact=run.elapsed;
     feedback.push({...feedbackFor(run,'guardian','guardian-block',event,1.2),s:event.at-finite(event.depth,3.2)/2/WORLD_PER_METER,force,requiredForce:event.requiredForce,passed:false});
   } else run.speed=Math.min(0,run.speed);
@@ -193,7 +195,7 @@ export function generateTrack(track, seed = 1) {
   const add=(type,at,x,options={})=>{
     const giant=type==='beast'||type==='giant-alien'||type==='cookie';
     const radius=type==='anvil'?1.8:type==='tar'?2.35:type==='beast'?2.6:type==='giant-alien'?2.5:type==='cookie'?2.25:type==='bumper'?1.15:type==='comet'?1.05:type==='coins'?.6:.85;
-    const event={id:`${track}:${events.length}`,at,x:clamp(x,giant?-5.7:-7.7,giant?5.7:7.7),type,radius,
+    const event={id:`${track}:${events.length}`,seed:finite(seed,1)>>>0,at,x:clamp(x,giant?-5.7:-7.7,giant?5.7:7.7),type,radius,
       height:type==='anvil'?1.6:type==='tar'?.16:type==='beast'?2.3:type==='giant-alien'?2.4:type==='cookie'?2.1:1.05,
       phase:random()*Math.PI*2,direction:random()<.5?-1:1,used:false,hits:0,cooldown:0,...options};
     if(type==='beast')event.skin=options.skin||(random()<.65?'hippo':'panda');
@@ -290,11 +292,12 @@ function idleX(event, elapsed = 0) {
 }
 
 // Rendering and collisions read the same body; height is lift above the static base.
-export function eventPose(event, elapsed = 0) {
+export function eventPose(event, elapsed = 0, seed=event?.seed??1) {
   if(event?.body) {
-    const b=event.body;return {s:b.s,x:b.x,height:b.height,rx:b.rx,ry:b.ry,rz:b.rz};
+    const b=event.body,centerY=Number.isFinite(b.worldY)?b.worldY:floorCenter(b.s,seed,finite(event.height,1.05)).y+finite(b.height);return {s:b.s,x:b.x,height:b.height,worldY:centerY,worldVy:finite(b.worldVy,finite(b.vy)),centerS:b.s,centerY,rx:b.rx,ry:b.ry,rz:b.rz};
   }
-  return {s:finite(event?.at),x:idleX(event,elapsed),height:finite(event?.elevation),rx:0,ry:0,rz:0};
+  const s=finite(event?.at),height=finite(event?.elevation),terrain=courseSample(s,seed),h=finite(event?.height,1.05)+height;
+  return {s,x:idleX(event,elapsed),height,centerS:s+h*terrain.normalZ/WORLD_PER_METER,centerY:terrain.height+h*terrain.normalY,rx:0,ry:0,rz:0};
 }
 export function eventX(event, elapsed = 0) {
   return eventPose(event,elapsed).x;
@@ -316,6 +319,34 @@ function refreshEarnings(run) {
   run.earned = Math.floor(run.distance / DISTANCE_PER_GOLD) + run.bonusGold;
 }
 
+function floorCenter(s,seed,radius=BALL_RADIUS){const terrain=courseSample(s,seed);return {terrain,y:terrain.height+radius/terrain.normalY};}
+function publishPose(run){
+  const {terrain,y}=floorCenter(run.s,run.seed);
+  run.height=Math.max(0,run.worldY-y);run.vy=run.worldVy-terrain.slope*run.speed*WORLD_PER_METER;
+  run.rollSpeed=Math.max(0,run.speed);run.maxHeight=Math.max(run.maxHeight||0,run.height);
+}
+export function placeRun(run,{s=run.s,x=run.x,height=0,vy=0}={}){
+  if(!run)return run;
+  run.s=finite(s,run.s);run.x=finite(x,run.x);
+  const {terrain,y}=floorCenter(run.s,run.seed);
+  run.worldY=y+Math.max(0,finite(height));run.worldVy=terrain.slope*run.speed*WORLD_PER_METER+finite(vy);
+  run.grounded=height<=.0001&&vy<=.0001;run.exhausted=false;
+  publishPose(run);run.previousS=run.s;run.previousX=run.x;run.previousWorldY=run.worldY;
+  run.rotation??=[0,0,0,1];run.previousRotation=[...run.rotation];run.angularVelocity??={x:0,y:0,z:0};
+  return run;
+}
+function integrateRotation(run,dt,terrain){
+  const omega=run.angularVelocity;
+  if(run.grounded){
+    omega.x=(terrain.normalY*run.speed*WORLD_PER_METER-terrain.normalZ*run.worldVy)/BALL_RADIUS;
+    omega.y=-terrain.normalZ*run.vx/BALL_RADIUS;omega.z=terrain.normalY*run.vx/BALL_RADIUS;
+  }else {const damping=Math.exp(-dt*.03);omega.x*=damping;omega.y*=damping;omega.z*=damping;}
+  const magnitude=Math.hypot(omega.x,omega.y,omega.z);if(magnitude<1e-9)return;
+  const half=magnitude*dt*.5,s=Math.sin(half)/magnitude,dx=omega.x*s,dy=omega.y*s,dz=omega.z*s,dw=Math.cos(half),[x,y,z,w]=run.rotation;
+  const next=[dw*x+dx*w+dy*z-dz*y,dw*y-dx*z+dy*w+dz*x,dw*z+dx*y-dy*x+dz*w,dw*w-dx*x-dy*y-dz*z],n=Math.hypot(...next);
+  run.rotation=next.map(value=>value/n);
+}
+
 export function newRun(profile, power01, seed = Date.now(), aim = 8) {
   const power = clamp(finite(power01, .5), 0, 1), stats = ballStats(profile);
   const angle = clamp(finite(aim, 8), -24, 24) * Math.PI / 180;
@@ -334,7 +365,7 @@ export function newRun(profile, power01, seed = Date.now(), aim = 8) {
     durationLimit: profile?.tutorialComplete ? RUN_DURATION : TUTORIAL_DURATION,
     eventTrack: -1, events: [],
   };
-  refreshEvents(run);
+  placeRun(run,{s:0,x:0});refreshEvents(run);
   return run;
 }
 export function steerRun(run, axis) {
@@ -343,8 +374,8 @@ export function steerRun(run, axis) {
   return true;
 }
 function feedbackFor(run, type, kind, event, strength = 1) {
-  const effect=COLLISION_EFFECTS[type];
-  return { type, text:'', kind, eventId: event?.id, x: run.x, s: run.s, height: run.height, strength, combo: run.combo,
+  const effect=COLLISION_EFFECTS[type],contact=event?eventPose(event,run.elapsed,run.seed):{centerS:run.s,centerY:run.worldY,x:run.x};
+  return { contactS:contact.centerS,contactX:contact.x,contactY:contact.centerY,type, text:'', kind, eventId: event?.id, x: run.x, s: run.s, height: run.height, strength, combo: run.combo,
     effect:effect?.effect, effectDirection:event?.direction||Math.sign(run.vx)||1, effectDuration:effect?.duration||.6 };
 }
 function consumeEvent(run,event){event.used=true;if(event.id!==undefined)run.consumed.add(event.id);}
@@ -357,20 +388,20 @@ function hazardImpact(run,event,before){
 function launchProp(run,event,velocity,chainId,depth) {
   if(event.body?.active)return event.body;
   if(run.events.filter(e=>e.body?.active&&e.body.wheel===run.wheel).length>=MAX_PROP_BODIES)return null;
-  const pose=eventPose(event,run.elapsed),direction=event.direction||1;
+  const pose=eventPose(event,run.elapsed,run.seed),direction=event.direction||1,terrain=courseSample(event.at,run.seed);
   const body={
-    s:pose.s,x:pose.x,height:Math.max(0,pose.height),rx:pose.rx,ry:pose.ry,rz:pose.rz,
-    vs:clamp(velocity.s/WORLD_PER_METER,-240,360),vx:clamp(velocity.x,-42,42),vy:clamp(velocity.y,0,12),
+    s:pose.centerS,x:pose.x,height:Math.max(0,pose.height),worldY:pose.centerY,worldVy:velocity.y,grounded:false,rx:-terrain.pitch,ry:pose.ry,rz:pose.rz,
+    vs:velocity.s/WORLD_PER_METER,vx:velocity.x,vy:velocity.y,
     wx:direction*(4+Math.abs(velocity.s)*.1),wy:direction*2.5,wz:-direction*4,
     active:true,life:4.2,wheel:run.wheel,chainId,depth,impacts:0,contacts:{},
-    previousS:pose.s,previousX:pose.x,previousHeight:Math.max(0,pose.height),
+    previousS:pose.centerS,previousX:pose.x,previousHeight:Math.max(0,pose.height),previousWorldY:pose.centerY,previousRx:-terrain.pitch,previousRy:pose.ry,previousRz:pose.rz,
   };
   event.used=false;event.body=body;return body;
 }
 
 function breakCookie(run,event,feedback,sourceId) {
   if(event.type!=='cookie'||event.fragment||event.broken)return 0;
-  const pose=eventPose(event,run.elapsed),body=event.body;
+  const pose=eventPose(event,run.elapsed,run.seed),body=event.body;
   const velocity={s:(body?.vs||0)*WORLD_PER_METER,x:body?.vx||0};
   const chainId=body?.chainId||++run.nextChainId,depth=Math.min(MAX_CHAIN_DEPTH,(body?.depth||0)+1);
   if(body)body.active=false;
@@ -387,43 +418,40 @@ function breakCookie(run,event,feedback,sourceId) {
   run.events=[...run.events,...pieces];
   for(const [index,piece]of pieces.entries()){
     const value=velocities[index];value.s*=scale;value.x*=scale;
-    launchProp(run,piece,value,chainId,depth);
+    const fragment=launchProp(run,piece,value,chainId,depth);if(fragment){fragment.worldY=pose.centerY+.15+(index%2)*.15;fragment.previousWorldY=fragment.worldY;}
   }
   refreshEarnings(run);
   feedback?.push({...feedbackFor(run,'cookie','cookie-break',event,1.3),sourceId,chainId,chainDepth:depth,crumbs:pieces.length,powered:true});
   return pieces.length;
 }
 
-function advanceProps(run,dt) {
-  const guardian=nextGuardian(run);
-  for(const event of run.events) {
-    const body=event.body;if(!body?.active)continue;
-    if(body.wheel!==run.wheel){body.active=false;consumeEvent(run,event);continue;}
-    body.previousS=body.s;body.previousX=body.x;body.previousHeight=body.height;
-    body.life-=dt;
-    if(body.life<=0){body.active=false;consumeEvent(run,event);continue;}
-    const damping=Math.exp(-dt*(body.height<=0?.8:.2));
-    body.vs*=damping;body.vx*=damping;
-    body.vy-=GRAVITY*dt;
-    body.s+=body.vs*dt;body.x+=body.vx*dt;body.height+=body.vy*dt;
-    if(body.height<0){body.height=0;body.vy=Math.abs(body.vy)>2.5?-body.vy*.32:0;}
-    if(body.height>8){body.height=8;body.vy=Math.min(0,body.vy);}
-    const limit=TRACK_WIDTH/2-finite(event.radius,.85)-.1;
-    if(Math.abs(body.x)>limit){body.x=Math.sign(body.x)*limit;body.vx=-Math.sign(body.x)*Math.abs(body.vx)*.7;}
-    const barrier=guardian.at-(finite(event.radius,.85)+finite(guardian.depth,3.2)/2)/WORLD_PER_METER;
-    if(body.vs>0&&body.s>=barrier){body.s=barrier;body.vs=-Math.abs(body.vs)*.5;body.vx*=.8;body.vy=Math.max(body.vy,1.8);}
-    body.rx+=body.wx*dt;body.ry+=body.wy*dt;body.rz+=body.wz*dt;
-  }
+function advanceProps(run,dt){
+ const guardian=nextGuardian(run);
+ for(const event of run.events){
+  const body=event.body;if(!body?.active)continue;
+  if(!Number.isFinite(body.worldY)){body.worldY=floorCenter(body.s,run.seed,finite(event.height,1.05)).y+finite(body.height);body.worldVy=finite(body.vy);}
+  if(body.wheel!==run.wheel){body.active=false;consumeEvent(run,event);continue;}
+  body.previousS=body.s;body.previousX=body.x;body.previousHeight=body.height;body.previousWorldY=body.worldY;body.previousRx=body.rx;body.previousRy=body.ry;body.previousRz=body.rz;body.life-=dt;
+  if(body.life<=0){body.active=false;consumeEvent(run,event);continue;}
+  const damping=Math.exp(-dt*(body.grounded?.8:.08));body.vs*=damping;body.vx*=damping;
+  body.worldVy-=GRAVITY*dt;body.s+=body.vs*dt;body.x+=body.vx*dt;body.worldY+=body.worldVy*dt+.5*GRAVITY*dt*dt;
+  const r=finite(event.radius,.85),floor=floorCenter(body.s,run.seed,finite(event.height,r)),n=floor.terrain;let vz=body.vs*WORLD_PER_METER;
+  if(body.worldY<floor.y){body.worldY=floor.y;const into=vz*n.normalZ+body.worldVy*n.normalY;if(into<0){const bounce=-into>2.5?.28:0;vz-=(1+bounce)*into*n.normalZ;body.worldVy-=(1+bounce)*into*n.normalY;body.vs=vz/WORLD_PER_METER;}body.grounded=Math.abs(vz*n.normalZ+body.worldVy*n.normalY)<.8;}
+  else body.grounded=false;
+  body.height=Math.max(0,body.worldY-floor.y);body.vy=body.worldVy;
+  const limit=TRACK_WIDTH/2-r-.1;if(Math.abs(body.x)>limit){body.x=Math.sign(body.x)*limit;body.vx=-Math.sign(body.x)*Math.abs(body.vx)*.65;}
+  const barrier=guardian.at-(r+finite(guardian.depth,3.2)/2)/WORLD_PER_METER;
+  if(body.vs>0&&body.s>=barrier){body.s=barrier;body.vs=-Math.abs(body.vs)*.5;body.vx*=.8;}
+  body.rx+=body.wx*dt;body.ry+=body.wy*dt;body.rz+=body.wz*dt;
+ }
 }
 
-function sweptContact(a0,a1,b0,b1,radius) {
-  const sx=(a0.s-b0.s)*WORLD_PER_METER,xx=a0.x-b0.x,yy=a0.y-b0.y;
-  const ds=((a1.s-a0.s)-(b1.s-b0.s))*WORLD_PER_METER,dx=(a1.x-a0.x)-(b1.x-b0.x),dy=(a1.y-a0.y)-(b1.y-b0.y);
-  const speed2=ds*ds+dx*dx+dy*dy;
-  const t=speed2?clamp(-(sx*ds+xx*dx+yy*dy)/speed2,0,1):0;
-  const s=sx+ds*t,x=xx+dx*t,y=yy+dy*t,length=Math.hypot(s,x,y);
-  if(length>radius)return null;
-  return length>.0001?{s:s/length,x:x/length,y:y/length}:{s:-1,x:0,y:0};
+function sweptContact(a0,a1,b0,b1,radius){
+ const q={s:(a0.s-b0.s)*WORLD_PER_METER,x:a0.x-b0.x,y:a0.y-b0.y},d={s:((a1.s-a0.s)-(b1.s-b0.s))*WORLD_PER_METER,x:(a1.x-a0.x)-(b1.x-b0.x),y:(a1.y-a0.y)-(b1.y-b0.y)};
+ const length=Math.hypot(q.s,q.x,q.y),c=length*length-radius*radius,A=d.s*d.s+d.x*d.x+d.y*d.y;let t=0;
+ if(c>0){if(A<1e-12)return null;const B=2*(q.s*d.s+q.x*d.x+q.y*d.y),discriminant=B*B-4*A*c;if(discriminant<0)return null;t=(-B-Math.sqrt(discriminant))/(2*A);if(t<0||t>1)return null;}
+ const ns=q.s+d.s*t,nx=q.x+d.x*t,ny=q.y+d.y*t,n=Math.hypot(ns,nx,ny);
+ return n>1e-8?{s:ns/n,x:nx/n,y:ny/n,t,penetration:Math.max(0,radius-length)}:{s:-Math.sign(d.s)||-1,x:0,y:0,t,penetration:radius};
 }
 
 function collideProps(run,feedback,dt) {
@@ -438,17 +466,17 @@ function collideProps(run,feedback,dt) {
       if(Math.abs((a.s-targetS)*WORLD_PER_METER)>8+Math.abs(a.vs*WORLD_PER_METER*dt))continue;
       const pair=source.id<target.id?`${source.id}|${target.id}`:`${target.id}|${source.id}`;
       if(handled.has(pair))continue;
-      const pose=eventPose(target,run.elapsed),b=target.body?.active?target.body:null;
-      const previous=b?{s:b.previousS,x:b.previousX,y:b.previousHeight+finite(target.height,1.05)}:
-        {s:pose.s,x:idleX(target,run.elapsed-dt),y:finite(target.height,1.05)+pose.height};
+      const pose=eventPose(target,run.elapsed,run.seed),b=target.body?.active?target.body:null;
+      const previous=b?{s:b.previousS,x:b.previousX,y:b.previousWorldY}:
+        {s:pose.centerS,x:idleX(target,run.elapsed-dt),y:pose.centerY};
       const normal=sweptContact(
-        {s:a.previousS,x:a.previousX,y:a.previousHeight+finite(source.height,1.05)},
-        {s:a.s,x:a.x,y:a.height+finite(source.height,1.05)},
-        previous,{s:pose.s,x:pose.x,y:pose.height+finite(target.height,1.05)},
+        {s:a.previousS,x:a.previousX,y:a.previousWorldY},
+        {s:a.s,x:a.x,y:a.worldY},
+        previous,{s:pose.centerS,x:pose.x,y:pose.centerY},
         finite(source.radius,.85)+finite(target.radius,.85));
       if(!normal)continue;
-      const bv={s:b?b.vs*WORLD_PER_METER:0,x:b?b.vx:0,y:b?b.vy:0};
-      const av={s:a.vs*WORLD_PER_METER,x:a.vx,y:a.vy};
+      const bv={s:b?b.vs*WORLD_PER_METER:0,x:b?b.vx:0,y:b?b.worldVy:0};
+      const av={s:a.vs*WORLD_PER_METER,x:a.vx,y:a.worldVy};
       const dot=(av.s-bv.s)*normal.s+(av.x-bv.x)*normal.x+(av.y-bv.y)*normal.y;
       if(dot>=-.15)continue;
       handled.add(pair);a.contacts[target.id]=run.elapsed+.4;if(b)b.contacts[source.id]=run.elapsed+.4;
@@ -456,18 +484,18 @@ function collideProps(run,feedback,dt) {
       const ia=1/propMass(source),ib=canMove?1/propMass(target):0;
       const impulse=-(1+.68)*dot/(ia+ib);
       a.vs=(av.s+normal.s*impulse*ia)/WORLD_PER_METER;
-      a.vx=clamp(av.x+normal.x*impulse*ia,-42,42);a.vy=av.y+normal.y*impulse*ia;a.impacts++;
+      a.vx=clamp(av.x+normal.x*impulse*ia,-42,42);a.worldVy=av.y+normal.y*impulse*ia;a.vy=a.worldVy;a.impacts++;
       if(!canMove)continue;
-      const velocity={s:bv.s-normal.s*impulse*ib,x:bv.x-normal.x*impulse*ib,y:Math.max(3.1,bv.y-normal.y*impulse*ib)};
+      const velocity={s:bv.s-normal.s*impulse*ib,x:bv.x-normal.x*impulse*ib,y:bv.y-normal.y*impulse*ib};
       const depth=Math.min(MAX_CHAIN_DEPTH,a.depth+1);
       const body=b||launchProp(run,target,velocity,a.chainId,depth);
       if(!body)continue;
-      if(b){body.vs=clamp(velocity.s/WORLD_PER_METER,-240,360);body.vx=clamp(velocity.x,-42,42);body.vy=Math.min(12,velocity.y);}
+      if(b){body.vs=velocity.s/WORLD_PER_METER;body.vx=velocity.x;body.worldVy=velocity.y;body.vy=velocity.y;}
       body.contacts[source.id]=run.elapsed+.4;body.wz+=normal.x*3;
       target.cooldown=Math.max(target.cooldown||0,run.elapsed+.12);
       run.chainHits++;run.maxChain=Math.max(run.maxChain,depth);run.lastChain=run.elapsed;
       feedback.push({type:target.type,kind:'chain',text:'',eventId:target.id,sourceId:source.id,
-        chainDepth:depth,chainId:a.chainId,s:pose.s,x:pose.x,height:pose.height,strength:Math.min(1.4,.7+Math.abs(dot)*.02),
+        contactS:pose.centerS,contactX:pose.x,contactY:pose.centerY,chainDepth:depth,chainId:a.chainId,s:pose.s,x:pose.x,height:pose.height,strength:Math.min(1.4,.7+Math.abs(dot)*.02),
         effect:COLLISION_EFFECTS[target.type].effect,effectDirection:Math.sign(velocity.x)||target.direction||1,effectDuration:COLLISION_EFFECTS[target.type].duration||.6});
       if(target.type==='cookie'&&!target.fragment)breakCookie(run,target,feedback,source.id);
       if(a.impacts>=4)break;
@@ -476,7 +504,7 @@ function collideProps(run,feedback,dt) {
 }
 
 export function resolveEvent(run, event, profile, normal) {
-  if (!run || !event || run.phase !== 'rolling' || event.used || run.consumed.has(event.id) || (event.cooldown || 0) > run.elapsed || SOLIDS.has(event.type)&&(event.hits||0)>=3) return null;
+  if (!run || !event || run.phase !== 'rolling' || event.used || run.consumed.has(event.id) || (event.cooldown || 0) > run.elapsed) return null;
   const type = event.type, ballLevel = level(profile, 'ball'), pilotLevel = level(profile, 'pilot');
   const topSpeed = ballStats(profile).launchSpeed * 1.25;
   const side = event.direction || (eventX(event, run.elapsed) < run.x ? 1 : -1);
@@ -487,7 +515,7 @@ export function resolveEvent(run, event, profile, normal) {
   if (type === 'ufo' || type === 'hole') {
     consumeEvent(run,event);
     run.s = guardianDestination(run,(Math.floor(Math.max(0, run.s) / TRACK_LENGTH) + 1) * TRACK_LENGTH + 12);
-    run.wheel++;run.height = type === 'ufo' ? 2.2 : 1.2;run.vy = 4;
+    run.wheel++;placeRun(run,{s:run.s,x:run.x,height:type==='ufo'?2.2:1.2,vy:4});
     for(const prop of run.events)if(prop.body?.active){prop.body.active=false;consumeEvent(run,prop);}
     run.speed *= .9;run.rollSpeed = Math.max(0,run.speed);
     run.restTime=0;
@@ -499,7 +527,7 @@ export function resolveEvent(run, event, profile, normal) {
     consumeEvent(run,event);const boost = ballStats(profile).launchSpeed*COLLISION_EFFECTS.boost.forward;
     const powered=!(run.brakeTime>0);
     run.speed += powered?boost*clamp(1-Math.max(0,run.speed)/topSpeed,0,1):0;
-    run.rollSpeed = Math.max(0,run.speed);
+    if(run.grounded)run.worldVy=courseSample(run.s,run.seed).slope*run.speed*WORLD_PER_METER;publishPose(run);
     run.restTime=0;
     refreshEarnings(run);
     return {...feedbackFor(run, type, 'good', event, .9),powered,effect:powered?'propulsion':'brake'};
@@ -508,172 +536,107 @@ export function resolveEvent(run, event, profile, normal) {
     const before=Math.abs(run.speed),effect=COLLISION_EFFECTS.tar;
     consumeEvent(run,event);event.hits=(event.hits||0)+1;
     run.collisions++;run.combo=run.elapsed-run.lastImpact<3.2?run.combo+1:1;run.lastImpact=run.elapsed;
-    run.speed*=Math.min(.4,.16+ballLevel*.045+pilotLevel*.004);
-    run.vx*=.08;run.curveSpin*=.04;run.height=0;run.vy=0;
+    run.speed*=Math.min(.4,BRAKE_RETENTION.tar[ballLevel]+pilotLevel*.004);
+    run.vx*=.08;run.curveSpin*=.04;const ground=floorCenter(run.s,run.seed);run.worldY=ground.y;run.worldVy=ground.terrain.slope*run.speed*WORLD_PER_METER;run.grounded=true;publishPose(run);
     run.slowTime=effect.duration;run.slowFactor=3.4;run.brakeTime=effect.duration;
     run.rollSpeed=Math.max(0,run.speed);refreshEarnings(run);
     return hazardImpact(run,event,before);
   }
   const effect=event.fragment?{...COLLISION_EFFECTS.cookie,restitution:.7,lift:.6,lateral:.3}:COLLISION_EFFECTS[type];
   if (!effect) return null;
-  const incoming={s:run.speed*WORLD_PER_METER,x:run.vx,y:run.vy},wasMoving=Boolean(event.body?.active);
-  event.hits = (event.hits || 0) + 1;
-  event.cooldown = run.elapsed + .4;
-  run.combo = run.elapsed - run.lastImpact < 3.2 ? run.combo + 1 : 1;
-  run.lastImpact = run.elapsed;run.collisions++;
-  const nx = normal?.x ?? side * .75, ns = normal?.s ?? -.66;
-  let vx = run.vx, forward = run.speed * WORLD_PER_METER;
-  const propVx=wasMoving?event.body.vx:0,propVs=wasMoving?event.body.vs*WORLD_PER_METER:0;
-  const dot = (vx-propVx) * nx + (forward-propVs) * ns;
-  const restitution = Math.min(.98,effect.restitution + pilotLevel * .012);
-  const yieldRatio=type==='comet'?1:type==='bumper'?.12:type==='alien'?.18:type==='spring'?.04:type==='beast'?.08:type==='giant-alien'?.1:type==='cookie'?.03:0;
-  const ballMass=1+ballLevel*2.8+pilotLevel*.08,bodyMass=propMass(event);
-  const transfer = yieldRatio / ballMass;
-  let bodyImpulse=0;
-  if (dot < 0) {
-    if(wasMoving){
-      bodyImpulse=-(1+restitution)*dot/(1/ballMass+1/bodyMass);
-      vx+=nx*bodyImpulse/ballMass;forward+=ns*bodyImpulse/ballMass;
-    }else{vx -= (1 + restitution) * transfer * dot * nx;forward -= (1 + restitution) * transfer * dot * ns;}
+  const incoming={s:run.speed*WORLD_PER_METER,x:run.vx,y:run.worldVy},wasMoving=Boolean(event.body?.active);
+  event.hits=(event.hits||0)+1;event.cooldown=run.elapsed+.18;
+  run.combo=run.elapsed-run.lastImpact<3.2?run.combo+1:1;run.lastImpact=run.elapsed;run.collisions++;
+  const n={s:normal?.s??-.8,x:normal?.x??side*.6,y:normal?.y??0},norm=Math.hypot(n.s,n.x,n.y);n.s/=norm;n.x/=norm;n.y/=norm;
+  const prop={s:wasMoving?event.body.vs*WORLD_PER_METER:0,x:wasMoving?event.body.vx:0,y:wasMoving?event.body.worldVy:0};
+  const dot=(incoming.s-prop.s)*n.s+(incoming.x-prop.x)*n.x+(incoming.y-prop.y)*n.y;
+  const restitution=Math.min(.9,effect.restitution+pilotLevel*.008),ballMass=2+(ballLevel?8+ballLevel*12:0)+pilotLevel*.18,bodyMass=propMass(event);
+  const impulse=dot<0?-(1+restitution)*dot/(1/ballMass+1/bodyMass):0;
+  const velocity={s:incoming.s+n.s*impulse/ballMass,x:incoming.x+n.x*impulse/ballMass,y:incoming.y+n.y*impulse/ballMass};
+  const bodyVelocity={s:prop.s-n.s*impulse/bodyMass,x:prop.x-n.x*impulse/bodyMass,y:prop.y-n.y*impulse/bodyMass};
+  const powered=!(run.brakeTime>0)&&(!wasMoving||type==='spring'&&!event.activated);
+  if(powered&&effect.forwardImpulse)velocity.s+=(effect.forwardImpulse+(type==='punch'?ballLevel*1.2:0))*WORLD_PER_METER*clamp(1-Math.max(0,velocity.s/WORLD_PER_METER)/topSpeed,0,1);
+  if(powered&&['spring','beast','giant-alien'].includes(type)){
+    event.activated=true;
+    const terrain=courseSample(run.s,run.seed),up=velocity.y*terrain.normalY+velocity.s*terrain.normalZ,lift=Math.max(0,effect.lift-up);
+    velocity.s+=terrain.normalZ*lift;velocity.y+=terrain.normalY*lift;
   }
-  if(!wasMoving){
-    // A passive collision can redirect existing travel, but never refill a hidden motor.
-    const retention=Math.min(.99,.85+pilotLevel*.018+ballLevel*.12);
-    const limit=Math.hypot(incoming.s,incoming.x)*retention;
-    vx+=(side*effect.lateral);
-    const scale=Math.min(1,limit/Math.max(.00001,Math.hypot(forward,vx)));
-    forward*=scale;vx*=scale;
-  }
-  run.speed = forward / WORLD_PER_METER;
-  run.vx = clamp(vx, -23, 23);
-  run.vy = Math.max(run.vy, wasMoving?Math.min(3,Math.abs(dot)*.12):effect.lift);
-  if(!wasMoving&&effect.forwardImpulse&&!(run.brakeTime>0)){
-    const gain=(effect.forwardImpulse+(type==='punch'?ballLevel*3:0))*clamp(1-Math.max(0,run.speed)/topSpeed,0,1);
-    run.speed+=gain;
-  }
-  if(!wasMoving&&(type==='alien'||type==='giant-alien'))run.curveSpin=side*effect.curve;
+  if(powered&&(type==='alien'||type==='giant-alien')){run.curveSpin=side*effect.curve;velocity.x+=side*effect.lateral;run.angularVelocity.y+=side*effect.curve*.08;}
   if(!wasMoving&&type==='trap'){
-    run.speed*=Math.min(.6,.25+Math.min(1,ballLevel)*.16+Math.max(0,ballLevel-1)*.045+pilotLevel*.005);run.vx*=.12;run.curveSpin*=.1;run.slowTime=effect.duration;run.slowFactor=1.9;run.brakeTime=1.2;
+    const retention=Math.min(.6,BRAKE_RETENTION.trap[ballLevel]+pilotLevel*.005);velocity.s*=retention;velocity.x*=.12;
+    run.curveSpin*=.1;run.slowTime=effect.duration;run.slowFactor=1.9;run.brakeTime=1.2;
   }
-  if(!wasMoving&&type==='anvil'){
-    run.speed*=Math.min(.52,.3+ballLevel*.055+pilotLevel*.005);run.vx*=.45;run.curveSpin*=.25;run.brakeTime=effect.duration;
-  }
-  run.rollSpeed=Math.max(0,run.speed);
-  if(Math.abs(run.speed)>=2)run.restTime=0;
-  if(!wasMoving) {
-    const chainId=++run.nextChainId;
-    const velocity=type==='anvil'?{s:Math.abs(incoming.s)*.12*-ns,x:side*3.5,y:2.1}:
-      {s:Math.abs(incoming.s)*.82*-ns,x:incoming.x*.55-nx*Math.max(2,Math.abs(incoming.s)*.55),y:4.2};
-    const removed=Math.max(0,incoming.s**2+incoming.x**2-(run.speed*WORLD_PER_METER)**2-run.vx**2);
-    const available=Math.sqrt(ballMass*removed/bodyMass*(type==='anvil'?.12:1)),scale=Math.min(1,available/Math.max(.00001,Math.hypot(velocity.s,velocity.x)));
-    velocity.s*=scale;velocity.x*=scale;
-    launchProp(run,event,velocity,chainId,1);
-  } else {
-    event.body.vs=(propVs-ns*bodyImpulse/bodyMass)*.98/WORLD_PER_METER;
-    event.body.vx=(propVx-nx*bodyImpulse/bodyMass)*.98;event.body.vy=Math.max(0,event.body.vy*.78);
-  }
+  if(!wasMoving&&type==='anvil'){velocity.s*=Math.min(.52,BRAKE_RETENTION.anvil[ballLevel]+pilotLevel*.005);velocity.x*=.45;run.curveSpin*=.25;run.brakeTime=effect.duration;bodyVelocity.s*=.25;bodyVelocity.x*=.25;bodyVelocity.y*=.25;}
+  run.speed=velocity.s/WORLD_PER_METER;run.vx=velocity.x;run.worldVy=velocity.y;
+  const ground=courseSample(run.s,run.seed);run.grounded=velocity.s*ground.normalZ+velocity.y*ground.normalY<=.35&&run.height<.04;
+  if(run.grounded){const along=run.speed*WORLD_PER_METER*ground.tangentZ+run.worldVy*ground.tangentY;run.speed=along*ground.tangentZ/WORLD_PER_METER;run.worldVy=along*ground.tangentY;}
+  if(!wasMoving)launchProp(run,event,bodyVelocity,++run.nextChainId,1);
+  else{event.body.vs=bodyVelocity.s/WORLD_PER_METER;event.body.vx=bodyVelocity.x;event.body.worldVy=bodyVelocity.y;event.body.vy=bodyVelocity.y;}
+  if(Math.abs(run.speed)>=2)run.restTime=0;publishPose(run);
   refreshEarnings(run);
   if(!wasMoving&&(type==='anvil'||type==='trap'))return hazardImpact(run,event,Math.abs(incoming.s)/WORLD_PER_METER);
   if(type==='cookie'&&!event.fragment&&!event.broken){
     const crumbs=breakCookie(run,event);
     return {...feedbackFor(run,type,'cookie-break',event,1.3),crumbs,effectDirection:side,powered:true};
   }
-  return {...feedbackFor(run, type, type === 'comet' ? 'danger' : 'bounce', event, type === 'spring' ? 1.5 : 1.1),effectDirection:side,powered:!wasMoving};
+  return {...feedbackFor(run, type, type === 'comet' ? 'danger' : 'bounce', event, type === 'spring' ? 1.5 : 1.1),effectDirection:side,powered};
 }
 
-function physicsStep(run, profile, dt, feedback) {
-  const stats=ballStats(profile),terrain=courseSample(run.s,run.seed),grounded=run.height<=.0001&&run.vy<=0;
-  const previousS = run.s, previousX = run.x, previousHeight = run.height;
-  // speed is the actual signed travel velocity. rollSpeed mirrors positive travel
-  // for the existing HUD/steering contract; it never restores lost velocity.
-  run.slowTime=Math.max(0,run.slowTime-dt);
-  run.brakeTime=Math.max(0,(run.brakeTime||0)-dt);
-  if (grounded) {
-    if(Math.abs(run.speed)>.05){
-      const sign=Math.sign(run.speed),slope=terrain.gravitySlope??terrain.slope;
-      const acceleration=-ROLLING_GRAVITY*slope-sign*stats.drag*(run.slowTime>0?run.slowFactor||1.9:1);
-      const next=run.speed+acceleration*dt;
-      run.speed=Math.sign(next)===sign?next:0;
-    }else run.speed=0;
-    run.vx *= Math.exp(-dt * .32);
-  } else {
-    // height is measured above the sampled floor even in an arc. Pay the same
-    // signed elevation work here; otherwise a spring grants a free hill climb.
-    if(Math.abs(run.speed)>.05){
-      const sign=Math.sign(run.speed),next=run.speed-ROLLING_GRAVITY*(terrain.gravitySlope??terrain.slope)*dt;
-      run.speed=(Math.sign(next)===sign?next:0)*Math.exp(-dt*.012);
-    }else run.speed=0;
+function moveBall(run,stats,dt,feedback){
+  const start=floorCenter(run.s,run.seed),terrain=start.terrain;let vz=run.speed*WORLD_PER_METER;
+  if(run.grounded){
+    const u=vz*Math.hypot(1,terrain.slope),sign=Math.sign(u),braking=stats.drag*WORLD_PER_METER*(run.slowTime>0?run.slowFactor||1.9:1);
+    const next=u+(-GRAVITY*terrain.tangentY-sign*braking)*dt,tangentSpeed=Math.abs(u)<.005||Math.sign(next)!==sign?0:next;
+    vz=tangentSpeed*terrain.tangentZ;run.worldVy=tangentSpeed*terrain.tangentY;run.vx*=Math.exp(-dt*.28);
+    if(GRAVITY*terrain.normalY+tangentSpeed*tangentSpeed*(terrain.curvature||0)<-.05)run.grounded=false;
   }
-  run.rollSpeed=Math.max(0,run.speed);
-  const steeringEnergy=clamp(run.rollSpeed/24,0,1);
-  run.curveSpin*=Math.exp(-dt*1.1);
-  run.vx += (run.steer*6.5+run.curveSpin)*steeringEnergy*(run.slowTime>0?.16:1)*dt;
-  if(steeringEnergy<.15)run.vx*=Math.exp(-dt*3*(1-steeringEnergy));
-  run.vx = clamp(run.vx, -23, 23);
-  run.s += run.speed * dt;
-  run.x += run.vx * dt;
-  run.vy-=GRAVITY*dt;
-  run.height += run.vy * dt;
-  if (run.height <= 0) {
-    const landing = -run.vy;run.height = 0;
-    if (!grounded && landing > 3.5) {
-      run.vy = landing > 6 ? landing * .28 : 0;
-      run.speed *= .98;
-      if (run.elapsed - run.lastLanding > .25) {
-        feedback.push(feedbackFor(run, 'landing', 'landing', null, Math.min(1, landing / 12)));
-        run.lastLanding = run.elapsed;
-      }
-    } else run.vy = 0;
-  }
-  if (run.height > 7.5) {run.height = 7.5;run.vy = Math.min(0, run.vy);}
-  run.maxHeight = Math.max(run.maxHeight, run.height);
-  if (Math.abs(run.x) > SIDE_LIMIT) {
-    const sign = Math.sign(run.x);run.x = sign * SIDE_LIMIT;run.vx = -sign * Math.abs(run.vx) * .82;
-    run.speed *= .985;run.vy = Math.max(run.vy, Math.min(4, Math.abs(run.vx) * .22));
-    if (run.elapsed - run.lastRail > .32 && Math.abs(run.vx) > 1) {
-      run.collisions++;feedback.push(feedbackFor(run, 'rail', 'bounce', null, Math.min(1, Math.abs(run.vx) / 12)));
-      run.lastRail = run.elapsed;
+  if(!run.grounded){const damping=Math.exp(-stats.airDrag*dt);vz*=damping;run.vx*=damping;run.worldVy-=GRAVITY*dt;}
+  if(run.exhausted){vz=0;run.vx=0;}
+  const steering=clamp(Math.abs(vz)/10,0,1)*(run.slowTime>0?.16:1)*(run.grounded?1:.2);run.curveSpin*=Math.exp(-dt*1.1);
+  if(!run.exhausted){const budget=vz*vz+run.vx*run.vx;run.vx=clamp(run.vx+(run.steer*6.5+run.curveSpin)*steering*dt,-23,23);run.vx=clamp(run.vx,-Math.sqrt(budget),Math.sqrt(budget));vz=Math.sign(vz)*Math.sqrt(Math.max(0,budget-run.vx*run.vx));}
+  run.speed=vz/WORLD_PER_METER;const oldS=run.s,oldY=run.worldY;run.s+=run.speed*dt;run.x+=run.vx*dt;const nextFloor=floorCenter(run.s,run.seed);
+  if(run.grounded){const along=Math.sign(vz)*Math.hypot(vz,run.worldVy);vz=along*nextFloor.terrain.tangentZ;run.speed=vz/WORLD_PER_METER;run.worldY=nextFloor.y;run.worldVy=along*nextFloor.terrain.tangentY;}
+  else{
+    run.worldY+=run.worldVy*dt+.5*GRAVITY*dt*dt;
+    if(run.worldY<nextFloor.y){
+      let lo=0,hi=1;for(let i=0;i<10;i++){const t=(lo+hi)*.5,y=oldY+(run.worldY-oldY)*t,at=oldS+(run.s-oldS)*t;if(y>floorCenter(at,run.seed).y)lo=t;else hi=t;}
+      const at=oldS+(run.s-oldS)*hi,contact=floorCenter(at,run.seed),n=contact.terrain;run.s=at;run.worldY=contact.y;
+      const into=vz*n.normalZ+run.worldVy*n.normalY;
+      if(into<0){const bounce=-into>4.5?.45:0;vz-=(1+bounce)*into*n.normalZ;run.worldVy-=(1+bounce)*into*n.normalY;
+        const tangent=vz*n.tangentZ+run.worldVy*n.tangentY,normal=vz*n.normalZ+run.worldVy*n.normalY;run.grounded=normal<1.05;
+        if(run.grounded){vz=tangent*n.tangentZ;run.worldVy=tangent*n.tangentY;}
+        if(-into>3.5&&run.elapsed-run.lastLanding>.25){feedback.push(feedbackFor(run,'landing','landing',null,Math.min(1,-into/14)));run.lastLanding=run.elapsed;}
+      }run.speed=vz/WORLD_PER_METER;
     }
-  }
-  // A guardian is a fixed full-width plane; unlike props it never loses collision
-  // because of an event cooldown, airborne height, side position or hit count.
-  collideGuardian(run,profile,feedback);
-  advanceProps(run,dt);
-  // Substeps cap travel below a ball diameter; segment tests also catch a glancing pass.
-  for (const event of run.events) {
-    if (event.used || (event.cooldown || 0) > run.elapsed || event.body?.wheel!==undefined&&event.body.wheel!==run.wheel) continue;
-    const body=event.body?.active?event.body:null,eventS=event.body?.s??finite(event.at);
-    if(Math.abs((eventS-previousS)*WORLD_PER_METER)>6+Math.abs((run.s-previousS)*WORLD_PER_METER)+Math.abs(body?.vs||0)*dt*WORLD_PER_METER)continue;
-    const pose=eventPose(event,run.elapsed);
-    const normal=sweptContact(
-      {s:previousS,x:previousX,y:BALL_RADIUS+previousHeight},
-      {s:run.s,x:run.x,y:BALL_RADIUS+run.height},
-      body?{s:body.previousS,x:body.previousX,y:finite(event.height,1.05)+body.previousHeight}:
-        {s:pose.s,x:idleX(event,run.elapsed-dt),y:finite(event.height,1.05)+pose.height},
-      {s:pose.s,x:pose.x,y:finite(event.height,1.05)+pose.height},BALL_RADIUS+finite(event.radius,.85));
+  }publishPose(run);
+}
+
+function physicsStep(run,profile,dt,feedback){
+  const stats=ballStats(profile);run.previousS=run.s;run.previousX=run.x;run.previousWorldY=run.worldY;run.previousRotation=[...run.rotation];
+  run.slowTime=Math.max(0,run.slowTime-dt);run.brakeTime=Math.max(0,(run.brakeTime||0)-dt);moveBall(run,stats,dt,feedback);
+  if(Math.abs(run.x)>SIDE_LIMIT){const sign=Math.sign(run.x);run.x=sign*SIDE_LIMIT;run.vx=-sign*Math.abs(run.vx)*.72;
+    if(run.elapsed-run.lastRail>.32&&Math.abs(run.vx)>1){run.collisions++;feedback.push(feedbackFor(run,'rail','bounce',null,Math.min(1,Math.abs(run.vx)/12)));run.lastRail=run.elapsed;}}
+  collideGuardian(run,profile,feedback);advanceProps(run,dt);
+  if(!run.exhausted)for(const event of run.events){
+    if(event.used||(event.cooldown||0)>run.elapsed||event.body?.wheel!==undefined&&event.body.wheel!==run.wheel)continue;
+    const body=event.body?.active?event.body:null,pose=eventPose(event,run.elapsed,run.seed);
+    if(Math.abs((pose.centerS-run.previousS)*WORLD_PER_METER)>6+Math.abs(run.s-run.previousS)*WORLD_PER_METER+Math.abs(body?.vs||0)*dt*WORLD_PER_METER)continue;
+    const previous=body?{s:body.previousS,x:body.previousX,y:body.previousWorldY}:eventPose(event,run.elapsed-dt,run.seed);
+    const normal=sweptContact({s:run.previousS,x:run.previousX,y:run.previousWorldY},{s:run.s,x:run.x,y:run.worldY},body?previous:{s:previous.centerS,x:previous.x,y:previous.centerY},{s:pose.centerS,x:pose.x,y:pose.centerY},BALL_RADIUS+finite(event.radius,.85));
     if(!normal)continue;
-    const approaching=(run.vx-(body?.vx||0))*normal.x+(run.speed-(body?.vs||0))*WORLD_PER_METER*normal.s+(run.vy-(body?.vy||0))*normal.y;
+    const approaching=(run.vx-(body?.vx||0))*normal.x+(run.speed-(body?.vs||0))*WORLD_PER_METER*normal.s+(run.worldVy-(body?.worldVy||0))*normal.y;
     if(SOLIDS.has(event.type)&&approaching>=-.1)continue;
-    // Pads and pickups require low contact; other props can be cleared with a high bounce.
-    if (!body&&!event.airborne&&['spring', 'trap', 'boost', 'hole'].includes(event.type) && run.height > 1.1) continue;
-    if(event.type==='tar'&&run.height>.55)continue;
-    const result = resolveEvent(run, event, profile, normal);
-    if (result) feedback.push(result);
-    if (result?.kind === 'warp') break;
+    if(!body&&!event.airborne&&['spring','trap','boost','hole'].includes(event.type)&&run.height>1.1)continue;if(event.type==='tar'&&run.height>.55)continue;
+    if(SOLIDS.has(event.type)){run.s=run.previousS+(run.s-run.previousS)*normal.t;run.x=run.previousX+(run.x-run.previousX)*normal.t;run.worldY=run.previousWorldY+(run.worldY-run.previousWorldY)*normal.t;const offset=(normal.penetration||0)+.012;run.s+=normal.s*offset/WORLD_PER_METER;run.x+=normal.x*offset;run.worldY+=normal.y*offset;}
+    const result=resolveEvent(run,event,profile,normal);if(result)feedback.push(result);if(result?.kind==='warp'||result&&SOLIDS.has(event.type))break;
   }
-  collideProps(run,feedback,dt);
-  if (run.s < 0) {run.s = 0;run.speed = Math.max(0,run.speed);}
-  run.rollSpeed=Math.max(0,run.speed);
-  run.spin += Math.hypot(run.speed * WORLD_PER_METER, run.vx) * dt / BALL_RADIUS;
-  run.elapsed = Math.min(run.durationLimit, run.elapsed + dt);
-  refreshEarnings(run);refreshEvents(run);
-  if (Math.abs(run.speed) < 1.4) run.restTime += dt;
-  else run.restTime = 0;
-  if (run.restTime >= .55 || run.distance >= MAX_DISTANCE) {
-    run.speed = 0;run.rollSpeed = 0;run.vx = 0;run.vy = 0;run.height = 0;run.steer=0;run.curveSpin=0;run.slowTime=0;run.brakeTime=0;
-    run.phase = 'stopped';run.stopReason = 'natural';
-    feedback.push(feedbackFor(run, 'stop', 'stop'));
-  }
+  collideProps(run,feedback,dt);if(run.s<0){run.s=0;run.speed=Math.max(0,run.speed);}
+  const floor=floorCenter(run.s,run.seed);if(run.worldY<floor.y){run.worldY=floor.y;const away=run.worldVy*floor.terrain.normalY+run.speed*WORLD_PER_METER*floor.terrain.normalZ;if(away<.35){run.grounded=true;run.worldVy=floor.terrain.slope*run.speed*WORLD_PER_METER;}}
+  publishPose(run);integrateRotation(run,dt,floor.terrain);run.spin+=Math.hypot(run.speed*WORLD_PER_METER,run.vx)*dt/BALL_RADIUS;
+  run.elapsed=Math.min(run.durationLimit,run.elapsed+dt);refreshEarnings(run);refreshEvents(run);
+  if(Math.abs(run.speed)<1.4)run.restTime+=dt;else run.restTime=0;
+  if(run.restTime>=.55||run.distance>=MAX_DISTANCE){run.exhausted=true;run.speed=0;run.rollSpeed=0;run.vx=0;run.steer=0;run.curveSpin=0;}
+  if(run.exhausted&&run.grounded){run.speed=0;run.rollSpeed=0;run.vx=0;run.steer=0;run.curveSpin=0;run.worldVy=0;run.vy=0;run.slowTime=0;run.brakeTime=0;run.angularVelocity={x:0,y:0,z:0};run.phase='stopped';run.stopReason='natural';feedback.push(feedbackFor(run,'stop','stop'));}
 }
 
 export function stepRun(run, profile, dt) {
@@ -685,7 +648,7 @@ export function stepRun(run, profile, dt) {
     physicsStep(run, profile, Math.min(FIXED_DT, run.durationLimit - run.elapsed), feedback);
   }
   if (run.phase === 'rolling' && run.elapsed >= run.durationLimit - 1e-9) {
-    run.elapsed = run.durationLimit;run.speed = 0;run.rollSpeed = 0;run.vx = 0;run.vy = 0;run.steer=0;run.curveSpin=0;run.slowTime=0;run.brakeTime=0;
+    run.elapsed = run.durationLimit;run.speed = 0;run.rollSpeed = 0;run.vx = 0;run.worldVy=0;run.vy = 0;run.steer=0;run.curveSpin=0;run.slowTime=0;run.brakeTime=0;
     run.phase = 'stopped';run.stopReason = 'time';
     feedback.push(feedbackFor(run, 'stop', 'stop'));
   }
@@ -717,7 +680,7 @@ export function continueRun(profile, run) {
   run.continued = true;
   run.phase = 'rolling';
   run.speed = ballStats(profile).launchSpeed * .82;
-  run.rollSpeed = run.speed;run.steer = 0;run.curveSpin=0;run.slowTime=0;run.brakeTime=0;run.restTime = 0;run.accumulator = 0;
+  run.exhausted=false;run.grounded=true;run.worldVy=courseSample(run.s,run.seed).slope*run.speed*WORLD_PER_METER;run.rollSpeed = run.speed;run.steer = 0;run.curveSpin=0;run.slowTime=0;run.brakeTime=0;run.restTime = 0;run.accumulator = 0;
   return true;
 }
 

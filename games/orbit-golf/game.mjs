@@ -1,7 +1,7 @@
-import { OrbitScene } from './scene.mjs?v=20261029-risk2';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-risk2';
+import { OrbitScene } from './scene.mjs?v=20261029-motion1';
+import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-motion1';
 
-import { coursePattern, courseSample } from './course.mjs?v=20261029-risk2';
+import { coursePattern, courseSample } from './course.mjs?v=20261029-motion1';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
@@ -10,7 +10,7 @@ const PREVIEW = pageParams.get('preview') === '1';
 const GIANT_TYPES=['beast','giant-alien','cookie'];
 const ENCOUNTER_NAMES={beast:'거대 동물','giant-alien':'거대 외계인',cookie:'거대 과자'};
 const HAZARD_NAMES={anvil:'충격 모루',tar:'타르 웅덩이',trap:'제동 패드'};
-const PREVIEW_TYPES=[...GIANT_TYPES,'anvil','tar'];
+const PREVIEW_TYPES=[...GIANT_TYPES,'anvil','tar','spring'];
 const seedParam=Number(pageParams.get('seed'));
 const previewSeed=PREVIEW&&pageParams.has('seed')&&Number.isSafeInteger(seedParam)&&seedParam>=0&&seedParam<=0xffffffff?seedParam:null;
 const previewEncounter = PREVIEW && ['guardian-weak','guardian-strong','climb','drop',...PREVIEW_TYPES].includes(pageParams.get('encounter')) ? pageParams.get('encounter') : '';
@@ -19,7 +19,7 @@ const aborter = new AbortController();
 const on = (element,event,fn,options={}) => element.addEventListener(event,fn,{...options,signal:aborter.signal});
 let profile=newProfile(), storageOK=true;
 try { profile=sanitizeProfile(JSON.parse(PREVIEW?'null':localStorage.getItem(KEY)||'null')); } catch { storageOK=false; }
-if(previewEncounter){profile.tutorialComplete=true;profile.upgrades.ball=previewEncounter==='guardian-weak'?0:previewEncounter==='guardian-strong'?2:1;}
+if(previewEncounter){profile.tutorialComplete=true;profile.upgrades.ball=previewEncounter==='guardian-weak'?0:previewEncounter==='guardian-strong'?3:1;}
 let run=null, mode='lobby', previousMode='lobby', charging=false, charge=0, power=0, seed=0;
 let audio=null, audioEnabled=true, raf=0, last=0, hudTime=0, saveTime=0, toastLife=0, disposed=false;
 let rollSound=null, rollGain=null, lastTone=-1, lastHaptic=-1000;
@@ -50,6 +50,7 @@ function prepareRun(powerValue) {
     next.goalDistance=(next.track+2)*TRACK_LENGTH;
     next.events=[next.track-1,next.track,next.track+1].filter(track=>track>=0).flatMap(track=>generateTrack(track,seed));
   }
+  placeRun(next,{s:next.s,x:next.x,height:next.height||0,vy:next.vy||0});
   return next;
 }
 function save() { if(PREVIEW)return;try { localStorage.setItem(KEY,JSON.stringify(profile)); storageOK=true; } catch { storageOK=false; } $('save-warning').hidden=storageOK; }
@@ -232,7 +233,7 @@ function showRanks(){
   openPanel('궤도 랭킹',[element('p','panel-intro','이 기기의 TOP 10 · 이름별 최고 기록'),profile.rankings.length?list:element('p','empty','아직 기록이 없습니다.'),button('확인','primary panel-action',closePanel)],'ranks');
 }
 function showHelp(){
-  const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','360m 구간을 지나면 새로운 배치 기믹이 추가됩니다. 5·10·15번째 구간처럼 5구간마다 한 번에 3개가 추가됩니다.','10번째 구간 끝에는 거대한 수문장이 길을 막습니다. 화면의 충격이 필요 힘 이상이면 부수고 통과하며 40G를 얻습니다. 공을 강화하면 같은 속도에서도 충격이 커집니다. 이후 수문장은 10구간마다 나타납니다.','매 판 새로운 직선 코스가 펼쳐집니다. 긴 내리막·언덕·골짜기·연속 고개·평탄한 쉼터가 다른 높이와 순서로 이어집니다. 카메라는 뒤에서 공을 따라가며 수평을 유지합니다.','거대 동물의 몸통은 공을 크게 튀겨 내고, 외계인 촉수는 옆으로 던져 회전을 줍니다. 커다란 과자는 부서져 조각들이 다른 물체와 연쇄 충돌합니다.','충격 모루는 속도를 크게 빼앗고, 검은 타르는 즉시 감속한 뒤에도 마찰이 남습니다. 위험 직후에는 추진 효과가 잠시 억제되어 속도가 저절로 복구되지 않습니다.','높은 고개를 오를 때는 실제 속도를 잃고, 깊은 내리막에서는 중력으로 가속합니다. 360도 루프 없이 큰 높낮이의 길이 이어집니다.','마찰과 오르막은 속도를 줄이고 내리막은 가속을 돕습니다. 주황 추진기와 초록 패드에 닿으면 가속합니다. 충돌과 착지 뒤 속도가 자동으로 복구되지 않습니다.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 스핀을 누르고 있어도 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 추진력과 비거리가 증가합니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다. 수문장이 남아 있으면 그 앞에서 내려옵니다.'].forEach(t=>list.append(element('li','',t)));
+  const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','360m 구간을 지나면 새로운 배치 기믹이 추가됩니다. 5·10·15번째 구간처럼 5구간마다 한 번에 3개가 추가됩니다.','10번째 구간 끝에는 거대한 수문장이 길을 막습니다. 화면의 충격이 필요 힘 이상이면 부수고 통과하며 40G를 얻습니다. 공을 강화하면 같은 속도에서도 충격이 커집니다. 이후 수문장은 10구간마다 나타납니다.','매 판 새로운 직선 코스가 펼쳐집니다. 긴 내리막·언덕·골짜기·연속 고개·평탄한 쉼터가 다른 높이와 순서로 이어집니다. 카메라는 뒤에서 공을 따라가며 수평을 유지합니다.','거대 동물의 몸통은 공을 크게 튀겨 내고, 외계인 촉수는 옆으로 던져 회전을 줍니다. 커다란 과자는 부서져 조각들이 다른 물체와 연쇄 충돌합니다.','충격 모루는 속도를 크게 빼앗고, 검은 타르는 즉시 감속한 뒤에도 마찰이 남습니다. 위험 직후에는 추진 효과가 잠시 억제되어 속도가 저절로 복구되지 않습니다.','높은 고개를 오를 때는 실제 속도를 잃고, 깊은 내리막에서는 중력으로 가속합니다. 360도 루프 없이 큰 높낮이의 길이 이어집니다.','마찰과 오르막은 속도를 줄이고 내리막은 가속을 돕습니다. 주황 추진기와 초록 패드에 닿으면 가속합니다. 충돌과 착지 뒤 속도가 자동으로 복구되지 않습니다.','공은 바닥에서 구르고, 떠오르면 포물선으로 날아갑니다. 바닥에 남은 그림자로 높이와 착지 위치를 확인하세요.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 조작이 멈추고 착지 후 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 마찰과 충돌 손실이 줄고 비거리가 늘어납니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다. 수문장이 남아 있으면 그 앞에서 내려옵니다.'].forEach(t=>list.append(element('li','',t)));
   const key=element('div','event-key');[
     ['넓은 금속 모루','큰 충격 손실 · 낮은 반동'],['검은 웅덩이','즉시 감속 · 지속 마찰'],['거대 동물','몸통 반발 · 높은 도약'],['거대 외계인','촉수 횡충격 · 강한 회전'],['거대 과자','파괴 · 조각 연쇄'],['완충 링','낮고 강하게 반발'],['코일 · 위 화살표','높이 뛰어오르기'],
     ['피스톤 · 전진 화살표','앞으로 강하게 추진'],['회전날 · 곡선 화살표','표시 방향으로 휘기'],
@@ -275,7 +276,7 @@ if(scene){
   on(document,'visibilitychange',()=>{if(document.hidden){pause('비행을 멈췄어요');if(raf)cancelAnimationFrame(raf);raf=0;collectAndSave();audio?.suspend().catch(()=>{});}else{last=performance.now();if(!raf&&!disposed)raf=requestAnimationFrame(frame);}});
   function collectAndSave(){if(run)collectRunGold(profile,run);save();}
   function frame(now){
-    if(disposed)return;const dt=last?Math.max(0,(now-last)/1000):.016,visualDt=Math.min(dt,.05);last=now;
+    if(disposed)return;const dt=last?Math.max(0,(now-last)/1000):.016;last=now;
     if(charging){charge+=dt;power=1-Math.abs((charge%1.8)/.9-1);updatePower();}
     if(mode==='rolling'){
       const events=stepRun(run,profile,dt);for(const event of events){if(event.kind==='stop')continue;impact(event);if(event.kind==='warp'){$('warp-flash').classList.remove('flash');void $('warp-flash').offsetWidth;$('warp-flash').classList.add('flash');}}
@@ -284,11 +285,11 @@ if(scene){
     }
     if(toastLife>0){toastLife-=dt;if(toastLife<=0)$('toast').classList.remove('visible');}
     if(rollGain&&audio?.state==='running'){
-      const loudness=mode==='rolling'?.035*Math.min(1,Math.abs(run.speed)/130)*(run.height>.3?.45:1):0;
+      const loudness=mode==='rolling'&&run.grounded!==false?.035*Math.min(1,Math.abs(run.speed)/130):0;
       rollGain.gain.setTargetAtTime(audioEnabled?loudness:0,audio.currentTime,.08);
       rollSound.playbackRate.setTargetAtTime(mode==='rolling'?.6+Math.min(1.8,Math.abs(run.speed)/80):.6,audio.currentTime,.08);
     }
-    scene.render(visualDt,run,mode,power,profile.upgrades);raf=requestAnimationFrame(frame);
+    scene.render(dt,run,mode,power,profile.upgrades);raf=requestAnimationFrame(frame);
   }
   on(window,'pagehide',e=>{pause('비행을 멈췄어요');collectAndSave();cancelAnimationFrame(raf);raf=0;if(!e.persisted){finalize();disposed=true;scene.dispose();rollSound?.stop();audio?.close().catch(()=>{});aborter.abort();}});
   on(window,'pageshow',e=>{if(e.persisted&&!disposed){scene.resize();last=performance.now();if(!raf)raf=requestAnimationFrame(frame);}});

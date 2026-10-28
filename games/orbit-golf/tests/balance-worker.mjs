@@ -10,6 +10,7 @@ for(let seed=seedStart;seed<seedStart+seedCount;seed++){
   for(let count=0;run.phase==='rolling'&&count<20000;count++)stepRun(run,profile,.2);
   if(run.phase!=='stopped')throw new Error(`level ${level}, seed ${seed}: a shot did not stop`);
   if(!(run.elapsed<=RUN_DURATION))throw new Error(`level ${level}, seed ${seed}: duration cap exceeded`);
+  if(![run.s,run.x,run.speed,run.worldY,run.worldVy,run.height,...run.rotation].every(Number.isFinite))throw new Error(`level ${level}, seed ${seed}: non-finite world motion`);
   values.push(run.distance);times.push(run.elapsed);chains.push(run.chainHits);depths.push(run.maxChain);
   if(run.stopReason==='time')capped++;
   if(seed%25===0)parentPort.postMessage({type:'progress',level,seedStart,seed,seconds:Number(((performance.now()-started)/1000).toFixed(1))});
