@@ -6,51 +6,51 @@
       "id": "giant-space-hippo",
       "role": "large elastic belly encounter",
       "path": "../encounter-art.mjs#createEncounterVisual:beast:hippo",
-      "status": "implemented-pending-in-engine-review",
+      "status": "implemented-in-engine-reviewed",
       "technical": { "format": "procedural THREE.Group", "dimensions_world": "4.9 × 5.1 × 5.6", "anchor": "floor-center", "collider_center_y": 2.3, "collider_radius": 2.6, "meshes": 25, "triangles": 9462, "textures": 0, "states": ["idle", "belly-compression", "physics-flight"], "filtering": "not-applicable" },
       "visual_locks": ["broad muzzle", "four separate paws", "round ears", "mint elastic belly ring", "warm key/cool rim", "matte warm body"],
       "source": { "kind": "authored-procedural-3d", "url_or_tool": "Three.js 0.160.1 built-in geometry; original encounter-art.mjs", "creator": "Codex for the Orbit Golf repository", "created_at": "2026-10-28", "license": "Original project-authored geometry; no third-party model or texture incorporated", "attribution": "No additional asset attribution required", "prompt_or_source_record": "User requested giant animals; approved family seed recorded in art-direction.md" },
-      "verification": { "native_scale_reviewed": false, "in_engine_reviewed": false, "technical_checks_passed": true, "approved_by": "Codex geometry review; browser review pending" }
+      "verification": {"native_scale_reviewed": true, "in_engine_reviewed": true, "technical_checks_passed": true, "approved_by": "Codex public-build browser visual review, 2026-10-28", "review_scope": "390x844 desktop mobile emulation; actual collision or cookie-fragment flight observed", "limitations": "No physical iOS/Android device or mobile GPU frame-time profiling; visual approval does not establish long-term fun"}
     },
     {
       "id": "giant-space-panda",
       "role": "animal silhouette variant with the same physical belly effect",
       "path": "../encounter-art.mjs#createEncounterVisual:beast:panda",
-      "status": "implemented-pending-in-engine-review",
+      "status": "implemented-in-engine-reviewed",
       "technical": { "format": "procedural THREE.Group", "dimensions_world": "4.9 × 5.1 × 5.6", "anchor": "floor-center", "collider_center_y": 2.3, "collider_radius": 2.6, "meshes": 27, "triangles": 10254, "textures": 0, "states": ["idle", "belly-compression", "physics-flight"], "filtering": "not-applicable" },
       "visual_locks": ["hippo family proportions", "cream body", "dark paws and eye patches", "mint belly ring", "same light and roughness"],
       "source": { "kind": "authored-procedural-3d", "url_or_tool": "Original encounter-art.mjs; same authored family seed", "creator": "Codex for the Orbit Golf repository", "created_at": "2026-10-28", "license": "Original project-authored geometry; no third-party model or texture incorporated", "attribution": "No additional asset attribution required", "prompt_or_source_record": "Controlled material and eye-patch variant of the approved beast seed" },
-      "verification": { "native_scale_reviewed": false, "in_engine_reviewed": false, "technical_checks_passed": true, "approved_by": "Codex geometry review; browser review pending" }
+      "verification": {"native_scale_reviewed": true, "in_engine_reviewed": true, "technical_checks_passed": true, "approved_by": "Codex public-build browser visual review, 2026-10-28", "review_scope": "390x844 mobile emulation and 1440x900 desktop; silhouette/materials inspected", "limitations": "No physical iOS/Android device or mobile GPU frame-time profiling; visual approval does not establish long-term fun"}
     },
     {
       "id": "giant-three-eyed-alien",
       "role": "large sweeping spin-and-toss encounter",
       "path": "../encounter-art.mjs#createEncounterVisual:giant-alien",
-      "status": "implemented-pending-in-engine-review",
+      "status": "implemented-in-engine-reviewed",
       "technical": { "format": "procedural THREE.Group", "dimensions_world": "5.3 × 5.6 × 4.6", "anchor": "floor-center", "collider_center_y": 2.4, "collider_radius": 2.5, "meshes": 26, "triangles": 8766, "textures": 0, "states": ["tentacle-windup", "directional-release", "physics-flight"], "filtering": "not-applicable" },
       "visual_locks": ["three large eyes", "four curved tentacles", "gold sling cuffs", "violet body/mint palms", "same rounded surface and lighting"],
       "source": { "kind": "authored-procedural-3d", "url_or_tool": "Three.js 0.160.1 CatmullRomCurve3/TubeGeometry and rounded primitives", "creator": "Codex for the Orbit Golf repository", "created_at": "2026-10-28", "license": "Original project-authored geometry; no third-party model or texture incorporated", "attribution": "No additional asset attribution required", "prompt_or_source_record": "User requested giant aliens; shared toy-space family, three-eye silhouette and directional arm action" },
-      "verification": { "native_scale_reviewed": false, "in_engine_reviewed": false, "technical_checks_passed": true, "approved_by": "Codex geometry review; browser review pending" }
+      "verification": {"native_scale_reviewed": true, "in_engine_reviewed": true, "technical_checks_passed": true, "approved_by": "Codex public-build browser visual review, 2026-10-28", "review_scope": "320x568 desktop mobile emulation; actual collision/toss observed", "limitations": "No physical iOS/Android device or mobile GPU frame-time profiling; visual approval does not establish long-term fun"}
     },
     {
       "id": "giant-chocolate-cookie",
       "role": "brittle breakable snack encounter",
       "path": "../encounter-art.mjs#createEncounterVisual:cookie",
-      "status": "implemented-pending-in-engine-review",
+      "status": "implemented-in-engine-reviewed",
       "technical": { "format": "procedural THREE.Group", "dimensions_world": "4.3 × 4.3 × 1.1 excluding floor shadow", "anchor": "floor-center", "collider_center_y": 2.1, "collider_radius": 2.25, "meshes": 16, "triangles": 1286, "textures": 0, "states": ["intact", "local-impact", "broken-hidden"], "filtering": "not-applicable" },
       "visual_locks": ["six separated biscuit sectors", "bite notch", "large raised chocolate chunks", "bevelled golden crust", "cream seam"],
       "source": { "kind": "authored-procedural-3d", "url_or_tool": "Three.js 0.160.1 Shape/ExtrudeGeometry; original sector and chip layout", "creator": "Codex for the Orbit Golf repository", "created_at": "2026-10-28", "license": "Original project-authored geometry; no third-party model or texture incorporated", "attribution": "No additional asset attribution required", "prompt_or_source_record": "User requested large snacks; breakable cookie with no printed words or face" },
-      "verification": { "native_scale_reviewed": false, "in_engine_reviewed": false, "technical_checks_passed": true, "approved_by": "Codex geometry review; browser review pending" }
+      "verification": {"native_scale_reviewed": true, "in_engine_reviewed": true, "technical_checks_passed": true, "approved_by": "Codex public-build browser visual review, 2026-10-28", "review_scope": "390x844 desktop mobile emulation; actual collision or cookie-fragment flight observed", "limitations": "No physical iOS/Android device or mobile GPU frame-time profiling; visual approval does not establish long-term fun"}
     },
     {
       "id": "physical-cookie-crumb",
       "role": "actual finite-body fragment created by the cookie collision rule",
       "path": "../encounter-art.mjs#createEncounterVisual:cookie:crumb",
-      "status": "implemented-pending-in-engine-review",
+      "status": "implemented-in-engine-reviewed",
       "technical": { "format": "procedural THREE.Group", "dimensions_world": "radius follows event.radius, normally 0.5–0.6", "anchor": "floor-center; physics rotation around event.height", "meshes": 3, "triangles": 58, "textures": 0, "states": ["physics-flight"], "filtering": "not-applicable" },
       "visual_locks": ["same crust and chocolate colors", "faceted biscuit chunk", "root follows actual eventPose", "no independently invented fragment flight"],
       "source": { "kind": "authored-procedural-3d", "url_or_tool": "Original encounter-art.mjs; two low-poly meshes and a hidden flight shadow", "creator": "Codex for the Orbit Golf repository", "created_at": "2026-10-28", "license": "Original project-authored geometry; no third-party model or texture incorporated", "attribution": "No additional asset attribution required", "prompt_or_source_record": "Physical fragment variant of the giant cookie family" },
-      "verification": { "native_scale_reviewed": false, "in_engine_reviewed": false, "technical_checks_passed": true, "approved_by": "Codex geometry review; browser review pending" }
+      "verification": {"native_scale_reviewed": true, "in_engine_reviewed": true, "technical_checks_passed": true, "approved_by": "Codex public-build browser visual review, 2026-10-28", "review_scope": "390x844 desktop mobile emulation; actual collision or cookie-fragment flight observed", "limitations": "No physical iOS/Android device or mobile GPU frame-time profiling; visual approval does not establish long-term fun"}
     }
   ]
 }
