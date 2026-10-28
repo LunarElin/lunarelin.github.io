@@ -1,9 +1,9 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH, BALL_RADIUS } from './rules.mjs?v=20261029-motion1';
-import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-motion1';
+import { eventPose, TRACK_WIDTH, BALL_RADIUS } from './rules.mjs?v=20261029-motion2';
+import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-motion2';
 
-import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-motion1';
+import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-motion2';
 
 const TAU = Math.PI * 2;
 export const BALL_HEIGHT = BALL_RADIUS;
@@ -304,6 +304,66 @@ export class OrbitScene {
     for(const event of events)if(!this.eventMeshes.has(event.id)){const mesh=this.createEvent(event);this.eventGroup.add(mesh);this.eventMeshes.set(event.id,mesh);}
     const c=THEMES[((track%THEMES.length)+THEMES.length)%THEMES.length];this.railMaterial.color.setHex(c);this.railMaterial.emissive.setHex(c);
   }
+  fadeObstacle(visual,occluded) {
+    let state=visual.userData.cameraFade;
+    if(!state&&!occluded)return;
+    if(!state){
+      const clones=new Map(),records=[],originals=new Map();
+      const clone=material=>{if(!clones.has(material))clones.set(material,material.clone());return clones.get(material);};
+      visual.traverse(mesh=>{
+        if(!mesh.material)return;
+        const original=mesh.material,faded=Array.isArray(original)?original.map(clone):clone(original);
+        records.push({mesh,original,faded});originals.set(mesh,original);
+      });
+      state={records,originals,clones:[...clones.values()],active:false};visual.userData.cameraFade=state;
+    }
+    for(const record of state.records){
+      if(occluded){
+        const sources=Array.isArray(record.original)?record.original:[record.original],faded=Array.isArray(record.faded)?record.faded:[record.faded];
+        for(let i=0;i<sources.length;i++){
+          // Keep material animation on its original references; only this event's
+          // render bindings become transparent, including shared GLTF materials.
+          faded[i].copy(sources[i]);faded[i].transparent=true;faded[i].opacity=sources[i].opacity*.14;faded[i].depthWrite=false;
+        }
+        record.mesh.material=record.faded;
+      }else record.mesh.material=record.original;
+    }
+    state.active=occluded;
+  }
+  updateCameraOcclusion(active) {
+    this.occlusionRay??=new THREE.Raycaster();this.occlusionReverseRay??=new THREE.Raycaster();this.occlusionDirection??=new THREE.Vector3();this.occlusionCenter??=new THREE.Vector3();this.occlusionClosest??=new THREE.Vector3();this.occlusionOffset??=new THREE.Vector3();
+    const direction=this.occlusionDirection.copy(this.ball.position).sub(this.camera.position),length=direction.length();
+    direction.multiplyScalar(1/Math.max(.001,length));this.occlusionRay.set(this.camera.position,direction);this.occlusionRay.far=Math.max(0,length-BALL_HEIGHT);
+    this.occlusionReverseRay.set(this.ball.position,direction);this.occlusionReverseRay.ray.direction.negate();this.occlusionReverseRay.near=BALL_HEIGHT;this.occlusionReverseRay.far=length;
+    this.eventGroup.updateMatrixWorld(true);
+    for(const mesh of this.eventMeshes.values()){
+      const {visual,event,centerHeight}=mesh.userData;let occluded=false;
+      if(active&&mesh.visible&&visual.visible&&length>BALL_HEIGHT){
+        visual.getWorldPosition(this.occlusionCenter);
+        const along=this.occlusionOffset.copy(this.occlusionCenter).sub(this.camera.position).dot(direction),radius=Math.max(event.radius||1,centerHeight||1)*2;
+        this.occlusionClosest.copy(this.camera.position).addScaledVector(direction,Math.max(0,Math.min(length,along)));
+        if(along>-radius&&along<length+radius&&this.occlusionCenter.distanceToSquared(this.occlusionClosest)<radius*radius){
+          const originals=visual.userData.cameraFade?.originals;
+          const blocks=hit=>{
+            for(let node=hit.object;node;node=node.parent){if(!node.visible)return false;if(node===visual)break;}
+            const material=originals?.get(hit.object)||hit.object.material,faceMaterial=Array.isArray(material)?material[hit.face?.materialIndex||0]:material;
+            return faceMaterial?.visible!==false&&(faceMaterial?.opacity??1)>.04;
+          };
+          // A front-sided mesh may surround the camera. The reverse segment
+          // catches its entrance face without changing the art's material side.
+          occluded=this.occlusionRay.intersectObject(visual,true).some(blocks)||this.occlusionReverseRay.intersectObject(visual,true).some(blocks);
+        }
+      }
+      this.fadeObstacle(visual,occluded);
+    }
+  }
+  releaseCameraFades(object) {
+    object.traverse(node=>{
+      const state=node.userData?.cameraFade;if(!state)return;
+      for(const record of state.records)record.mesh.material=record.original;
+      for(const material of state.clones)material.dispose();delete node.userData.cameraFade;
+    });
+  }
   burst(feedback={type:'shot',strength:1}) {
     if(typeof feedback==='string')feedback={type:feedback==='bad'?'comet':'shot',strength:1};
     const strength=Math.min(1.5,Math.max(.2,feedback.strength||1)),chain=feedback.kind==='chain';
@@ -473,9 +533,10 @@ export class OrbitScene {
       const positions=this.streakGeometry.attributes.position;for(let i=0;i<36;i++){const s=this.distance+((i*17.73-this.distance)%95+95)%95-8,x=(i%2?1:-1)*(HALF_WIDTH+1+(i%7)*.9),h=3+(i%9)*1.2;const start=this.position(s,x,h),end=this.position(s+3+intensity*5,x,h);positions.setXYZ(i*2,start.x,start.y,start.z);positions.setXYZ(i*2+1,end.x,end.y,end.z);}positions.needsUpdate=true;
     }
     this.animateEvents(animDt,run,active);
+    this.updateCameraOcclusion(active);
     for(let i=this.effects.length-1;i>=0;i--){const effect=this.effects[i];effect.life-=animDt;effect.mesh.position.addScaledVector(effect.v,animDt);effect.v.addScaledVector(effect.gravity,animDt);if(effect.spin){effect.mesh.rotation.x+=effect.spin.x*animDt;effect.mesh.rotation.y+=effect.spin.y*animDt;effect.mesh.rotation.z+=effect.spin.z*animDt;}effect.mesh.material.opacity=Math.max(0,effect.life/effect.total)*(effect.opacity||1);effect.mesh.scale.setScalar((effect.scale||1)*(1+(1-effect.life/effect.total)*.4));if(effect.life<=0){this.scene.remove(effect.mesh);effect.mesh.material.dispose();this.effects.splice(i,1);}}
     this.renderer.render(this.scene,this.camera);
   }
-  disposeObject(object,skipModels=false) {object.traverse(o=>{if(!o.isMesh&&!o.isLine&&!o.isPoints)return;if(skipModels&&Object.values(this.models||{}).some(m=>{let yes=false;m.traverse(n=>{if(n.geometry===o.geometry)yes=true;});return yes;}))return;o.geometry?.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material?.dispose();});}
+  disposeObject(object,skipModels=false) {this.releaseCameraFades(object);object.traverse(o=>{if(!o.isMesh&&!o.isLine&&!o.isPoints)return;if(skipModels&&Object.values(this.models||{}).some(m=>{let yes=false;m.traverse(n=>{if(n.geometry===o.geometry)yes=true;});return yes;}))return;o.geometry?.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material?.dispose();});}
   dispose(){this.abort=true;this.disposeObject(this.scene);for(const model of Object.values(this.models))this.disposeObject(model);this.effectGeometry.dispose();this.hitAnimations?.clear();if(this.trailHistory)this.trailHistory.length=0;this.effects.length=0;this.renderer.dispose();}
 }

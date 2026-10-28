@@ -1,4 +1,4 @@
-import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261029-motion1';
+import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261029-motion2';
 
 export const TRACK_LENGTH = 360;
 export const DISTANCE_PER_GOLD = 8;

@@ -1,7 +1,7 @@
-import { OrbitScene } from './scene.mjs?v=20261029-motion1';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-motion1';
+import { OrbitScene } from './scene.mjs?v=20261029-motion2';
+import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-motion2';
 
-import { coursePattern, courseSample } from './course.mjs?v=20261029-motion1';
+import { coursePattern, courseSample } from './course.mjs?v=20261029-motion2';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';

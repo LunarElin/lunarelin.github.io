@@ -131,3 +131,76 @@ test('flying props use the same substep interpolation clock as the ball',()=>{
   near(center.x,-.5);near(center.y+scene.origin.height,13);near(center.z+scene.origin.forward,101*W);
   near(mesh.userData.visual.rotation.x,.25);near(mesh.userData.visual.rotation.y,.2);scene.dispose();
 });
+
+function occlusionBox(scene,id,point,material=new THREE.MeshStandardMaterial(),geometry=new THREE.BoxGeometry(2,2,2)) {
+  const root=new THREE.Group(),visual=new THREE.Group(),part=new THREE.Mesh(geometry,material);
+  visual.add(part);root.add(visual);root.position.copy(point);
+  root.userData={event:{id,radius:1},visual,centerHeight:1};scene.eventGroup.add(root);scene.eventMeshes.set(id,root);
+  return {root,visual,part,material,geometry};
+}
+
+test('only a visible obstacle actually intersecting the camera-to-ball segment fades',()=>{
+  const scene=sceneHarness();scene.camera.position.set(0,0,-20);scene.ball.position.set(0,0,0);
+  const middle=occlusionBox(scene,'blocking',new THREE.Vector3(0,0,-10)),
+    ahead=occlusionBox(scene,'ahead',new THREE.Vector3(0,0,5)),
+    side=occlusionBox(scene,'side',new THREE.Vector3(5,0,-10)),
+    behind=occlusionBox(scene,'behind',new THREE.Vector3(0,0,-25)),
+    hollow=occlusionBox(scene,'bounds-only',new THREE.Vector3(0,0,-15));
+  hollow.part.position.x=2.2; // Its collider sphere touches the ray; its actual art does not.
+  scene.updateCameraOcclusion(true);
+  assert.equal(middle.visual.userData.cameraFade.active,true);
+  near(middle.part.material.opacity,.14);assert.equal(middle.part.material.depthWrite,false);
+  for(const item of[ahead,side,behind,hollow])assert.equal(item.part.material,item.material);
+  // A transparent render binding cannot make the next ray test blink clear.
+  const clone=middle.part.material;scene.updateCameraOcclusion(true);assert.equal(middle.part.material,clone);
+  middle.root.position.z=-20;scene.updateCameraOcclusion(true);
+  assert.equal(middle.visual.userData.cameraFade.active,true,'front-sided art must still fade when it encloses the camera');
+  middle.root.position.z=-10;
+  middle.part.visible=false;scene.updateCameraOcclusion(true);assert.equal(middle.part.material,middle.material);
+  middle.part.visible=true;middle.root.position.x=6;scene.updateCameraOcclusion(true);
+  assert.equal(middle.visual.userData.cameraFade.active,false);assert.equal(middle.part.material,middle.material);
+  assert.equal(middle.material.opacity,1);assert.equal(middle.material.transparent,false);assert.equal(middle.material.depthWrite,true);
+  scene.dispose();
+});
+
+test('fading isolates shared model materials, restores bindings, and releases only its cached clones',()=>{
+  const scene=sceneHarness();scene.camera.position.set(0,0,-20);scene.ball.position.set(0,0,0);
+  const shared=new THREE.MeshStandardMaterial({transparent:true,opacity:.8,depthWrite:true}),geometry=new THREE.BoxGeometry(2,2,2),
+    middle=occlusionBox(scene,'shared-blocker',new THREE.Vector3(0,0,-10),shared,geometry),
+    side=occlusionBox(scene,'shared-side',new THREE.Vector3(5,0,-10),shared,geometry);
+  // GLTF clones intentionally share geometry and materials with the cached source model.
+  const source=new THREE.Group();source.add(new THREE.Mesh(geometry,shared));scene.models.shared=source;
+  const sharedFaces=Array(6).fill(shared),extra=new THREE.Mesh(geometry,sharedFaces);middle.visual.add(extra);
+  let cloneDisposals=0,sourceDisposals=0,geometryDisposals=0;
+  shared.addEventListener('dispose',()=>sourceDisposals++);geometry.addEventListener('dispose',()=>geometryDisposals++);
+  scene.updateCameraOcclusion(true);const faded=middle.part.material;faded.addEventListener('dispose',()=>cloneDisposals++);
+  assert.notEqual(faded,shared);near(faded.opacity,.8*.14);assert.equal(side.part.material,shared);
+  assert.equal(extra.material[0],faded);assert.equal(extra.material[1],faded);near(shared.opacity,.8);assert.equal(shared.depthWrite,true);
+  shared.emissiveIntensity=2.4;scene.updateCameraOcclusion(true);near(faded.emissiveIntensity,2.4);
+  scene.updateCameraOcclusion(false);assert.equal(middle.part.material,shared);assert.equal(extra.material,sharedFaces);
+  scene.updateCameraOcclusion(true);assert.equal(middle.part.material,faded,'repeat occlusion reuses the event-local clone');
+  scene.lastTrack=0;scene.lastEvents=[middle.root.userData.event,side.root.userData.event];scene.syncEvents([],0);
+  assert.equal(cloneDisposals,1);assert.equal(sourceDisposals,0);assert.equal(geometryDisposals,0);
+  assert.equal(middle.part.material,shared);assert.equal(middle.visual.userData.cameraFade,undefined);
+  scene.dispose();
+});
+
+test('a flying giant alien fades at its displayed world centre, freezes on pause, and clears after an origin shift',()=>{
+  const scene=sceneHarness(),{run}=flight();setPose(run,{s:165,x:0,y:100});
+  const s=run.s-10/W,event={id:'occluding-alien',type:'giant-alien',at:s,x:0,height:2.4,radius:2.5,seed:run.seed,
+    body:{active:true,wheel:run.wheel,s,x:0,worldY:103.25,height:5,rx:0,ry:0,rz:0,
+      previousS:s,previousX:0,previousWorldY:103.25,previousRx:0,previousRy:0,previousRz:0,life:3}};
+  run.events=[event];const physics=JSON.stringify(event.body);scene.render(0,run,'rolling');
+  const visual=scene.eventMeshes.get(event.id).userData.visual;
+  assert.equal(visual.userData.cameraFade?.active,true,'the actual alien body must intersect the chase view');
+  assert.equal(JSON.stringify(event.body),physics,'visibility must never change physics state');
+  const original=visual.userData.cameraFade.records.find(record=>record.mesh.name==='alien-pear-body');
+  assert.ok(original);assert.notEqual(original.mesh.material,original.original);
+  event.body.x=8;event.body.previousX=8;scene.render(.5,run,'paused');
+  assert.equal(visual.userData.cameraFade.active,true,'a paused view keeps its material bindings frozen');
+  scene.render(0,run,'rolling');assert.equal(visual.userData.cameraFade.active,false);assert.equal(original.mesh.material,original.original);
+  const distant=10000165;setPose(run,{s:distant,x:0,y:100});
+  Object.assign(event.body,{s:distant-10/W,previousS:distant-10/W,x:0,previousX:0});
+  scene.render(0,run,'rolling');assert.equal(visual.userData.cameraFade.active,true,'a floating origin must preserve the camera-to-alien intersection');
+  scene.dispose();
+});
