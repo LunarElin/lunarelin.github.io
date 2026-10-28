@@ -37,6 +37,7 @@
       </div>
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
       <div id="direction-guide" class="direction-guide" aria-label="현재 목표 방향" hidden></div>
+      <div id="field-status" class="field-status" role="status" hidden></div>
       <div id="reward-banner" class="reward-banner" role="status" aria-live="polite" hidden><strong id="reward-title"></strong><span id="reward-detail"></span></div>
       <div class="cargo-pill" aria-label="가방에 담은 전리품"><span class="bag-mark" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M9 7 7 3h14l-2 4M10 7c-4 4-7 8-7 12 0 5 5 6 11 6s11-1 11-6c0-4-3-8-7-12ZM9 8h10M14 14v6M11 17h6"/></svg></span><div class="cargo-copy"><span id="cargo-value">0 / 24</span><div class="cargo-track"><div id="cargo-fill"></div></div></div></div>
       <button id="camp-btn" class="field-button camp-button" type="button" hidden><span aria-hidden="true">✦</span> 거점 강화</button>
@@ -94,8 +95,10 @@
         <div class="growth-heading"><h2 id="growth-title">능력치</h2><button id="growth-close-btn" class="growth-close" type="button" aria-label="성장 닫기">×</button></div>
         <div class="growth-content">
           <div class="growth-resources"><span class="bank-amount"><span class="coin-mark" aria-hidden="true">✦</span><strong id="growth-bank-value" aria-label="보관 골드">0</strong></span><span id="growth-level-value">Lv.1</span></div>
+          <div id="stats-pages" class="stats-pages" role="group" aria-label="능력치와 장비" hidden><button type="button" data-stats-page="stats" aria-pressed="true">능력치</button><button type="button" data-stats-page="equipment" aria-pressed="false">장비</button></div>
           <p id="growth-summary" class="growth-summary">성장한 힘은 계속 유지돼요.</p>
           <div id="growth-list" class="growth-list"></div>
+          <div id="equipment-panel" hidden><div class="equipment-wallet">강화 두루마리 <strong id="equipment-scrolls">0</strong>장</div><div id="equipment-list" class="equipment-list"></div><p class="equipment-guide">같은 지팡이 3개 중 2개를 합성해요.<br>강화와 승급은 거점에서 할 수 있어요.</p></div>
         </div>
       </div>
     </section>
@@ -119,7 +122,8 @@
         <dl class="help-controls">
           <div><dt>이동</dt><dd>화면을 누른 채 끌어 움직여요. 직접 이동이 자동 추적보다 우선해요. PC는 WASD·방향키를 사용해요.</dd></div>
           <div><dt>사냥</dt><dd>가까운 적은 원 밖에서도 공격해요. 군락 주변에서 손을 떼면 같은 종류를 추적하고 사거리에서 멈춰요.</dd></div>
-          <div><dt>성장</dt><dd>아래 탭에서 능력치를 강화하고 기술을 배워요. 부엉이는 한 마리가 따라다니며 미사일로 돕고, 배운 덩굴도 자동으로 사용해요.</dd></div>
+          <div><dt>성장</dt><dd>능력치 탭의 장비에서 지팡이를 장착·강화·승급해요. 드루이드 탭에서 배운 부엉이와 덩굴은 자동으로 사용해요.</dd></div>
+          <div><dt>돌발</dt><dd>보물과 축복은 직접 다가가 얻어요. 붉은 바닥 전조는 터지기 전에 벗어나세요. 수문장은 잠시 뒤 다시 나타나요.</dd></div>
           <div><dt>가방</dt><dd>금화는 직접 다가가서 주워요. 가방이 차면 게이지가 붉게 바뀌어요. 거점으로 운반해 보관 골드로 바꾸세요.</dd></div>
           <div><dt>거점</dt><dd>생명이 위험하면 방향 표시를 보고 직접 돌아오세요. 거점에서 생명을 회복하고 강화해요.</dd></div>
           <div><dt>의뢰</dt><dd>목표를 달성하면 보상을 누르세요. 수문장 의뢰의 보상을 받으면 다음 숲이 열려요.</dd></div>

@@ -3,11 +3,11 @@ const chime = (frequencies, duration = .16) => frequencies.map((frequency, i) =>
 const cues = {
   shoot: { gap: .12, notes: [[630, 360, .065, 'sine', .08]] },
   'owl-shoot': { gap: .16, notes: [[720, 1040, .08, 'sine', .07]] },
-  hit: { gap: .075, notes: [[250, 110, .075, 'triangle', .15], [1050, 680, .035, 'sine', .055]] },
+  hit: { gap: .075, notes: [[270, 110, .085, 'triangle', .28], [1120, 680, .04, 'sine', .11], [500, 100, .045, 'noise', .16]] },
   kill: { gap: .12, notes: [[430, 660, .11, 'sine', .09]] },
   'player-hit': { gap: .2, priority: true, notes: [[145, 65, .19, 'triangle', .18]] },
   skill: { gap: .25, notes: [[300, 790, .24, 'sine', .12], [450, 990, .18, 'triangle', .055, .045]] },
-  burst: { gap: .18, notes: [[230, 95, .15, 'triangle', .12]] },
+  burst: { gap: .18, notes: [[230, 95, .15, 'triangle', .2]] },
   pickup: { gap: .095, notes: [[850, 1210, .08, 'sine', .12]] },
   deposit: { gap: .25, ui: true, priority: true, notes: chime([660, 880, 1320]) },
   upgrade: { gap: .2, ui: true, priority: true, notes: chime([523.25, 659.25, 783.99], .2) },
@@ -18,7 +18,7 @@ const cues = {
 
 // One-shot oscillators cannot be reused; cap live nodes and reserve room for rewards.
 export function createGameAudio({ enabled = true, createContext = () => new (window.AudioContext || window.webkitAudioContext)() } = {}) {
-  let context, master, combat, ui, compressor, disposed = false, variation = 0, waking = false, wakeGeneration = 0;
+  let context, master, combat, ui, compressor, noiseBuffer, disposed = false, variation = 0, waking = false, wakeGeneration = 0;
   const voices = new Set(), lastCue = new Map(), pendingCues = [], limit = 12;
   function finish(voice) {
     if (voice.finished) return;
@@ -45,6 +45,15 @@ export function createGameAudio({ enabled = true, createContext = () => new (win
         compressor.threshold.value = -10; compressor.knee.value = 12;
         compressor.ratio.value = 6; compressor.attack.value = .003; compressor.release.value = .16;
         master.connect(compressor); compressor.connect(context.destination);
+        if (context.createBuffer && context.createBufferSource && Number.isFinite(context.sampleRate)) {
+          noiseBuffer = context.createBuffer(1, Math.ceil(context.sampleRate * .09), context.sampleRate);
+          const samples = noiseBuffer.getChannelData(0); let seed = 7139, previous = 0;
+          for (let i = 0; i < samples.length; i++) {
+            seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+            const white = seed / 2147483648 - 1;
+            samples[i] = (white * .75 + previous * .25) * .65; previous = white;
+          }
+        }
       }
       if (context.state === 'running' || waking) return;
       waking = true; const generation = ++wakeGeneration;
@@ -70,10 +79,14 @@ export function createGameAudio({ enabled = true, createContext = () => new (win
     lastCue.set(type, now);
     const pitch = cue.ui ? 1 : 2 ** ([0, -.3, .25, -.15, .15][variation++ % 5] / 12);
     for (const [from, to, duration, waveform, peak, delay = 0] of cue.notes) {
-      const oscillator = context.createOscillator(), gain = context.createGain(), start = now + delay;
-      oscillator.type = waveform;
-      oscillator.frequency.setValueAtTime(from * pitch, start);
-      oscillator.frequency.exponentialRampToValueAtTime(to * pitch, start + duration);
+      const noisy = waveform === 'noise' && noiseBuffer;
+      const oscillator = noisy ? context.createBufferSource() : context.createOscillator(), gain = context.createGain(), start = now + delay;
+      if (noisy) { oscillator.buffer = noiseBuffer; oscillator.playbackRate.setValueAtTime(pitch, start); }
+      else {
+        oscillator.type = waveform === 'noise' ? 'triangle' : waveform;
+        oscillator.frequency.setValueAtTime(from * pitch, start);
+        oscillator.frequency.exponentialRampToValueAtTime(to * pitch, start + duration);
+      }
       gain.gain.setValueAtTime(.0001, start);
       gain.gain.linearRampToValueAtTime(peak, start + .008);
       gain.gain.exponentialRampToValueAtTime(.0001, start + duration);

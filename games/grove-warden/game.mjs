@@ -1,15 +1,16 @@
-import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, getSkillOffer, learnSkill, respawnAtCamp } from './rules.mjs';
+import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, getSkillOffer, learnSkill, respawnAtCamp, equipmentAction } from './rules.mjs';
 import { createRenderer } from './renderer.mjs';
 import { createGameAudio } from './audio.mjs';
+import { EQUIPMENT, getEquipmentOffer } from './equipment.mjs';
 
 const $ = id => document.getElementById(id);
 const lifetime = new AbortController();
 const listen = (element, type, handler, options = {}) => element.addEventListener(type, handler, { ...options, signal: lifetime.signal });
-const SAVE_KEY = 'grove-warden:v4';
+const SAVE_KEY = 'grove-warden:v5';
 let settings = { sound: true }, savedProgress = normalizeProgress(), storageFailed = false;
 try {
   let saved;
-  for (const key of [SAVE_KEY, 'grove-warden:v3', 'grove-warden:v2']) {
+  for (const key of [SAVE_KEY, 'grove-warden:v4', 'grove-warden:v3', 'grove-warden:v2']) {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {
@@ -28,7 +29,7 @@ try {
 
 let state = createGame((Date.now() ^ 73519) >>> 0, savedProgress), view, ready = false, stopped = false, frameId;
 let accumulator = 0, lastTime = performance.now(), visualTime = 0, lastPhase = '', toastUntil = 0, lastHud = '', pauseKind = 'pause';
-let savedRevision = state.revision, lastSaveAt = 0, helpOrigin = 'menu', growthCategory = 'stats', renderedGrowthCategory = '', lastGrowth = '';
+let savedRevision = state.revision, lastSaveAt = 0, helpOrigin = 'menu', growthCategory = 'stats', renderedGrowthCategory = '', lastGrowth = '', statsPage = 'stats';
 function saveProgress(force = false) {
   if (!force && (state.revision === savedRevision || performance.now() - lastSaveAt < (storageFailed ? 2000 : 400))) return;
   lastSaveAt = performance.now();
@@ -73,7 +74,21 @@ function presentEvent(event) {
     pulse('level-value'); pulse('hp-value'); pulse('xp-value');
     showReward(`레벨 ${event.level}`, '생명과 공격력 상승', 3);
   }
-  if (event.type === 'kill' && event.bossId) showReward('수문장 토벌', '의뢰 보상을 받으세요!', 4);
+  if (event.type === 'kill' && event.bossId) {
+    const quest = getQuest(state), zone = HUNT_ZONES.find(item => item.bossId === event.bossId);
+    showReward('수문장 토벌', quest.id === zone?.id && quest.complete ? '의뢰 보상을 받으세요!' : `${zone?.respawnSeconds ?? 30}초 뒤 다시 나타나요`, 4);
+  }
+  if (event.type === 'gear-pickup') {
+    const name = EQUIPMENT.find(item => item.id === event.equipmentId)?.name;
+    sound('pickup');
+    showReward(name ? `${name} +${event.copies}` : `두루마리 +${event.scrolls}`, '능력치 → 장비에서 성장하세요', 2);
+  }
+  if (event.type === 'field-discovery') toast(event.kind === 'chest' ? '보물상자 등장 · 직접 다가가세요' : '생명의 축복 등장 · 직접 다가가세요', 2.5);
+  if (event.type === 'field-chest') {
+    sound('quest'); showReward('보물상자 발견', `지팡이 +${event.copies} · 두루마리 +${event.scrolls}`, 3);
+  }
+  if (event.type === 'field-boon') { sound('upgrade'); showReward('생명의 축복', '15초간 생명을 회복해요', 2); }
+  if (event.type === 'field-hazard') sound('burst');
   if (event.type === 'quest') {
     pulse('gold-value');
     showReward('의뢰 완료', `보관 골드 +${event.reward}`, 3);
@@ -81,7 +96,7 @@ function presentEvent(event) {
   if (event.type === 'upgrade') {
     const definition = [...UPGRADES, ...SKILLS].find(item => item.id === event.id);
     pulse('growth-bank-value'); pulse('gold-value');
-    showReward(definition?.name ?? '성장 완료', '성장이 영구 적용됐어요', 2);
+    showReward(event.label ?? definition?.name ?? '성장 완료', '성장이 영구 적용됐어요', 2);
   }
   if (event.type === 'down') { $('reward-banner').hidden = true; rewardUntil = 0; }
 }
@@ -155,6 +170,55 @@ const formPreviews = {
   dragon: { name: '용', firstLevel: 12 },
 };
 const growthRows = new Map();
+const equipmentRows = new Map();
+function renderEquipment() {
+  $('equipment-scrolls').textContent = state.progress.gear.scrolls;
+  for (const definition of EQUIPMENT) {
+    let row = equipmentRows.get(definition.id);
+    if (!row) {
+      const card = document.createElement('article'); card.className = 'equipment-card';
+      const heading = document.createElement('div'); heading.className = 'equipment-heading';
+      const icon = document.createElement('span'); icon.className = 'equipment-icon';
+      icon.innerHTML = '<svg viewBox="0 0 40 48" aria-hidden="true"><path d="m12 44 13-32m-7 17-6-7m11-4 8 1" fill="none" stroke="#d4a15c" stroke-width="5" stroke-linecap="round"/><path d="m24 3 9 8-8 10-8-8Z" fill="currentColor" stroke="#fff2c0" stroke-width="2"/><path d="m24 6 2 5-5 2" fill="none" stroke="#fff" stroke-width="2"/></svg>';
+      icon.style.color = `#${definition.color.toString(16).padStart(6, '0')}`;
+      const name = document.createElement('strong'), details = document.createElement('span');
+      const title = document.createElement('div'); title.append(name, details); heading.append(icon, title);
+      const effect = document.createElement('p'); effect.className = 'equipment-effect';
+      const next = document.createElement('p'); next.className = 'equipment-next';
+      const actions = document.createElement('div'); actions.className = 'equipment-actions';
+      const buttons = {};
+      for (const action of ['equip', 'enhance', 'promote']) {
+        const button = document.createElement('button'); button.type = 'button';
+        button.dataset.equipmentId = definition.id; button.dataset.equipmentAction = action;
+        const label = document.createElement('span'), cost = document.createElement('small');
+        button.append(label, cost); actions.append(button); buttons[action] = { button, label, cost };
+      }
+      const condition = document.createElement('p'); condition.className = 'equipment-condition';
+      card.append(heading, effect, next, actions, condition); $('equipment-list').append(card);
+      row = { card, name, details, effect, next, condition, buttons }; equipmentRows.set(definition.id, row);
+    }
+    const offer = getEquipmentOffer(state.progress, definition.id);
+    row.card.classList.toggle('equipped', offer.equipped); row.card.classList.toggle('undiscovered', !offer.owned);
+    row.name.textContent = offer.name;
+    row.details.textContent = offer.owned ? `${offer.tierName} · +${offer.level} · 보유 ${offer.copies}` : '미발견 · 필드와 보스 전리품';
+    row.effect.textContent = `피해 +${offer.damage} · 생명 +${offer.health}`;
+    row.next.textContent = offer.maxed ? '최대 강화' : `강화 후 피해 +${offer.nextDamage} · 생명 +${offer.nextHealth}`;
+    const { equip, enhance, promote } = row.buttons;
+    equip.label.textContent = offer.equipped ? '장착 중' : '장착'; equip.cost.textContent = '';
+    enhance.label.textContent = offer.maxed ? '최대' : '강화';
+    enhance.cost.textContent = offer.maxed ? '' : `${offer.enhanceCost}G · ${offer.scrollCost}장`;
+    promote.label.textContent = offer.promotionMaxed ? '최대' : '승급';
+    promote.cost.textContent = offer.promotionMaxed ? '' : `${offer.promoteCost}G · ${offer.promoteScrollCost}장`;
+    equip.button.disabled = !state.inCamp || !offer.owned || offer.equipped;
+    enhance.button.disabled = !state.inCamp || !offer.canEnhance;
+    promote.button.disabled = !state.inCamp || !offer.canPromote;
+    equip.button.setAttribute('aria-label', `${offer.name} ${offer.equipped ? '장착 중' : '장착'}`);
+    enhance.button.setAttribute('aria-label', offer.maxed ? `${offer.name} 최대 강화` : `${offer.name} 강화, ${offer.enhanceCost} 골드와 두루마리 ${offer.scrollCost}장`);
+    promote.button.setAttribute('aria-label', offer.promotionMaxed ? `${offer.name} 최고 등급` : `${offer.name} 승급, ${offer.promoteCost} 골드와 두루마리 ${offer.promoteScrollCost}장, 같은 장비 2개`);
+    row.condition.textContent = !offer.owned ? definition.description
+      : `${offer.maxed ? '최대 강화' : `강화 Lv.${offer.requiredLevel}`} · ${offer.promotionMaxed ? '최고 등급' : `승급 Lv.${offer.promoteRequiredLevel} · ${offer.copies >= 3 ? '장비 수량 충족' : `같은 장비 ${3 - offer.copies}개 더 필요`}`}`;
+  }
+}
 function updateNavigation() {
   const isGrowth = state.phase === 'paused' && pauseKind === 'growth';
   const enabled = ready && (state.phase === 'playing' || isGrowth) && $('help-menu').hidden;
@@ -196,15 +260,25 @@ function buildGrowthRows() {
 }
 function renderGrowth() {
   if (state.phase !== 'paused' || pauseKind !== 'growth') return;
-  const signature = [growthCategory, state.revision, state.player.level, state.progress.gold, state.inCamp].join(':');
+  const signature = [growthCategory, statsPage, state.revision, state.player.level, state.progress.gold, state.inCamp].join(':');
   if (signature === lastGrowth) return;
   buildGrowthRows();
   const form = formPreviews[growthCategory];
+  const equipmentPage = growthCategory === 'stats' && statsPage === 'equipment';
+  $('stats-pages').hidden = growthCategory !== 'stats';
+  $('equipment-panel').hidden = !equipmentPage; $('growth-list').hidden = equipmentPage;
+  $('growth-summary').hidden = equipmentPage;
+  for (const button of $('stats-pages').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.statsPage === statsPage));
   $('growth-title').textContent = growthCategory === 'stats' ? '능력치' : growthCategory === 'druid' ? '드루이드' : `${form.name} 성장`;
   $('growth-bank-value').textContent = state.progress.gold; $('growth-level-value').textContent = `Lv.${state.player.level}`;
   $('growth-summary').textContent = form
     ? `${state.player.level >= form.firstLevel ? '해금 · 변신 준비 중이에요.' : `Lv.${form.firstLevel}에 첫 단계가 열려요.`} 단계별 해금 조건을 확인하세요.`
     : `${state.inCamp ? '보관 골드로 영구 성장해요.' : '거점에서 성장할 수 있어요.'}${growthCategory === 'druid' ? ' 배운 기술은 전투 중 자동으로 사용해요.' : ' 필요한 레벨과 골드를 확인하세요.'}`;
+  if (equipmentPage) {
+    $('growth-title').textContent = '장비';
+    $('growth-summary').textContent = state.inCamp ? '하나를 장착해 피해와 생명을 높이세요.' : '장착과 성장은 거점에서 할 수 있어요.';
+    renderEquipment(); lastGrowth = signature; return;
+  }
   for (const row of growthRows.values()) {
     if (form) {
       const requiredLevel = form.firstLevel + (row.definition.stage - 1) * 3, unlocked = state.player.level >= requiredLevel;
@@ -240,6 +314,17 @@ function renderGrowth() {
   }
   lastGrowth = signature;
 }
+listen($('stats-pages'), 'click', e => {
+  const button = e.target instanceof Element ? e.target.closest('button[data-stats-page]') : null;
+  if (!button || state.phase !== 'paused' || pauseKind !== 'growth' || growthCategory !== 'stats') return;
+  statsPage = button.dataset.statsPage; lastGrowth = ''; renderGrowth();
+});
+listen($('equipment-list'), 'click', e => {
+  const button = e.target instanceof Element ? e.target.closest('button[data-equipment-action]') : null;
+  if (!button || button.disabled || state.phase !== 'paused' || pauseKind !== 'growth') return;
+  if (!equipmentAction(state, button.dataset.equipmentId, button.dataset.equipmentAction)) return;
+  wakeAudio(); presentQueuedUIEvent(); saveProgress(true); lastHud = ''; lastGrowth = ''; updateUI();
+});
 listen($('growth-list'), 'click', e => {
   const buy = e.target instanceof Element ? e.target.closest('button[data-category][data-id]') : null;
   if (!buy || buy.disabled || !$('growth-list').contains(buy) || state.phase !== 'paused' || pauseKind !== 'growth') return;
@@ -342,7 +427,11 @@ function updateUI() {
   const campText = state.inCamp ? '안전 거점' : `${campDirection.arrow} 거점 ${campDirection.distance}m`;
   if ($('camp-direction').textContent !== campText) $('camp-direction').textContent = campText;
   const boss = state.enemies.find(enemy => enemy.type === 'boss' && enemy.hp > 0 && Math.hypot(enemy.x - player.x, enemy.z - player.z) < 9), bossPercent = boss ? Math.ceil(boss.hp / boss.maxHp * 100) : 0;
-  const snapshot = [ready, state.phase, pauseKind, growthCategory, Math.ceil(player.hp), player.maxHp, player.level, player.xp, player.xpToNext, progress.gold, progress.questIndex, quest.current, state.cargo, player.capacity, state.inCamp, player.z < WORLD.gateZ, state.autoHunt, state.huntZoneId, fighting, input.manual, bossPercent, settings.sound, state.revision].join(':');
+  const zoneBossAlive = zone?.bossId && state.enemies.some(enemy => enemy.zoneId === zone.id && enemy.hp > 0);
+  const bossWait = zone?.bossId && !zoneBossAlive ? Math.ceil(state.spawners.find(item => item.zoneId === zone.id)?.remaining ?? 0) : -1;
+  const boonSeconds = Math.max(0, Math.ceil(state.fieldEvents?.boon?.remaining ?? 0));
+  const fieldWarning = state.fieldEvents?.hazards.some(hazard => hazard.phase === 'warning') ?? false;
+  const snapshot = [ready, state.phase, pauseKind, growthCategory, Math.ceil(player.hp), player.maxHp, player.level, player.xp, player.xpToNext, progress.gold, progress.questIndex, quest.current, state.cargo, player.capacity, state.inCamp, player.z < WORLD.gateZ, state.autoHunt, state.huntZoneId, fighting, input.manual, bossPercent, bossWait, boonSeconds, fieldWarning, settings.sound, state.revision].join(':');
   if (snapshot !== lastHud) {
     $('hp-value').textContent = Math.ceil(player.hp); $('hp-fill').style.width = `${player.hp / player.maxHp * 100}%`;
     $('level-value').textContent = `Lv.${player.level}`; $('gold-value').textContent = progress.gold;
@@ -358,13 +447,16 @@ function updateUI() {
     let status = '직접 이동';
     if (state.inCamp) status = '거점에서 회복';
     else if (lowHealth) status = '생명 위험';
+    else if (bossWait >= 0) status = bossWait > 0 ? `재등장 ${bossWait}초` : '재등장 준비';
     else if (state.cargo >= player.capacity) status = '가방 가득';
     else if (input.manual) status = fighting ? '자동 공격' : '직접 이동';
-    else if (zone?.bossId && progress.bosses.includes(zone.bossId)) status = fighting ? '자동 공격' : '토벌 완료';
     else if (state.autoHunt && zone) status = `${species[zone.type]} 추적 사냥`;
     else if (fighting) status = '자동 공격';
     $('hunt-status').textContent = status;
     $('hunt-status').classList.toggle('danger', lowHealth); $('hp-fill').parentElement.classList.toggle('danger', lowHealth);
+    $('field-status').hidden = (!fieldWarning && boonSeconds <= 0) || state.phase === 'ready' || state.phase === 'down';
+    $('field-status').textContent = fieldWarning ? '바닥 위험 · 이동!' : `생명 재생 ${boonSeconds}초`;
+    $('field-status').classList.toggle('warning', fieldWarning);
     $('camp-btn').hidden = !state.inCamp || state.phase !== 'playing'; $('pause-btn').disabled = state.phase !== 'playing';
     $('sound-btn').textContent = settings.sound ? '소리 켜짐' : '소리 꺼짐'; $('sound-btn').setAttribute('aria-pressed', String(settings.sound));
     updateNavigation(); lastHud = snapshot;

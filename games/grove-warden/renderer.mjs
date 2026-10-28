@@ -4,6 +4,7 @@ import { WORLD, HUNT_ZONES } from './rules.mjs';
 
 const TAU = Math.PI * 2;
 const palette = { grass: 0x9bd650, pale: 0xe1f6a0, green: 0x20a466, dark: 0x145f4b, bark: 0xa86c36, gold: 0xffc735, skin: 0xffd2a0, red: 0xff684a };
+const gearColors = { sprout: 0x8fea6b, thorn: 0xef987b, moon: 0xaaa4ff };
 const materials = new Map();
 const geometries = new Map();
 function material(color, extra = {}) {
@@ -15,6 +16,17 @@ function geometry(type, args) {
   const key = `${type}:${args}`;
   if (!geometries.has(key)) geometries.set(key, new THREE[type](...args));
   return geometries.get(key);
+}
+function impactGeometry() {
+  if (!geometries.has('impact-star')) {
+    const shape = new THREE.Shape();
+    for (let i = 0; i < 8; i++) {
+      const angle = i / 8 * TAU, radius = i % 2 ? .23 : 1, x = Math.sin(angle) * radius, y = Math.cos(angle) * radius;
+      if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+    }
+    shape.closePath(); geometries.set('impact-star', new THREE.ShapeGeometry(shape));
+  }
+  return geometries.get('impact-star');
 }
 function mesh(parent, type, args, color, x = 0, y = 0, z = 0, scale = [1, 1, 1], extra) {
   const m = new THREE.Mesh(geometry(type, args), material(color, extra));
@@ -63,7 +75,7 @@ function makeDruid() {
   bone(staff, [0, -.72, 0], [0, 1.23, 0], .055, palette.bark);
   bone(staff, [0, .92, 0], [-.26, 1.34, 0], .045, palette.bark);
   bone(staff, [0, 1.06, 0], [.22, 1.34, 0], .04, palette.bark);
-  const jewel = mesh(staff, 'OctahedronGeometry', [.18, 0], 0xc8f6a4, 0, 1.35, 0, [1, 1.4, 1], { emissive: 0x85b567, emissiveIntensity: .5 });
+  const jewel = mesh(staff, 'OctahedronGeometry', [.18, 0], 0xc8f6a4, 0, 1.35, 0, [1, 1.4, 1], { emissive: 0x85b567, emissiveIntensity: .5 }); jewel.name = 'equipped-jewel';
   const castGlow = ball(staff, 0xf4ffb7, 0, 1.35, 0, .27); castGlow.material = new THREE.MeshBasicMaterial({ color: 0xe3ffae, transparent: true, opacity: .8, depthWrite: false }); castGlow.castShadow = false; castGlow.visible = false;
   for (const sign of [-1, 1]) {
     bone(rig, [sign * .24, 1.81, 0], [sign * .4, 2.17, 0], .055, palette.bark);
@@ -106,6 +118,8 @@ function makeOwl() {
 }
 function makeEnemy(type) {
   const root = new THREE.Group(), rig = new THREE.Group(); root.name = `enemy-${type}`; root.add(rig);
+  const feet = [];
+  const foot = (...args) => { const part = ball(rig, ...args); feet.push({ part, y: part.position.y, z: part.position.z }); return part; };
   const boss = type === 'boss';
   circle(root, boss ? 1.25 : .47, 0x18352c, .22);
   if (type === 'boar') {
@@ -113,7 +127,7 @@ function makeEnemy(type) {
     ball(rig, 0xffc1a6, 0, .57, .78, .28, .19, .15);
     for (const s of [-1, 1]) { mesh(rig, 'ConeGeometry', [.17, .42, 5], 0xbe4e7c, s * .3, 1.12, .34).rotation.z = -s * .3; mesh(rig, 'ConeGeometry', [.075, .3, 6], 0xffedbd, s * .32, .51, .79).rotation.x = -.6; }
     eyes(rig, .79, .75, .22, 0x4f3547, .055);
-    for (const x of [-.32, .32]) for (const z of [-.38, .38]) ball(rig, 0x744767, x, .17, z, .13, .2, .17);
+    for (const x of [-.32, .32]) for (const z of [-.38, .38]) foot(0x744767, x, .17, z, .13, .2, .17);
   } else if (type === 'caster') {
     ball(rig, 0x4d9fd3, 0, .62, 0, .54, .6, .46); ball(rig, 0x85d0e5, 0, 1.05, .06, .43, .31, .39);
     mesh(rig, 'ConeGeometry', [.51, .72, 7], 0x2f8ea9, 0, 1.4, -.03).rotation.z = -.2;
@@ -122,14 +136,14 @@ function makeEnemy(type) {
   } else if (boss) {
     ball(rig, 0x637e9b, 0, 1.05, 0, 1.12, 1.2, .84);
     ball(rig, 0x94a8b7, 0, 1.91, .22, .72, .62, .58);
-    for (const s of [-1, 1]) { ball(rig, 0x739f84, s * .93, 1.13, .1, .42, .75, .4); ball(rig, 0x486d84, s * .6, .28, .15, .46, .33, .5); ball(rig, 0x72c84a, s * .85, 1.78, -.04, .6, .32, .51); bone(rig, [s * .43, 2.29, 0], [s * .87, 2.93, 0], .12, 0x9b7845); bone(rig, [s * .68, 2.65, 0], [s * 1.06, 2.73, .04], .09, 0x9b7845); }
+    for (const s of [-1, 1]) { ball(rig, 0x739f84, s * .93, 1.13, .1, .42, .75, .4); foot(0x486d84, s * .6, .28, .15, .46, .33, .5); ball(rig, 0x72c84a, s * .85, 1.78, -.04, .6, .32, .51); bone(rig, [s * .43, 2.29, 0], [s * .87, 2.93, 0], .12, 0x9b7845); bone(rig, [s * .68, 2.65, 0], [s * 1.06, 2.73, .04], .09, 0x9b7845); }
     eyes(rig, 1.95, .78, .29, 0xffbe72, .12);
     mesh(rig, 'OctahedronGeometry', [.32, 0], 0xffcb80, 0, 1.03, .8, [1, 1.5, .5], { emissive: 0xb86537, emissiveIntensity: .35 });
   } else {
     ball(rig, 0xffedb8, 0, .47, 0, .33, .47, .31);
     ball(rig, palette.red, 0, .93, 0, .7, .39, .63);
     ball(rig, 0xfff4c3, -.26, 1.15, .22, .14, .05, .12); ball(rig, 0xfff4c3, .29, 1.12, .03, .17, .06, .14); ball(rig, 0xfff4c3, -.14, 1.21, -.23, .15, .05, .14);
-    eyes(rig, .58, .29, .12, 0x503c38, .05); ball(rig, 0xe0b583, -.27, .13, .05, .15, .14, .23); ball(rig, 0xe0b583, .27, .13, .05, .15, .14, .23);
+    eyes(rig, .58, .29, .12, 0x503c38, .05); foot(0xe0b583, -.27, .13, .05, .15, .14, .23); foot(0xe0b583, .27, .13, .05, .15, .14, .23);
   }
   const bar = new THREE.Group(); bar.position.y = boss ? 3.15 : 1.85; root.add(bar);
   const backing = mesh(bar, 'PlaneGeometry', [boss ? 2.3 : .9, .11], 0x33473b); backing.castShadow = false;
@@ -150,7 +164,7 @@ function makeEnemy(type) {
     };
     part.material = Array.isArray(part.material) ? part.material.map(own) : own(part.material);
   });
-  return { root, rig, bar, fill, danger, warningDisk, warningRing, warningLine, type, hitMaterials, hitTime: 0, recoilX: 0, recoilZ: 0 };
+  return { root, rig, bar, fill, danger, warningDisk, warningRing, warningLine, type, feet, hitMaterials, hitTime: 0, recoilX: 0, recoilZ: 0, walkBlend: 0, lastX: null, lastZ: null, moveAngle: 0 };
 }
 
 export async function createRenderer(container) {
@@ -232,7 +246,9 @@ export async function createRenderer(container) {
   const owl = makeOwl(); scene.add(owl.root);
   const aimMarker = new THREE.Group(); ring(aimMarker, .96, 1, 0xe3ffb3, .9); circle(aimMarker, 1, 0xc8f2a1, .14); scene.add(aimMarker); aimMarker.visible = false;
   const actors = new Map(), actorPool = [], bolts = new Map(), boltPool = [], fx = new Map(), fxPool = [], coins = new Map(), coinPool = [];
-  const dyingActors = [], pulsePool = [], pulses = [], feedbackMaterials = new Set();
+  const dyingActors = [], pulsePool = [], pulses = [], impactPool = [], impacts = [], feedbackMaterials = new Set();
+  const fieldLootVisuals = new Map(), fieldLootPool = [], discoveryVisuals = new Map(), discoveryPool = [], hazardVisuals = new Map(), hazardPool = [];
+  druid.jewel.material = druid.jewel.material.clone(); feedbackMaterials.add(druid.jewel.material);
   const motionPreference = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
   const hitColor = new THREE.Color(0xffefbd);
   // One fixed-size instance buffer handles all sparks, fragments and reward motes.
@@ -244,12 +260,17 @@ export async function createRenderer(container) {
   const particleDummy = new THREE.Object3D(), particleColor = new THREE.Color(); let particleCursor = 0;
   particleDummy.scale.setScalar(0); particleDummy.updateMatrix();
   for (let i = 0; i < particleCapacity; i++) particles.setMatrixAt(i, particleDummy.matrix);
+  const boonAura = new THREE.Group(); boonAura.name = 'field-boon-aura'; scene.add(boonAura); boonAura.visible = false;
+  ring(boonAura, .65, .72, 0x9bffb2, .7);
+  const boonLeaves = [];
+  for (let i = 0; i < 3; i++) { const leaf = mesh(boonAura, 'OctahedronGeometry', [.09, 0], 0xb6ff8f); leaf.castShadow = false; boonLeaves.push(leaf); }
   const boltMaterials = {
     player: material(0xdbffab, { emissive: 0x669656, emissiveIntensity: .7 }),
     enemy: material(0xf5b36f, { emissive: 0x8c4837, emissiveIntensity: .7 }),
     owl: material(0xf7d488, { emissive: 0xc29242, emissiveIntensity: .85 }),
     owlCore: material(0xb8f5db, { emissive: 0x60bd9e, emissiveIntensity: 1 }),
     owlTail: material(0x9ae4c6, { emissive: 0x5caa8e, emissiveIntensity: .8, transparent: true, opacity: .46, depthWrite: false }),
+    staffTail: material(0x7effbd, { emissive: 0x37dca2, emissiveIntensity: .9, transparent: true, opacity: .75, depthWrite: false }),
   };
   const labels = document.createElement('div'); labels.className = 'combat-labels'; container.append(labels);
   const floaters = []; const vector = new THREE.Vector3();
@@ -307,10 +328,116 @@ export async function createRenderer(container) {
       part.material.emissiveIntensity = part.intensity + strength * .65;
     }
   }
+  function ownBasic(color, extra = {}) {
+    const m = new THREE.MeshBasicMaterial({ color, toneMapped: false, ...extra }); feedbackMaterials.add(m); return m;
+  }
+  function makeFieldLoot() {
+    const root = new THREE.Group(), icon = new THREE.Group(); root.name = 'field-loot'; root.add(icon);
+    const base = ring(root, .4, .51, palette.gold, .85); base.material = ownBasic(palette.gold, { transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide });
+    const beam = mesh(root, 'CylinderGeometry', [.1, .35, 1.9, 8, 1, true], palette.gold, 0, 1, 0);
+    beam.material = ownBasic(palette.gold, { transparent: true, opacity: .16, depthWrite: false, side: THREE.DoubleSide }); beam.castShadow = beam.receiveShadow = false;
+    const staff = new THREE.Group(); staff.name = 'dropped-staff'; icon.add(staff);
+    bone(staff, [0, -.45, 0], [0, .45, 0], .055, 0x92643d);
+    bone(staff, [0, .24, 0], [-.16, .52, 0], .045, 0xffd279); bone(staff, [0, .24, 0], [.16, .52, 0], .045, 0xffd279);
+    const jewel = mesh(staff, 'OctahedronGeometry', [.18, 0], 0x8fea6b, 0, .51, 0, [1, 1.3, 1]); jewel.material = jewel.material.clone(); feedbackMaterials.add(jewel.material);
+    const scroll = new THREE.Group(); scroll.name = 'dropped-scroll'; icon.add(scroll);
+    mesh(scroll, 'BoxGeometry', [.48, .64, .07], 0xffedc2);
+    for (const y of [-.32, .32]) { const roll = mesh(scroll, 'CylinderGeometry', [.085, .085, .6, 8], 0xd49b51, 0, y, 0); roll.rotation.z = Math.PI / 2; }
+    mesh(scroll, 'OctahedronGeometry', [.105, 0], 0x735cba, 0, -.04, .075, [1, 1, .45]);
+    return { root, icon, base, beam, staff, scroll, jewel };
+  }
+  function makeDiscovery() {
+    const root = new THREE.Group(), icon = new THREE.Group(); root.name = 'field-discovery'; root.add(icon);
+    const base = ring(root, .65, .75, palette.gold, .85); base.material = ownBasic(palette.gold, { transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide });
+    const chest = new THREE.Group(); icon.add(chest);
+    mesh(chest, 'BoxGeometry', [.95, .52, .69], 0xa96b37, 0, -.06, 0);
+    ball(chest, 0xd69b4b, 0, .23, 0, .5, .22, .36);
+    for (const x of [-.3, .3]) mesh(chest, 'BoxGeometry', [.1, .69, .76], 0xffd34e, x, .02, 0);
+    mesh(chest, 'BoxGeometry', [.2, .23, .1], 0xffed9d, 0, -.04, .39);
+    const blessing = new THREE.Group(); icon.add(blessing);
+    mesh(blessing, 'CylinderGeometry', [.56, .65, .23, 7], 0x819b9c, 0, .14, 0);
+    const seed = mesh(blessing, 'OctahedronGeometry', [.33, 0], 0x94ff9c, 0, .4, 0, [1, 1.4, 1], { emissive: 0x48bc7f, emissiveIntensity: .55 });
+    for (let i = 0; i < 3; i++) { const angle = i / 3 * TAU, leaf = ball(blessing, 0x28b36c, Math.sin(angle) * .27, .3, Math.cos(angle) * .27, .25, .07, .13); leaf.rotation.y = -angle; }
+    return { root, icon, base, chest, blessing, seed };
+  }
+  function makeFieldHazard() {
+    const root = new THREE.Group(); root.name = 'field-hazard';
+    const circles = [];
+    for (let n = 0; n < 3; n++) {
+      const group = new THREE.Group(); group.name = 'field-danger-circle'; root.add(group);
+      const disk = circle(group, 1, 0xff653f, .2), edge = ring(group, .94, 1, 0xa13232, .95), inner = ring(group, .955, .985, 0xffcd63, .95);
+      disk.material = ownBasic(0xff653f, { transparent: true, opacity: .2, depthWrite: false, side: THREE.DoubleSide });
+      edge.material = ownBasic(0x9c2932, { transparent: true, opacity: .95, depthWrite: false, side: THREE.DoubleSide });
+      inner.material = ownBasic(0xffcd63, { transparent: true, opacity: .95, depthWrite: false, side: THREE.DoubleSide });
+      const fill = circle(group, 1, 0xffa148, .27); fill.position.y = .029; fill.material = ownBasic(0xffa148, { transparent: true, opacity: .27, depthWrite: false, side: THREE.DoubleSide });
+      const spores = new THREE.Group(), thorns = new THREE.Group(); group.add(spores, thorns);
+      for (let i = 0; i < 5; i++) {
+        const angle = i / 5 * TAU, x = Math.sin(angle) * .46, z = Math.cos(angle) * .46;
+        const cloud = ball(spores, i % 2 ? 0xffc06b : 0xee7655, x, .25 + i % 2 * .2, z, .27, .32, .27); cloud.castShadow = false;
+        const spike = mesh(thorns, 'ConeGeometry', [.17, 1.05, 5], i % 2 ? 0x8c303e : 0xc85b43, x, .48, z); spike.rotation.z = Math.sin(angle) * -.25; spike.castShadow = false;
+      }
+      circles.push({ root: group, disk, edge, inner, fill, spores, thorns });
+    }
+    return { root, circles };
+  }
+  function drawField(state, time, reduced) {
+    const p = state.player, motion = reduced ? .25 : 1;
+    const gear = state.progress?.gear, equipped = gear?.equipped || 'sprout', color = gearColors[equipped] ?? gearColors.sprout;
+    const tier = Math.max(0, Math.min(3, gear?.items?.[equipped]?.tier || 0)), level = Math.max(0, Math.min(20, gear?.items?.[equipped]?.level || 0));
+    druid.jewel.material.color.setHex(color); druid.jewel.material.emissive.setHex(color).multiplyScalar(.45);
+    druid.jewel.material.emissiveIntensity = .5 + tier * .18 + level * .015;
+    const drops = (state.fieldLoot || []).slice(0, 30), dropIds = new Set(drops.map(item => item.id));
+    for (const [id, visual] of fieldLootVisuals) if (!dropIds.has(id)) { scene.remove(visual.root); visual.root.visible = false; fieldLootPool.push(visual); fieldLootVisuals.delete(id); }
+    for (const item of drops) {
+      if (!fieldLootVisuals.has(item.id)) { const visual = fieldLootPool.pop() || makeFieldLoot(); scene.add(visual.root); fieldLootVisuals.set(item.id, visual); }
+      const visual = fieldLootVisuals.get(item.id), scroll = item.kind === 'scroll', hue = scroll ? 0xffd58b : gearColors[item.equipmentId] ?? gearColors.sprout, phase = typeof item.id === 'number' ? item.id : 0;
+      visual.root.name = scroll ? 'field-scroll' : 'field-equipment'; visual.root.visible = true; visual.root.position.set(item.x, .04, item.z);
+      visual.staff.visible = !scroll; visual.scroll.visible = scroll;
+      visual.icon.position.set(0, .72 + Math.sin(time * 3 + phase) * .08 * motion, 0);
+      visual.icon.rotation.set(-.12, -.25 + Math.sin(time * 1.2 + phase) * .15 * motion, scroll ? -.18 : .3);
+      visual.base.material.color.setHex(hue); visual.base.material.opacity = .85; visual.base.scale.setScalar(1 + Math.sin(time * 2 + phase) * .06 * motion);
+      visual.beam.material.color.setHex(hue); visual.beam.material.opacity = reduced ? .12 : .14 + Math.sin(time * 3 + phase) * .035;
+      visual.beam.scale.set(1, 1, 1); visual.jewel.material.color.setHex(hue); visual.jewel.material.emissive.setHex(hue).multiplyScalar(.3); visual.jewel.material.emissiveIntensity = .6;
+    }
+    const field = state.fieldEvents, discoveries = (field?.items || []).slice(0, 2), discoveryIds = new Set(discoveries.map(item => item.id));
+    for (const [id, visual] of discoveryVisuals) if (!discoveryIds.has(id)) { scene.remove(visual.root); visual.root.visible = false; discoveryPool.push(visual); discoveryVisuals.delete(id); }
+    for (const item of discoveries) {
+      if (!discoveryVisuals.has(item.id)) { const visual = discoveryPool.pop() || makeDiscovery(); scene.add(visual.root); discoveryVisuals.set(item.id, visual); }
+      const visual = discoveryVisuals.get(item.id), blessing = item.kind === 'blessing', phase = typeof item.id === 'number' ? item.id : 0;
+      visual.root.name = blessing ? 'field-blessing' : 'field-chest'; visual.root.visible = true; visual.root.position.set(item.x, .04, item.z);
+      visual.chest.visible = !blessing; visual.blessing.visible = blessing;
+      visual.icon.position.set(0, blessing ? 0 : .58 + Math.sin(time * 2.5 + phase) * .075 * motion, 0);
+      visual.icon.rotation.set(0, blessing ? 0 : .28 + Math.sin(time * .8 + phase) * .08 * motion, 0);
+      visual.seed.position.y = .85 + Math.sin(time * 3 + phase) * .1 * motion; visual.seed.rotation.y = time * .7 * motion;
+      visual.base.material.color.setHex(blessing ? 0x94ff9c : palette.gold); visual.base.material.opacity = .75 + Math.sin(time * 2 + phase) * .1 * motion;
+    }
+    const hazards = (field?.hazards || []).slice(0, 2), hazardIds = new Set(hazards.map(item => item.id));
+    for (const [id, visual] of hazardVisuals) if (!hazardIds.has(id)) { scene.remove(visual.root); visual.root.visible = false; hazardPool.push(visual); hazardVisuals.delete(id); }
+    for (const hazard of hazards) {
+      if (!hazardVisuals.has(hazard.id)) { const visual = hazardPool.pop() || makeFieldHazard(); scene.add(visual.root); hazardVisuals.set(hazard.id, visual); }
+      const visual = hazardVisuals.get(hazard.id), warning = hazard.phase === 'warning'; visual.root.visible = true;
+      const duration = warning ? hazard.warnTime || 1.15 : hazard.blastTime || .35, progress = Math.max(0, Math.min(1, 1 - hazard.time / duration));
+      for (let i = 0; i < 3; i++) {
+        const circle = visual.circles[i], center = hazard.centers?.[i]; circle.root.visible = !!center;
+        if (!center) continue;
+        circle.root.position.set(center.x, .04, center.z); circle.root.scale.set(center.radius, 1, center.radius);
+        circle.disk.material.color.setHex(warning ? 0xff653f : 0xff4f32); circle.disk.material.opacity = warning ? .16 + progress * .15 : (1 - progress) * .3;
+        circle.edge.material.opacity = 1; circle.inner.material.opacity = reduced ? .9 : .7 + Math.sin(time * 12) * .2;
+        circle.fill.scale.setScalar(warning ? Math.sqrt(progress) : 1); circle.fill.material.opacity = warning ? .27 : (1 - progress) * .2;
+        circle.spores.visible = !warning && hazard.pattern === 'spores'; circle.thorns.visible = !warning && hazard.pattern === 'thorn-line';
+        circle.spores.position.y = progress * .65 * motion; circle.spores.scale.setScalar(.3 + Math.sin(progress * Math.PI / 2) * .7);
+        circle.thorns.scale.set(1, reduced ? .8 : .15 + Math.sin(progress * Math.PI) * .9, 1);
+      }
+    }
+    boonAura.visible = (field?.boon?.remaining || 0) > 0 && p.hp > 0; boonAura.position.set(p.x, .06, p.z);
+    for (let i = 0; i < boonLeaves.length; i++) { const angle = time * 1.8 * motion + i / 3 * TAU; boonLeaves[i].position.set(Math.sin(angle) * .8, .25 + Math.sin(angle * 2) * .06 * motion, Math.cos(angle) * .8); }
+  }
   function recycleActor(actor) {
     actor.root.visible = false; scene.remove(actor.root); actor.root.scale.setScalar(1);
     actor.rig.position.set(0, 0, 0); actor.rig.rotation.x = actor.rig.rotation.z = 0; actor.rig.scale.setScalar(1);
-    actor.hitTime = 0; actor.recoilX = actor.recoilZ = 0; tintActor(actor, 0); actorPool.push(actor);
+    actor.hitTime = 0; actor.recoilX = actor.recoilZ = 0; actor.walkBlend = 0; actor.lastX = actor.lastZ = null;
+    for (const foot of actor.feet) { foot.part.position.y = foot.y; foot.part.position.z = foot.z; foot.part.rotation.x = 0; }
+    tintActor(actor, 0); actorPool.push(actor);
   }
   function getActor(enemy) {
     if (!actors.has(enemy.id)) {
@@ -328,7 +455,7 @@ export async function createRenderer(container) {
       Object.assign(particle, {
         x, y, z, vx: Math.cos(angle) * speed, vz: Math.sin(angle) * speed, vy: 1.1 + random() * 1.8,
         life: kind === 'hit' ? .2 + random() * .12 : .4 + random() * .22,
-        size: kind === 'hit' ? .045 + random() * .025 : .06 + random() * .055,
+        size: kind === 'hit' ? .08 + random() * .04 : .06 + random() * .055,
         kind, targetX: target?.x ?? x, targetZ: target?.z ?? z, spin: random() * TAU,
       });
       particle.maxLife = particle.life;
@@ -348,12 +475,58 @@ export async function createRenderer(container) {
     pulse.root.position.set(x, .06, z); pulse.root.visible = true; pulse.edge.material.color.setHex(level ? 0xb9ff9c : palette.gold);
     scene.add(pulse.root); pulses.push(pulse);
   }
+  function emitImpact(event, enemy) {
+    // Keep the impact wider than its damage text on portrait screens.
+    if (impacts.length >= 20) {
+      const oldest = impacts.shift(); scene.remove(oldest.root); oldest.root.visible = false; impactPool.push(oldest);
+    }
+    let impact = impactPool.pop();
+    if (!impact) {
+      const root = new THREE.Group(), flash = new THREE.Group(); root.name = 'combat-impact'; root.add(flash);
+      const own = color => {
+        const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthTest: false, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+        feedbackMaterials.add(m); return m;
+      };
+      const outer = new THREE.Mesh(impactGeometry(), own(0x174c58)); outer.scale.setScalar(.95); flash.add(outer);
+      const fill = new THREE.Mesh(impactGeometry(), own(0x8df8ff)); fill.scale.setScalar(.74); fill.position.z = .005; flash.add(fill);
+      const core = new THREE.Mesh(impactGeometry(), own(0xffffff)); core.scale.setScalar(.32); core.rotation.z = .22; core.position.z = .01; flash.add(core);
+      const shock = new THREE.Mesh(geometry('RingGeometry', [.86, 1, 32]), own(0xffe48d)); shock.position.z = -.005; root.add(shock);
+      for (const part of [outer, fill, core, shock]) { part.castShadow = part.receiveShadow = false; part.renderOrder = 20; }
+      impact = { root, flash, outer, fill, core, shock };
+    }
+    const source = event.source || 'staff', color = source === 'owl' ? 0x62b9ff : source === 'roots' ? 0x80ff76 : 0x8df8ff;
+    impact.age = 0; impact.life = .28; impact.source = source;
+    impact.fill.material.color.setHex(color); impact.shock.material.color.setHex(color);
+    impact.root.position.set(event.x, enemy?.type === 'boss' ? 1.75 : 1.05, event.z);
+    impact.root.position.y += .2; impact.root.position.z += .3; impact.root.visible = true;
+    impact.flash.rotation.z = source === 'owl' ? -.35 : source === 'roots' ? .65 : .2;
+    scene.add(impact.root); impacts.push(impact);
+  }
+  function makeRootVines(parent) {
+    const root = new THREE.Group(); root.name = 'root-vines'; parent.add(root);
+    for (let i = 0; i < 6; i++) {
+      const angle = i / 6 * TAU, side = i % 2 ? 1 : -1;
+      const at = (radius, height, offset = 0) => new THREE.Vector3(Math.sin(angle + offset) * radius, height, Math.cos(angle + offset) * radius);
+      const curve = new THREE.CatmullRomCurve3([at(.05, .03), at(.3, .27, side * .3), at(.6, .38, -side * .16), at(.88, .16, side * .1), at(.96, .3, side * .25)]);
+      for (const [width, color] of [[.055, 0x145b39], [.035, 0x65e88c]]) {
+        const key = `root-vine-${i}-${width}`;
+        if (!geometries.has(key)) geometries.set(key, new THREE.TubeGeometry(curve, 12, width, 4, false));
+        const stem = new THREE.Mesh(geometries.get(key), material(color, { emissive: color, emissiveIntensity: .25 })); stem.castShadow = false; root.add(stem);
+      }
+      const tip = at(.83, .2, side * .05);
+      for (const sign of [-1, 1]) {
+        const leaf = ball(root, sign > 0 ? 0xa4ff79 : 0x36c974, tip.x + Math.cos(angle) * sign * .1, tip.y + .05, tip.z - Math.sin(angle) * sign * .1, .15, .045, .08);
+        leaf.rotation.y = -angle + sign * .45; leaf.castShadow = false;
+      }
+      const bud = mesh(root, 'OctahedronGeometry', [.1, 0], 0xffe9a3, tip.x, .34, tip.z); bud.castShadow = false;
+    }
+    return root;
+  }
   function makeFx() {
     const g = new THREE.Group(); const disk = circle(g, 1, 0xaddd8a, .2), edge = ring(g, .92, 1, 0xd4efae, .9);
     disk.material = disk.material.clone(); edge.material = edge.material.clone();
-    const spikes = new THREE.Group(); g.add(spikes);
-    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; const spike = mesh(spikes, 'ConeGeometry', [.16, 1, 5], 0x289c68, Math.sin(a), .1, Math.cos(a)); spike.rotation.z = Math.sin(a) * -.45; spike.rotation.x = Math.cos(a) * .45; }
-    return { root: g, disk, edge, spikes };
+    feedbackMaterials.add(disk.material); feedbackMaterials.add(edge.material);
+    return { root: g, disk, edge, vines: null };
   }
   function makeBolt() {
     const root = new THREE.Group();
@@ -364,10 +537,10 @@ export async function createRenderer(container) {
     tail.visible = core.visible = false;
     return { root, body, tail, core };
   }
-  function showNumber(e) {
+  function showNumber(e, y = 1.8) {
     if (floaters.length >= 24) return;
-    const el = document.createElement('span'); el.className = `combat-number ${e.type === 'player-hit' ? 'hurt' : ''}`; el.textContent = e.damage ? `${e.type === 'player-hit' ? '−' : ''}${Math.round(e.damage)}` : e.type === 'skill' ? '덩굴' : e.type === 'pickup' ? `+${e.amount}` : e.type === 'deposit' ? `보관 +${e.amount}` : e.type === 'level-up' ? '레벨 업!' : '';
-    if (!el.textContent) return; labels.append(el); floaters.push({ el, x: e.x ?? 0, z: e.z ?? 0, age: 0 });
+    const el = document.createElement('span'); el.className = `combat-number ${e.type === 'player-hit' ? 'hurt' : ''}`; el.textContent = e.damage ? `${e.type === 'player-hit' ? '−' : ''}${Math.round(e.damage)}` : e.type === 'skill' ? '덩굴' : e.type === 'pickup' ? `+${e.amount}` : e.type === 'deposit' ? `보관 +${e.amount}` : e.type === 'level-up' ? '레벨 업!' : e.type === 'gear-pickup' ? e.copies > 0 ? '장비 획득!' : `두루마리 +${e.scrolls}` : e.type === 'field-chest' ? '보물 발견!' : e.type === 'field-boon' ? '숲의 축복!' : '';
+    if (!el.textContent) return; labels.append(el); floaters.push({ el, x: e.x ?? 0, z: e.z ?? 0, y, age: 0 });
   }
   return {
     canvas: renderer.domElement,
@@ -385,7 +558,10 @@ export async function createRenderer(container) {
       const p = state.player, moving = Math.hypot(p.x - lastPlayer.x, p.z - lastPlayer.z) > .005;
       for (const e of events) {
         if (e.type === 'hit') {
-          hits.set(e.targetId, e); emitParticles(e.x, .9, e.z, 0xffefbd, 3, 'hit');
+          hits.set(e.targetId, e);
+          const target = state.enemies.find(enemy => enemy.id === e.targetId) || actors.get(e.targetId);
+          emitImpact(e, target); showNumber(e, target?.type === 'boss' ? 3.3 : 2.45);
+          emitParticles(e.x, 1.05, e.z, e.source === 'owl' ? 0x80cfff : e.source === 'roots' ? 0xa4ff79 : 0xbafaff, 6, 'hit');
         } else if (e.type === 'kill') {
           kills.add(e.targetId);
           const color = e.enemyType === 'boar' ? 0xf18c9d : e.enemyType === 'caster' ? 0x85d0e5 : e.enemyType === 'boss' ? 0xa6c084 : palette.red;
@@ -397,7 +573,12 @@ export async function createRenderer(container) {
         } else if (e.type === 'level-up' || e.type === 'quest' || e.type === 'upgrade') {
           rewardPulse(p.x, p.z, e.type === 'level-up');
           emitParticles(p.x, .5, p.z, e.type === 'level-up' ? 0xd6ff96 : palette.gold, e.type === 'level-up' ? 18 : 8, 'rise');
-        }
+        } else if (e.type === 'field-discovery') emitParticles(e.x, .6, e.z, e.kind === 'blessing' ? 0x94ff9c : palette.gold, 8, 'rise');
+        else if (e.type === 'field-chest' || e.type === 'gear-pickup') {
+          rewardPulse(e.x, e.z); emitParticles(e.x, .7, e.z, gearColors[e.equipmentId] ?? palette.gold, e.type === 'field-chest' ? 18 : 9, 'rise');
+        } else if (e.type === 'field-boon') {
+          rewardPulse(e.x, e.z, true); emitParticles(e.x, .5, e.z, 0x94ff9c, 14, 'rise');
+        } else if (e.type === 'field-hazard') emitParticles(e.x, .5, e.z, 0xffa052, 10);
       }
       for (const tree of occludingTrees) {
         const dx = tree.instance.position.x - p.x, dz = tree.instance.position.z - p.z;
@@ -417,8 +598,9 @@ export async function createRenderer(container) {
         root.visible = !zone.deep || state.progress.unlockedDeep;
         edge.material.opacity = active ? .35 + Math.sin(visualTime * 2) * .08 : .12;
         vector.set(zone.x, .2, zone.z + zone.radius * .75).project(camera);
-        // The HUD already names the active territory; keep its label off the fighters.
-        label.hidden = active || !root.visible || Math.abs(vector.x) > .92 || Math.abs(vector.y) > .92;
+        // Nearby names belong in the HUD; keep approaching-territory labels off the fighters too.
+        const nearby = Math.hypot(zone.x - p.x, zone.z - p.z) <= zone.radius + 2;
+        label.hidden = active || nearby || !root.visible || Math.abs(vector.x) > .92 || Math.abs(vector.y) > .92;
         label.classList.toggle('active', active);
         if (!label.hidden) label.style.transform = `translate(${(vector.x * .5 + .5) * width}px,${(-vector.y * .5 + .5) * height}px) translate(-50%,-50%)`;
       }
@@ -469,6 +651,11 @@ export async function createRenderer(container) {
       const alive = new Set();
       for (const enemy of state.enemies) {
         if (enemy.hp <= 0) continue; alive.add(enemy.id); const a = getActor(enemy); a.root.position.set(enemy.x, .03, enemy.z);
+        const stepX = a.lastX === null ? 0 : enemy.x - a.lastX, stepZ = a.lastZ === null ? 0 : enemy.z - a.lastZ;
+        const walking = Math.hypot(stepX, stepZ) > .0001 && !['windup', 'stunned'].includes(enemy.phase);
+        if (walking) a.moveAngle = Math.atan2(stepX, stepZ);
+        a.walkBlend += ((walking ? 1 : 0) - a.walkBlend) * Math.min(1, dt * 12);
+        a.lastX = enemy.x; a.lastZ = enemy.z;
         a.hitTime = Math.max(0, a.hitTime - dt);
         if (hits.has(enemy.id)) {
           a.hitTime = .18; const distance = Math.hypot(enemy.x - p.x, enemy.z - p.z) || 1;
@@ -476,12 +663,24 @@ export async function createRenderer(container) {
         }
         const impact = a.hitTime / .18, recoil = impact * (enemy.type === 'boss' ? .045 : .13) * motion;
         a.rig.position.x = a.recoilX * recoil; a.rig.position.z = a.recoilZ * recoil;
-        a.rig.scale.set(1 + impact * .1 * motion, 1 - impact * .15 * motion, 1 + impact * .1 * motion);
-        tintActor(a, impact * (reduceMotion ? .12 : .58));
+        const beat = visualTime * (enemy.type === 'boss' ? 5.5 : 10) + enemy.id, breath = Math.sin(visualTime * (enemy.type === 'boss' ? 1.3 : 2.4) + enemy.id) * .025 * motion;
+        a.rig.scale.set(1 + impact * .1 * motion - breath * .3, 1 - impact * .15 * motion + breath, 1 + impact * .1 * motion - breath * .3);
+        tintActor(a, impact * (reduceMotion ? .12 : .32));
         if (enemy.phase === 'windup' || enemy.phase === 'charge') a.rig.rotation.y = enemy.angle ?? Math.atan2(enemy.aimX ?? 0, enemy.aimZ ?? 1);
-        else if (enemy.phase === 'return') a.rig.rotation.y = Math.atan2(enemy.homeX - enemy.x, enemy.homeZ - enemy.z);
-        else if (enemy.phase !== 'idle') a.rig.rotation.y = Math.atan2(p.x - enemy.x, p.z - enemy.z);
-        a.rig.position.y = enemy.phase === 'windup' ? -.06 + Math.sin(visualTime * 24) * .025 : Math.abs(Math.sin(visualTime * 7 + enemy.id)) * .055;
+        else {
+          const observe = enemy.phase === 'idle' && a.walkBlend < .2 ? Math.sin(visualTime * .75 + enemy.id) * .22 * motion : 0;
+          const facing = enemy.phase === 'idle' ? (enemy.angle ?? a.moveAngle) + observe : enemy.phase === 'return' ? Math.atan2(enemy.homeX - enemy.x, enemy.homeZ - enemy.z) : walking ? a.moveAngle : Math.atan2(p.x - enemy.x, p.z - enemy.z);
+          const turn = Math.atan2(Math.sin(facing - a.rig.rotation.y), Math.cos(facing - a.rig.rotation.y));
+          a.rig.rotation.y += turn * Math.min(1, dt * 10);
+        }
+        const gait = Math.sin(beat) * a.walkBlend * motion;
+        a.rig.position.y = enemy.phase === 'windup' ? -.06 + Math.sin(visualTime * 24) * .025 : Math.abs(gait) * (enemy.type === 'boss' ? .07 : .11) + breath;
+        a.rig.rotation.x = Math.cos(beat) * a.walkBlend * .055 * motion;
+        a.rig.rotation.z = gait * (enemy.type === 'boss' ? .025 : .065);
+        for (let i = 0; i < a.feet.length; i++) {
+          const foot = a.feet[i], stride = Math.sin(beat + i % 2 * Math.PI) * a.walkBlend * motion;
+          foot.part.position.z = foot.z + stride * .14; foot.part.position.y = foot.y + Math.max(0, stride) * .1; foot.part.rotation.x = stride * .2;
+        }
         a.fill.scale.x = Math.max(0, enemy.hp / enemy.maxHp); a.bar.quaternion.copy(camera.quaternion); a.bar.visible = enemy.hp < enemy.maxHp || enemy.type === 'boss';
         a.danger.visible = enemy.phase === 'windup';
         if (a.danger.visible) {
@@ -519,10 +718,10 @@ export async function createRenderer(container) {
         bolt.body.material = fromOwl ? boltMaterials.owl : boltMaterials[b.team] || boltMaterials.enemy;
         bolt.body.position.set(0, 0, 0); bolt.body.rotation.set(0, 0, 0);
         bolt.body.scale.set(fromOwl ? .125 : b.team === 'player' ? .18 : .24, fromOwl ? .13 : .18, fromOwl ? .24 : .4);
-        bolt.tail.visible = fromOwl; bolt.tail.material = boltMaterials.owlTail;
-        bolt.tail.position.set(0, 0, -.39); bolt.tail.rotation.set(0, 0, 0); bolt.tail.scale.set(.075, .07, .35);
-        bolt.core.visible = fromOwl; bolt.core.material = boltMaterials.owlCore;
-        bolt.core.position.set(0, 0, .12); bolt.core.rotation.set(0, 0, 0); bolt.core.scale.set(.075, .085, .115);
+        bolt.tail.visible = b.team === 'player'; bolt.tail.material = fromOwl ? boltMaterials.owlTail : boltMaterials.staffTail;
+        bolt.tail.position.set(0, 0, fromOwl ? -.39 : -.46); bolt.tail.rotation.set(0, 0, 0); bolt.tail.scale.set(fromOwl ? .075 : .1, fromOwl ? .07 : .085, fromOwl ? .35 : .5);
+        bolt.core.visible = b.team === 'player'; bolt.core.material = boltMaterials.owlCore;
+        bolt.core.position.set(0, 0, .12); bolt.core.rotation.set(0, 0, 0); bolt.core.scale.set(fromOwl ? .075 : .105, fromOwl ? .085 : .105, fromOwl ? .115 : .16);
       }
       for (const [id, bolt] of bolts) if (!activeBolts.has(id)) { bolt.root.visible = false; scene.remove(bolt.root); boltPool.push(bolt); bolts.delete(id); }
       const activeCoins = new Set();
@@ -532,6 +731,7 @@ export async function createRenderer(container) {
         const coin = coins.get(item.id); coin.position.set(item.x, .3 + Math.sin(visualTime * 3 + item.id) * .06, item.z); coin.rotation.set(Math.PI / 2, 0, visualTime * 1.7);
       }
       for (const [id, coin] of coins) if (!activeCoins.has(id)) { scene.remove(coin); coin.visible = false; coinPool.push(coin); coins.delete(id); }
+      drawField(state, visualTime, reduceMotion);
       const activeFx = new Set();
       for (const e of state.effects) {
         activeFx.add(e.id); if (!fx.has(e.id)) { const f = fxPool.pop() || makeFx(); scene.add(f.root); f.root.visible = true; fx.set(e.id, f); }
@@ -541,7 +741,14 @@ export async function createRenderer(container) {
         f.disk.visible = e.type !== 'death'; f.edge.material.color.setHex(e.type === 'death' ? 0xffd58b : hostile ? 0xffcf68 : 0xe1ffae);
         f.root.position.set(e.x, .045, e.z); f.root.rotation.y = e.angle || 0;
         const scale = (e.radius || .7) * (warning ? 1 : .65 + progress * .5); f.root.scale.set(scale, scale, e.type === 'charge' ? (e.length || 5) * .5 : scale);
-        f.spikes.visible = e.type === 'root-burst'; f.spikes.scale.y = Math.max(.04, Math.sin(progress * Math.PI) * .8); f.disk.material.opacity = warning ? .12 + progress * .18 : (1 - progress) * .32; f.edge.material.opacity = warning ? .8 : 1 - progress;
+        if (e.type === 'root-burst' && !f.vines) f.vines = makeRootVines(f.root);
+        if (f.vines) {
+          f.vines.visible = e.type === 'root-burst';
+          const growth = reduceMotion ? .9 : .3 + Math.sin(Math.min(1, progress / .7) * Math.PI / 2) * .7;
+          f.vines.scale.set(growth, Math.max(.05, Math.sin(progress * Math.PI)) * (reduceMotion ? .6 : 1), growth);
+          f.vines.rotation.y = reduceMotion ? 0 : progress * .15;
+        }
+        f.disk.material.opacity = warning ? .12 + progress * .18 : (1 - progress) * .32; f.edge.material.opacity = warning ? .8 : 1 - progress;
       }
       for (const [id, f] of fx) if (!activeFx.has(id)) { scene.remove(f.root); f.root.visible = false; fxPool.push(f); fx.delete(id); }
       let activeParticles = 0;
@@ -562,6 +769,16 @@ export async function createRenderer(container) {
         particleDummy.updateMatrix(); particles.setMatrixAt(i, particleDummy.matrix);
       }
       particles.visible = activeParticles > 0; particles.instanceMatrix.needsUpdate = true;
+      for (let i = impacts.length - 1; i >= 0; i--) {
+        const impact = impacts[i]; impact.age += dt;
+        if (impact.age >= impact.life) { scene.remove(impact.root); impact.root.visible = false; impactPool.push(impact); impacts.splice(i, 1); continue; }
+        const progress = impact.age / impact.life, fade = Math.min(1, (1 - progress) / .4);
+        impact.root.quaternion.copy(camera.quaternion);
+        impact.flash.scale.setScalar(reduceMotion ? 1 : 1 + Math.sin(Math.min(1, progress / .35) * Math.PI) * .14 - progress * .15);
+        impact.outer.material.opacity = fade; impact.fill.material.opacity = fade * (reduceMotion ? .75 : 1); impact.core.material.opacity = fade;
+        impact.shock.scale.setScalar(reduceMotion ? .8 : .35 + (1 - (1 - progress) ** 2) * .65);
+        impact.shock.material.opacity = (1 - progress) * .85;
+      }
       for (let i = pulses.length - 1; i >= 0; i--) {
         const pulse = pulses[i]; pulse.age += dt;
         if (pulse.age >= pulse.life) { scene.remove(pulse.root); pulse.root.visible = false; pulsePool.push(pulse); pulses.splice(i, 1); continue; }
@@ -569,12 +786,12 @@ export async function createRenderer(container) {
         pulse.root.scale.setScalar((pulse.level ? .75 : .55) + ease * (pulse.level ? 1.35 : .8) * motion);
         pulse.edge.material.opacity = (1 - progress) * (reduceMotion ? .3 : .75);
       }
-      for (const e of events) if (['hit', 'enemy-hit', 'player-hit', 'pickup', 'deposit', 'level-up', 'skill'].includes(e.type)) showNumber(e);
+      for (const e of events) if (['enemy-hit', 'player-hit', 'pickup', 'deposit', 'gear-pickup'].includes(e.type)) showNumber(e, e.type === 'player-hit' ? 1.8 : 2.7);
       for (let i = floaters.length - 1; i >= 0; i--) {
         const f = floaters[i]; f.age += dt;
         if (f.age > .8) { f.el.remove(); floaters.splice(i, 1); continue; }
         const pop = reduceMotion ? 1 : 1 + Math.sin(Math.min(1, f.age / .18) * Math.PI) * .2;
-        vector.set(f.x, 1.8 + f.age * 1.3 * motion, f.z).project(camera);
+        vector.set(f.x, f.y + f.age * 1.3 * motion, f.z).project(camera);
         f.el.style.transform = `translate(${(vector.x * .5 + .5) * width}px,${(-vector.y * .5 + .5) * height}px) translate(-50%,-50%) scale(${pop})`;
         f.el.style.opacity = String(Math.min(1, (1 - f.age / .8) * 2));
       }
@@ -583,7 +800,6 @@ export async function createRenderer(container) {
     stats() { return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries }; },
     dispose() {
       disposed = true; observer.disconnect(); for (const f of floaters) f.el.remove(); labels.remove();
-      for (const f of [...fx.values(), ...fxPool]) { f.disk.material.dispose(); f.edge.material.dispose(); }
       const ownedGeometry = new Set(geometries.values()), ownedMaterials = new Set([...materials.values(), ...feedbackMaterials]), externalGeometry = new Set(), externalMaterials = new Set();
       scene.traverse(o => { if (!o.isMesh) return; if (o.geometry && !ownedGeometry.has(o.geometry)) externalGeometry.add(o.geometry); for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && !ownedMaterials.has(m)) externalMaterials.add(m); });
       for (const g of externalGeometry) g.dispose(); for (const m of externalMaterials) m.dispose(); light.shadow.dispose(); particles.dispose();

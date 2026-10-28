@@ -1,3 +1,6 @@
+import { EQUIPMENT, normalizeGear, gearBonuses, applyEquipmentAction, grantEquipment } from './equipment.mjs';
+import { createFieldState, advanceFieldEvents, clearFieldCombat } from './field-events.mjs';
+
 export const WORLD = Object.freeze({ minX: -15, maxX: 15, minZ: -42, maxZ: 23, camp: Object.freeze({ x: 0, z: 16, radius: 4.6 }), gateZ: -14 });
 export const RULES = Object.freeze({
   arena: WORLD, huntEnterPadding: 2, huntLeavePadding: 3.25, maxEnemies: 36, maxProjectiles: 70, maxEffects: 80, maxStep: 0.05,
@@ -24,11 +27,12 @@ export const MONSTER_STATS = Object.freeze({
 export const HUNT_ZONES = Object.freeze([
   { id: 'meadow-mushrooms', name: '버섯 군락', x: -6, z: 4, radius: 5.5, type: 'mushroom', count: 9, respawnSeconds: 15 },
   { id: 'meadow-boars', name: '멧돼지 숲', x: 6, z: -3, radius: 5, type: 'boar', count: 6, respawnSeconds: 8 },
-  { id: 'meadow-boss', name: '초원 수문장', x: -6, z: -8, radius: 3.8, type: 'boss', count: 1, bossId: 'meadow-guardian', hp: MONSTER_STATS.boss.hp, damage: MONSTER_STATS.boss.damage, xp: MONSTER_STATS.boss.xp, loot: MONSTER_STATS.boss.loot, speed: MONSTER_STATS.boss.speed, respawnSeconds: 0 },
+  { id: 'meadow-boss', name: '초원 수문장', x: -6, z: -8, radius: 3.8, type: 'boss', count: 1, bossId: 'meadow-guardian', hp: MONSTER_STATS.boss.hp, damage: MONSTER_STATS.boss.damage, xp: MONSTER_STATS.boss.xp, loot: MONSTER_STATS.boss.loot, speed: MONSTER_STATS.boss.speed, respawnSeconds: 30 },
   { id: 'deep-boars', name: '깊은 멧돼지 숲', x: -7, z: -24, radius: 5, type: 'boar', count: 6, respawnSeconds: 8, deep: true },
   { id: 'deep-casters', name: '석상 터', x: 6, z: -27, radius: 5, type: 'caster', count: 6, respawnSeconds: 8, deep: true },
-  { id: 'deep-boss', name: '깊은 수문장', x: 0, z: -37, radius: 3.8, type: 'boss', count: 1, bossId: 'deep-guardian', hp: MONSTER_STATS.deepBoss.hp, damage: MONSTER_STATS.deepBoss.damage, xp: MONSTER_STATS.deepBoss.xp, loot: MONSTER_STATS.deepBoss.loot, speed: MONSTER_STATS.deepBoss.speed, respawnSeconds: 0, deep: true },
+  { id: 'deep-boss', name: '깊은 수문장', x: 0, z: -37, radius: 3.8, type: 'boss', count: 1, bossId: 'deep-guardian', hp: MONSTER_STATS.deepBoss.hp, damage: MONSTER_STATS.deepBoss.damage, xp: MONSTER_STATS.deepBoss.xp, loot: MONSTER_STATS.deepBoss.loot, speed: MONSTER_STATS.deepBoss.speed, respawnSeconds: 60, deep: true },
 ].map(zone => Object.freeze({ ...zone, level: MONSTER_STATS[zone.id === 'deep-boss' ? 'deepBoss' : zone.type].level, title: zone.name, enemyType: zone.type })));
+const FIELD_CONTEXT = { world: WORLD, zones: HUNT_ZONES, random, hurtPlayer, openTreasure };
 const BOSS_IDS = ['meadow-guardian', 'deep-guardian'];
 const SPAWNS = HUNT_ZONES.flatMap(zone => Array.from({ length: zone.count }, (_, index) => {
   const angle = index / zone.count * Math.PI * 2;
@@ -78,7 +82,7 @@ function event(state, type, x, z, extra = {}) {
 
 const integer = (value, max = 1000000000) => Number.isFinite(value) ? clamp(Math.floor(value), 0, max) : 0;
 const skillInterval = (id, rank) => id === 'roots' ? (80 - (Math.max(1, rank) - 1) * 8) / 10 : (16 - (Math.max(1, rank) - 1) * 2) / 10;
-const owlDamage = (state, rank) => (10 + state.player.level - 1 + 4 * (Math.max(1, rank) - 1)) * state.player.damageMult;
+const owlDamage = (state, rank) => (10 + state.player.level - 1 + 4 * (Math.max(1, rank) - 1) + (state.player.gearDamage || 0)) * state.player.damageMult;
 const xpThreshold = level => 10 * (level - 1) * level;
 function levelFromXp(xp) { return Math.min(50, Math.floor((1 + Math.sqrt(1 + xp * 0.4)) / 2)); }
 
@@ -96,8 +100,8 @@ export function normalizeProgress(raw) {
   for (const key of ['kills', 'mushrooms', 'deepKills', 'banked']) totals[key] = integer(source.totals?.[key]);
   const questIndex = integer(source.questIndex, QUESTS.length);
   return {
-    version: 4, gold: integer(source.gold), cargo: integer(source.cargo, 24 + upgrades.bag * 16),
-    xp, level: levelFromXp(xp), upgrades, skills, questIndex, totals,
+    version: 5, gold: integer(source.gold), cargo: integer(source.cargo, 24 + upgrades.bag * 16),
+    xp, level: levelFromXp(xp), upgrades, skills, gear: normalizeGear(source.gear), questIndex, totals,
     bosses: BOSS_IDS.filter(id => Array.isArray(source.bosses) && source.bosses.includes(id)),
     unlockedDeep: questIndex >= 4,
   };
@@ -107,14 +111,16 @@ export function exportProgress(state) { return normalizeProgress({ ...state.prog
 
 function syncStats(state, healIncrease = false) {
   const p = state.progress, player = state.player, previousMax = player.maxHp;
+  const gear = gearBonuses(p.gear);
   p.level = levelFromXp(p.xp);
-  player.maxHp = 100 + (p.level - 1) * 10 + p.upgrades.health * 20;
+  player.maxHp = 100 + (p.level - 1) * 10 + p.upgrades.health * 20 + gear.health;
   player.level = p.level;
   player.xp = Math.max(0, p.xp - xpThreshold(p.level));
   player.xpToNext = 20 * p.level;
   player.capacity = 24 + p.upgrades.bag * 16;
-  player.attackDamage = 16 + (p.level - 1) * 2;
-  player.skillDamage = 46 + (p.level - 1) * 3;
+  player.gearDamage = gear.damage;
+  player.attackDamage = 16 + (p.level - 1) * 2 + gear.damage;
+  player.skillDamage = 46 + (p.level - 1) * 3 + gear.damage;
   player.damageMult = 1 + p.upgrades.attack * 0.18;
   player.skillCooldown = skillInterval('roots', p.skills.roots);
   player.hp = Math.min(player.maxHp, player.hp + (healIncrease ? Math.max(0, player.maxHp - previousMax) : 0));
@@ -128,7 +134,7 @@ export function createGame(seed = 73491, savedProgress) {
     time: 0, elapsed: 0, revision: 0, progress, inCamp: true, cargo: progress.cargo,
     autoHunt: false, huntZoneId: null, fightTargetId: null, kills: progress.totals.kills,
     owl: { active: false, rank: 0, x: WORLD.camp.x - 1.25, z: WORLD.camp.z + 0.3, fireCd: 0, fireCooldown: 1.6, damage: 0, range: 5.5, targetId: null },
-    pendingSkills: [], events: [], queuedEvents: [], enemies: [], projectiles: [], effects: [], loot: [],
+    pendingSkills: [], events: [], queuedEvents: [], enemies: [], projectiles: [], effects: [], loot: [], fieldLoot: [], fieldEvents: createFieldState(),
     spawners: SPAWNS.map(spawn => ({ ...spawn, remaining: 0 })),
     player: {
       id: 0, x: WORLD.camp.x, z: WORLD.camp.z, radius: 0.4,
@@ -205,6 +211,14 @@ export function learnSkill(state, id) {
   return true;
 }
 
+export function equipmentAction(state, id, action) {
+  if (!state.inCamp || !['playing', 'paused'].includes(state.phase) || !applyEquipmentAction(state.progress, id, action)) return false;
+  syncStats(state, true);
+  state.revision++;
+  state.queuedEvents.push({ type: 'upgrade', x: state.player.x, z: state.player.z, id: 'equipment', label: EQUIPMENT.find(item => item.id === id).name });
+  return true;
+}
+
 export function getQuest(state) {
   const q = QUESTS[state.progress.questIndex];
   if (!q) return { id: 'done', title: '숲을 자유롭게 탐험하세요', current: 1, target: 1, complete: true, rewardGold: 0, done: true };
@@ -228,6 +242,7 @@ export function claimQuest(state) {
 function clearCombatSession(state) {
   state.player.castId++;
   state.queuedEvents = state.queuedEvents.filter(item => !['skill', 'zone-enter', 'zone-leave'].includes(item.type));
+  clearFieldCombat(state);
   state.fightTargetId = null;
   state.owl.active = false; state.owl.targetId = null; state.owl.fireCd = 0;
   state.pendingSkills = [];
@@ -246,6 +261,7 @@ export function respawnAtCamp(state) {
   for (const enemy of state.enemies) {
     enemy.x = enemy.homeX; enemy.z = enemy.homeZ; enemy.hp = enemy.maxHp;
     enemy.phase = 'idle'; enemy.phaseTime = 0; enemy.attackCd = 1; enemy.restoreOnReturn = false;
+    enemy.idleWalking = false; enemy.idleTime = 0.5;
   }
   updateOwl(state, 0, false, true);
   return true;
@@ -284,7 +300,7 @@ function hurtPlayer(state, damage, x, z) {
   return true;
 }
 
-function hurtEnemy(state, enemy, damage, rooted = 0) {
+function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff') {
   if (enemy.hp <= 0) return;
   enemy.hp = Math.max(0, enemy.hp - damage);
   if (damage > 0 && enemy.phase === 'return' && !state.inCamp && distance(enemy, state.player) <= 9) {
@@ -292,7 +308,7 @@ function hurtEnemy(state, enemy, damage, rooted = 0) {
     enemy.phase = 'chase';
   }
   effect(state, 'hit', enemy.x, enemy.z, 0.22, enemy.radius, { team: 'player' });
-  event(state, 'hit', enemy.x, enemy.z, { damage, targetId: enemy.id });
+  event(state, 'hit', enemy.x, enemy.z, { damage, targetId: enemy.id, source });
   if (enemy.hp === 0) {
     enemy.phase = 'dead';
     const p = state.progress, data = MONSTER_STATS[enemy.type];
@@ -309,6 +325,13 @@ function hurtEnemy(state, enemy, damage, rooted = 0) {
     const value = enemy.loot ?? data.loot;
     if (state.loot.length >= 100) state.loot.shift();
     state.loot.push({ id: state.nextId++, zoneId: enemy.zoneId, enemyType: enemy.type, x: enemy.x, z: enemy.z, value, life: enemy.type === 'boss' ? 600 : 180 });
+    if (enemy.type === 'boss') {
+      addFieldLoot(state, enemy.x, enemy.z, 'equipment', 1, EQUIPMENT[Math.floor(random(state) * EQUIPMENT.length)].id);
+      addFieldLoot(state, enemy.x, enemy.z, 'scroll', 3);
+    } else {
+      if (random(state) < 0.2) addFieldLoot(state, enemy.x, enemy.z, 'scroll', 1);
+      if (random(state) < 0.08) addFieldLoot(state, enemy.x, enemy.z, 'equipment', 1, EQUIPMENT[Math.floor(random(state) * EQUIPMENT.length)].id);
+    }
     state.revision++;
     effect(state, 'death', enemy.x, enemy.z, 0.55, enemy.radius * 1.6);
     event(state, 'kill', enemy.x, enemy.z, { targetId: enemy.id, enemyType: enemy.type, bossId: enemy.bossId });
@@ -318,9 +341,25 @@ function hurtEnemy(state, enemy, damage, rooted = 0) {
   }
 }
 
+function addFieldLoot(state, x, z, kind, amount, equipmentId) {
+  if (state.fieldLoot.length >= 30) state.fieldLoot.shift();
+  state.fieldLoot.push({ id: state.nextId++, x, z, kind, amount, life: 180, ...(equipmentId ? { equipmentId } : {}) });
+}
+
+function openTreasure(state, item) {
+  const actual = grantEquipment(state.progress.gear, item.equipmentId ?? null, item.equipmentId ? 1 : 0, item.scrolls);
+  const gold = integer(item.gold, 1000000);
+  if (gold > 0) {
+    if (state.loot.length >= 100) state.loot.shift();
+    state.loot.push({ id: state.nextId++, x: item.x, z: item.z, value: gold, life: 180 });
+  }
+  state.revision++;
+  return { equipmentId: item.equipmentId, copies: actual.copies, scrolls: actual.scrolls, gold };
+}
+
 function updateSpawns(state, dt) {
   for (const spawn of state.spawners) {
-    if ((spawn.deep && !state.progress.unlockedDeep) || (spawn.bossId && state.progress.bosses.includes(spawn.bossId))) continue;
+    if (spawn.deep && !state.progress.unlockedDeep) continue;
     if (state.enemies.some(enemy => enemy.hp > 0 && enemy.spawnId === spawn.id)) continue;
     spawn.remaining = Math.max(0, spawn.remaining - dt);
     if (spawn.remaining > 0 || state.enemies.length >= RULES.maxEnemies) continue;
@@ -331,6 +370,7 @@ function updateSpawns(state, dt) {
       hp, maxHp: hp, radius: data.radius, speed: spawn.speed ?? data.speed, damage: spawn.damage ?? data.damage,
       xp: spawn.xp ?? data.xp, loot: spawn.loot ?? data.loot,
       phase: 'idle', phaseTime: 0, attackCd: 0.3 + random(state), restoreOnReturn: false,
+      idleGoalX: spawn.x, idleGoalZ: spawn.z, idleTime: 0.4 + random(state) * 1.2, idleWalking: false,
       aimX: 0, aimZ: 1, angle: 0, warnX: spawn.x, warnZ: spawn.z,
       attackRadius: 1.35, length: 5.5, width: 1.6, attackNumber: 0,
     });
@@ -451,6 +491,45 @@ function separateEnemies(state, dt) {
   }
 }
 
+function updateIdlePatrol(state, enemy, dt) {
+  if (Math.hypot(enemy.homeX - WORLD.camp.x, enemy.homeZ - WORLD.camp.z) <= WORLD.camp.radius + enemy.radius + 0.3) return;
+  enemy.idleTime = Math.max(0, (enemy.idleTime ?? 0.5) - dt);
+  if (enemy.idleWalking && enemy.idleTime === 0) {
+    enemy.idleWalking = false; enemy.idleTime = 0.7 + random(state) * 1.1;
+    return;
+  }
+  if (!enemy.idleWalking) {
+    if (enemy.idleTime > 0) return;
+    const angle = random(state) * Math.PI * 2;
+    const radius = (enemy.type === 'boss' ? 0.65 : 1.15) * (0.35 + random(state) * 0.65);
+    const goal = { x: enemy.homeX + Math.sin(angle) * radius, z: enemy.homeZ + Math.cos(angle) * radius, radius: enemy.radius };
+    const zone = HUNT_ZONES.find(item => item.id === enemy.zoneId);
+    if (zone) {
+      const available = Math.max(0, zone.radius - enemy.radius - 0.1);
+      const scale = Math.min(1, available / Math.max(0.00001, distance(goal, zone)));
+      goal.x = zone.x + (goal.x - zone.x) * scale; goal.z = zone.z + (goal.z - zone.z) * scale;
+    }
+    insideArena(goal);
+    if (distance(goal, WORLD.camp) <= WORLD.camp.radius + enemy.radius + 0.3) {
+      goal.x = enemy.homeX; goal.z = enemy.homeZ;
+    }
+    enemy.idleGoalX = goal.x; enemy.idleGoalZ = goal.z;
+    enemy.idleTime = 1 + random(state) * 0.9; enemy.idleWalking = true;
+  }
+  const dx = enemy.idleGoalX - enemy.x, dz = enemy.idleGoalZ - enemy.z;
+  const remaining = Math.hypot(dx, dz);
+  if (remaining <= 0.025) {
+    enemy.idleWalking = false; enemy.idleTime = 0.7 + random(state) * 1.1;
+    return;
+  }
+  const fraction = enemy.type === 'boss' ? 0.12 : enemy.type === 'boar' ? 0.38 : enemy.type === 'caster' ? 0.3 : 0.45;
+  const step = Math.min(remaining, enemy.speed * fraction * dt);
+  if (step > 0) {
+    enemy.x += dx / remaining * step; enemy.z += dz / remaining * step;
+    enemy.angle = Math.atan2(dx, dz);
+  }
+}
+
 function updateEnemies(state, dt) {
   separateEnemies(state, dt);
   for (const enemy of state.enemies) {
@@ -478,12 +557,15 @@ function updateEnemies(state, dt) {
         enemy.phase = 'idle';
         if (enemy.restoreOnReturn) enemy.hp = enemy.maxHp;
         enemy.restoreOnReturn = false;
+        enemy.idleWalking = false; enemy.idleTime = 0.5;
       }
       continue;
     }
     if (enemy.phase === 'idle') {
-      if (!state.inCamp && (dist < (enemy.type === 'boss' ? 6 : 5.7) || (enemy.hp < enemy.maxHp && dist <= 9))) enemy.phase = 'chase';
-      else continue;
+      const aggroRange = enemy.type === 'boss' ? 6 : 5.7;
+      if (!state.inCamp && ((dist < aggroRange && playerHomeDistance < aggroRange) || (enemy.hp < enemy.maxHp && dist <= 9))) {
+        enemy.phase = 'chase'; enemy.idleWalking = false; enemy.idleTime = 0.5;
+      } else { updateIdlePatrol(state, enemy, dt); continue; }
     }
     if (enemy.phase === 'charge') {
       const portion = Math.min(dt, enemy.phaseTime) / enemy.chargeTime;
@@ -561,7 +643,7 @@ function updateProjectiles(state, dt) {
     let consumed = false;
     for (const { target } of hits) {
       bolt.hitIds.push(target.id);
-      if (bolt.team === 'player') hurtEnemy(state, target, bolt.damage);
+      if (bolt.team === 'player') hurtEnemy(state, target, bolt.damage, 0, bolt.source || 'staff');
       else hurtPlayer(state, bolt.damage, bolt.x, bolt.z);
       if (bolt.pierce <= 0) { consumed = true; break; }
       bolt.pierce--;
@@ -583,7 +665,7 @@ function updateSkills(state, dt) {
     event(state, 'burst', cast.x, cast.z);
     for (const enemy of state.enemies) {
       if (enemy.hp > 0 && Math.hypot(enemy.x - cast.x, enemy.z - cast.z) <= cast.radius + enemy.radius) {
-        hurtEnemy(state, enemy, cast.damage, 1.35);
+        hurtEnemy(state, enemy, cast.damage, 1.35, 'roots');
       }
     }
   }
@@ -602,6 +684,17 @@ function updateLootAndCamp(state, dt) {
     }
   }
   state.loot = state.loot.filter(coin => coin.value > 0 && coin.life > 0);
+  for (const item of state.fieldLoot) {
+    item.life -= dt;
+    if (distance(item, player) > 1.5) continue;
+    const actual = grantEquipment(state.progress.gear, item.equipmentId ?? null, item.kind === 'equipment' ? item.amount : 0, item.kind === 'scroll' ? item.amount : 0);
+    item.amount -= item.kind === 'equipment' ? actual.copies : actual.scrolls;
+    if (actual.copies > 0 || actual.scrolls > 0) {
+      state.revision++;
+      event(state, 'gear-pickup', item.x, item.z, { ...(item.equipmentId ? { equipmentId: item.equipmentId } : {}), copies: actual.copies, scrolls: actual.scrolls });
+    }
+  }
+  state.fieldLoot = state.fieldLoot.filter(item => item.amount > 0 && item.life > 0);
   if (!state.inCamp) return;
   if (state.cargo > 0) {
     const amount = state.cargo;
@@ -755,6 +848,8 @@ export function stepGame(state, input = {}, dt = 1 / 60) {
   state.enemies = state.enemies.filter(enemy => enemy.hp > 0);
   updateSpawns(state, dt);
   updateEnemies(state, dt);
+  if (state.phase !== 'playing') return state;
+  advanceFieldEvents(state, dt, FIELD_CONTEXT);
   if (state.phase !== 'playing') return state;
   updateOwl(state, dt);
   const target = nearestCombatTarget(state);
