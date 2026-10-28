@@ -12,7 +12,7 @@
 <button>테스트 판 시작</button>
 </form><p id="status" role="status"></p>
 <script type="module">
-import {createGame} from '../rules.mjs?v=20261021-balance';
+import {createGame} from '../rules.mjs?v=20261028-colors';
 const local=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
 document.querySelector('button').disabled=!local;
 if(!local) document.getElementById('status').textContent='로컬 서버에서만 사용할 수 있어요.';

@@ -1,5 +1,5 @@
-import {ANIMALS, ITEMS, LESSONS, FEVER_SECONDS, createGame, isOpen, available, pick, tick, validSave, revealRescue} from './rules.mjs?v=20261021-balance';
-import {animal, icon, scenery} from './art.mjs?v=20261021-balance';
+import {ANIMALS, ITEMS, LESSONS, FEVER_SECONDS, createGame, isOpen, available, pick, tick, validSave, revealRescue} from './rules.mjs?v=20261028-colors';
+import {animal, icon, scenery} from './art.mjs?v=20261028-colors';
 
 const $=id=>document.getElementById(id);
 const KEY='cozy-forest:v1';
@@ -100,7 +100,7 @@ function renderBoard() {
     const open=isOpen(state.board,tile),item=tile.item?ITEMS.find(item=>item.id===tile.item):null;
     const name=item?`${item.name} 아이템`:ANIMALS[tile.type].name,lessonItem=item&&requiredItem()===item.id&&!state.used[item.id];
     const rescueItem=item&&state.tray.length>=5&&['magnet','basket','shuffle'].includes(item.id);
-    return `<button class="tile${open?'':' covered'}${item?' item-tile':''}${open&&(lessonItem||rescueItem)?' hinted':''}" data-tile="${tile.id}" ${item?`data-board-item="${item.id}"`:''} style="--x:${tile.x};--y:${tile.y};--z:${tile.z+1};--rotate:${((tile.id*7)%5)-2}deg;${item?'--item-color:'+item.color:''}" aria-label="${name}${open?(item?' · 누르면 즉시 발동':' 선택'):' · 위의 타일부터 선택하세요'}" ${open?'':'disabled'} title="${name}${open?'':' · 다른 타일에 가려져 있어요'}">${item?`${icon(item.icon)}<span class="board-item-badge">아이템</span><i>✦</i>`:animal(tile.type)}</button>`;
+    return `<button class="tile${open?'':' covered'}${item?' item-tile':''}${open&&(lessonItem||rescueItem)?' hinted':''}" data-tile="${tile.id}" ${item?`data-board-item="${item.id}"`:''} style="--x:${tile.x};--y:${tile.y};--z:${tile.z+1};--rotate:${((tile.id*7)%5)-2}deg;${item?'--item-color:'+item.color:'--animal-color:'+ANIMALS[tile.type].color+';--animal-pale:'+ANIMALS[tile.type].pale}" aria-label="${name}${open?(item?' · 누르면 즉시 발동':' 선택'):' · 위의 타일부터 선택하세요'}" ${open?'':'disabled'} title="${name}${open?'':' · 다른 타일에 가려져 있어요'}">${item?`${icon(item.icon)}<span class="board-item-badge">아이템</span><i>✦</i>`:animal(tile.type)}</button>`;
   }).join('');
   if(focusedId) {
     const next=$('board').querySelector(`[data-tile="${focusedId}"]:not(:disabled)`)||$('board').querySelector('.tile:not(:disabled)');
@@ -145,7 +145,7 @@ function render() {
 function burst(rect,points=null,large=false,result=null) {
   if(reducedMotion||!rect) return;
   const x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-  const fever=state.fever>0,colors=fever?['#ffcf57','#ff9eb7','#fff3ad','#b6a1ef','#a4e4d0']:['#edce77','#e7a58d','#b4cf87','#fff1ae','#c7afe0'];
+  const fever=state.fever>0,colors=fever?['#ffd42b','#ff69c4','#fff69d','#a778ff','#43e5ee']:['#ffd42b','#ff8551','#6ae58c','#fff3a6','#b98bff'];
   const count=large?60:fever?40:24;
   for(let i=0;i<count;i++) {
     const particle=document.createElement('i'),angle=Math.random()*Math.PI*2,distance=45+Math.random()*(large?240:fever?190:125);
@@ -286,7 +286,7 @@ function endGame() {
 function openPause() {
   if(state.status!=='playing') return;
   persist();
-  showModal(`<h2>잠깐 쉬어요</h2><p>준비되면 이어서 플레이해요.</p><div class="modal-stats"><div><small>최고 점수</small><b>${profile.best.toLocaleString()}</b></div><div><small>도착한 숲</small><b>${profile.level}</b></div><div><small>도토리</small><b>${profile.coins.toLocaleString()}</b></div></div><div class="settings-row"><span>효과음</span><button data-action="sound">${profile.sound?'켜짐':'꺼짐'}</button></div><div class="settings-row"><span>진동</span><button data-action="haptics">${profile.haptics?'켜짐':'꺼짐'}</button></div><button class="primary-button" data-action="resume">계속 ${icon('play')}</button><button class="secondary-button" data-action="restart-menu">다시 시작</button><button class="text-button" data-action="school">수업 목록 →</button>${state.mode==='tutorial'?'<button class="text-button" data-action="endless">무한 산책 →</button>':''}<button class="text-button" data-action="items">아이템 도감 →</button><div class="menu-links"><a href="../../">홈으로</a><a href="prompts.html?v=20261021">제작 프롬프트</a></div>`);
+  showModal(`<h2>잠깐 쉬어요</h2><p>준비되면 이어서 플레이해요.</p><div class="modal-stats"><div><small>최고 점수</small><b>${profile.best.toLocaleString()}</b></div><div><small>도착한 숲</small><b>${profile.level}</b></div><div><small>도토리</small><b>${profile.coins.toLocaleString()}</b></div></div><div class="settings-row"><span>효과음</span><button data-action="sound">${profile.sound?'켜짐':'꺼짐'}</button></div><div class="settings-row"><span>진동</span><button data-action="haptics">${profile.haptics?'켜짐':'꺼짐'}</button></div><button class="primary-button" data-action="resume">계속 ${icon('play')}</button><button class="secondary-button" data-action="restart-menu">다시 시작</button><button class="text-button" data-action="school">수업 목록 →</button>${state.mode==='tutorial'?'<button class="text-button" data-action="endless">무한 산책 →</button>':''}<button class="text-button" data-action="items">아이템 도감 →</button><div class="menu-links"><a href="../../">홈으로</a><a href="prompts.html?v=20261028-colors">제작 프롬프트</a></div>`);
 }
 function openHelp() {
   showModal(`<h2>같은 동물 셋!</h2><ol class="rules-list"><li>위에 다른 타일이 없는 밝은 동물을 눌러요.</li><li>바구니에 같은 동물 3마리가 모이면 구조 성공!</li><li>금빛 아이템은 누르면 바로 발동해요. 바구니에 5마리가 모이면 가려진 구제 아이템 하나가 위로 올라와요. 도감에서 5종의 효과를 볼 수 있어요.</li><li>바구니 7칸이 가득 차거나 시간이 끝나면 다시 도전해요.</li><li>8초 안에 연속 매칭하면 콤보! 피버 충전은 사라지지 않고 매칭 4번마다 16초 피버에 들어가요.</li><li>피버는 점수 2배, 시간 정지! 매칭마다 피버가 2초씩 늘어나요(한 번에 최대 +6초). 바구니 아래에서 피버 점수를 확인해요.</li><li>모두 구조하면 다음 숲이 열려요. 수업·도움말·다른 탭을 보는 동안은 시간이 멈춰요.</li></ol><p class="tiny-note">키보드: Tab·방향키로 선택, Enter로 담기, Esc로 쉬기</p><button class="primary-button" data-action="resume">계속</button><button class="secondary-button" data-action="school">수업</button>`);

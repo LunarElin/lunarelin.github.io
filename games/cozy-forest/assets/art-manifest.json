@@ -1,0 +1,125 @@
+{
+  "revision": "20261028-colors",
+  "renderer": "HTML5 DOM + inline SVG + CSS",
+  "display": "portrait first; touch targets >=44 CSS px",
+  "view": "2D front",
+  "light": "upper-left",
+  "budget": "reuse local assets; no new raster textures; <=112 transient effect nodes",
+  "assets": [
+    {
+      "id": "animals",
+      "source": "../art.mjs",
+      "symbol": "animal",
+      "variants": 8,
+      "logicalSize": [
+        96,
+        96
+      ],
+      "states": [
+        "open tile",
+        "covered tile",
+        "basket",
+        "dialog"
+      ],
+      "anchor": "center of existing tile",
+      "collision": "existing DOM button bounds",
+      "origin": "project-authored SVG; updated palette, face highlight, contact shade"
+    },
+    {
+      "id": "icons",
+      "source": "../art.mjs",
+      "symbol": "icon",
+      "logicalSize": [
+        36,
+        36
+      ],
+      "states": [
+        "board item",
+        "HUD",
+        "menu",
+        "guide"
+      ],
+      "anchor": "center",
+      "collision": "parent button bounds",
+      "origin": "project-authored SVG; updated fill and line colors"
+    },
+    {
+      "id": "forest",
+      "source": "../art.mjs",
+      "symbol": "scenery",
+      "logicalSize": [
+        900,
+        760
+      ],
+      "states": [
+        "normal",
+        "fever overlay"
+      ],
+      "anchor": "xMidYMid slice",
+      "collision": "none",
+      "origin": "project-authored SVG; brighter sky, foliage, path, clouds and edge flowers"
+    },
+    {
+      "id": "UI surfaces",
+      "source": "../styles.css",
+      "states": [
+        "normal",
+        "pressed",
+        "focus",
+        "danger",
+        "fever",
+        "reduced motion"
+      ],
+      "collision": "existing layout and hit areas",
+      "origin": "project-authored CSS; palette, bevels and shadows"
+    },
+    {
+      "id": "favicon",
+      "source": "../icon.svg",
+      "logicalSize": [
+        96,
+        96
+      ],
+      "origin": "project-authored rabbit SVG; recolored"
+    },
+    {
+      "id": "wood button",
+      "source": "ui/round-brown.png",
+      "states": [
+        "sound",
+        "pause"
+      ],
+      "origin": "Kenney UI Pack - Adventure, CC0; file unchanged; CSS saturation and brightness"
+    },
+    {
+      "id": "fever star",
+      "source": "ui/star.png",
+      "displaySize": [
+        26,
+        26
+      ],
+      "origin": "Kenney UI Pack - Adventure, CC0; unchanged"
+    }
+  ],
+  "review": {
+    "date": "2026-10-28",
+    "selectedBy": "PD judgment delegated by user",
+    "nativeViewports": [
+      "320x568",
+      "360x740",
+      "390x844",
+      "640x360",
+      "1440x900"
+    ],
+    "checkedStates": [
+      "normal",
+      "covered",
+      "fever",
+      "score burst",
+      "guide",
+      "pause",
+      "result"
+    ],
+    "evidence": "../GRAPHICS.md"
+  }
+}

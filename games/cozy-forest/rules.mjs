@@ -1,20 +1,20 @@
 export const ANIMALS = [
-  {name:'토끼', color:'#f5b4bb', pale:'#ffe6e8'},
-  {name:'여우', color:'#eca66c', pale:'#ffe5c9'},
-  {name:'곰', color:'#b79778', pale:'#eee0ce'},
-  {name:'고양이', color:'#b8a4d8', pale:'#eee5fc'},
-  {name:'개구리', color:'#94bd7b', pale:'#e2efcf'},
-  {name:'병아리', color:'#e5c56c', pale:'#fff1bf'},
-  {name:'판다', color:'#98b6ba', pale:'#dfedef'},
-  {name:'강아지', color:'#ceac8c', pale:'#f5e3d0'},
+  {name:'토끼', color:'#ff72ae', pale:'#ffebf5'},
+  {name:'여우', color:'#ff943b', pale:'#fff0d9'},
+  {name:'곰', color:'#c8874b', pale:'#fff1df'},
+  {name:'고양이', color:'#ad7bff', pale:'#f1eaff'},
+  {name:'개구리', color:'#58d879', pale:'#e3ffeb'},
+  {name:'병아리', color:'#ffd233', pale:'#fff9d7'},
+  {name:'판다', color:'#62cfe9', pale:'#e5faff'},
+  {name:'강아지', color:'#efb350', pale:'#fff3d5'},
 ];
 export const FEVER_SECONDS=16, FEVER_MAX=24, FEVER_EXTENSION_LIMIT=6;
 export const ITEMS = [
-  {id:'magnet', name:'당근 자석', icon:'magnet', color:'#e6a17c', desc:'보드에서 누르면 바구니에 가장 많이 쌓인 동물부터 3마리를 구조해요.', tip:'한 마리보다 두 마리 모인 짝을 먼저 구해요.'},
-  {id:'shuffle', name:'살랑 바람', icon:'shuffle', color:'#91b8c4', desc:'보드에서 누르면 남은 동물을 다시 섞어요. 바구니의 쌍부터 찾기 쉽게 배치해요.', tip:'동물들이 가려져 막막할 때 도움이 돼요.'},
-  {id:'freeze', name:'눈꽃 시계', icon:'freeze', color:'#9bc9dc', desc:'15초 동안 제한 시간을 멈춰요. 피버 중에는 피버가 끝난 뒤부터 사용돼요.', tip:'피버와 함께 눌러도 눈꽃 시간이 낭비되지 않아요.'},
-  {id:'basket', name:'구조 바구니', icon:'basket', color:'#c7aa80', desc:'보드에서 누르면 바구니 속 동물을 최대 3마리 숲의 맨 위로 돌려보내요.', tip:'바구니가 비어 있으면 제한 시간 +5초!' },
-  {id:'fever', name:'별사탕', icon:'fever', color:'#e9c16d', desc:'즉시 16초 피버! 진행 중에는 8초 연장해요. 남은 피버는 최대 24초예요.', tip:'피버는 점수 2배! 매칭으로 피버를 최대 6초 더 늘릴 수 있어요.'},
+  {id:'magnet', name:'당근 자석', icon:'magnet', color:'#ff765d', desc:'보드에서 누르면 바구니에 가장 많이 쌓인 동물부터 3마리를 구조해요.', tip:'한 마리보다 두 마리 모인 짝을 먼저 구해요.'},
+  {id:'shuffle', name:'살랑 바람', icon:'shuffle', color:'#32b8f5', desc:'보드에서 누르면 남은 동물을 다시 섞어요. 바구니의 쌍부터 찾기 쉽게 배치해요.', tip:'동물들이 가려져 막막할 때 도움이 돼요.'},
+  {id:'freeze', name:'눈꽃 시계', icon:'freeze', color:'#29beef', desc:'15초 동안 제한 시간을 멈춰요. 피버 중에는 피버가 끝난 뒤부터 사용돼요.', tip:'피버와 함께 눌러도 눈꽃 시간이 낭비되지 않아요.'},
+  {id:'basket', name:'구조 바구니', icon:'basket', color:'#f6ac3c', desc:'보드에서 누르면 바구니 속 동물을 최대 3마리 숲의 맨 위로 돌려보내요.', tip:'바구니가 비어 있으면 제한 시간 +5초!' },
+  {id:'fever', name:'별사탕', icon:'fever', color:'#ffbe23', desc:'즉시 16초 피버! 진행 중에는 8초 연장해요. 남은 피버는 최대 24초예요.', tip:'피버는 점수 2배! 매칭으로 피버를 최대 6초 더 늘릴 수 있어요.'},
 ];
 export const LESSONS = [
   {title:'처음 만난 숲', item:null, text:'가려지지 않은 동물을 톡! 같은 동물 3마리를 바구니에 모으면 집으로 돌아가요.'},
