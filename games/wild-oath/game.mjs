@@ -1,7 +1,7 @@
-import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs';
+import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs?v=cartoon-4';
 import { presentationTiming, effectKind, impactBeats, impactTotals, cardPlayStatus, impactFeedback } from './combat-presentation.mjs?v=tavern-3';
-import { analyzeDeck } from './deck-analysis.mjs';
-import { cardArtClass } from './card-art.mjs';
+import { analyzeDeck } from './deck-analysis.mjs?v=cartoon-4';
+import { cardArtClass } from './card-art.mjs?v=cartoon-4';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'wild-oath:v5';
@@ -227,8 +227,8 @@ function renderBattle() {
   $('hero-deck').textContent = `덱 ${player.draw.length}\n버림 ${player.discard.length}`;
   $('enemy-deck').textContent = `덱 ${enemy.draw.length}\n버림 ${enemy.discard.length}`;
   $('history').innerHTML = history.slice(-4).map(event=>{
-    const lead=event.links?.find(link=>link.kind==='form')||event.links?.[0],owner=lead?.actor||event.actor,art=lead?.name==='곰 반격'?'bear':event.cardId?CARDS[event.cardId].art:null;
-    return `<span class="history-item ${owner === 'enemy' ? 'enemy-action' : ''} ${event.type === 'charge' ? 'charge' : ''} ${lead ? 'linked-action' : ''}" title="${event.name || '재섞기'}${event.links?.length ? ` · ${event.links.map(link=>`${link.name}: ${link.text}`).join(' · ')}` : ''}">${art ? `<i class="art art-${art}"></i>` : ''}<span><small>${event.turn}턴 ${owner === 'player' ? '나' : '적'}</small>${event.type === 'shuffle' ? '재섞기' : event.type === 'charge' ? '충전·버림' : lead ? lead.name : event.name}</span></span>`;
+    const lead=event.links?.find(link=>link.kind==='form')||event.links?.[0],owner=lead?.actor||event.actor,art=lead?.name==='곰 반격'?'art art-bear':event.cardId?cardArtClass(CARDS[event.cardId]):null;
+    return `<span class="history-item ${owner === 'enemy' ? 'enemy-action' : ''} ${event.type === 'charge' ? 'charge' : ''} ${lead ? 'linked-action' : ''}" title="${event.name || '재섞기'}${event.links?.length ? ` · ${event.links.map(link=>`${link.name}: ${link.text}`).join(' · ')}` : ''}">${art ? `<i class="${art}"></i>` : ''}<span><small>${event.turn}턴 ${owner === 'player' ? '나' : '적'}</small>${event.type === 'shuffle' ? '재섞기' : event.type === 'charge' ? '충전·버림' : lead ? lead.name : event.name}</span></span>`;
   }).join('');
   for (const actor of ['player','enemy']) renderActive(lastCards[actor] || {actor,type:'waiting'});
 }
@@ -400,6 +400,7 @@ function showImpactBeat(beat,event,health) {
     if(beat.damage&&beat.absorbed)effectChip(`보호막 −${beat.absorbed}`,targetId,'shield');
   }
   if(beat.kind==='counter')playClass($(sourceId),'countering',600);
+  if(beat.kind==='burn')effectLater(()=>effectChip(`버림 화상 ${beat.rawDamage}`,targetId,'burn',1),0);
   if(beat.kind==='reaction'){
     playClass($(sourceId),'reacting',600);
     if(event.reactionHeal){aura(sourceId,'heal');floatText(`+${event.reactionHeal}`,sourceId,'heal');sound('heal');}
@@ -454,6 +455,12 @@ function resolveStep() {
       $('battle-caption').querySelector('.link-caption-detail').textContent=lead.text;
     }
   }else $('battle-caption').textContent=event.type==='charge'?`${event.actor==='player'?'내':'상대'} · ${event.name} 충전 ${event.charged}/${event.cost} · 버림`:`${event.actor==='player'?'내':'상대'} 재섞기 · 한 턴 휴식${event.poisonDamage?` · 맹독 피해 ${event.poisonDamage}`:''}`;
+  const discardedBurn=beats.find(beat=>beat.kind==='burn');
+  if(discardedBurn){
+    const label=discardedBurn.damage?`버림 화상 −${discardedBurn.damage}`:`화상 방어 ${discardedBurn.absorbed}`;
+    const detail=$('battle-caption').querySelector('.link-caption-detail');
+    if(detail)detail.textContent+=` · ${label}`;else $('battle-caption').textContent+=` · ${label}`;
+  }
   if(event.fatigue)$('battle-caption').textContent+=` · 피로 ${event.fatigue}`;
   const duration=lastBeat;
   effectLater(()=>{renderHealth(state.battle);$('battlefield').dataset.presentation='settle';},duration+160);

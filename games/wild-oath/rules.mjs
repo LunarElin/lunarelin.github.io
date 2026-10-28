@@ -262,10 +262,8 @@ export function stepBattle(state) {
     Object.assign(event,{cardId:card.id,uid:instance.uid,name:card.name,cardType:card.type,cost:card.cost,tier:instance.tier,turnCard:++battle.turnCard});
     const needed=Math.max(0,card.cost-instance.charge), spend=Math.min(needed,source.energy);
     source.energy-=spend; instance.charge+=spend; event.energySpent=spend; event.charged=instance.charge;
-    source.discard.push(instance);
     if(instance.charge<card.cost) {
       event.type='charge'; event.turnEnded=true; source.combo=0; state.stats.charged++;
-      if(source.burn>0) { const amount=source.burn,result=hit(source,amount); event.burnDamage=result.damage; event.burnAbsorbed=result.shieldLost; event.impacts.push({kind:'burn',damage:result.damage,absorbed:result.shieldLost,rawDamage:amount}); source.burn--; }
     } else {
       instance.charge=0;
       const before={shield:source.shield,poison:target.poison,burn:target.burn,shock:target.shock,combo:source.combo};
@@ -330,6 +328,10 @@ export function stepBattle(state) {
       // exhausted draw pile ends the chain; reshuffling waits for the next turn.
       event.turnEnded=source.energy===0||source.draw.length===0;
     }
+    // Every drawn card is discarded once after its effects (or failed charge).
+    // Burn belongs to this shared boundary, not to an individual damage strike.
+    source.discard.push(instance);
+    if(source.burn>0) { const amount=source.burn,result=hit(source,amount); event.burnDamage=result.damage; event.burnAbsorbed=result.shieldLost; event.impacts.push({kind:'burn',damage:result.damage,absorbed:result.shieldLost,rawDamage:amount}); source.burn--; }
   }
   if(source.hp<=0 || target.hp<=0) event.turnEnded=true;
   if(event.turnEnded && source.hp>0 && target.hp>0) {const before=source.energy;gainEnergy(source,target,1,event);event.energyRecovered=source.energy-before;}

@@ -1,0 +1,20 @@
+<!-- Original seamless ink-and-cel board for Wild Oath. Two broad planks, sparse grain, no external resources or filters. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <path fill="#65452b" d="M0 0h512v512H0z"/>
+  <path fill="#765232" d="M4 0h246v512H4z"/>
+  <path fill="#704c2e" d="M260 0h246v512H260z"/>
+  <path fill="#5a3c26" d="M4 0h18v512H4zM260 0h18v512h-18z"/>
+  <path fill="#2e2419" d="M0 0h4v512H0zM250 0h10v512h-10zM506 0h6v512h-6z"/>
+  <path fill="#bc884c" opacity=".38" d="M4 0h3v512H4zM260 0h3v512h-3z"/>
+  <g fill="none" stroke="#39291e" stroke-width="3" stroke-linecap="round" opacity=".22">
+    <path d="M52 0c9 86-10 153-1 239s-8 167-1 273M156 0c-9 76 8 154 1 240s7 184 0 272M308 0c-7 91 8 166-1 250s6 169 1 262M448 0c8 83-7 163 1 246s-6 178-1 266"/>
+    <path d="M108 187c-18 28-18 63 0 88 17-25 17-62 0-88zM108 209c-5 16-5 28 0 42"/>
+  </g>
+  <g fill="none" stroke="#cb9856" stroke-width="2" opacity=".15">
+    <path d="M87 0c-6 78 5 150 0 217s6 195 0 295M361 0c6 97-6 167 0 250s-4 170 0 262"/>
+  </g>
+  <g fill="#896136" stroke="#34251b" stroke-width="2">
+    <circle cx="18" cy="24" r="4"/><circle cx="238" cy="488" r="4"/>
+    <circle cx="274" cy="488" r="4"/><circle cx="494" cy="24" r="4"/>
+  </g>
+</svg>

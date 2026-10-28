@@ -1,0 +1,130 @@
+{
+  "date": "2026-10-29",
+  "command": "node games/wild-oath/tests/balance-campaigns.mjs --seeds 100",
+  "change": "Burn triggers exactly once on successful, failed and free-card discard after card effects; shuffle without a card is excluded.",
+  "comparison": "Current rules only. No --compare-baseline: that runner flag disables wyvern recovery and is not a burn-rule comparison.",
+  "limits": [
+    "Fixed themed-priorities-v1 policy, not general player win rates",
+    "Rule simulations, not browser or real-device playtests"
+  ],
+  "unit_tests": {
+    "rules": 45,
+    "presentation": 20,
+    "deck_analysis": 5,
+    "instance_integrity": 4,
+    "non_art_total": 74,
+    "status": "passed",
+    "all_total": 76,
+    "final_art_suite_status": "passed after root integration",
+    "browser_qa_status": "root records separately"
+  },
+  "aggregate": {
+    "runs": 300.0,
+    "battles": 1268.0,
+    "events": 39982.0,
+    "save_checks": 47956.0,
+    "resume_checks": 3077.0
+  },
+  "result": {
+    "policy": "themed-priorities-v1; seeds 1..N; natural choices/API only; best 10 cards plus heal/defense/energy; own form top; heal bottom",
+    "seeds": 100,
+    "summary": [
+      {
+        "form": "wolf",
+        "runs": 100,
+        "wins": 68,
+        "winPercent": 68,
+        "meanVictories": 3.86,
+        "meanReached": 4.18,
+        "meanWinnerHp": 48.161764705882355,
+        "lossStages": {
+          "1": 12,
+          "2": 3,
+          "3": 11,
+          "4": 3,
+          "5": 3
+        },
+        "battles": 418,
+        "events": 14628,
+        "saveChecks": 17270,
+        "resumeChecks": 1150,
+        "reactionHeal": 0,
+        "enemyReactionHeal": 183,
+        "playerFormLinks": {
+          "wolf": 393,
+          "bear": 0,
+          "wyvern": 0
+        },
+        "enemyFormLinks": {
+          "wolf": 60,
+          "bear": 445,
+          "wyvern": 101
+        }
+      },
+      {
+        "form": "bear",
+        "runs": 100,
+        "wins": 61,
+        "winPercent": 61,
+        "meanVictories": 3.67,
+        "meanReached": 4.06,
+        "meanWinnerHp": 52.78688524590164,
+        "lossStages": {
+          "1": 13,
+          "2": 8,
+          "3": 6,
+          "4": 6,
+          "5": 6
+        },
+        "battles": 406,
+        "events": 13823,
+        "saveChecks": 16408,
+        "resumeChecks": 1073,
+        "reactionHeal": 0,
+        "enemyReactionHeal": 322,
+        "playerFormLinks": {
+          "wolf": 0,
+          "bear": 794,
+          "wyvern": 0
+        },
+        "enemyFormLinks": {
+          "wolf": 66,
+          "bear": 292,
+          "wyvern": 141
+        }
+      },
+      {
+        "form": "wyvern",
+        "runs": 100,
+        "wins": 73,
+        "winPercent": 73,
+        "meanVictories": 4.17,
+        "meanReached": 4.44,
+        "meanWinnerHp": 55.45205479452055,
+        "lossStages": {
+          "1": 7,
+          "2": 6,
+          "3": 4,
+          "4": 2,
+          "5": 8
+        },
+        "battles": 444,
+        "events": 11531,
+        "saveChecks": 14278,
+        "resumeChecks": 854,
+        "reactionHeal": 4393,
+        "enemyReactionHeal": 207,
+        "playerFormLinks": {
+          "wolf": 0,
+          "bear": 0,
+          "wyvern": 1700
+        },
+        "enemyFormLinks": {
+          "wolf": 65,
+          "bear": 0,
+          "wyvern": 116
+        }
+      }
+    ]
+  }
+}

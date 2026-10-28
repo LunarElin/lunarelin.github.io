@@ -1,20 +1,20 @@
-/* Original Wild Oath tavern materials, shared visually with ui-polish.css.
+/* Original Wild Oath ink-and-cel tabletop, shared visually with ui-polish.css.
    Load after catalog.css and card-art.css; card illustrations retain their mapping. */
 :root {
   color-scheme:dark; --ink:#f1dfbb; --cream:#ead1a0; --sky:#3c90bb; --mint:#418666;
   --coral:#a44e33; --gold:#e9b54f; --edge:#9a7743; --shade:#34251c;
-  --paper:linear-gradient(125deg,#f0dbb2 0%,#e3c38b 65%,#cfa66b 100%);
-  --brass-button:linear-gradient(#805e38,#503724 52%,#34251d);
-  --gold-button:linear-gradient(#f3cf7a,#d4a144 52%,#bd8235);
+  --paper:linear-gradient(#e8cf99 0 82%,#d6b579 82% 100%);
+  --brass-button:linear-gradient(#785432 0 17%,#513824 17% 82%,#38271d 82% 100%);
+  --gold-button:linear-gradient(#efbf57 0 18%,#daa540 18% 80%,#bd8235 80% 100%);
 }
 body { background:#151017; color:#f1dfbb; }
 .catalog-shell {
-  background-color:#704b2d;
-  background-image:radial-gradient(ellipse at 50% 20%,#b181433b,transparent 70%),linear-gradient(#24161a21,#160e163d),url('assets/tavern-board.svg');
-  background-size:auto,auto,512px 512px;
+  background-color:#65452b;
+  background-image:linear-gradient(#120c081a,#120c0833),url('assets/cartoon-board.svg');
+  background-size:auto,512px 512px;
   background-position:center;
-  border-inline-color:#584738;
-  box-shadow:inset 7px 0 11px #0f090b80,inset -7px 0 11px #0f090b80,0 0 55px #0008;
+  border-inline-color:#2a1f17;
+  box-shadow:inset 5px 0 7px #1c130c80,inset -5px 0 7px #1c130c80,0 0 35px #0008;
 }
 .catalog-header { border-color:#cba05a52; }
 .catalog-header p { color:#d7bd91; text-shadow:0 1px #28190f; }
@@ -37,21 +37,21 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { 
 .catalog-toolbar>span { color:#f2d28c; text-shadow:0 2px #2b1a10; }
 .pool-note { color:#fff3d8; text-shadow:0 1px #28190f; }
 .card-list { scrollbar-color:#ad844b #2a1b12; }
-.catalog-card,.catalog-card[data-type] { color:#302116; border-color:#aa7846 #72502e #402a1b; border-radius:12px; background:var(--paper); box-shadow:inset 0 2px #ffefc994,inset 0 -2px #7a4e313d,0 4px #4c2e1c,0 7px 9px #130b0b70; }
-.catalog-card:before { border-color:#fff0c343; border-radius:7px; }
+.catalog-card,.catalog-card[data-type] { color:#302116; border-color:#765731 #4a3522 #2b2016; border-radius:12px; background:var(--paper); box-shadow:inset 0 2px #f9e4ad80,inset 0 -2px #8d642d4d,0 4px #291c12,0 6px 7px #130b0b70; }
+.catalog-card:before { border-color:#f3dcaa4d; border-radius:7px; }
 .catalog-card:active { box-shadow:inset 0 2px #ffefc994,0 1px #4c2e1c,0 3px 5px #130b0b70; }
-.catalog-card[data-type=attack] { border-color:#b87c4d #86502e #4a281a; }
-.catalog-card[data-type=defense] { border-color:#8997a1 #4f626e #2d3b46; }
-.catalog-card[data-type=form] { border-color:#b4945e #7d5d3b #4b3322; }
-.catalog-card[data-type=heal] { border-color:#858c4a #596237 #343e26; }
-.catalog-card[data-type=energy],.catalog-card[data-type=support] { border-color:#d1a653 #966d32 #5c3f21; }
-.card-art { border-color:#62462c #9d7848 #bf9860; border-radius:7px; background-color:#443223; box-shadow:inset 0 2px 4px #110b0980,0 1px #f7e0ad9e; }
-.card-cost { color:#fff3cf; border-color:#b0c6c8 #4a7895 #173b5a; border-radius:39% 39% 44% 44%; background:radial-gradient(ellipse at 32% 18%,#79c5eb 0%,#2f80b8 27%,#174d86 68%,#0d2c52 100%); box-shadow:inset 2px 2px #c5f2ff63,inset -2px -3px #051c4259,0 3px #302117,0 4px 6px #21151180; text-shadow:0 2px #102e55; }
+.catalog-card[data-type=attack] { border-color:#75472c #4b2c1c #2e1e17; }
+.catalog-card[data-type=defense] { border-color:#536673 #344852 #1c2d35; }
+.catalog-card[data-type=form] { border-color:#856032 #4b361f #2b2116; }
+.catalog-card[data-type=heal] { border-color:#4a6b3a #2f4628 #1e2d1c; }
+.catalog-card[data-type=energy],.catalog-card[data-type=support] { border-color:#9b6c2b #5e4220 #342715; }
+.card-art { border-color:#3b2a1c; border-radius:7px; background-color:#443223; box-shadow:inset 0 1px #140b084d,0 1px #e6c58080; }
+.card-cost { color:#fff3cf; border-color:#88c6d7 #365b77 #142e48; border-radius:39% 39% 44% 44%; background:linear-gradient(135deg,#4387ab 0 22%,#1f6b9c 22% 70%,#174b7e 70% 100%); box-shadow:inset 1px 1px #b3dfe94d,0 3px #21180f,0 4px 5px #21151180; text-shadow:0 2px #102e55; }
 .card-name { color:#2a1d13; text-shadow:0 1px #ffebbd73; }.card-effects { color:#3f2b1c; }
 .card-link,.card-link.form-link { color:#46331f; border-color:#ac874d; border-radius:6px; background:linear-gradient(#f4dfa9,#d7b77b); box-shadow:inset 0 1px #fff0c3,0 1px #906a3b45; }
-.card-link b,.card-link.form-link b { color:#71491e; }
+.card-link b,.card-link.form-link b { color:#624219; }
 .card-footer { color:#62462b; }.card-footer>span:first-child { color:#533b25; border-color:#b18b51; border-radius:4px; background:#f2d8a4; }
-.card-stars { color:#80501d; text-shadow:0 1px #ffe0a2; }
+.card-stars { color:#624219; text-shadow:0 1px #ffe0a2; }
 .empty-list { color:#eed9b3; text-shadow:0 1px #2a1a10; }
 .card-detail { color:#efdcbc; border-color:#c9a365 #866238 #493322; border-radius:14px; background:radial-gradient(ellipse at 50% 0,#75533440,transparent 65%),linear-gradient(#433227,#2d231e); box-shadow:inset 0 3px #e9c98e73,inset 0 -3px #130e0a99,0 6px #1a120d,0 24px 60px #08060bd1; }
 .card-detail::backdrop { background:#0c0b16c4; }

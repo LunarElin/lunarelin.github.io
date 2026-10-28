@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-29",
+  "browser": "Codex in-app browser, desktop Chromium",
+  "origin": "http://localhost:8765/games/wild-oath/",
+  "method": "Visible natural UI only, no HP/card/RNG/save injection. Separate from the user's 127.0.0.1 origin.",
+  "viewports": [[1280,720],[390,640],[320,640],[844,390]],
+  "art": {
+    "style": "bold ink and cel-shaded cartoon",
+    "catalog_cards":28,
+    "catalog_action_images":25,
+    "catalog_unique_action_urls":25,
+    "critical_distinctions_reviewed":["poison fang vs piercing wind spike","energy sap vs charging signal","wood shield vs hide","single claw vs double claw"],
+    "native_contact_sheet_sizes":[[80,80],[80,40],[60,30]],
+    "webp_bytes":498884,
+    "svg_board_bytes":1276
+  },
+  "layout": {
+    "horizontal_overflow":false,
+    "font_loaded":"DoHyeon",
+    "320_card_name_css_px":19,
+    "320_card_body_css_px":16,
+    "320_launch_size":[106,68.9375],
+    "320_launch_bottom":630.96875,
+    "landscape_lanes":[{"x":21,"y":74,"width":395,"height":198.203125},{"x":428,"y":74,"width":395,"height":198.203125}],
+    "landscape_footer_bottom":383,
+    "landscape_button_height":44
+  },
+  "flows":["v5 exploration restored","event card choice","bulk merge to tier 3","analysis -> card detail -> analysis","catalog search -> pierce/burn detail -> game","battle victories -> rewards -> exploration","5/5 result -> new draft, eight choices -> new bear battle","home -> game restores the same 0/5 loss, shifts 1 and damage 78"],
+  "continued_wyvern_run": {
+    "start":{"stage":3,"hp":31,"gold":18,"deck":11},
+    "stage3":{"event":"merchant, claw tier 2; merge to tier 3","start_hp":31,"end_hp":31,"outcome":"victory"},
+    "stage4":{"reward":"harvest","event":"spirit, sap","start_hp":49,"end_hp":35,"outcome":"victory"},
+    "stage5":{"reward":"storm","event":"spirit, rally; storm pair merge to tier 2","start_hp":53,"end_hp":70,"outcome":"won, result 5/5"},
+    "result":{"shifts":5,"damage":408},
+    "limit":"Stages 1-2 were completed in the previous version. Only stages 3-5 were played with the current burn rules and art."
+  },
+  "fresh_bear_run": {
+    "draft":["bear","nettle","thorns","kindle","frost","renewal","bark","frost"],
+    "event":"merchant, nettle tier 2",
+    "camp":"frost pair merge to tier 2; thorns front sticker; active deck 8",
+    "successful_discard_observation":{"actor":"enemy","card":"wyvern","cost":0,"action":"card","chip":"버림 화상 2","caption":"상대 · 비취 와이번 / 효과 발동 · 버림 화상 −2","visible_hp":[64,44]},
+    "pause_reload":{"before_hp":[47,38],"after_hp":[47,38],"effects_after_stop":0,"open_dialog_after_reload":"pause-dialog","resumed":true},
+    "outcome":"lost stage 1 against wyvern, result 0/5, shifts 1, damage 78"
+  },
+  "console_errors_or_warnings":0,
+  "automated_tests":{"passed":76,"rules":45,"presentation":20,"deck_analysis":5,"instance_integrity":4,"art":2},
+  "limits":["No actual iOS/Android touch, browser chrome or notch test","No speaker/headphone listening","No measured FPS/GPU/thermal data","Reduced-motion and lifecycle checked by unit tests/source, no OS preference or audio failure injection","No full fresh five-stage campaign for all three forms this time"],
+  "evidence_directory":"C:/Users/BeX/.codex/visualizations/2026/10/21/01a15e8e-97b4-7fb0-b8bd-d7e699a3c9c7",
+  "evidence_prefix":"wild-oath-cartoon-"
+}

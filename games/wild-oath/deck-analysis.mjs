@@ -1,4 +1,4 @@
-import {describeCard} from './rules.mjs';
+import {describeCard} from './rules.mjs?v=cartoon-4';
 
 // Preparation information only: these counts never consume resources or shuffle cards.
 export function analyzeDeck(deck,opponentSize=null) {

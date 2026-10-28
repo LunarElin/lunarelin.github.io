@@ -1,0 +1,1006 @@
+{
+  "version": 4,
+  "date": "2026-10-29",
+  "family": "Wild Oath inked cartoon",
+  "visual_target": "Root selected the original portrait target after full-source and native 80px review. Thick near-black outlines, saturated local color planes, clear graphic silhouettes. Every normal card has its own action motif.",
+  "sources": {
+    "portraits": {
+      "kind": "generated",
+      "tool": "OpenAI built-in image_gen",
+      "model": "not exposed by tool",
+      "generation_id": "01a18344-562a-75f0-98cc-e996fbbf4014",
+      "original": "exec-739808cb-d43c-4d1c-8346-6837547bc2e2.png retained in generated-image archive; not shipped",
+      "size": [
+        1536,
+        1024
+      ],
+      "reference": "none; original generation from project subject-identity brief",
+      "prompt_record": "ART.md#portrait-prompt"
+    },
+    "cards": [
+      {
+        "sheet": "A",
+        "kind": "generated",
+        "tool": "OpenAI built-in image_gen",
+        "model": "not exposed by tool",
+        "generation_id": "01a18344-562a-75f0-98cc-e996fbbf4014",
+        "original": "exec-dce97a96-1e21-4209-b19f-cfaaebb09bed.png retained in generated-image archive; not shipped",
+        "size": [
+          1774,
+          887
+        ],
+        "reference": "approved portrait original exec-739808cb-d43c-4d1c-8346-6837547bc2e2.png",
+        "grid": [
+          3,
+          3
+        ],
+        "cell_aspect": [
+          2,
+          1
+        ],
+        "prompt_record": "ART.md#sheet-a-prompt",
+        "grid_boundaries": {
+          "x": [
+            0,
+            592,
+            1183,
+            1774
+          ],
+          "y": [
+            0,
+            296,
+            570,
+            887
+          ]
+        }
+      },
+      {
+        "sheet": "B",
+        "kind": "generated",
+        "tool": "OpenAI built-in image_gen",
+        "model": "not exposed by tool",
+        "generation_id": "01a18344-562a-75f0-98cc-e996fbbf4014",
+        "original": "exec-d45fc088-9dc9-46b7-aaf0-7b5eda49b3b0.png retained in generated-image archive; not shipped",
+        "size": [
+          1774,
+          887
+        ],
+        "reference": "approved portrait original exec-739808cb-d43c-4d1c-8346-6837547bc2e2.png",
+        "grid": [
+          3,
+          3
+        ],
+        "cell_aspect": [
+          2,
+          1
+        ],
+        "prompt_record": "ART.md#sheet-b-prompt",
+        "grid_boundaries": {
+          "x": [
+            0,
+            592,
+            1183,
+            1774
+          ],
+          "y": [
+            0,
+            296,
+            591,
+            887
+          ]
+        }
+      },
+      {
+        "sheet": "C",
+        "kind": "generated",
+        "tool": "OpenAI built-in image_gen",
+        "model": "not exposed by tool",
+        "generation_id": "01a18344-562a-75f0-98cc-e996fbbf4014",
+        "original": "exec-20b3aa15-aa69-4240-a636-d813ee04f988.png retained in generated-image archive; not shipped",
+        "size": [
+          1774,
+          887
+        ],
+        "reference": "approved portrait original exec-739808cb-d43c-4d1c-8346-6837547bc2e2.png",
+        "grid": [
+          3,
+          3
+        ],
+        "cell_aspect": [
+          2,
+          1
+        ],
+        "prompt_record": "ART.md#sheet-c-prompt",
+        "grid_boundaries": {
+          "x": [
+            0,
+            592,
+            1183,
+            1774
+          ],
+          "y": [
+            0,
+            295,
+            591,
+            887
+          ]
+        }
+      }
+    ]
+  },
+  "normalization": {
+    "method": "Full panels sliced at visually/numerically verified atlas boundaries, excluding 1 source pixel at internal seams, then Lanczos resized to 320x160 and converted to WebP. Source A has unequal row heights (296/274/317), normalized with full-panel resize; no central-half crop or semantic content edit.",
+    "webp_quality": 82,
+    "webp_method": 6,
+    "card_output": [
+      320,
+      160
+    ],
+    "unused_cells": "B and C bottom-right empty cells not shipped"
+  },
+  "portrait": {
+    "file": "portraits.webp",
+    "size": [
+      1152,
+      768
+    ],
+    "grid": [
+      3,
+      2
+    ],
+    "cell": [
+      384,
+      384
+    ],
+    "subjects": [
+      "wolf",
+      "bear",
+      "wyvern",
+      "druid",
+      "guardian",
+      "clearing"
+    ],
+    "bytes": 183092,
+    "sha256": "de0387b6227342aa80e8f9132db1cedacdf5337c43ef9d79907635a9fb72c703",
+    "alpha": "opaque",
+    "color_space": "sRGB",
+    "filtering": "smooth; original 3x2 background coordinates",
+    "status": "Root target selected; native 80px review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+  },
+  "assets": [
+    {
+      "id": "claw",
+      "file": "cards/claw.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 11698,
+      "sha256": "eb41cfb45e7722252d77d5f756b9f295f894938a23de37864bc5ac7163326f31",
+      "source_sheet": "A",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        0,
+        591,
+        295
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "bite",
+      "file": "cards/bite.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 15700,
+      "sha256": "65cba1d75f0beba7a4df5b5699042aa4303c247a72fe0c3a51a9a204d9d1db1a",
+      "source_sheet": "A",
+      "atlas_cell": [
+        1,
+        0
+      ],
+      "crop_box": [
+        593,
+        0,
+        1182,
+        295
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "bark",
+      "file": "cards/bark.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 15008,
+      "sha256": "3a40057b35404ccdca1c5109b82f9fbb8ba6018dd4682e4eea71ea17ea2a1fb6",
+      "source_sheet": "A",
+      "atlas_cell": [
+        2,
+        0
+      ],
+      "crop_box": [
+        1184,
+        0,
+        1774,
+        295
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "mend",
+      "file": "cards/mend.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 10332,
+      "sha256": "892dd5416fa92b9f42dcdad6a390194854a7a0c2880a4fe3b2362cd9f704736c",
+      "source_sheet": "A",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        297,
+        591,
+        569
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "sap",
+      "file": "cards/sap.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 9076,
+      "sha256": "5cd75cbbb55292171dc8c515d38747cc9f90b5dd110ab9576db22d7f88566918",
+      "source_sheet": "A",
+      "atlas_cell": [
+        1,
+        1
+      ],
+      "crop_box": [
+        593,
+        297,
+        1182,
+        569
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "venom",
+      "file": "cards/venom.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 6888,
+      "sha256": "8c54e31707fc5fa5559254045b0c7e54a921d958a58c53dc6ed586d6fab72a2d",
+      "source_sheet": "A",
+      "atlas_cell": [
+        2,
+        1
+      ],
+      "crop_box": [
+        1184,
+        297,
+        1774,
+        569
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "thorns",
+      "file": "cards/thorns.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 17358,
+      "sha256": "014effe111167fbcb37c15982b12415abee8b385bcf39762d15d0f2d3d43a41b",
+      "source_sheet": "A",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        571,
+        591,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "storm",
+      "file": "cards/storm.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12890,
+      "sha256": "3f4ab2cc22bae6179531830d02fce7c08104d30965804d301beda085edf06b6e",
+      "source_sheet": "A",
+      "atlas_cell": [
+        1,
+        2
+      ],
+      "crop_box": [
+        593,
+        571,
+        1182,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "pounce",
+      "file": "cards/pounce.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 15394,
+      "sha256": "e262cece237d92202cb58108ed303a21ec7c10680acbf4901fb7ee6f527b418b",
+      "source_sheet": "A",
+      "atlas_cell": [
+        2,
+        2
+      ],
+      "crop_box": [
+        1184,
+        571,
+        1774,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "ancient",
+      "file": "cards/ancient.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 18354,
+      "sha256": "f183e601babbd2e1e637ef281497837082dfdd3a09c4a04362aa7cb387ba4b5a",
+      "source_sheet": "B",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        0,
+        591,
+        295
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "moonwell",
+      "file": "cards/moonwell.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12336,
+      "sha256": "61463682f47c3ff18e09440c738dafd2ee907b90e6221ed886b3ab6dd21899d5",
+      "source_sheet": "B",
+      "atlas_cell": [
+        1,
+        0
+      ],
+      "crop_box": [
+        593,
+        0,
+        1182,
+        295
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "frost",
+      "file": "cards/frost.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 15438,
+      "sha256": "b8a5055abeaa226348601d5d4358dee17fd82007743f40cf082154a5e42b084e",
+      "source_sheet": "B",
+      "atlas_cell": [
+        2,
+        0
+      ],
+      "crop_box": [
+        1184,
+        0,
+        1774,
+        295
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "wildheart",
+      "file": "cards/wildheart.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 16762,
+      "sha256": "ec2b08b3b48da9192d58f1d126b2d2484f49c9ca86acaf0ab755b6efa2a3352a",
+      "source_sheet": "B",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        297,
+        591,
+        590
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "ember",
+      "file": "cards/ember.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12354,
+      "sha256": "4805743c0c50c73868b65b4b9ab8396350d21a7fdd2975974c021c350dd23165",
+      "source_sheet": "B",
+      "atlas_cell": [
+        1,
+        1
+      ],
+      "crop_box": [
+        593,
+        297,
+        1182,
+        590
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "nettle",
+      "file": "cards/nettle.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 11070,
+      "sha256": "c75378ffe7e38347e31339c5dfd727dc95c27101934def02de0e05e402bfb886",
+      "source_sheet": "B",
+      "atlas_cell": [
+        2,
+        1
+      ],
+      "crop_box": [
+        1184,
+        297,
+        1774,
+        590
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "static",
+      "file": "cards/static.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12662,
+      "sha256": "bea5d86332bfeb09888432b7567ea58801e1c7ad7fe3dd6174c133b6aed59e65",
+      "source_sheet": "B",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        592,
+        591,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "harvest",
+      "file": "cards/harvest.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14014,
+      "sha256": "2e09d46e9b9ed2ba205ff82bf2471a84e3d8b72efdfc5306478f1179add23b3d",
+      "source_sheet": "B",
+      "atlas_cell": [
+        1,
+        2
+      ],
+      "crop_box": [
+        593,
+        592,
+        1182,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "sprout",
+      "file": "cards/sprout.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 8010,
+      "sha256": "e6fbdee007b9997ed3240f8f8afdff0674fbb4fe3ddbf1a46d5ad7827823ad51",
+      "source_sheet": "C",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        0,
+        591,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "hide",
+      "file": "cards/hide.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12382,
+      "sha256": "b2f5ddc083044082b8406cf34eb21f17804ef2c8c9773f49ea95591f7630a84c",
+      "source_sheet": "C",
+      "atlas_cell": [
+        1,
+        0
+      ],
+      "crop_box": [
+        593,
+        0,
+        1182,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "trample",
+      "file": "cards/trample.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13606,
+      "sha256": "3d496c00e1968c8f199f8f9412cbc03a6d2375777e314e2887e6162742925f38",
+      "source_sheet": "C",
+      "atlas_cell": [
+        2,
+        0
+      ],
+      "crop_box": [
+        1184,
+        0,
+        1774,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "talon",
+      "file": "cards/talon.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 10234,
+      "sha256": "02f1c84aa93fca7f855053103c7eed85edc161d441309c3b4792a9cb1f03b36f",
+      "source_sheet": "C",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        296,
+        591,
+        590
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "renewal",
+      "file": "cards/renewal.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 11178,
+      "sha256": "02abad71840052bbf74c4cbbcde9fed68a447ed0e0e0fbeeada1b6030f2c5726",
+      "source_sheet": "C",
+      "atlas_cell": [
+        1,
+        1
+      ],
+      "crop_box": [
+        593,
+        296,
+        1182,
+        590
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "kindle",
+      "file": "cards/kindle.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 9122,
+      "sha256": "f945116c396e94cac20709b68d004fe13b0d829eed79ed256d6ff2d3d6e61f6c",
+      "source_sheet": "C",
+      "atlas_cell": [
+        2,
+        1
+      ],
+      "crop_box": [
+        1184,
+        296,
+        1774,
+        590
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "rally",
+      "file": "cards/rally.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 11900,
+      "sha256": "54911a7a50b0d2fa8dbe985424ec24b920e43c0b0eee17d03da6d28b6451dd25",
+      "source_sheet": "C",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        592,
+        591,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    },
+    {
+      "id": "harry",
+      "file": "cards/harry.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12026,
+      "sha256": "43d75468a9a532ec6c67c54d8ca5773022e022a426da89690a2f08ff3637009a",
+      "source_sheet": "C",
+      "atlas_cell": [
+        1,
+        2
+      ],
+      "crop_box": [
+        593,
+        592,
+        1182,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth; full panel with 1 source-pixel internal seam exclusion",
+      "webp_quality": 82,
+      "status": "Technical and native 160x80/80x40/60x30 review passed; representative in-game family reviewed in Codex IAB; see review_scope"
+    }
+  ],
+  "card_bytes": 315792,
+  "total_bytes": 498884,
+  "budget_bytes": 550000,
+  "rights_note": "Original generated project artwork. No commercial-game images, logos or proprietary character designs shipped. Not claimed as CC0. Source PNG retained in generation archive; WebP conversion may not preserve embedded provenance metadata.",
+  "review_scope": {
+    "date": "2026-10-29",
+    "reviewer": "root integration owner",
+    "target_selected": true,
+    "native_contact_sheet_review": "All 25 action motifs at 160x80, 80x40 and 60x30; six portraits at 80px",
+    "browser": "Codex in-app browser on desktop Chromium",
+    "viewports": [
+      [
+        1280,
+        720
+      ],
+      [
+        390,
+        640
+      ],
+      [
+        320,
+        640
+      ],
+      [
+        844,
+        390
+      ]
+    ],
+    "representative_views": [
+      "exploration",
+      "draft choices",
+      "deck",
+      "shop artwork",
+      "deck-analysis card detail",
+      "catalog",
+      "reward",
+      "combat",
+      "result"
+    ],
+    "catalog_dom": {
+      "cards": 28,
+      "action_cards": 25,
+      "unique_action_image_urls": 25
+    },
+    "observed_distinctions": [
+      "venom versus talon",
+      "rally versus energy sap",
+      "frost versus bark"
+    ],
+    "technical_checks": "All 26 WebP headers, dimensions, SHA256, uniqueness and total budget passed",
+    "play_observation": "Existing v5 run continued through stage 3, 4 and 5 wins; a new bear eight-card draft was also played",
+    "limits": [
+      "Representative family integration was reviewed; every card and every tier was not individually observed in combat",
+      "No real iOS/Android device validation",
+      "No actual speaker/headphone listening",
+      "No measured FPS/GPU/thermal results"
+    ],
+    "report": "../../CARTOON-ART-UPDATE.md"
+  }
+}

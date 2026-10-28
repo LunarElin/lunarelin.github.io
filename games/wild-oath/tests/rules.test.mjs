@@ -209,10 +209,69 @@ test('wyvern pierces shields; poison triggers only on shuffle and then halves',(
   assert.equal(event.poisonAbsorbed,10);assert.equal(event.poisonDamage,2);assert.equal(s.battle.enemy.hp,hp-2);assert.equal(s.battle.enemy.poison,3);assert.equal(s.battle.enemy.shield,0);
 });
 
-test('burn triggers on failed discard rather than successful disposal and healing removes burn',()=>{
-  const s=fresh();front(s,'player','claw',{burn:5,energy:4});assert.equal(stepBattle(s).burnDamage,0);assert.equal(s.battle.player.burn,5);
-  front(s,'player','ancient',{burn:5,energy:0});assert.equal(stepBattle(s).burnDamage,5);assert.equal(s.battle.player.burn,4);
-  front(s,'player','renewal',{hp:40,burn:4,energy:4});assert.equal(stepBattle(s).heal,10);assert.equal(s.battle.player.burn,3);
+test('successful, failed and free cards each trigger one discard burn on either side',()=>{
+  for(const actor of ['player','enemy'])for(const [id,energy,type] of [['claw',4,'card'],['ancient',0,'charge'],['kindle',0,'card']]){
+    const s=fresh();sequence(s,actor,[id,'bark','claw','mend','sap','bite'],{hp:50,burn:5,energy,shield:0,form:'druid'});
+    const event=stepBattle(s),source=s.battle[actor];
+    assert.equal(event.type,type,`${actor}/${id}`);assert.equal(event.burnDamage,5);assert.equal(event.burnAbsorbed,0);
+    assert.equal(source.hp,45);assert.equal(source.burn,4);assert.equal(source.discard.length,1);
+    assert.equal(event.impacts.filter(impact=>impact.kind==='burn').length,1);assert.equal(event.impacts.at(-1).kind,'burn');
+    if(id==='kindle')assert.equal(event.energyGained,1,'free energy cards still resolve before their burn');
+  }
+});
+
+test('discard burn follows healing, new shields, wyvern recovery and bear counters',()=>{
+  for(const actor of ['player','enemy']){
+    const other=actor==='player'?'enemy':'player';
+    const healed=fresh();front(healed,actor,'renewal',{hp:40,burn:4,energy:4,shield:0,form:'druid'});
+    const heal=stepBattle(healed);assert.equal(heal.heal,10);assert.equal(heal.shield,5);
+    assert.equal(heal.burnDamage,0);assert.equal(heal.burnAbsorbed,3,'10 healing removes 1 burn before the new shield absorbs the remaining 3');
+    assert.equal(healed.battle[actor].hp,50);assert.equal(healed.battle[actor].shield,2);assert.equal(healed.battle[actor].burn,2);
+    const rescue=fresh();front(rescue,actor,'mend',{hp:2,burn:5,energy:4,shield:0,form:'druid'});
+    const rescueEvent=stepBattle(rescue);assert.equal(rescueEvent.heal,6);assert.equal(rescueEvent.burnDamage,5);assert.equal(rescue.battle[actor].hp,3,'the card heals before its discard damage');
+    const wyvern=fresh();front(wyvern,actor,'kindle',{hp:40,burn:5,energy:2,shield:0,form:'wyvern'});wyvern.battle[other].poison=4;
+    const blast=stepBattle(wyvern);assert.equal(blast.reactionHeal,4);assert.equal(blast.burnDamage,5);assert.equal(wyvern.battle[actor].hp,39);
+    assert.deepEqual(blast.impacts.map(impact=>impact.kind),['reaction','burn']);
+    const countered=fresh();front(countered,actor,'claw',{hp:10,burn:4,energy:4,shield:0,form:'druid'});Object.assign(countered.battle[other],{form:'bear',shield:10});
+    const counter=stepBattle(countered);assert.equal(counter.counterDamage,3);assert.equal(counter.burnDamage,4);assert.equal(countered.battle[actor].hp,3);
+    assert.deepEqual(counter.impacts.map(impact=>impact.kind),['strike','counter','burn']);
+  }
+});
+
+test('multi-hit pursuit burns once per card and does not bypass resource chain boundaries',()=>{
+  for(const actor of ['player','enemy']){
+    const combo=fresh();sequence(combo,actor,['pounce','sap','claw','bark','mend','bite'],{hp:50,burn:5,energy:4,shield:0,form:'wolf',combo:2});
+    const hits=stepBattle(combo);assert.equal(hits.extraHits,1);assert.equal(hits.strikes.length,3);assert.equal(hits.burnDamage,5);assert.equal(combo.battle[actor].burn,4);
+    assert.equal(hits.impacts.filter(impact=>impact.kind==='burn').length,1);assert.equal(hits.turnEnded,false);assert.equal(combo.battle.actor,actor);
+    const depleted=fresh();sequence(depleted,actor,['claw','kindle','bark','claw','mend','bite'],{hp:50,burn:2,energy:1,shield:0,form:'druid'});
+    const end=stepBattle(depleted);assert.equal(end.burnDamage,2);assert.equal(end.turnEnded,true);assert.equal(end.energyRecovered,1);
+    assert.equal(depleted.battle[actor].draw[0].id,'kindle','the next free card still waits after the resource pool empties');assert.notEqual(depleted.battle.actor,actor);
+  }
+});
+
+test('reshuffling without a card does not trigger burn and lethal burn caps damage before recovery',()=>{
+  for(const actor of ['player','enemy']){
+    const shuffled=fresh(),source=shuffled.battle[actor];source.discard.push(...source.draw);source.draw=[];Object.assign(source,{hp:40,burn:6,poison:0,energy:2});shuffled.battle.actor=actor;
+    const shuffle=stepBattle(shuffled);assert.equal(shuffle.type,'shuffle');assert.equal(shuffle.burnDamage,0);assert.equal(source.burn,6);assert.equal(source.hp,40);
+    assert.equal(shuffle.impacts.some(impact=>impact.kind==='burn'),false);
+    const lethal=fresh();front(lethal,actor,'claw',{hp:4,burn:7,energy:4,shield:2,form:'druid'});
+    const death=stepBattle(lethal);assert.equal(death.damage,6,'the successful card resolves before lethal discard damage');
+    assert.equal(death.burnAbsorbed,2);assert.equal(death.burnDamage,4,'life damage cannot exceed remaining health');assert.equal(lethal.battle[actor].hp,0);
+    assert.equal(death.energyRecovered,0);assert.equal(death.turnEnded,true);assert.equal(lethal.phase,actor==='player'?'lost':'reward');
+    const mutual=fresh(),other=actor==='player'?'enemy':'player';front(mutual,actor,'claw',{hp:4,burn:7,energy:4,shield:2,form:'druid'});mutual.battle[other].hp=3;
+    const trade=stepBattle(mutual);assert.equal(trade.damage,3);assert.equal(trade.burnDamage,4);assert.equal(mutual.battle[actor].hp,0);assert.equal(mutual.battle[other].hp,0);
+    assert.equal(mutual.phase,'lost','simultaneous deaths preserve the existing player-defeat policy');assert.equal(trade.energyRecovered,0);
+  }
+});
+
+test('a saved successful discard resumes after its burn without replaying damage or consuming a second stack',()=>{
+  const s=fixture(11),cards=activeDeck(s);for(const card of cards)card.id='bark';cards[0].id='claw';
+  assert.equal(setSticker(s,cards[0].uid,'top').ok,true);assert.equal(startBattle(s).ok,true);
+  Object.assign(s.battle.player,{hp:50,burn:5,energy:4,shield:0,form:'druid'});
+  const played=stepBattle(s);assert.equal(played.cardId,'claw');assert.equal(played.burnDamage,5);assert.equal(s.battle.player.hp,45);assert.equal(s.battle.player.burn,4);
+  const restored=restoreRun(serialize(s));assert.ok(restored);assert.equal(restored.battle.player.hp,45);assert.equal(restored.battle.player.burn,4);
+  const next=stepBattle(s),resumed=stepBattle(restored);assert.deepEqual(resumed,next);assert.equal(serialize(restored),serialize(s));
+  assert.equal(next.cardId,'bark');assert.equal(next.burnDamage,0);assert.equal(next.burnAbsorbed,4);assert.equal(s.battle.player.hp,45);assert.equal(s.battle.player.burn,3);
 });
 
 test('shock fires on actual energy gains, with one recovery event per completed turn',()=>{

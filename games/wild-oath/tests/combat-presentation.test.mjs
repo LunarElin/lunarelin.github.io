@@ -286,6 +286,20 @@ test('sequential health accounting matches multi-hit, counter, status and actual
   assert.deepEqual([...covered].sort(),['burn','counter','fatigue','heal','poison','reaction','reactionHeal','shock','strike']);
 });
 
+test('successful discard burn is the final self-impact after healing, reaction and counter effects',()=>{
+  for(const actor of ['player','enemy'])for(const fixture of [
+    play('claw',{actor,source:{hp:40,burn:5,shield:2}}),
+    play('renewal',{actor,source:{hp:40,burn:4,shield:0}}),
+    play('kindle',{actor,source:{form:'wyvern',hp:40,burn:5},target:{poison:4}}),
+    play('claw',{actor,source:{hp:10,burn:4},target:{form:'bear',shield:10}}),
+  ]){
+    const {before,event,state}=fixture,beats=impactBeats(event),last=beats.at(-1);
+    assert.equal(event.type,'card');assert.equal(last.kind,'burn');assert.equal(last.target,actor);
+    assert.equal(beats.filter(beat=>beat.kind==='burn').length,1);
+    verifyHealthTimeline(before,event,state,`${actor} successful discard burn`);
+  }
+});
+
 test('health presentation reaches the exact saved health after every step of eight natural campaigns',()=>{
   let combatSteps=0;
   for(const seed of [1,2,3,7,19,41,101,999]){

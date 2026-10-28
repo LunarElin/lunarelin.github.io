@@ -1,19 +1,32 @@
-/* Painterly action art uses an undistorted 2:1 crop; portraits use the 3x2 heroic atlas. */
-.art{background-image:url('assets/tavern-v3/portraits.webp')}
+/* Bold ink-and-cel portraits and a distinct 2:1 action illustration for every card. */
+.art{background-image:url('assets/cartoon-v4/portraits.webp')}
 .card-illustration{background-image:var(--card-image);background-size:cover;background-position:center;background-repeat:no-repeat;background-color:#fff7d8}
 .draft-option .card-art.card-illustration{background-size:cover;background-position:center}
-.illustration-claw{--card-image:url('assets/tavern-v3/cards/claw.webp')}
-.illustration-bite{--card-image:url('assets/tavern-v3/cards/bite.webp')}
-.illustration-bark{--card-image:url('assets/tavern-v3/cards/bark.webp')}
-.illustration-mend{--card-image:url('assets/tavern-v3/cards/mend.webp')}
-.illustration-sap{--card-image:url('assets/tavern-v3/cards/sap.webp')}
-.illustration-venom{--card-image:url('assets/tavern-v3/cards/venom.webp')}
-.illustration-ember{--card-image:url('assets/tavern-v3/cards/ember.webp')}
-.illustration-storm{--card-image:url('assets/tavern-v3/cards/storm.webp')}
-.illustration-pounce{--card-image:url('assets/tavern-v3/cards/pounce.webp')}
-.illustration-ancient{--card-image:url('assets/tavern-v3/cards/ancient.webp')}
-.illustration-frost{--card-image:url('assets/tavern-v3/cards/frost.webp')}
-.illustration-moonwell{--card-image:url('assets/tavern-v3/cards/moonwell.webp')}
+.illustration-claw{--card-image:url('assets/cartoon-v4/cards/claw.webp')}
+.illustration-bite{--card-image:url('assets/cartoon-v4/cards/bite.webp')}
+.illustration-bark{--card-image:url('assets/cartoon-v4/cards/bark.webp')}
+.illustration-mend{--card-image:url('assets/cartoon-v4/cards/mend.webp')}
+.illustration-sap{--card-image:url('assets/cartoon-v4/cards/sap.webp')}
+.illustration-venom{--card-image:url('assets/cartoon-v4/cards/venom.webp')}
+.illustration-thorns{--card-image:url('assets/cartoon-v4/cards/thorns.webp')}
+.illustration-storm{--card-image:url('assets/cartoon-v4/cards/storm.webp')}
+.illustration-pounce{--card-image:url('assets/cartoon-v4/cards/pounce.webp')}
+.illustration-ancient{--card-image:url('assets/cartoon-v4/cards/ancient.webp')}
+.illustration-moonwell{--card-image:url('assets/cartoon-v4/cards/moonwell.webp')}
+.illustration-frost{--card-image:url('assets/cartoon-v4/cards/frost.webp')}
+.illustration-wildheart{--card-image:url('assets/cartoon-v4/cards/wildheart.webp')}
+.illustration-ember{--card-image:url('assets/cartoon-v4/cards/ember.webp')}
+.illustration-nettle{--card-image:url('assets/cartoon-v4/cards/nettle.webp')}
+.illustration-static{--card-image:url('assets/cartoon-v4/cards/static.webp')}
+.illustration-harvest{--card-image:url('assets/cartoon-v4/cards/harvest.webp')}
+.illustration-sprout{--card-image:url('assets/cartoon-v4/cards/sprout.webp')}
+.illustration-hide{--card-image:url('assets/cartoon-v4/cards/hide.webp')}
+.illustration-trample{--card-image:url('assets/cartoon-v4/cards/trample.webp')}
+.illustration-talon{--card-image:url('assets/cartoon-v4/cards/talon.webp')}
+.illustration-renewal{--card-image:url('assets/cartoon-v4/cards/renewal.webp')}
+.illustration-kindle{--card-image:url('assets/cartoon-v4/cards/kindle.webp')}
+.illustration-rally{--card-image:url('assets/cartoon-v4/cards/rally.webp')}
+.illustration-harry{--card-image:url('assets/cartoon-v4/cards/harry.webp')}
 .detail-card.card-illustration{width:min(100%,320px);height:auto;aspect-ratio:2/1;border-radius:22px}
 .detail-art.card-illustration{width:min(calc(100% - 32px),320px);height:auto;aspect-ratio:2/1;border-radius:22px}
 .opponent-card>.card-illustration{width:64px;aspect-ratio:2/1;height:auto;border-radius:12px}

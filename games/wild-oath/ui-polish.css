@@ -1,23 +1,23 @@
-/* Original tavern materials for Wild Oath; no commercial game artwork is used.
+/* Original ink-and-cel tabletop for Wild Oath; no commercial game artwork is used.
    Layout, card illustrations, combat timing and motion remain in their own files. */
 :root {
   color-scheme:dark;
   --ink:#f1dfbb; --muted:#c5ae89; --cream:#ead1a0; --gold:#e9b54f; --edge:#9a7743;
   --accent:#3aa9dc; --accent-rgb:58,169,220;
   --paper-ink:#302116; --paper-muted:#5b4027;
-  --paper:linear-gradient(125deg,#f0dbb2 0%,#e3c38b 65%,#cfa66b 100%);
-  --brass-rim:inset 0 2px #f5dba272,inset 0 -2px #352113b3;
-  --brass-button:linear-gradient(#805e38,#503724 52%,#34251d);
-  --gold-button:linear-gradient(#f3cf7a,#d4a144 52%,#bd8235);
+  --paper:linear-gradient(#e8cf99 0 82%,#d6b579 82% 100%);
+  --brass-rim:inset 0 2px #d8ad6166,inset 0 -2px #20150d99;
+  --brass-button:linear-gradient(#785432 0 17%,#513824 17% 82%,#38271d 82% 100%);
+  --gold-button:linear-gradient(#efbf57 0 18%,#daa540 18% 80%,#bd8235 80% 100%);
 }
 body { background:#151017; color:var(--ink); }
 .game-shell {
-  background-color:#704b2d;
-  background-image:radial-gradient(ellipse at 50% 20%,#b181433b,transparent 70%),linear-gradient(#24161a21,#160e163d),url('assets/tavern-board.svg');
-  background-size:auto,auto,512px 512px;
+  background-color:#65452b;
+  background-image:linear-gradient(#120c081a,#120c0833),url('assets/cartoon-board.svg');
+  background-size:auto,512px 512px;
   background-position:center;
-  border-inline-color:#584738;
-  box-shadow:inset 7px 0 11px #0f090b80,inset -7px 0 11px #0f090b80,0 0 55px #0008;
+  border-inline-color:#2a1f17;
+  box-shadow:inset 5px 0 7px #1c130c80,inset -5px 0 7px #1c130c80,0 0 35px #0008;
 }
 .game-shell:before { display:none; }
 .game-shell[data-form=bear] { --accent:#e6a649; --accent-rgb:230,166,73; }
@@ -54,7 +54,7 @@ button:focus-visible,a:focus-visible { outline:3px solid #61d6ed; outline-offset
 .journey .step.current:before { color:#332114; background:var(--gold-button); border-color:#e3bd6f #a77d3d #725027; box-shadow:inset 0 2px #ffe4a4,0 2px #5d381b; text-shadow:none; }
 .journey .step.done:before { color:#f6e5b9; background:linear-gradient(#37634b,#244533); border-color:#9f9a62 #5c6d42 #35482e; }
 .journey .step:not(:last-child):after { background:#ac87524d; border-radius:0; box-shadow:0 1px #1d140a; }
-.camp-portrait,.next-enemy>.art,.journey-mascot { border-color:#d2ae65 #8c693a #3a291e; border-radius:13px; background-color:#463626; box-shadow:inset 0 1px #f4d79570,0 4px #312218,0 7px 10px #130e0b55; }
+.camp-portrait,.next-enemy>.art,.journey-mascot { border-color:#42301e; border-radius:13px; background-color:#463626; box-shadow:inset 0 1px #e8c77b80,0 4px #241a12,0 6px 7px #130e0b55; }
 .camp-title>span,.camp-title p,.collection-heading,.next-enemy small { color:#fff3d8; text-shadow:0 1px #25170f; }
 .camp-title h2,.journey-heading h2 { color:#f7e3b5; text-shadow:0 2px #25160e,0 3px 7px #21120c70; }
 .camp-currency>span,.explore-supplies>span { color:#e5cfaa; border-color:#a47d46 #655034 #392a1e; border-radius:9px; background:linear-gradient(#493629,#2d241e); box-shadow:inset 0 2px #d2ae6552,0 3px #24180f; text-shadow:0 1px #1c140d; }
@@ -72,18 +72,18 @@ button:focus-visible,a:focus-visible { outline:3px solid #61d6ed; outline-offset
 .next-enemy>.art { border-radius:10px; }
 
 /* Readable parchment cards, with material edges for each role. */
-.card,.draft-option,.card[data-type],.draft-option[data-type] { color:var(--paper-ink); border-color:#aa7846 #72502e #402a1b; border-radius:12px; background:var(--paper); box-shadow:inset 0 2px #ffefc994,inset 0 -2px #7a4e313d,0 4px #4c2e1c,0 7px 9px #130b0b70; }
-.card:before,.draft-option:before { border-color:#fff0c343; border-radius:7px; }
-.card[data-type=attack],.draft-option[data-type=attack] { border-color:#b87c4d #86502e #4a281a; }
-.card[data-type=defense],.draft-option[data-type=defense] { border-color:#8997a1 #4f626e #2d3b46; }
-.card[data-type=form],.draft-option[data-type=form] { border-color:#b4945e #7d5d3b #4b3322; }
-.card[data-type=heal],.draft-option[data-type=heal] { border-color:#858c4a #596237 #343e26; }
-.card[data-type=energy],.draft-option[data-type=energy] { border-color:#d1a653 #966d32 #5c3f21; }
-.card-art { border-color:#62462c #9d7848 #bf9860; border-radius:7px; background-color:#443223; box-shadow:inset 0 2px 4px #110b0980,0 1px #f7e0ad9e; }
-.card-cost { color:#fff3cf; border-color:#b0c6c8 #4a7895 #173b5a; border-radius:39% 39% 44% 44%; background:radial-gradient(ellipse at 32% 18%,#79c5eb 0%,#2f80b8 27%,#174d86 68%,#0d2c52 100%); box-shadow:inset 2px 2px #c5f2ff63,inset -2px -3px #051c4259,0 3px #302117,0 4px 6px #21151180; text-shadow:0 2px #102e55; }
+.card,.draft-option,.card[data-type],.draft-option[data-type] { color:var(--paper-ink); border-color:#765731 #4a3522 #2b2016; border-radius:12px; background:var(--paper); box-shadow:inset 0 2px #f9e4ad80,inset 0 -2px #8d642d4d,0 4px #291c12,0 6px 7px #130b0b70; }
+.card:before,.draft-option:before { border-color:#f3dcaa4d; border-radius:7px; }
+.card[data-type=attack],.draft-option[data-type=attack] { border-color:#75472c #4b2c1c #2e1e17; }
+.card[data-type=defense],.draft-option[data-type=defense] { border-color:#536673 #344852 #1c2d35; }
+.card[data-type=form],.draft-option[data-type=form] { border-color:#856032 #4b361f #2b2116; }
+.card[data-type=heal],.draft-option[data-type=heal] { border-color:#4a6b3a #2f4628 #1e2d1c; }
+.card[data-type=energy],.draft-option[data-type=energy] { border-color:#9b6c2b #5e4220 #342715; }
+.card-art { border-color:#3b2a1c; border-radius:7px; background-color:#443223; box-shadow:inset 0 1px #140b084d,0 1px #e6c58080; }
+.card-cost { color:#fff3cf; border-color:#88c6d7 #365b77 #142e48; border-radius:39% 39% 44% 44%; background:linear-gradient(135deg,#4387ab 0 22%,#1f6b9c 22% 70%,#174b7e 70% 100%); box-shadow:inset 1px 1px #b3dfe94d,0 3px #21180f,0 4px 5px #21151180; text-shadow:0 2px #102e55; }
 .card-name { color:#2a1d13; text-shadow:0 1px #ffebbd73; }
 .card-text { color:#3f2b1c; }.card-bottom { color:#543a24; }.card-link-hint { color:#543318; }
-.card-tier { color:#7e501d; text-shadow:0 1px #ffe0a2; }.card-price { color:#765119; }.card-price.unaffordable { color:#9c3020; }
+.card-tier { color:#624219; text-shadow:0 1px #ffe0a2; }.card-price { color:#624219; }.card-price.unaffordable { color:#922d1c; }
 .card-sticker { color:#2c2415; border-color:#c5a264 #8d6b37 #654523; border-radius:5px; background:linear-gradient(#f7d87f,#c99c49); box-shadow:inset 0 1px #ffe9b5,0 2px #654220; text-shadow:none; }
 
 /* Draft and map choices are substantial parchment plaques over the wood. */
@@ -91,16 +91,16 @@ button:focus-visible,a:focus-visible { outline:3px solid #61d6ed; outline-offset
 .draft-progress strong { color:#f4d486; }
 .draft-dots i { border-color:#b28b51 #655031 #36291d; background:#3f2b1f; box-shadow:inset 0 1px #bfa06d59,0 2px #21170f; }
 .draft-dots i.done { border-color:#d8b264 #98703a #594020; background:radial-gradient(circle at 32% 25%,#ffe2a1,#c4903e); box-shadow:inset 0 1px #fff0b1,0 2px #4b2d18,0 0 7px #d7a74b40; }
-.draft-option .card-art { border-color:#6b4729 #aa7d44 #c9a166; border-radius:8px; }
+.draft-option .card-art { border-color:#3b2a1c; border-radius:8px; }
 .draft-option .card-cost { border-radius:39% 39% 44% 44%; }
 .draft-option:active { box-shadow:inset 0 2px #ffefc994,0 1px #4c2e1c,0 3px 5px #130b0b70; }
 .draft-owned>span,.draft-preview:empty:before { color:#fff3d8; }
 .draft-preview { scrollbar-color:#a07b47 #342418; }
 .picked-card { color:#f0dcbb; border-color:#a78049 #6b4d32 #3c2b1f; border-radius:6px; background:linear-gradient(#57402c,#34271d); box-shadow:inset 0 1px #c9a97373,0 2px #21170f; }
-.encounter-option,.encounter-option[data-event] { color:var(--paper-ink); border-color:#c69d62 #825c36 #4e3322; border-radius:13px; background:linear-gradient(125deg,#ebd2a3,#d5af78 78%,#c2935b); box-shadow:inset 0 3px #ffe8b080,inset 0 -2px #70422052,0 5px #452b1d,0 9px 11px #170c0c73; }
+.encounter-option,.encounter-option[data-event] { color:var(--paper-ink); border-color:#9b733e #654428 #35251a; border-radius:13px; background:var(--paper); box-shadow:inset 0 2px #f9e4ad80,inset 0 -2px #8d642d4d,0 5px #352316,0 7px 9px #170c0c73; }
 .encounter-option:before { border-color:#fff0c452; border-radius:8px; }
 .encounter-option[data-event=thicket] { border-color:#b47a4e #7f4e2e #4a2c1c; }.encounter-option[data-event=merchant] { border-color:#d1a14c #9b7139 #59401f; }.encounter-option[data-event=spring] { border-color:#86946d #536345 #34452f; }
-.encounter-art { border-color:#6a4d31 #b5915c #d8b67e; border-radius:11px; background-color:#4d402b; box-shadow:inset 0 2px 5px #1d120f80,0 1px #f6dcac; }
+.encounter-art { border-color:#3b2a1c; border-radius:11px; background-color:#4d402b; box-shadow:inset 0 1px #140b084d,0 1px #e6c58080; }
 .encounter-copy>strong { color:#332216; text-shadow:0 1px #fce6b8; }.encounter-copy>.description { color:#513720; }.encounter-reward { color:#4e3a20; }
 .encounter-cost { color:#f4dfb7; border-color:#a47d42; border-radius:5px; background:linear-gradient(#63472d,#402c1e); box-shadow:inset 0 1px #be9b656b,0 2px #28190e; }
 .encounter-option[data-event] .encounter-cost { color:#f4dfb7; border-color:#a47d42; background:linear-gradient(#63472d,#402c1e); }
@@ -157,6 +157,7 @@ button:focus-visible,a:focus-visible { outline:3px solid #61d6ed; outline-offset
 .sticker-row button { color:#efd8ad; border-color:#8e7049; border-radius:7px; background:linear-gradient(#5b4430,#38291f); box-shadow:inset 0 1px #d5b47a52,0 2px #201710; }.detail-actions .sticker-row button[aria-pressed=true] { color:#352418; border-color:#d7ad60 #a87935 #66451f; background:var(--gold-button); box-shadow:inset 0 1px #ffe5a3,0 2px #4b2c18; }
 .detail-actions .action-note { color:#cfb690; }.game-dialog .detail-feedback { color:#ffcf8c!important; }
 .reward { color:#332315; border-color:#c39b60 #886135 #4f3421; border-radius:10px; background:var(--paper); box-shadow:inset 0 2px #fff0c794,0 3px #20160e; }.reward strong { color:#332315; }.reward small { color:#64482c; }.reward small.reward-link { color:#694222; }.reward>span:last-child { color:#62401f; }
+.reward>.art,.opponent-card>.art { border-color:#3b2a1c; }
 .opponent-card { color:#efd9b2; border-color:#8c6b42; border-radius:9px; background:linear-gradient(#543b29,#36281e); box-shadow:inset 0 1px #d7b47a52,0 2px #1f160f; }.opponent-card strong { color:#f0d49d; }.opponent-card strong small { color:#d2b88d; }.opponent-card>span>span { color:#ebd5ae; }
 .result-stats span { color:#ccb48c; }.result-stats b { color:#f2d28a; }
 

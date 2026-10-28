@@ -1,5 +1,5 @@
-import { CARDS, FORMS, describeCard } from './rules.mjs';
-import { cardArtClass } from './card-art.mjs';
+import { CARDS, FORMS, describeCard } from './rules.mjs?v=cartoon-4';
+import { cardArtClass } from './card-art.mjs?v=cartoon-4';
 
 const $ = id => document.getElementById(id);
 const typeNames = { attack: '공격', defense: '방어', heal: '회복', energy: '기력', form: '변신', support: '지원' };
@@ -97,7 +97,7 @@ function showCard(id) {
   }));
   const keywords = [];
   if (card.poison) keywords.push('맹독: 덱을 섞을 때 피해를 주고 절반으로 줄어듭니다. 보호막에는 두 배로 작용합니다.');
-  if (card.burn) keywords.push('화상: 충전 부족으로 카드를 버릴 때 피해를 주고 1 줄어듭니다.');
+  if (card.burn) keywords.push('화상: 카드 효과를 마친 뒤 버릴 때 피해를 주고 1 줄어듭니다. 충전 실패로 버릴 때도 발생합니다.');
   if (card.shock) keywords.push('감전: 상대가 기력을 얻을 때 피해를 주고 1 줄어듭니다.');
   if (card.pierce) keywords.push('관통: 이 카드의 공격 피해는 보호막을 무시합니다.');
   if (card.chargeNext) keywords.push('다음 카드 충전: 덱 맨 위 카드의 빈 충전 칸을 미리 채웁니다.');
