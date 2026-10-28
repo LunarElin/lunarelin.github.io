@@ -461,6 +461,8 @@ test('steep crests and deep drops keep the chase arm above the rendered floor th
       assert.ok(!ray.intersectObject(scene.courseFloor,true).some(hit=>hit.distance<front-1e-5),`hidden ball at ${seed}:${s}, air ${air}`);
       assert.ok(point.y>-.75&&point.y<.2&&Math.abs(point.x)<.8,'large hills must preserve the ball in frame');
       assert.equal(scene.camera.up.y,1);
+      const behind=courseSample((scene.camera.position.z+scene.origin.forward)/COURSE_WORLD_PER_METER,seed).height-scene.origin.height;
+      assert.ok(scene.camera.position.y-behind>=8.79,'the camera must look down onto a drop rather than skim its surface');
       if(scene.camera.position.y>10+air*.55)raised++;
     }
     assert.ok(raised>20,'the fixture must actually exercise the raised chase arm on steep drops');scene.dispose();

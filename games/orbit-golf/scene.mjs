@@ -1,9 +1,9 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261028-risk1';
-import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261028-risk1';
+import { eventPose, TRACK_WIDTH } from './rules.mjs?v=20261029-risk2';
+import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-risk2';
 
-import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261028-risk1';
+import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-risk2';
 
 const TAU = Math.PI * 2;
 export const BALL_HEIGHT = 1.08;
@@ -393,7 +393,8 @@ export class OrbitScene {
     this.cameraX??=this.x;this.cameraX+=(this.x-this.cameraX)*Math.min(1,animDt*8);this.cameraX=Math.max(this.x-.75,Math.min(this.x+.75,this.cameraX));
     const fit=this.mobile?Math.max(1,1/this.camera.aspect/1.7):1;
     const ready=mode==='ready',ground=this.position(this.distance,this.cameraX*.9,0);
-    const target=active?ground.clone().add(new THREE.Vector3(0,9+airborne*.55,-24)):new THREE.Vector3((this.mobile?34:32)*fit,26,-38);
+    const chaseBack=24-6*Math.min(1,Math.max(0,-newSample.slope));
+    const target=active?ground.clone().add(new THREE.Vector3(0,9+airborne*.55,-chaseBack)):new THREE.Vector3((this.mobile?34:32)*fit,26,-38);
     const look=active?ground.clone().add(new THREE.Vector3(0,1+airborne*.85,this.cameraAim*COURSE_WORLD_PER_METER)):new THREE.Vector3(0,-1,27);
     if(active){
       // Keep the chase arm above the actual descending ribbon. A level offset
@@ -401,7 +402,7 @@ export class OrbitScene {
       for(let step=1;step<=12;step++){
         const fraction=step/12,z=pos.z+(target.z-pos.z)*fraction;
         const floor=this.sample((z+this.origin.forward)/COURSE_WORLD_PER_METER).height-this.origin.height;
-        target.y=Math.max(target.y,pos.y+(floor+.8-pos.y)/fraction);
+        target.y=Math.max(target.y,pos.y+(floor+.8+8*fraction-pos.y)/fraction);
       }
     }
     this.camera.position.copy(target);this.look.copy(look);

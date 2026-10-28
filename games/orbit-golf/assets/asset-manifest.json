@@ -56,21 +56,21 @@
       "id": "dense-braking-anvil",
       "role": "heavy collision hazard with sharp forward energy loss",
       "path": "../encounter-art.mjs#createEncounterVisual:anvil",
-      "status": "implemented-pending-in-engine-review",
+      "status": "implemented-in-engine-reviewed",
       "technical": {"format": "procedural THREE.Group", "dimensions_world": "3.9 x 3.2 x 2.7 including floor shadow", "anchor": "floor-center", "collider_center_y": 1.6, "collider_radius": 1.8, "meshes": 16, "triangles": 2214, "textures": 0, "states": ["stationary", "dented-impact", "heavy-physics-flight"], "filtering": "not-applicable"},
       "visual_locks": ["broad flat steel impact face", "dense flared charcoal shoulder and narrow waist", "large amber/black diagonal warning fascia", "weighted feet", "no propulsion arrows or text"],
       "source": {"kind": "authored-procedural-3d", "url_or_tool": "Three.js 0.160.1 native geometry; original encounter-art.mjs", "creator": "Codex for the Orbit Golf repository", "created_at": "2026-10-28", "license": "Original project-authored geometry; no third-party model or texture incorporated", "attribution": "No additional asset attribution required", "prompt_or_source_record": "User requested a hazardous collision that sharply loses speed; root delegated a dense anvil silhouette within the existing toy-space material family"},
-      "verification": {"native_scale_reviewed": false, "in_engine_reviewed": false, "technical_checks_passed": true, "approved_by": "Codex geometry and material review; browser review pending"}
+      "verification": {"native_scale_reviewed": true, "in_engine_reviewed": true, "technical_checks_passed": true, "approved_by": "Codex public browser review, 2026-10-29; anvil 390x844, tar 320x568; actual braking observed; physical mobile GPU/FPS unverified"}
     },
     {
       "id": "sticky-tar-basin",
       "role": "fixed floor hazard with strong braking and persistent friction",
       "path": "../encounter-art.mjs#createEncounterVisual:tar",
-      "status": "implemented-pending-in-engine-review",
+      "status": "implemented-in-engine-reviewed",
       "technical": {"format": "procedural THREE.Group", "dimensions_world": "4.9 x 0.4 x 4.9 including floor shadow", "anchor": "floor-center", "collider_center_y": 0.16, "collider_radius": 2.35, "meshes": 13, "triangles": 3366, "textures": 0, "states": ["low-bubble-idle", "stretched-sticky-impact", "consumed-footprint-retained"], "filtering": "not-applicable"},
       "visual_locks": ["low concave dark liquid surface", "thick amber raised basin edge", "large viscous strands and edge drips", "low specular sticky bubbles", "fixed basin root even after contact"],
       "source": {"kind": "authored-procedural-3d", "url_or_tool": "Three.js 0.160.1 native geometry; original encounter-art.mjs", "creator": "Codex for the Orbit Golf repository", "created_at": "2026-10-28", "license": "Original project-authored geometry; no third-party model or texture incorporated", "attribution": "No additional asset attribution required", "prompt_or_source_record": "User requested actual speed-loss danger; root delegated a shallow sticky tar basin with physical low contact and a visible footprint after consumption"},
-      "verification": {"native_scale_reviewed": false, "in_engine_reviewed": false, "technical_checks_passed": true, "approved_by": "Codex geometry and material review; browser review pending"}
+      "verification": {"native_scale_reviewed": true, "in_engine_reviewed": true, "technical_checks_passed": true, "approved_by": "Codex public browser review, 2026-10-29; anvil 390x844, tar 320x568; actual braking observed; physical mobile GPU/FPS unverified"}
     }
   ]
 }
