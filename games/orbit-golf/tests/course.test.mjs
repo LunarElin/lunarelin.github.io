@@ -7,7 +7,7 @@ test('the entire course always runs straight forward and never inverts or produc
   assert.ok(!('loopAt'in terrain));assert.ok(!Object.keys(terrain).some(key=>key.startsWith('LOOP_')));
   for(const seed of[0,1,17,0xffffffff])for(let s=-100;s<20000;s+=11.3){
     const p=courseSample(s,seed);assert.equal(p.forward,s*W);assert.equal(p.lateral,0);assert.equal(p.tangentX,0);
-    assert.ok(p.tangentZ>0&&p.normalY>0);assert.ok(Math.abs(p.pitch)<.32);assert.ok(!('loop'in p));
+    assert.ok(p.tangentZ>0&&p.normalY>0);assert.ok(Math.abs(p.pitch)<.78);assert.ok(!('loop'in p));
     assert.ok(Math.abs(Math.hypot(p.tangentY,p.tangentZ)-1)<1e-12);assert.ok(Math.abs(p.tangentY*p.normalY+p.tangentZ*p.normalZ)<1e-12);
   }
 });
@@ -35,14 +35,29 @@ test('all generated slopes remain bounded and each road has alternating climb, d
   let up=0,down=0,quiet=0;
   for(let seed=0;seed<100;seed++)for(let track=0;track<16;track++)for(let step=0;step<=48;step++){
     const p=courseSample(track*L+L*step/48,seed);
-    assert.ok(p.slope>=-.3200000001&&p.slope<=.2600000001,`${seed}/${track}: ${p.slope}`);
+    assert.ok(p.slope>=-.9500000001&&p.slope<=.8500000001,`${seed}/${track}: ${p.slope}`);
     up+=p.slope>.07;down+=p.slope<-.15;quiet+=Math.abs(p.slope)<.025;
   }
   assert.ok(up>3000&&down>3000&&quiet>3000);
   for(let seed=0;seed<100;seed++){
     assert.equal(courseSample(0,seed).height,0);
     for(let s=0;s<=60;s+=2)assert.ok(courseSample(s,seed).slope>-.13&&courseSample(s,seed).slope<.025,'early launch must be a gentle seeded introduction');
-    assert.ok(courseSample(10000,seed).height<-180,'all profiles still descend overall');
+    const farHeight=courseSample(100*L,seed).height;
+    assert.ok(farHeight>-176&&farHeight<-170,'the long-term drop must be gentle instead of continually feeding a steep descent');
+  }
+});
+
+test('each eight-section sequence contains broad twenty-world-unit climbs and drops',()=>{
+  for(let seed=0;seed<200;seed++)for(const bag of[0,1,11]){
+    const patterns=Array.from({length:8},(_,slot)=>coursePattern(bag*8+slot,seed));
+    for(const id of['crest','valley']){
+      const pattern=patterns.find(pattern=>pattern.id===id),start=pattern.track*L;
+      const heights=Array.from({length:145},(_,step)=>courseSample(start+step*L/144,seed).height);
+      const span=Math.max(...heights)-Math.min(...heights);
+      assert.ok(span>=20&&span<=35,`${seed}/${pattern.track}/${id}: height span ${span}`);
+      assert.ok(pattern.rise>=20&&pattern.drop>=20,'a big hill must offer both a substantial climb and a substantial descent');
+      assert.ok(Math.abs(pattern.verticalSpan-span)<.15,'the preview metadata must describe the actual road');
+    }
   }
 });
 

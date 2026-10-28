@@ -163,7 +163,7 @@ test('isolated giant previews use real generated encounters and distinct collisi
     const app=await game(t,{url:`https://orbit-golf.test/games/orbit-golf/?preview=1&seed=42&encounter=${type}`});
     app.submit('거대 만남');app.tick();let run=app.scene.current;const target=run.events.find(event=>event.id===run.previewTargetId);
     assert.ok(target&&target.type===type);assert.equal(run.seed,42);assert.equal(app.$('speed').textContent,'0');
-    assert.match(app.$('run-goal').textContent,/거대/);app.launch();run=app.scene.current;
+    assert.match(app.$('run-goal').textContent,/거대|제동 패드|충격 모루|타르 웅덩이/);app.launch();run=app.scene.current;
     let feedback;
     for(let count=0;count<180&&run.phase==='rolling'&&!feedback;count++){app.tick();feedback=app.scene.feedback.find(event=>event.eventId===target.id);}
     assert.ok(feedback,`the ${type} preview must collide using the shipped rules`);
@@ -175,6 +175,34 @@ test('isolated giant previews use real generated encounters and distinct collisi
   }
   const ignored=await game(t,{url:'https://orbit-golf.test/games/orbit-golf/?encounter=beast&seed=42'});
   ignored.submit('일반 비행');ignored.tick();assert.equal(ignored.scene.current.s,0);assert.equal(ignored.scene.current.seed,0xffffffff);
+});
+
+test('real hazard previews cause a visible sustained speed loss and pause without touching player saves',async t=>{
+  for(const type of['anvil','tar']){
+    const app=await game(t,{url:`https://orbit-golf.test/games/orbit-golf/?preview=1&seed=42&encounter=${type}`});
+    app.submit('위험 테스트');app.tick();const ready=app.scene.current,targetId=ready.previewTargetId;
+    assert.ok(ready.events.some(event=>event.id===targetId&&event.type===type));
+    assert.equal(app.$('aim-control').value,'0');app.launch();const run=app.scene.current;
+    let feedback;
+    for(let tick=0;tick<250&&run.phase==='rolling'&&!feedback;tick++){app.tick();feedback=app.scene.feedback.find(event=>event.eventId===targetId&&event.kind==='hazard');}
+    assert.ok(feedback,`${type} must be encountered with actual shipped placement and physics`);
+    assert.ok(feedback.lostRatio>=.45,'the hazard must cause a material immediate speed loss');
+    app.tick(2);assert.ok(app.$('speed').classList.contains('braking'));
+    assert.ok(Math.abs(run.speed)<feedback.beforeSpeed*.8,'lost speed cannot immediately refill');
+    app.$('pause').click();const before={s:run.s,elapsed:run.elapsed,speed:run.speed,brakeTime:run.brakeTime};app.tick(20);
+    for(const key of Object.keys(before))assert.equal(run[key],before[key]);
+    assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);assert.deepEqual(app.errors,[]);
+  }
+});
+
+test('hill previews use the real steep terrain with the same seed and normal run rules',async t=>{
+  for(const kind of['climb','drop']){
+    const app=await game(t,{url:`https://orbit-golf.test/games/orbit-golf/?preview=1&seed=42&encounter=${kind}`});
+    app.submit('큰 고개');app.tick();const run=app.scene.current;
+    assert.ok(courseSample(run.s+36,run.seed).slope*(kind==='climb'?1:-1)>.6);
+    assert.ok(coursePattern(run.track,run.seed).verticalSpan>15);
+    assert.equal(app.storageAccess.reads,0);assert.equal(app.storageAccess.writes,0);assert.deepEqual(app.errors,[]);
+  }
 });
 
 test('speed HUD follows actual motion and marks backward reflection rather than hidden launch energy',async t=>{

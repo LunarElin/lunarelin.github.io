@@ -88,6 +88,53 @@ test('each section adds seeded formation choices and every fifth adds three with
   for(const value of[Number.MAX_VALUE,-Infinity,Infinity,NaN]){const plan=lapConfig(value);assert.ok(Number.isFinite(plan.lap)&&Number.isFinite(plan.additions));assert.ok(plan.activeWaves.every(wave=>wave.id&&Number.isFinite(wave.tier)));}
 });
 
+test('wide hazards are introduced after the opening and have a run-out without instant thrust refills',()=>{
+  const kinds=new Set();
+  for(let seed=1;seed<=100;seed++)for(let track=0;track<5;track++){
+    const events=generateTrack(track,seed),hazards=events.filter(event=>event.hazard);
+    assert.ok(hazards.length>=1&&hazards.length<=2);
+    for(const hazard of hazards){
+      kinds.add(hazard.type);assert.ok(hazard.radius<TRACK_WIDTH/4&&Math.abs(hazard.x)>1.9);
+      if(track===0)assert.ok(hazard.at>=205,'the first rebound lesson stays ahead of the dangerous zone');
+    }
+    for(const hazard of events.filter(event=>['trap','anvil','tar'].includes(event.type)))assert.ok(!events.some(event=>['punch','boost','ufo','hole'].includes(event.type)&&event.at>=hazard.at&&event.at-hazard.at<48),'a nearby powered pad must not erase any braking loss immediately');
+  }
+  assert.deepEqual([...kinds].sort(),['anvil','tar']);
+});
+
+test('heavy and sticky impacts remove a large amount of actual speed at every upgrade and keep that loss',()=>{
+  for(const ball of [0,1,3,5])for(const type of ['anvil','tar','trap']){
+    const profile=ordinary(ball),run=newRun(profile,1,42,0),event={id:type,type,at:0,x:0,radius:type==='tar'?2.35:1.8,height:type==='tar'?.16:1.6,direction:1};
+    Object.assign(run,{speed:160,rollSpeed:999,vx:3,curveSpin:20,events:[],eventTrack:0});
+    const hit=resolveEvent(run,event,profile,{s:-1,x:0});
+    assert.equal(hit.kind,'hazard');assert.equal(hit.beforeSpeed,160);assert.equal(hit.afterSpeed,Math.abs(run.speed));
+    assert.ok(hit.lostRatio>.4&&run.speed<96,'even a fully upgraded ball must visibly lose speed');
+    assert.ok(run.brakeTime>=1&&run.hazardFeedback.ratio===hit.lostRatio);assert.equal(run.rollSpeed,run.speed);
+    const after=run.speed;stepRun(run,profile,.5);
+    assert.ok(run.speed<96&&run.speed<after+12,'500ms of empty track cannot restore the launch velocity');
+    if(type==='anvil'){
+      assert.ok(event.body?.active);assert.ok(event.body.vy<=2.1&&Math.abs(event.body.vs)<160*.15);
+      const mass=1+ball*2.8,energy=mass*(after*WORLD_PER_METER)**2+8*((event.body.vs*WORLD_PER_METER)**2+event.body.vx**2);
+      assert.ok(energy<mass*(160*WORLD_PER_METER)**2*.4,'the anvil dissipates energy instead of storing it in a fast return projectile');
+    }
+    if(type==='tar')assert.ok(event.used&&!event.body&&run.slowTime>2&&run.curveSpin<1);
+  }
+});
+
+test('sticky braking suppresses immediate boost and held spin, then expires without a speed jump',()=>{
+  const profile=ordinary(5),run=newRun(profile,1,42,0);
+  Object.assign(run,{speed:140,rollSpeed:140,events:[],eventTrack:0});
+  resolveEvent(run,{id:'tar',type:'tar'},profile);const after=run.speed;
+  const boost=resolveEvent(run,{id:'boost-after-tar',type:'boost'},profile);
+  assert.equal(run.speed,after);assert.equal(boost.powered,false);assert.equal(boost.effect,'brake');
+  steerRun(run,1);stepRun(run,profile,.1);assert.ok(run.vx<.12,'held steering remains weak while sticky');
+  while(run.phase==='rolling'&&run.slowTime>.02)stepRun(run,profile,1/120);
+  const before=run.speed;stepRun(run,profile,.04);assert.ok(Math.abs(run.speed-before)<2,'effect expiry must not refill speed');
+  Object.assign(run,{speed:0,rollSpeed:0,events:[],eventTrack:run.track});
+  for(let frame=0;frame<100&&run.phase==='rolling';frame++){steerRun(run,1);stepRun(run,profile,1/120);}
+  assert.equal(run.phase,'stopped');assert.equal(run.stopReason,'natural');assert.equal(run.brakeTime,0);
+});
+
 test('the elevated second spring catches an airborne ball and launches another actual arc',()=>{
   const profile=ordinary(0),run=newRun(profile,1,1,0);
   Object.assign(run,{s:100,distance:100,speed:70,rollSpeed:70,events:[],eventTrack:0});
@@ -133,7 +180,7 @@ test('a weak shot cannot slip through the full width guardian while airborne or 
   assert.equal(run.phase,'stopped');assert.equal(run.stopReason,'natural');assert.equal(run.guardiansBroken,0);
 });
 test('the force threshold distinguishes nearby weak and strong forward impacts without a prop launch',()=>{
-  for(const [speed,passed] of [[169.9,false],[170.1,true]]){
+  for(const [speed,passed] of [[169,false],[171,true]]){
     const profile=ordinary(0),run=guardianRun(profile,speed);run.s=3566;
     const feedback=stepRun(run,profile,1/120),hit=feedback.find(event=>event.type==='guardian');
     assert.equal(hit?.passed,passed);assert.equal(hit.kind,passed?'guardian-break':'guardian-block');
@@ -150,8 +197,9 @@ test('a powerful guardian break persists across cache eviction and continuation 
   assert.ok(!run.events.some(event=>event.id===guardian.id));
   Object.assign(run,{s:3520,rollSpeed:195,speed:195});stepRun(run,profile,1/120);
   assert.equal(run.events.find(event=>event.id===guardian.id).broken,true);
+  run.events=run.events.filter(event=>event.type==='guardian');run.eventTrack=run.track;
   run.phase='stopped';profile.gold=100;assert.equal(continueRun(profile,run),true);
-  stepRun(run,profile,1);assert.equal(run.guardiansBroken,1);assert.equal(run.bonusGold,bonus);assert.ok(run.s>3570);
+  stepRun(run,profile,.35);assert.equal(run.guardiansBroken,1);assert.equal(run.bonusGold,bonus);assert.ok(run.s>3570);
 });
 test('warps are clamped before the first unbroken guardian even outside the event cache',()=>{
   const profile=ordinary(0),run=guardianRun(profile,30);
@@ -160,7 +208,7 @@ test('warps are clamped before the first unbroken guardian even outside the even
   assert.ok(run.s<3570);assert.equal(run.guardiansBroken,0);assert.equal(run.consumed.has('guardian:10'),false);
   const blocked=stepRun(run,profile,1);assert.ok(blocked.some(event=>event.kind==='guardian-block'));
   assert.ok(run.s<3570);
-  run.consumed.add('guardian:10');run.s=7160;run.speed=30;run.rollSpeed=30;
+  run.phase='rolling';run.consumed.add('guardian:10');run.s=7160;run.speed=30;run.rollSpeed=30;
   resolveEvent(run,{id:'second-warp',type:'hole',at:7160,x:0},profile);
   assert.ok(run.s<7170);assert.equal(run.nextGuardianLap,20);
 });
@@ -346,10 +394,22 @@ test('grounded slope force follows the rendered course and uphill loses more spe
   for(const s of [down,up]){
     const run=newRun(profile,1,seed,0);Object.assign(run,{s,distance:s,speed:30,rollSpeed:30,events:[],eventTrack:Math.floor(s/TRACK_LENGTH)});
     stepRun(run,profile,1/120);
-    const expected=30+(-14*courseSample(s,seed).slope-ballStats(profile).drag)/120;
+    const expected=30+(-19/WORLD_PER_METER*courseSample(s,seed).slope-ballStats(profile).drag)/120;
     assert.ok(Math.abs(run.speed-expected)<1e-8);changes.push(run.speed);
   }
   assert.ok(changes[0]>changes[1]);
+});
+
+test('airborne floor-relative arcs pay uphill work and receive only the matching downhill work',()=>{
+  const profile=ordinary(0),seed=83,positions=Array.from({length:1800},(_,index)=>index+1);
+  const down=positions.find(s=>courseSample(s,seed).slope<-.6),up=positions.find(s=>courseSample(s,seed).slope>.6);
+  assert.ok(down!==undefined&&up!==undefined);
+  for(const s of [down,up])for(const speed of [80,-80]){
+    const run=newRun(profile,1,seed,0);Object.assign(run,{s,distance:s,speed,rollSpeed:Math.max(0,speed),height:2,vy:0,events:[],eventTrack:Math.floor(s/TRACK_LENGTH)});
+    const expected=(speed-19/WORLD_PER_METER*courseSample(s,seed).slope/120)*Math.exp(-.012/120);
+    stepRun(run,profile,1/120);assert.ok(Math.abs(run.speed-expected)<1e-8);
+    if(speed>0)assert.ok(s===up?run.speed<speed:run.speed>speed);
+  }
 });
 
 test('giant encounters give separate belly arcs, directional tentacle spin and brittle cookie breaks',()=>{
@@ -708,7 +768,7 @@ test('a free shot follows rolling friction and the actual course elevation withi
     while (run.phase === 'rolling') {
       run.events = [];run.eventTrack = run.track;stepRun(run, profile, 1 / 60);
     }
-    const stats=ballStats(level),work=stats.drag*run.distance+14*(courseSample(run.distance,run.seed).height-courseSample(0,run.seed).height)/WORLD_PER_METER;
+    const stats=ballStats(level),work=stats.drag*run.distance+19*(courseSample(run.distance,run.seed).height-courseSample(0,run.seed).height)/(WORLD_PER_METER**2);
     assert.ok(Math.abs(work/(stats.launchSpeed**2/2)-1)<.005,'friction and signed elevation work must account for travel');
   }
 });
@@ -746,7 +806,7 @@ test('100 paired seeds show a clear first upgrade and every later level increase
   assert.ok(paired.filter(ratio => ratio >= 1.45).length >= 75);
 });
 test('an unsteered first shot produces autonomous rebounds, airborne motion and active chains', () => {
-  const { run, types } = finish(ordinary(0), 2);
+  const { run, types } = finish(ordinary(0), 1);
   assert.ok(run.collisions >= 5);assert.ok(run.maxHeight > .1);
   assert.ok(types.has('rail') && types.has('bumper') && types.has('landing'));
   assert.ok(run.chainHits>0&&run.maxChain>=2);

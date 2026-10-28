@@ -11,6 +11,8 @@ const variants = [
   { type: 'giant-alien', radius: 2.5, height: 2.4, direction: -1 },
   { type: 'cookie', radius: 2.25, height: 2.1 },
   { type: 'cookie', skin: 'crumb', fragment: true, radius: .55, height: .55 },
+  { type: 'anvil', radius: 1.8, height: 1.6 },
+  { type: 'tar', radius: 2.35, height: .16 },
 ];
 
 function asset(t, event) {
@@ -38,7 +40,7 @@ function pose(group) {
   return result;
 }
 
-test('authored giant silhouettes have finite geometry, floor anchors and bounded mobile asset costs', t => {
+test('authored encounter silhouettes have finite geometry, floor anchors and bounded mobile asset costs', t => {
   assert.equal(createEncounterVisual({ type: 'unknown' }), null);
   for (const event of variants) {
     const group = asset(t, event);
@@ -66,6 +68,24 @@ test('authored giant silhouettes have finite geometry, floor anchors and bounded
     assert.ok(bounds.max.y < 7 && bounds.max.y > event.height);
     assert.ok(bounds.max.x - bounds.min.x < 7, 'a giant must leave room on the 20-world-wide course');
   }
+});
+
+test('dense block and low sticky basin signal different risks through geometry and preserve consumed tar',t=>{
+  const anvil=asset(t,{type:'anvil'}),tarEvent={type:'tar',radius:2.35,height:.16,used:true},tar=asset(t,tarEvent);
+  anvil.updateMatrixWorld(true);tar.updateMatrixWorld(true);
+  const blockBounds=new THREE.Box3().setFromObject(anvil,true),basinBounds=new THREE.Box3().setFromObject(tar,true);
+  assert.ok(blockBounds.max.y>3&&blockBounds.max.y<3.3,'a dense block should have a tall solid blocking silhouette');
+  assert.ok(basinBounds.max.y<.5&&basinBounds.getSize(new THREE.Vector3()).x>4.5,'tar should remain a wide low footprint, not a reskinned block');
+  assert.ok(anvil.getObjectByName('anvil-flat-impact-face')?.isMesh);
+  assert.ok(anvil.getObjectByName('anvil-diagonal-warning-stripe')?.isMesh);
+  assert.ok(tar.getObjectByName('tar-concave-sticky-surface')?.isMesh);
+  assert.ok(tar.getObjectByName('tar-stretched-viscous-strand')?.isMesh);
+  const surface=tar.getObjectByName('tar-concave-sticky-surface').geometry;
+  for(let i=0;i<surface.attributes.normal.count;i++)assert.ok(surface.attributes.normal.getY(i)>0,'the open concave surface must face the chase camera and sky lighting');
+  animateEncounterVisual(tar,tarEvent,2,{life:1.2,total:2.6,strength:1,powered:true},1/60);
+  assert.equal(tar.visible,true,'a consumed tar interaction cannot erase the still-fixed footprint');
+  assert.equal(tar.userData.colliderHeight,.16,'the shallow physical contract must not be clamped to a generic solid height');
+  assert.ok(tar.position.equals(new THREE.Vector3()));
 });
 
 test('local reactions animate without teleporting the physics root and freeze at a fixed elapsed time', t => {

@@ -47,3 +47,7 @@ GLB는 외부 이미지나 버퍼 없이 독립 실행 가능하다. 모두 꼭�
 2026-10-28에 추가한 우주 하마·팬더, 세 눈 외계인, 초콜릿 과자와 실제 물리 과자 조각은 [`../encounter-art.mjs`](../encounter-art.mjs)의 원본 3D 기하 코드다. 새 외부 모델·텍스처·이미지 생성 결과를 반입하지 않았다. 기존 Kenney Space Kit와 같은 조명 아래 둥근 실루엣·거칠기·재질 대비를 맞췄다.
 
 새 `create-game-assets`·`threejs-materials-lighting` 스킬에 따른 방향·크기·피벗·예산·출처·검증 상태는 [art-direction.md](art-direction.md)와 [asset-manifest.json](asset-manifest.json)에 기록한다. Kenney Food Kit·Cube Pets는 후보로 검토했으며 이 두 팩의 파일을 실제로 사용한 것은 아니다. 전체 과자가 깨진 뒤에는 규칙이 만든 별도 물체의 실제 위치와 회전을 따라 과자 조각을 표시한다.
+
+## 감속 위험물
+
+금속 모루(`anvil`)와 끈적 웅덩이(`tar`)도 `encounter-art.mjs`의 원본 3D 기하 코드다. 모루는 bevel을 준 실제 단면·금속 충격판·빗금·무게추 발을, 웅덩이는 위를 향한 오목 액면·두꺼운 둑·점성 가닥·낮은 방울을 조합했다. 새 외부 모델·음원·텍스처·이미지 생성 결과는 없으며 추가 에셋 라이선스 의무가 없다. 기존 Three.js MIT 라이선스를 유지한다. 사용한 스킬·피벗·메시 예산·검토 상태는 위 방향서와 manifest의 두 신규 항목에 기록한다.

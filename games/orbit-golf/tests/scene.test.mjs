@@ -448,3 +448,34 @@ test('every terrain archetype keeps the chased ball visible and the camera level
     scene.dispose();
   }
 });
+
+test('steep crests and deep drops keep the chase arm above the rendered floor through the entire descent',()=>{
+  for(const[width,height]of[[320,568],[390,844],[1440,900]]){
+    const scene=harness(width,height),run=runFixture(),ray=new THREE.Raycaster();scene.buildTrack();
+    let raised=0;
+    for(const seed of[23,42])for(let s=1080;s<=2520;s+=16)for(const air of[0,6]){
+      run.seed=seed;run.s=s;run.height=air;run.x=s%3===0?SIDE_LIMIT:0;
+      const point=frame(scene,run);scene.track.updateMatrixWorld(true);
+      const delta=scene.ball.position.clone().sub(scene.camera.position),front=delta.length()-1.05;
+      ray.set(scene.camera.position,delta.normalize());
+      assert.ok(!ray.intersectObject(scene.courseFloor,true).some(hit=>hit.distance<front-1e-5),`hidden ball at ${seed}:${s}, air ${air}`);
+      assert.ok(point.y>-.75&&point.y<.2&&Math.abs(point.x)<.8,'large hills must preserve the ball in frame');
+      assert.equal(scene.camera.up.y,1);
+      if(scene.camera.position.y>10+air*.55)raised++;
+    }
+    assert.ok(raised>20,'the fixture must actually exercise the raised chase arm on steep drops');scene.dispose();
+  }
+});
+
+test('consumed tar remains a visible fixed puddle while an anvil follows its real moving body',()=>{
+  const scene=harness(),run=runFixture(),anvil={id:'anvil',type:'anvil',at:55,x:-2,radius:1.8,height:1.6},tar={id:'tar',type:'tar',at:65,x:2,radius:2.35,height:.16};
+  run.s=45;run.events=[anvil,tar];frame(scene,run);
+  const originalTar=scene.eventMeshes.get('tar').position.clone();tar.used=true;
+  anvil.body={active:true,wheel:run.wheel,s:59,x:-4,height:.3,rx:.12,ry:.2,rz:.1,life:3};
+  scene.burst({type:'tar',eventId:'tar',kind:'hazard',effect:'sticky-brake',effectDuration:2.6});
+  frame(scene,run,'rolling',.4);
+  const puddle=scene.eventMeshes.get('tar');assert.equal(puddle.visible,true);assert.ok(puddle.position.equals(originalTar));
+  assert.equal(puddle.userData.mechanism.encounter.visible,true);
+  const pose=eventPose(anvil,run.elapsed);assert.ok(scene.eventMeshes.get('anvil').position.distanceTo(scene.position(pose.s,pose.x,pose.height))<1e-8);
+  scene.dispose();
+});

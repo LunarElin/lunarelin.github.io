@@ -5,7 +5,7 @@ import * as THREE from './assets/vendor/three.module.js';
 const TAU = Math.PI * 2;
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-export const ENCOUNTER_ART_TYPES = Object.freeze(['beast', 'giant-alien', 'cookie']);
+export const ENCOUNTER_ART_TYPES = Object.freeze(['beast', 'giant-alien', 'cookie', 'anvil', 'tar']);
 
 function workshop() {
   const materials = new Map();
@@ -145,10 +145,91 @@ function buildCookie(w, rig, event, r, h) {
   return { sectors, edge, filling, baseHeight: h };
 }
 
+function bevelledOutline(points, depth, bevel = .05) {
+  const shape = new THREE.Shape();
+  points.forEach(([x, y], index) => index ? shape.lineTo(x, y) : shape.moveTo(x, y));
+  shape.closePath();
+  return new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSegments: 1, steps: 1,
+    bevelSize: bevel, bevelThickness: bevel, curveSegments: 1 });
+}
+
+function buildAnvil(w, rig, event, r, h) {
+  const assembly = new THREE.Group(); assembly.name = 'anvil-heavy-assembly'; rig.add(assembly);
+  // A flared, heavy shoulder and narrow waist read as a dense blocking mass.
+  // All coordinates are authored from the floor; rig rotation stays at collider Y.
+  const outline = [[-.84,.075],[.84,.075],[.84,.31],[.4,.53],[.3,1.1],[.86,1.28],[1.02,1.58],
+    [.9,1.91],[-.9,1.91],[-1.02,1.58],[-.86,1.28],[-.3,1.1],[-.4,.53],[-.84,.31]];
+  const depth = r * .95;
+  const body = w.mesh(assembly, bevelledOutline(outline.map(([x,y]) => [x*r,y*h]), depth, .055*r),
+    0x354252, 'anvil-dense-flared-body', [0,-h,-depth/2], [1,1,1], .8, .3);
+  const box = new THREE.BoxGeometry(1,1,1);
+  const plate = w.mesh(assembly, box, 0x899ba6, 'anvil-flat-impact-face', [0,h*.54,-r*.565],
+    [r*1.65,h*.52,r*.13], .56, .56);
+  const warning = w.mesh(assembly, box, 0xf0bb56, 'anvil-wide-warning-fascia', [0,h*.25,-r*.58],
+    [r*1.66,h*.16,r*.13], .6, .18);
+  for(let index=0;index<5;index++){
+    const stripe=w.mesh(assembly,box,0x253441,'anvil-diagonal-warning-stripe',[(index-2)*r*.3,h*.25,-r*.655],
+      [r*.1,h*.17,r*.016],.82,.1);stripe.rotation.z=-.42;
+  }
+  const dents=[];
+  for(const [x,y] of [[-.39,.66],[.27,.53],[.02,.42]]){
+    dents.push(w.round(assembly,0x3a4a58,'anvil-recessed-impact-dent',[x*r,y*h,-r*.637],
+      [r*.14,h*.055,r*.018],.9,.2));
+  }
+  for(const side of [-1,1]){
+    w.round(assembly,0xc6b58c,'anvil-large-face-rivet',[side*r*.7,h*.54,-r*.642],
+      [r*.065,r*.065,r*.025],.61,.45);
+    const foot=w.mesh(assembly,box,0xd08a3d,'anvil-weighted-foot',[side*r*.6,-h*.88,0],
+      [r*.44,h*.2,r*.94],.7,.3);
+    foot.rotation.z=side*.025;
+  }
+  return { assembly, body, plate, warning, dents, baseHeight:h };
+}
+
+function tarSurfaceGeometry(r) {
+  const segments=24,rings=[.36,.67,.92],heights=[.10,.14,.22],vertices=[0,.085,0],indices=[];
+  for(const [ring,radius]of rings.entries())for(let i=0;i<segments;i++){
+    const angle=i/segments*TAU,edge=1+Math.sin(angle*5)*.018;
+    vertices.push(Math.cos(angle)*r*radius*edge,heights[ring],Math.sin(angle)*r*radius*edge);
+  }
+  for(let i=0;i<segments;i++)indices.push(0,1+(i+1)%segments,1+i);
+  for(let ring=0;ring<rings.length-1;ring++)for(let i=0;i<segments;i++){
+    const a=1+ring*segments+i,b=1+ring*segments+(i+1)%segments,c=a+segments,d=b+segments;
+    indices.push(a,b,c,b,d,c);
+  }
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+  geometry.setIndex(indices);geometry.computeVertexNormals();return geometry;
+}
+
+function buildTar(w, rig, event, r, h) {
+  const basin=new THREE.Group();basin.name='tar-fixed-basin';basin.position.y=-h;rig.add(basin);
+  const bed=w.mesh(basin,new THREE.CylinderGeometry(r*.92,r*.96,.10,24),0x6e543c,'tar-thick-catch-basin',[0,.075,0],[1,1,1],.78,.15);
+  const surface=w.mesh(basin,tarSurfaceGeometry(r),0x18222c,'tar-concave-sticky-surface',[0,0,0],[1,1,1],.25,.05);
+  const rim=w.mesh(basin,w.torus,0xd79a42,'tar-raised-amber-rim',[0,.19,0],[r*.96,r*.96,.85],.57,.2);
+  rim.rotation.x=Math.PI/2;
+  // Side drips, a low concave surface and stretched strands distinguish this
+  // hazard from solid blocks even when the amber edge is not visible.
+  const strands=[];
+  for(const side of [-1,1]){
+    const strand=w.round(basin,0x263743,'tar-stretched-viscous-strand',[side*r*.49,.13,-r*.34],
+      [r*.10,.045,r*.43],.22);strand.rotation.y=side*.2;strands.push(strand);
+    w.round(basin,0x22303a,'tar-heavy-edge-drip',[side*r*.62,.12,-r*.75],[r*.2,.105,r*.23],.3);
+    const tooth=w.mesh(basin,new THREE.BoxGeometry(1,1,1),0x293341,'tar-rim-traction-notch',[side*r*.84,.25,-r*.28],
+      [r*.17,.07,r*.18],.84,.08);tooth.rotation.y=-side*.3;
+  }
+  const bubbles=[];
+  for(const [index,[x,z,size]]of [[-.34,.25,.115],[.25,-.23,.15],[.42,.38,.09]].entries()){
+    const bubble=w.round(basin,index===1?0x637b79:0x394e54,'tar-low-sticky-bubble',[x*r,.21,z*r],
+      [size*r,size*r*.5,size*r],.2,.05);
+    bubbles.push({mesh:bubble,x:x*r,z:z*r,size:size*r,phase:index*1.8});
+  }
+  return {basin,bed,surface,rim,strands,bubbles,baseHeight:h};
+}
+
 export function createEncounterVisual(event = {}) {
   if (!ENCOUNTER_ART_TYPES.includes(event.type)) return null;
-  const r = Math.max(.25, finite(event.radius, event.type === 'beast' ? 2.6 : event.type === 'giant-alien' ? 2.5 : 2.25));
-  const h = Math.max(.25, finite(event.height, event.type === 'beast' ? 2.3 : event.type === 'giant-alien' ? 2.4 : 2.1));
+  const r = Math.max(.25, finite(event.radius, event.type === 'beast' ? 2.6 : event.type === 'giant-alien' ? 2.5 : event.type==='anvil'?1.8:event.type==='tar'?2.35:2.25));
+  const h = Math.max(event.type==='tar'?.05:.25, finite(event.height, event.type === 'beast' ? 2.3 : event.type === 'giant-alien' ? 2.4 : event.type==='anvil'?1.6:event.type==='tar'?.16:2.1));
   const group = new THREE.Group(); group.name = `encounter-${event.type}`;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 18), new THREE.MeshBasicMaterial({ color: 0x071326, transparent: true, opacity: .24, depthWrite: false }));
   shadow.name = 'encounter-contact-shadow'; shadow.rotation.x = -Math.PI / 2;
@@ -156,7 +237,8 @@ export function createEncounterVisual(event = {}) {
   const rig = new THREE.Group(); rig.name = 'encounter-local-rig'; rig.position.y = h; group.add(rig);
   const w = workshop();
   const parts = event.type === 'beast' ? buildBeast(w, rig, event, r, h)
-    : event.type === 'giant-alien' ? buildAlien(w, rig, event, r, h) : buildCookie(w, rig, event, r, h);
+    : event.type === 'giant-alien' ? buildAlien(w, rig, event, r, h) : event.type==='anvil'?buildAnvil(w,rig,event,r,h)
+    :event.type==='tar'?buildTar(w,rig,event,r,h):buildCookie(w, rig, event, r, h);
   group.userData = { encounterType: event.type, rig, parts, shadow, radius: r, colliderHeight: h };
   return group;
 }
@@ -189,6 +271,22 @@ export function animateEncounterVisual(group, event = {}, elapsed = 0, hit = nul
     parts.eyes.forEach((eyeGroup, index) => { eyeGroup.scale.y = 1 + pulse * .18; eyeGroup.rotation.z = idle * .025 * (index - 1); });
     parts.antennae.forEach((tip, index) => { tip.scale.setScalar(.12 * r * (1 + (flying ? 0 : Math.sin(t * 2 + phase + index)) * .07)); });
     parts.mouth.scale.y = .07 * r * (1 + pulse * 1.2);
+  } else if(type==='anvil'){
+    parts.assembly.scale.set(1+pulse*.025,1-pulse*.035,1+pulse*.018);
+    parts.plate.position.z=-r*.565+pulse*r*.035;
+    parts.plate.scale.z=r*.13*(1-pulse*.16);
+    parts.dents.forEach((dent,index)=>{dent.scale.z=r*.018*(1+pulse*(index===1?1.4:.5));});
+  } else if(type==='tar'){
+    // A consumed basin stays drawn; only its surface/strands react, never its root.
+    parts.bubbles.forEach(({mesh,x,z,size,phase:offset})=>{
+      const breath=Math.sin(t*1.7+phase+offset);
+      mesh.position.set(x,.21+breath*.025,z);
+      mesh.scale.set(size*(1+pulse*.12),size*(.5+breath*.06-pulse*.22),size*(1+pulse*.12));
+    });
+    parts.strands.forEach((strand,index)=>{
+      strand.scale.set(r*.1*(1-pulse*.25),.045*(1+pulse*.25),r*.43*(1+pulse*.55));
+      strand.rotation.y=(index===0?-1:1)*(.2+pulse*.1);
+    });
   } else if (!parts.crumbs) {
     rig.rotation.z = flying ? 0 : idle * .018;
     parts.sectors.forEach((sector, index) => { sector.rotation.z = index * TAU / 6 + pulse * (index % 2 ? -.012 : .012); });

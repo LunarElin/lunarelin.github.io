@@ -1,23 +1,25 @@
 // Straight, seed-owned terrain. s is game metres; heights are world Y.
 export const COURSE_WORLD_PER_METER = Math.PI * 2 * 23 / 360;
 export const COURSE_SECTION_LENGTH = 360;
-const DESCENT = -.052, MIN_SLOPE = -.32, MAX_SLOPE = .26;
+// Broad climbs pay back the height lost on drops. The small overall descent is
+// scenery progression, not the old downhill bias that continually fed speed.
+const DESCENT = -.012, MIN_SLOPE = -.95, MAX_SLOPE = .85;
 const PROFILES = Object.freeze([
-  {id:'long-descent',label:'긴 내리막',breaks:[0,.16,.32,.82,1],heights:[0,0,1,-.6,0]},
-  {id:'crest',label:'큰 언덕',breaks:[0,.16,.53,.84,1],heights:[0,0,1,0,0]},
-  {id:'valley',label:'깊은 골짜기',breaks:[0,.16,.53,.84,1],heights:[0,0,-1,0,0]},
-  {id:'double-hill',label:'연속 언덕',breaks:[0,.16,.34,.52,.70,.86,1],heights:[0,0,.8,-.45,.65,0,0]},
-  {id:'terraces',label:'계단 고원',breaks:[0,.16,.31,.53,.72,.90,1],heights:[0,0,.65,.65,-.65,-.65,0]},
-  {id:'tableland',label:'넓은 고원',breaks:[0,.16,.34,.70,.88,1],heights:[0,0,.8,.8,0,0]},
-  {id:'dip-ramp',label:'골짜기와 오르막',breaks:[0,.16,.42,.72,.90,1],heights:[0,0,-.8,.4,0,0]},
-  {id:'long-climb',label:'완만한 고개',breaks:[0,.16,.65,.86,1],heights:[0,0,.9,.2,0]},
+  {id:'long-descent',label:'급강하 능선',breaks:[0,.17,.38,.84,1],heights:[0,0,1,-.55,0]},
+  {id:'crest',label:'높은 산등성이',breaks:[0,.17,.55,1],heights:[0,0,1,0]},
+  {id:'valley',label:'깊은 낙하 골짜기',breaks:[0,.17,.55,1],heights:[0,0,-1,0]},
+  {id:'double-hill',label:'연속 큰 고개',breaks:[0,.17,.38,.59,.80,1],heights:[0,0,.65,-.65,.65,0]},
+  {id:'terraces',label:'높은 계단 고원',breaks:[0,.17,.39,.61,.83,1],heights:[0,0,.65,.65,-.55,0]},
+  {id:'tableland',label:'하늘 고원',breaks:[0,.17,.53,.65,1],heights:[0,0,1,1,0]},
+  {id:'dip-ramp',label:'낙하 뒤 오르막',breaks:[0,.17,.44,.78,1],heights:[0,0,-.8,.65,0]},
+  {id:'long-climb',label:'긴 오르막',breaks:[0,.17,.70,1],heights:[0,0,1,0]},
 ]);
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const normalizedSeed=seed=>Number.isFinite(seed)?seed>>>0:1;
 function mix(value){value=Math.imul(value^(value>>>16),0x7feb352d);value=Math.imul(value^(value>>>15),0x846ca68b);return(value^(value>>>16))>>>0;}
 function randomFor(seed){let state=seed>>>0;return()=>{state=(state+0x6d2b79f5)>>>0;let n=state;n=Math.imul(n^(n>>>15),n|1);n^=n+Math.imul(n^(n>>>7),n|61);return((n^(n>>>14))>>>0)/4294967296;};}
 function shuffle(items,random){for(let i=items.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[items[i],items[j]]=[items[j],items[i]];}return items;}
-function boundaryHeight(track,seed){return track===0?0:(mix(seed^Math.imul(track,0x9e3779b1)^0x71c3a52d)/4294967296-.5)*5;}
+function boundaryHeight(track,seed){return track===0?0:(mix(seed^Math.imul(track,0x9e3779b1)^0x71c3a52d)/4294967296-.5)*4;}
 const smooth=t=>t*t*t*(t*(t*6-15)+10);
 const smoothRate=t=>30*t*t*(t-1)*(t-1);
 let cachedSeed,order=[];
@@ -45,10 +47,15 @@ export function coursePattern(track=0,seed=1){
     const allowed=(change>0?MAX_SLOPE-DESCENT:MIN_SLOPE-DESCENT)*span*COURSE_SECTION_LENGTH*COURSE_WORLD_PER_METER/1.875;
     maximum=Math.min(maximum,(allowed-anchorDelta*span)/change);
   }
-  const amplitude=maximum*(.62+shapeRandom()*.33)*(track===0?.75:1);
+  const broadArc=profile.id==='crest'||profile.id==='valley';
+  const amplitude=maximum*(broadArc?.95+shapeRandom()*.03:.86+shapeRandom()*.12);
   const heights=profile.heights.map((value,i)=>anchor0+anchorDelta*breaks[i]+value*amplitude);
+  const elevations=heights.map((height,i)=>height+DESCENT*breaks[i]*COURSE_SECTION_LENGTH*COURSE_WORLD_PER_METER);
+  let rise=0,drop=0;
+  for(let i=1;i<elevations.length;i++){const change=elevations[i]-elevations[i-1];rise+=Math.max(0,change);drop+=Math.max(0,-change);}
+  const verticalSpan=Math.max(...elevations)-Math.min(...elevations);
   const pattern=Object.freeze({id:profile.id,label:profile.label,index,track,seed,length:COURSE_SECTION_LENGTH,amplitude,
-    breaks:Object.freeze(breaks),heights:Object.freeze(heights)});
+    breaks:Object.freeze(breaks),heights:Object.freeze(heights),rise,drop,verticalSpan});
   patterns.set(track,pattern);if(patterns.size>128)patterns.delete(patterns.keys().next().value);
   return pattern;
 }
