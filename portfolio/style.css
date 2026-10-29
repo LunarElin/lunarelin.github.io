@@ -152,6 +152,14 @@ details[open] > summary .detail-toggle::after { transform: rotate(0); }
 .game-visual { position: relative; display: flex; align-items: center; height: 248px; border-radius: 7px; overflow: hidden; isolation: isolate; }
 .game-visual img { position: absolute; left: 42px; top: 64px; z-index: 1; transition: transform .3s; filter: drop-shadow(0 16px 20px #0003); }
 .game-card:hover .game-visual img { transform: translateY(-4px) rotate(-4deg); }
+.game-visual.game-screenshot { background: #d6c8e4; }
+.game-visual.game-screenshot > img { position: static; width: 100%; height: 100%; object-fit: cover; filter: none; transform: none; }
+.game-card:hover .game-visual.game-screenshot > img { transform: scale(1.025); }
+.game-screenshot .game-genre { background: #30263fe8; color: #fff; border-radius: 4px; padding: 5px 10px; top: 14px; left: 14px; }
+.screenshot-caption { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 25px 18px 12px; background: linear-gradient(transparent, #211a30df); color: #fff; font-size: 14px; z-index: 2; }
+.screenshot-caption > span { font-size: 22px; }
+.game-highlights { margin: 14px 0 0; padding-left: 20px; color: #6b527d; font-size: 16px; }
+.game-highlights li + li { margin-top: 5px; }
 .game-genre { position: absolute; top: 18px; left: 22px; font-size: 14px; z-index: 2; }
 .visual-title { position: absolute; top: 82px; left: 53%; font-size: 36px; font-weight: 350; line-height: 1.05; letter-spacing: -.5px; z-index: 2; }
 .visual-title b { font-weight: 750; }

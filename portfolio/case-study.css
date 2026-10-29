@@ -9,8 +9,8 @@
 .case-summary dt { font-size: 14px; color: #7e658e; }
 .case-summary dd { margin: 5px 0 0; font-size: 16px; }
 .case-screen { margin: 0; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
-.case-screen img { width: 100%; height: auto; border-radius: 4px; }
-.case-screen a { display: block; }
+.case-screen img { width: auto; height: auto; max-height: 600px; object-fit: contain; border-radius: 4px; }
+.case-screen a { display: flex; justify-content: center; padding: 16px; background: #281c35; border-radius: 4px; }
 .case-screen figcaption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 20px; padding: 12px 8px 5px; font-size: 14px; color: var(--muted); }
 .case-screen figcaption > span { color: var(--accent); }
 .case-section { padding-block: 72px; border-bottom: 1px solid var(--line); }
@@ -54,13 +54,16 @@
 .case-test-details > div { padding: 8px 20px 20px; }
 .case-test-details code { display: block; overflow-wrap: anywhere; font-size: 14px; background: #e9dff2; padding: 16px; border-radius: 3px; }
 .case-test-details p { margin-top: 12px; }
-.case-table-wrap { overflow-x: auto; margin-top: 28px; border: 1px solid var(--line); border-radius: 5px; }
+.case-table-wrap { position: relative; overflow-x: auto; margin-top: 28px; border: 1px solid var(--line); border-radius: 5px; }
 .case-table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .case-table-wrap table { width: 100%; min-width: 680px; border-collapse: collapse; background: #fff7; font-size: 16px; }
 .case-table-wrap th, .case-table-wrap td { padding: 18px 20px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
 .case-table-wrap th { background: #e9dff2; color: #654777; font-weight: 600; }
 .case-table-wrap td { color: var(--muted); }
 .case-table-wrap tr:last-child td { border-bottom: 0; }
+.iteration-table th:first-child { width: 23%; }
+.iteration-table th:nth-child(2) { width: 45%; }
+.iteration-table td .inline-link { display: inline; min-height: 0; font-size: 16px; }
 @media (max-width: 1000px) {
   .core-loop li { padding: 16px; gap: 10px; }
   .decision-grid { gap: 16px; }
@@ -76,7 +79,8 @@
   .case-summary { grid-template-columns: 1fr; margin-block: 28px; }
   .case-summary > div { padding-block: 13px; }
   .case-screen { padding: 6px; }
-  .case-screen figcaption { padding: 10px 5px 5px; }
+  .case-screen a { padding: 8px; }
+  .case-screen figcaption { padding: 10px 5px 5px; font-size: 16px; }
   .case-section { padding-block: 50px; }
   .case-section h2 { font-size: 29px; letter-spacing: -1.2px; }
   .case-section > p { font-size: 16px; }
