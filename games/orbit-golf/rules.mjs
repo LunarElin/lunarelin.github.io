@@ -1,5 +1,5 @@
-import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261029-chain2';
-import { CHALLENGES, challengeDefinition, challengeEvents, createChallenge, updateChallenge } from './challenges.mjs?v=20261029-chain2';
+import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261029-chain3';
+import { CHALLENGES, challengeDefinition, challengeEvents, createChallenge, updateChallenge } from './challenges.mjs?v=20261029-chain3';
 
 export const TRACK_LENGTH = 360;
 export const DISTANCE_PER_GOLD = 8;

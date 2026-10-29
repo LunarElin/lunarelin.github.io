@@ -1,9 +1,9 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH, BALL_RADIUS } from './rules.mjs?v=20261029-chain2';
-import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-chain2';
+import { eventPose, TRACK_WIDTH, BALL_RADIUS } from './rules.mjs?v=20261029-chain3';
+import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-chain3';
 
-import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-chain2';
+import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-chain3';
 
 const TAU = Math.PI * 2;
 export const BALL_HEIGHT = BALL_RADIUS;

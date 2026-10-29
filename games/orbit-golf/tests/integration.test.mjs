@@ -166,7 +166,9 @@ test('a new course changes the seed while the same course recreates its original
   if(oldBody)assert.ok(reset.events.every(event=>event.body!==oldBody));app.launch();
   const repeated=app.scene.current;assert.equal(repeated.seed,17);assert.notEqual(repeated,first);
   assert.deepEqual([90,180,270,540].map(s=>courseSample(s,repeated.seed).height),heights);
-  app.stop();app.panelButton('새 코스').click();app.launch();
+  app.stop();
+  assert.doesNotMatch(app.$('panel-content').textContent,/최고 기록 0m 경신/,'repeating the same score must not announce a zero-metre record');
+  app.panelButton('새 코스').click();app.launch();
   const second=app.scene.current;assert.equal(second.seed,23);
   assert.notDeepEqual([90,180,270,540].map(s=>courseSample(s,second.seed).height),heights);
   assert.match(app.$('growth-readout').textContent,new RegExp(coursePattern(0,23).label));

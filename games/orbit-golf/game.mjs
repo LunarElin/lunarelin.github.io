@@ -1,8 +1,8 @@
-import { OrbitScene } from './scene.mjs?v=20261029-chain2';
-import { TRACK_LENGTH, UPGRADE_DEFS, BALL_TRAITS, availableTraits, selectBallTrait, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-chain2';
-import { CHALLENGES, challengeDefinition } from './challenges.mjs?v=20261029-chain2';
+import { OrbitScene } from './scene.mjs?v=20261029-chain3';
+import { TRACK_LENGTH, UPGRADE_DEFS, BALL_TRAITS, availableTraits, selectBallTrait, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-chain3';
+import { CHALLENGES, challengeDefinition } from './challenges.mjs?v=20261029-chain3';
 
-import { coursePattern, courseSample } from './course.mjs?v=20261029-chain2';
+import { coursePattern, courseSample } from './course.mjs?v=20261029-chain3';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
@@ -214,7 +214,7 @@ function stopped(){
   const chainSummary=element('p','chain-summary',run.chainHits?`장애물 ${fmt(run.chainHits)}번 연쇄 · 최대 ${run.maxChain}단계`:'');chainSummary.id='chain-summary';chainSummary.hidden=!run.chainHits;
   if(run.guardiansBroken)chainSummary.append(element('span','guardian-result',`수문장 ${fmt(run.guardiansBroken)}체 돌파`));
   if(run.guardiansBroken)chainSummary.hidden=false;
-  const growth=element('p','growth-note',run.guardianFeedback?.passed===false?'충격 부족 · 공 강화 후 재도전':run.previousBest?run.distance>run.previousBest?`최고 기록 ${fmt(run.distance-run.previousBest)}m 경신`:`이전 최고 ${fmt(run.previousBest)}m · 강화 후 재도전`:'첫 비행 완료 · 공을 강화하세요.');
+  const growth=element('p','growth-note',run.guardianFeedback?.passed===false?'충격 부족 · 공 강화 후 재도전':run.previousBest?Math.floor(run.distance)>run.previousBest?`최고 기록 ${fmt(run.distance-run.previousBest)}m 경신`:`이전 최고 ${fmt(run.previousBest)}m · 강화 후 재도전`:'첫 비행 완료 · 공을 강화하세요.');
   const upgradeAction=()=>{finalize();run=null;mode='lobby';visibleMode();showUpgrades();};
   if(run.tutorial) {
     const reward=element('p','training-reward',`훈련 보상 +${fmt(run.trainingBonus)} G 포함`);
