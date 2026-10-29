@@ -1,9 +1,9 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH, BALL_RADIUS } from './rules.mjs?v=20261029-motion2';
-import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-motion2';
+import { eventPose, TRACK_WIDTH, BALL_RADIUS } from './rules.mjs?v=20261029-chain1';
+import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-chain1';
 
-import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-motion2';
+import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-chain1';
 
 const TAU = Math.PI * 2;
 export const BALL_HEIGHT = BALL_RADIUS;
@@ -36,8 +36,7 @@ export class OrbitScene {
     this.buildTrack(); this.buildSpace();
     this.ball = new THREE.Group(); this.scene.add(this.ball);
     this.ballBody = new THREE.Mesh(new THREE.SphereGeometry(1.05, 22, 16), mat(0xf6fbff, .24, .25)); this.ball.add(this.ballBody);
-    const seam = new THREE.Mesh(new THREE.TorusGeometry(1.055, .065, 6, 36), mat(0x183c59,.35,.35)); seam.rotation.x = Math.PI / 2; this.ballBody.add(seam);
-    const seam2 = seam.clone(); seam2.rotation.x = 0; this.ballBody.add(seam2);
+    this.updateBallAppearance('standard',0);
     this.shadow = new THREE.Mesh(new THREE.CircleGeometry(.78, 24), new THREE.MeshBasicMaterial({ color: 0x050e20, transparent: true, opacity: .6, depthWrite: false })); this.shadow.rotation.x = -Math.PI / 2; this.scene.add(this.shadow);
     this.trail = []; const trailGeometry = new THREE.SphereGeometry(.23, 8, 6);
     for (let i=0;i<16;i++) { const m = new THREE.Mesh(trailGeometry, new THREE.MeshBasicMaterial({color:0x81ffe2,transparent:true,opacity:0,depthWrite:false})); this.scene.add(m); this.trail.push(m); }
@@ -63,6 +62,37 @@ export class OrbitScene {
     this.camera.fov=this.mobile?70:60;this.camera.updateProjectionMatrix();
   }
   mesh(geometry, material, parent=this.track) { const m=new THREE.Mesh(geometry,material); parent.add(m); return m; }
+  updateBallAppearance(requested='standard',level=0) {
+    const trait=['heavy','elastic','spin'].includes(requested)?requested:'standard';
+    if(this.ballTrait!==trait){
+      if(this.ballMark){this.ballBody.remove(this.ballMark);this.disposeObject(this.ballMark);}
+      // All surface marks are merged into one small mesh, follow the physics
+      // quaternion, and never add their own time-based rotation or collision.
+      const parts=[],ring=(radius,tube,rotation=0,angle=TAU,start=0)=>{
+        const geometry=new THREE.TorusGeometry(radius,tube,5,angle===TAU?32:12,angle);
+        geometry.rotateZ(start);if(rotation)geometry.rotateX(rotation);parts.push(geometry);
+      };
+      if(trait==='heavy'){ring(BALL_HEIGHT+.01,.09);ring(BALL_HEIGHT+.01,.09,Math.PI/2);}
+      else if(trait==='elastic'){
+        for(const rotation of[0,Math.PI/2])for(let i=0;i<4;i++)ring(BALL_HEIGHT+.016,.075,rotation,Math.PI*.36,i*Math.PI/2);
+      }else if(trait==='spin'){
+        const points=[];for(let i=0;i<=64;i++){const latitude=-1.22+i/64*2.44,angle=i/64*TAU*2.25,radius=BALL_HEIGHT+.025;points.push(new THREE.Vector3(Math.cos(latitude)*Math.cos(angle)*radius,Math.sin(latitude)*radius,Math.cos(latitude)*Math.sin(angle)*radius));}
+        parts.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),64,.055,5,false));
+      }else{ring(BALL_HEIGHT+.005,.055);ring(BALL_HEIGHT+.005,.055,Math.PI/2);}
+      const positions=[],normals=[];
+      for(const part of parts){const expanded=part.index?part.toNonIndexed():part;positions.push(...expanded.attributes.position.array);normals.push(...expanded.attributes.normal.array);if(expanded!==part)expanded.dispose();part.dispose();}
+      const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));
+      const color={standard:0x183c59,heavy:0x344352,elastic:0x176e59,spin:0x553889}[trait],material=mat(color,trait==='heavy'?.84:.4,trait==='heavy'?.72:.18);
+      this.ballMark=new THREE.Mesh(geometry,material);this.ballMark.name=`ball-trait-${trait}`;this.ballMark.userData.trait=trait;this.ballBody.add(this.ballMark);this.ballTrait=trait;
+    }
+    if(this.ballLevel!==level||this.ballColorTrait!==trait){
+      const color=new THREE.Color(BALL_COLORS[level]||BALL_COLORS[0]),tint={heavy:0x85919e,elastic:0xc4ffdf,spin:0xb7bbff}[trait];
+      if(tint)color.lerp(new THREE.Color(tint),trait==='heavy'?.72:.55);
+      this.ballColor=color;this.ballBody.material.color.copy(color);this.ballBody.material.roughness=trait==='heavy'?.8:trait==='elastic'?.34:.24;this.ballBody.material.metalness=trait==='heavy'?.62:.16;
+      this.ballLevel=level;this.ballColorTrait=trait;
+    }
+    this.ballMark.material.emissive.copy(this.ballMark.material.color);this.ballMark.material.emissiveIntensity=trait==='heavy'?0:Math.min(.22,(this.impact||0)*(trait==='spin'?.2:.14));
+  }
   buildTrack() {
     // Reuse a fixed ribbon and instanced panels as the forward corridor is generated.
     const geometry=new THREE.BufferGeometry(),positions=new Float32Array((COURSE_SEGMENTS+1)*2*3),indices=[];
@@ -199,6 +229,33 @@ export class OrbitScene {
     }
     mechanism.gimmick=mark;
   }
+  buildChallengeMark(visual,event,r,h) {
+    const role=event.challengeRole;if(!['launcher','target'].includes(role))return null;
+    const group=new THREE.Group();group.name=`challenge-${role}`;visual.add(group);
+    const material=glow(role==='target'?0xffd45c:0xff945e,.24),add=(geometry,name)=>{const mesh=this.mesh(geometry,material,group);mesh.name=name;return mesh;};
+    if(role==='launcher'){
+      const ring=add(new THREE.TorusGeometry(r+.22,.09,5,32,TAU*.84),'launcher-aim-ring');ring.position.set(0,h,-r*.94);ring.rotation.z=TAU*.08;
+      for(let i=0;i<4;i++){const a=i*Math.PI/2,tick=add(new THREE.BoxGeometry(.15,.42,.15),'launcher-aim-tick');tick.position.set(Math.sin(a)*(r+.25),h+Math.cos(a)*(r+.25),-r*.94);tick.rotation.z=-a;}
+    }else{
+      const base=add(new THREE.TorusGeometry(r+.3,.1,5,32),'target-floor-ring');base.rotation.x=-Math.PI/2;base.position.y=.12;
+      const top=h+r+.9,pole=add(new THREE.CylinderGeometry(.065,.065,r+.75,6),'target-pin');pole.position.set(0,h+(r+.75)/2,0);
+      const ring=add(new THREE.TorusGeometry(.62,.11,5,24),'target-bullseye');ring.position.set(0,top,-.09);
+      const dot=add(new THREE.SphereGeometry(.18,8,5),'target-bullseye-dot');dot.position.set(0,top,-.09);
+      const check=new THREE.Group();check.name='target-complete-check';check.position.set(0,top,-.09);check.visible=false;group.add(check);
+      for(const[width,x,y,angle]of[[.5,-.21,-.03,-.7],[.9,.2,.1,.8]]){const stroke=new THREE.Mesh(new THREE.BoxGeometry(width,.16,.16),material);stroke.position.set(x,y,0);stroke.rotation.z=angle;check.add(stroke);}
+      group.userData={material,base,ring,dot,check};
+    }
+    group.userData.material=material;group.userData.role=role;group.userData.success=false;return group;
+  }
+  updateChallengeMark(mesh,run,active) {
+    const {event,mechanism}=mesh.userData,mark=mechanism.challenge;if(!mark)return;
+    mark.visible=Boolean(active&&run.challenge&&run.challenge.id===event.challengeId);
+    const success=mark.visible&&mark.userData.role==='target'&&Array.isArray(run.challenge.hitTargetIds)&&run.challenge.hitTargetIds.includes(event.id);
+    if(mark.userData.success===success)return;
+    mark.userData.success=success;const {material,base,ring,dot,check}=mark.userData;
+    material.color.setHex(success?0x83ffd2:mark.userData.role==='target'?0xffd45c:0xff945e);material.emissive.copy(material.color);material.emissiveIntensity=success?.42:.24;
+    if(check){check.visible=success;ring.visible=!success;dot.visible=!success;base.scale.setScalar(success?1.07:1);}
+  }
   createEvent(event) {
     const g=new THREE.Group(),visual=new THREE.Group(),type=event.type,r=event.radius||.95,h=event.height||1.05,mechanism={};g.add(visual);
     const useModel=(name,scale)=>{if(!this.models[name])return false;const m=this.models[name].clone(true);m.scale.setScalar(scale);m.position.y=h;visual.add(m);return true;};
@@ -269,6 +326,7 @@ export class OrbitScene {
       mechanism.rotor=rotor;
     }
     if(type!=='guardian')this.buildGimmickMark(visual,event,r,h,mechanism);
+    mechanism.challenge=this.buildChallengeMark(visual,event,r,h);
     // Rotate every flying object about its collider center, never its old floor anchor.
     for(const child of visual.children)child.position.y-=h;
     visual.position.y=h;
@@ -394,6 +452,7 @@ export class OrbitScene {
     for(const [id,hit] of this.hitAnimations){hit.life-=dt;if(hit.life<=0)this.hitAnimations.delete(id);}
     for(const mesh of this.eventMeshes.values()) {
       const {event,visual,type,centerHeight,cue,mechanism}=mesh.userData,hit=this.hitAnimations.get(event.id),pose=this.eventRenderPose(event,active?run.elapsed:this.time),ahead=pose.s-this.distance;
+      this.updateChallengeMark(mesh,run,active);
       const flying=Boolean(event.body?.active),sameWheel=!active||!event.body||event.body.wheel===run.wheel;
       mesh.visible=sameWheel&&(type==='guardian'||type==='tar'||flying||!event.used||Boolean(hit)&&!event.body)&&(!active||(ahead>-65&&ahead<190));
       mesh.position.copy(this.eventPosition(event,pose));mesh.rotation.x=Number.isFinite(pose.worldY)?0:-this.sample(pose.s).pitch;
@@ -464,7 +523,7 @@ export class OrbitScene {
       this.ballBody.quaternion.fromArray(run.previousRotation||run.rotation).slerp(this.rotationTarget,pose.blend);
     }else if(!active)this.ballBody.rotation.y+=animDt*.12;
     this.squash=(this.squash||0)*Math.exp(-animDt*18);const squash=Math.min(.08,this.squash*.1);
-    this.ball.scale.set(1+power*.06+squash,1+power*.06-squash*2,1+power*.06+squash);this.ballBody.material.color.setHex(BALL_COLORS[upgrades.ball||0]);
+    this.ball.scale.set(1+power*.06+squash,1+power*.06-squash*2,1+power*.06+squash);this.updateBallAppearance(active?run.trait||upgrades.trait:upgrades.trait,upgrades.ball||0);
     if(this.ballBody.material.emissive){this.ballBody.material.emissive.setHex(BALL_COLORS[upgrades.ball||0]);this.ballBody.material.emissiveIntensity=Math.min(.35,(this.impact||0)*.2);}
     this.shadow.position.copy(this.worldPosition(this.distance,this.x,newSample.height+.035));this.shadow.rotation.set(pitch-Math.PI/2,0,0);this.shadow.scale.setScalar(1+Math.min(.6,airborne*.012));if(this.shadow.material)this.shadow.material.opacity=.48*Math.exp(-airborne/18);
     this.ballLight?.position.copy(pos.clone().add(new THREE.Vector3(0,2,0)));
@@ -528,7 +587,7 @@ export class OrbitScene {
         this.lastTrailPoint.copy(pos);if(this.trailHistory.length>32)this.trailHistory.length=32;
       }
     }
-    for(let i=0;i<this.trail.length;i++){const trail=this.trail[i],history=this.trailHistory[i*2];trail.material.opacity=rolling&&history&&!this.reducedMotion?(.38-i*.022):0;trail.material.color.setHex(BALL_COLORS[upgrades.ball||0]);if(history)trail.position.copy(history);trail.scale.setScalar(1.6-i*.075);}
+    for(let i=0;i<this.trail.length;i++){const trail=this.trail[i],history=this.trailHistory[i*2];trail.material.opacity=rolling&&history&&!this.reducedMotion?(.38-i*.022):0;trail.material.color.copy(this.ballColor);if(history)trail.position.copy(history);trail.scale.setScalar(1.6-i*.075);}
     if(this.streaks){const intensity=rolling&&!this.reducedMotion?Math.min(1,Math.max(0,(speed*COURSE_WORLD_PER_METER-12)/70)):0;this.streaks.material.opacity=intensity*.18;this.streaks.visible=intensity>0;
       const positions=this.streakGeometry.attributes.position;for(let i=0;i<36;i++){const s=this.distance+((i*17.73-this.distance)%95+95)%95-8,x=(i%2?1:-1)*(HALF_WIDTH+1+(i%7)*.9),h=3+(i%9)*1.2;const start=this.position(s,x,h),end=this.position(s+3+intensity*5,x,h);positions.setXYZ(i*2,start.x,start.y,start.z);positions.setXYZ(i*2+1,end.x,end.y,end.z);}positions.needsUpdate=true;
     }
@@ -537,6 +596,6 @@ export class OrbitScene {
     for(let i=this.effects.length-1;i>=0;i--){const effect=this.effects[i];effect.life-=animDt;effect.mesh.position.addScaledVector(effect.v,animDt);effect.v.addScaledVector(effect.gravity,animDt);if(effect.spin){effect.mesh.rotation.x+=effect.spin.x*animDt;effect.mesh.rotation.y+=effect.spin.y*animDt;effect.mesh.rotation.z+=effect.spin.z*animDt;}effect.mesh.material.opacity=Math.max(0,effect.life/effect.total)*(effect.opacity||1);effect.mesh.scale.setScalar((effect.scale||1)*(1+(1-effect.life/effect.total)*.4));if(effect.life<=0){this.scene.remove(effect.mesh);effect.mesh.material.dispose();this.effects.splice(i,1);}}
     this.renderer.render(this.scene,this.camera);
   }
-  disposeObject(object,skipModels=false) {this.releaseCameraFades(object);object.traverse(o=>{if(!o.isMesh&&!o.isLine&&!o.isPoints)return;if(skipModels&&Object.values(this.models||{}).some(m=>{let yes=false;m.traverse(n=>{if(n.geometry===o.geometry)yes=true;});return yes;}))return;o.geometry?.dispose();if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material?.dispose();});}
+  disposeObject(object,skipModels=false) {this.releaseCameraFades(object);const geometries=new Set(),materials=new Set();object.traverse(o=>{if(!o.isMesh&&!o.isLine&&!o.isPoints)return;if(skipModels&&Object.values(this.models||{}).some(m=>{let yes=false;m.traverse(n=>{if(n.geometry===o.geometry)yes=true;});return yes;}))return;if(o.geometry)geometries.add(o.geometry);for(const material of(Array.isArray(o.material)?o.material:[o.material]))if(material)materials.add(material);});for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();}
   dispose(){this.abort=true;this.disposeObject(this.scene);for(const model of Object.values(this.models))this.disposeObject(model);this.effectGeometry.dispose();this.hitAnimations?.clear();if(this.trailHistory)this.trailHistory.length=0;this.effects.length=0;this.renderer.dispose();}
 }

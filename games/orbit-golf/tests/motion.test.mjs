@@ -204,3 +204,30 @@ test('a flying giant alien fades at its displayed world centre, freezes on pause
   scene.render(0,run,'rolling');assert.equal(visual.userData.cameraFade.active,true,'a floating origin must preserve the camera-to-alien intersection');
   scene.dispose();
 });
+
+test('challenge success updates through occlusion and releases shared marker materials exactly once',()=>{
+  const scene=sceneHarness(),{run}=flight();setPose(run,{s:100,x:0,y:100});
+  const s=run.s-10/W,event={id:'chain-target',type:'bumper',challengeId:'domino',challengeRole:'target',at:s,x:0,height:1.05,radius:1.15,seed:run.seed,
+    body:{active:true,wheel:run.wheel,s,x:0,worldY:103.25,previousS:s,previousX:0,previousWorldY:103.25,rx:0,ry:0,rz:0,life:3}};
+  run.events=[event];run.challenge={id:'domino',hitTargetIds:[],required:1,completed:false,success:false};scene.render(0,run,'rolling');
+  const mesh=scene.eventMeshes.get(event.id),mark=mesh.userData.mechanism.challenge,fade=mesh.userData.visual.userData.cameraFade;
+  assert.ok(fade?.active);const record=fade.records.find(record=>record.mesh===mark.userData.base);assert.ok(record);
+  assert.notEqual(record.mesh.material,mark.userData.material);assert.equal(record.mesh.material.color.getHex(),0xffd45c);
+  run.challenge.hitTargetIds.push(event.id);scene.render(0,run,'rolling');assert.equal(record.mesh.material.color.getHex(),0x83ffd2);assert.equal(mark.userData.material.color.getHex(),0x83ffd2);
+  event.body.x=8;event.body.previousX=8;scene.render(0,run,'rolling');assert.equal(record.mesh.material,mark.userData.material);assert.ok(mark.userData.check.visible);
+  let originals=0,clones=0;mark.userData.material.addEventListener('dispose',()=>originals++);record.faded.addEventListener('dispose',()=>clones++);
+  run.events=[];scene.render(0,run,'rolling');assert.equal(originals,1);assert.equal(clones,1);scene.dispose();assert.equal(originals,1);assert.equal(clones,1);
+});
+
+test('trait surfaces follow the authoritative quaternion without changing ball framing or physics state',()=>{
+  let reference;
+  for(const trait of['standard','heavy','elastic','spin']){
+    const scene=sceneHarness(),{run}=flight(),rotation=new THREE.Quaternion().setFromEuler(new THREE.Euler(.4,.7,-.3));
+    run.trait=trait;setPose(run,{s:1216,x:2,y:80,rotation:rotation.toArray()});const state=JSON.stringify(run);
+    scene.render(1/60,run,'rolling');scene.scene.updateMatrixWorld(true);
+    assert.equal(JSON.stringify(run),state);assert.ok(scene.ballMark.getWorldQuaternion(new THREE.Quaternion()).angleTo(rotation)<1e-7);
+    const pose={ball:scene.ball.position.toArray(),camera:scene.camera.position.toArray(),look:scene.look.toArray(),fov:scene.camera.fov};
+    if(reference)assert.deepEqual(pose,reference);else reference=pose;
+    run.trait=trait==='spin'?'heavy':'spin';scene.render(1,run,'paused');assert.equal(scene.ballTrait,trait,'pause freezes the rendered equipment too');scene.dispose();
+  }
+});

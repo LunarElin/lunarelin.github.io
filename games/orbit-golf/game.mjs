@@ -1,7 +1,8 @@
-import { OrbitScene } from './scene.mjs?v=20261029-motion2';
-import { TRACK_LENGTH, UPGRADE_DEFS, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-motion2';
+import { OrbitScene } from './scene.mjs?v=20261029-chain1';
+import { TRACK_LENGTH, UPGRADE_DEFS, BALL_TRAITS, availableTraits, selectBallTrait, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-chain1';
+import { CHALLENGES, challengeDefinition } from './challenges.mjs?v=20261029-chain1';
 
-import { coursePattern, courseSample } from './course.mjs?v=20261029-motion2';
+import { coursePattern, courseSample } from './course.mjs?v=20261029-chain1';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';
@@ -14,13 +15,16 @@ const PREVIEW_TYPES=[...GIANT_TYPES,'anvil','tar','spring'];
 const seedParam=Number(pageParams.get('seed'));
 const previewSeed=PREVIEW&&pageParams.has('seed')&&Number.isSafeInteger(seedParam)&&seedParam>=0&&seedParam<=0xffffffff?seedParam:null;
 const previewEncounter = PREVIEW && ['guardian-weak','guardian-strong','climb','drop',...PREVIEW_TYPES].includes(pageParams.get('encounter')) ? pageParams.get('encounter') : '';
+const previewChallenge=PREVIEW&&challengeDefinition(pageParams.get('challenge'))?.id||null;
 const fmt = value => Math.floor(value).toLocaleString('ko-KR');
 const aborter = new AbortController();
 const on = (element,event,fn,options={}) => element.addEventListener(event,fn,{...options,signal:aborter.signal});
 let profile=newProfile(), storageOK=true;
 try { profile=sanitizeProfile(JSON.parse(PREVIEW?'null':localStorage.getItem(KEY)||'null')); } catch { storageOK=false; }
 if(previewEncounter){profile.tutorialComplete=true;profile.upgrades.ball=previewEncounter==='guardian-weak'?0:previewEncounter==='guardian-strong'?3:1;}
+if(PREVIEW&&pageParams.get('profile')==='max'){profile.tutorialComplete=true;profile.upgrades.ball=5;profile.upgrades.pilot=5;}
 let run=null, mode='lobby', previousMode='lobby', charging=false, charge=0, power=0, seed=0;
+let activeChallenge=null,lastAttempt=null;
 let audio=null, audioEnabled=true, raf=0, last=0, hudTime=0, saveTime=0, toastLife=0, disposed=false;
 let rollSound=null, rollGain=null, lastTone=-1, lastHaptic=-1000;
 const heldKeys=new Set();
@@ -28,10 +32,11 @@ const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matc
 let scene;
 const BALL_NAMES=['기본 공','오로라 공','유성 공','성운 공','혜성 공','초신성 공'];
 function prepareRun(powerValue) {
-  const next=newRun(profile,powerValue,seed,Number($('aim-control').value));
+  const next=newRun(profile,powerValue,seed,Number($('aim-control').value),{challenge:activeChallenge});
   next.previousBest=profile.rankings.find(r=>r.name.toLowerCase()===profile.name.toLowerCase())?.distance||0;
   const stats=ballStats(profile);
   next.goalDistance=Math.max(360,Math.ceil(Math.min(next.previousBest+360,stats.range)/180)*180);
+  if(next.challenge){next.goalDistance=challengeDefinition(next.challenge.id).arenaLength;return next;}
   if(previewEncounter.startsWith('guardian-')){
     next.s=10*TRACK_LENGTH-90;next.distance=next.s;next.track=9;next.eventTrack=9;next.goalDistance=10*TRACK_LENGTH;
     next.events=[8,9,10].flatMap(track=>generateTrack(track,seed));
@@ -59,6 +64,7 @@ function refreshLobby(){
   const best=profile.rankings[0];
   $('best').replaceChildren(document.createTextNode(`${fmt(best?.distance||0)} `),Object.assign(document.createElement('small'),{textContent:'m'}));
   if(document.activeElement!==$('pilot-name'))$('pilot-name').value=profile.name;
+  $('open-challenges').classList.toggle('has-unlocks',profile.upgrades.ball===5&&profile.challengeWins.length<CHALLENGES.length);
 }
 function visibleMode(){
   $('game').classList.toggle('is-playing',mode!=='lobby');
@@ -113,13 +119,20 @@ function openPanel(title,content,type){
   if(!$('panel').open)$('panel').showModal();
 }
 function closePanel(){if($('panel').open)$('panel').close();}
-function finalize(){if(run&&!run.finished&&run.phase!=='ready'){if(run.phase!=='stopped')run.phase='stopped';collectRunGold(profile,run);settleRun(profile,run);save();}refreshLobby();}
-function lobby(){charging=false;finalize();closePanel();run=null;mode='lobby';scene.lastTrack=-1;visibleMode();refreshLobby();}
-function ready(){
-  finalize();closePanel();seed=previewSeed??crypto.getRandomValues(new Uint32Array(1))[0];
-  if(previewEncounter&&!previewEncounter.startsWith('guardian-'))$('aim-control').value='0';
+function closeMenu(){if(mode==='stopped'&&run?.challenge){showChallengeResult();return;}closePanel();}
+function finalize(){if(run&&!run.finished&&run.phase!=='ready'){if(run.phase!=='stopped'){run.phase='stopped';if(run.challenge)run.stopReason=run.challenge.success?'challenge-success':'aborted';}collectRunGold(profile,run);settleRun(profile,run);save();}refreshLobby();}
+function lobby(){charging=false;finalize();closePanel();run=null;activeChallenge=null;mode='lobby';scene.lastTrack=-1;visibleMode();refreshLobby();}
+function ready(options={}){
+  const prior=run?{seed:run.seed,challenge:run.challenge?.id||null,aim:Number($('aim-control').value)}:lastAttempt;
+  const same=options.same===true&&prior;
+  const requested=Object.hasOwn(options,'challenge')?options.challenge:same?prior.challenge:activeChallenge;
+  activeChallenge=challengeDefinition(requested)?.id||null;
+  finalize();closePanel();seed=same?prior.seed:previewSeed??crypto.getRandomValues(new Uint32Array(1))[0];
+  if(same)$('aim-control').value=String(prior.aim);
+  else if(activeChallenge||previewEncounter&&!previewEncounter.startsWith('guardian-'))$('aim-control').value='0';
+  lastAttempt={seed,challenge:activeChallenge,aim:Number($('aim-control').value)};
   run=prepareRun(.5);run.phase='ready';mode='ready';charging=false;charge=0;power=0;
-  $('shot-title').textContent=run.tutorial?'초록 구간에서 놓으세요':`${BALL_NAMES[profile.upgrades.ball]} · 목표 ${fmt(run.goalDistance)}m`;
+  $('shot-title').textContent=run.challenge?'발사각과 세기로 연쇄를 노리세요':run.tutorial?'초록 구간에서 놓으세요':`${BALL_NAMES[profile.upgrades.ball]} · 목표 ${fmt(run.goalDistance)}m`;
   $('shoot').textContent='누르고 → 타격';
   $('toast').classList.remove('visible');toastLife=0;updateAim();
   scene.lastTrack=-1;visibleMode();updateHUD();updatePower();
@@ -133,6 +146,7 @@ function chargeCancel(){if(!charging)return;charging=false;power=0;updatePower()
 function launch(){
   if(mode!=='ready'||!charging)return;charging=false;const p=Math.max(.22,power),perfect=p>=.82&&p<=.96;
   run=prepareRun(perfect?1:p);power=0;mode='rolling';visibleMode();
+  lastAttempt={seed,challenge:activeChallenge,aim:run.aim};
   impact({type:'shot',kind:'good',strength:perfect?1.4:1});updateHUD();
 }
 function updateAim(){const aim=Number($('aim-control').value);$('aim-value').textContent=`${aim>0?'+':''}${aim}°`;if(mode==='ready'&&run)run.aim=aim;}
@@ -177,11 +191,24 @@ function updateHUD(){
   $('combo').hidden=mode!=='rolling'||(!chainActive&&(run.combo<2||run.elapsed-run.lastImpact>3.2));
   $('combo').textContent=chainActive?`연쇄 ${run.displayChainDepth}`:`연속 충돌 ${run.combo||0}`;
   $('game').style.setProperty('--speed',mode==='rolling'?String(Math.min(1,Math.abs(run.speed)/150)):'0');
+  $('route-label').textContent=`항로 ${run.seed.toString(16).toUpperCase().padStart(8,'0')} · ${BALL_TRAITS[run.trait||'standard'].label}`;
+  $('route-label').hidden=mode!=='ready';
+  if(run.challenge){
+    const task=challengeDefinition(run.challenge.id),hits=run.challenge.hitTargetIds.length;
+    $('track-label').textContent=`${task.label} · ${remaining}초`;
+    $('run-goal').textContent=run.challenge.completed?'연쇄 성공':task.objective;
+    $('growth-readout').textContent=`표적 ${hits} / ${task.required} · 정밀 타격`;
+    $('growth-readout').classList.toggle('milestone',run.challenge.completed);
+    progress.classList.remove('guardian-power','can-break');
+    progress.setAttribute('aria-label','연쇄 과제 표적');progress.setAttribute('aria-valuemax',String(task.required));progress.setAttribute('aria-valuenow',String(hits));
+    $('orbit-fill').style.width=`${hits/task.required*100}%`;
+  }
 }
 function stopped(){
   mode='stopped';collectRunGold(profile,run);
-  if(run.tutorial)settleRun(profile,run);
+  if(run.tutorial||run.challenge)settleRun(profile,run);
   save();visibleMode();updateHUD();tone('stop');
+  if(run.challenge){showChallengeResult();return;}
   const distance=element('p','result-distance',fmt(run.distance));distance.append(element('small','',' m'));
   const summary=element('div','result-summary');summary.append(element('span','',`◆ +${fmt(run.earned)} G`),element('span','',`충돌 ${fmt(run.collisions||0)}회`));
   const chainSummary=element('p','chain-summary',run.chainHits?`장애물 ${fmt(run.chainHits)}번 연쇄 · 최대 ${run.maxChain}단계`:'');chainSummary.id='chain-summary';chainSummary.hidden=!run.chainHits;
@@ -196,23 +223,67 @@ function stopped(){
     return;
   }
   const can=canContinue(profile,run),used=run.continued;
-  const again=button(used?'이어하기 사용 완료':`이어 달리기 · ${continueCost(run)} G`,'primary panel-action',()=>{
+  const again=button(used?'이어하기 사용 완료':`이어 달리기 · ${continueCost(run)} G`,'secondary panel-action',()=>{
     if(continueRun(profile,run)){save();closePanel();mode='rolling';visibleMode();impact({type:'shot',kind:'good',strength:1});updateHUD();}
   });again.disabled=!can;
   const note=element('p','continue-note',run.stopReason==='time'?'120초 비행 완료 · 강화하고 다음 기록에 도전하세요.':used?'한 판에 한 번의 재출발을 사용했어요.':can?'멈춘 자리에서 재출발 · 한 판에 딱 한 번':`보유 ${fmt(profile.gold)} G · 이어 달리기에는 40 G 필요`);
-  const retry=button('다시 타격','secondary',ready),upgrade=button('강화','secondary',upgradeAction);
+  const retry=button('같은 코스','primary',()=>ready({same:true})),upgrade=button('강화','secondary',upgradeAction);
   const row=element('div','result-secondary');row.append(retry,upgrade);
   const back=button('기록 저장 · 대기실','text-button panel-action',lobby);
-  openPanel('이번 비행 완료',[distance,summary,chainSummary,growth,again,note,row,back],'result');
+  const cause=element('p','result-cause',run.hazardFeedback?`${HAZARD_NAMES[run.hazardFeedback.type]||'충돌'} · 전진 속도 ${Math.round(run.hazardFeedback.ratio*100)}% 손실`:'같은 코스에서 발사각과 세기를 바꿔보세요.');
+  openPanel('이번 비행 완료',[distance,summary,chainSummary,growth,cause,row,button('새 코스','secondary panel-action',()=>ready({challenge:null})),again,note,back],'result');
 }
 function pause(reason='잠시 쉬어가요'){
   if(mode!=='rolling'&&mode!=='ready')return;previousMode=mode;charging=false;power=0;updatePower();mode='paused';visibleMode();audio?.suspend().catch(()=>{});
   const resume=button('계속','primary panel-action',()=>{closePanel();mode=previousMode;visibleMode();if(audioEnabled)audio?.resume().catch(()=>{});last=performance.now();});
-  const restart=button('재시작','secondary panel-action',ready),back=button('비행 마치기','text-button panel-action',lobby);
+  const restart=button('재시작','secondary panel-action',()=>ready({same:true})),back=button('비행 마치기','text-button panel-action',lobby);
   openPanel(reason,[element('p','panel-intro','쉬는 동안 거리와 속도는 변하지 않아요.'),resume,restart,back],'pause');
+}
+function ensurePilot(){
+  const name=cleanName(mode==='lobby'?$('pilot-name').value:profile.name);
+  if(!name){closePanel();$('name-error').textContent='파일럿 이름을 입력해주세요.';$('pilot-name').focus();return false;}
+  profile.name=name;$('name-error').textContent='';save();return true;
+}
+function showChallenges(){
+  if(!ensurePilot())return;
+  const list=element('div','challenge-list');
+  for(const task of CHALLENGES){
+    const won=profile.challengeWins.includes(task.id),card=element('div','challenge-card'),heading=element('div','challenge-heading');
+    heading.append(element('strong','',task.label),element('span',won?'challenge-medal':'challenge-count',won?'완료':`표적 ${task.required}`));
+    card.append(heading,element('p','challenge-objective',task.objective),element('p','challenge-reward',`공 Lv.5 해금 · ${BALL_TRAITS[task.trait].label}`));
+    const start=button(won?'다시 도전':'도전','primary',()=>ready({challenge:task.id}));start.dataset.challenge=task.id;card.append(start);list.append(card);
+  }
+  openPanel('연쇄 도전',[element('p','panel-intro','정밀 타격 · 공통 장비\n날아간 물체로 금색 표적을 맞히세요. 첫 성공 +60 G · 거리 랭킹 제외'),list,button('공 특성','secondary panel-action',showTraits)],'challenges');
+}
+function showTraits(){
+  const unlocked=availableTraits(profile),list=element('div','trait-list');
+  for(const trait of Object.values(BALL_TRAITS)){
+    const available=unlocked.includes(trait.id),selected=profile.ballTrait===trait.id,task=challengeDefinition(trait.challengeId),card=element('div',`trait-card trait-${trait.id}`);
+    const heading=element('div','challenge-heading');heading.append(element('strong','',trait.label),element('span','trait-symbol',({standard:'◉',heavy:'⬡',elastic:'◎',spin:'↻'})[trait.id]));
+    const requirement=available?'무료 교체':`${task?.label||'연쇄 도전'} 완료 + 공 Lv.5`;
+    card.append(heading,element('p','trait-description',trait.description),element('p','trait-requirement',requirement));
+    const choose=button(selected?'사용 중':available?'선택':'잠김','primary',()=>{if(selectBallTrait(profile,trait.id)){save();tone('good');showTraits();}});
+    choose.disabled=!available||selected;choose.dataset.trait=trait.id;choose.setAttribute('aria-pressed',String(selected));card.append(choose);list.append(card);
+  }
+  const again=lastAttempt?button('같은 코스','primary panel-action',()=>{if(ensurePilot())ready({same:true});}):button('비행 준비','primary panel-action',()=>{if(ensurePilot())ready({challenge:null});});
+  openPanel('공 특성',[element('p','panel-intro','도전을 완료하면 공 Lv.5에서 새로운 성질을 선택할 수 있어요. 특성마다 강점과 약점이 달라요.'),list,again,button('연쇄 도전','secondary panel-action',showChallenges)],'traits');
+}
+function showChallengeResult(){
+  const task=challengeDefinition(run.challenge.id),award=run.challengeAward||{},success=run.challenge.success;
+  const result=element('p','challenge-result',`${run.challenge.hitTargetIds.length} / ${task.required}`);
+  const source=run.events.find(event=>event.id===run.lastDecisiveImpact?.sourceId);
+  const sourceName=source?.fragment?'과자 조각':source?.type==='beast'?'동물':source?.type==='bumper'?'날아간 링':'날아간 물체';
+  const note=element('p','result-cause',success?`${sourceName} → 금색 표적`:task.objective);
+  const reward=element('p','challenge-reward',award.firstWin?'첫 성공 +60 G':success?'완료 기록 유지':'같은 코스에서 발사각과 세기를 바꿔보세요.');
+  const unlock=element('p','trait-unlock',award.unlocked?.length?`${award.unlocked.map(id=>BALL_TRAITS[id].label).join(' · ')} 해금`:success&&profile.upgrades.ball<5?`${BALL_TRAITS[task.trait].label} 기록 완료 · 공 Lv.5에서 사용`:'');
+  const children=[element('p','panel-intro',task.label),result,note,reward,unlock];
+  if(award.unlocked?.length)children.push(button('공 특성 선택','primary panel-action',showTraits));
+  children.push(button('같은 코스','primary panel-action',()=>ready({same:true})),button('다른 과제','secondary panel-action',showChallenges),button('대기실','text-button panel-action',lobby));
+  openPanel(success?'연쇄 도전 성공':'다시 조준해요',children,'result');
 }
 function showUpgrades(){
   const children=[element('p','panel-intro','한 번의 강화가 다음 비행을 더 멀리.'),element('p','panel-gold',`보유 ◆ ${fmt(profile.gold)} G`)];
+  children.push(button(`공 특성 · ${BALL_TRAITS[profile.ballTrait].label}`,'secondary panel-action trait-entry',showTraits));
   for(const key of ['pilot','ball']){
     const def=UPGRADE_DEFS[key],level=profile.upgrades[key],cost=upgradeCost(profile,key);
     const card=element('div','upgrade-card'),title=element('div','upgrade-title');
@@ -221,19 +292,20 @@ function showUpgrades(){
     const current=ballStats(level),next=ballStats(nextLevel);
     const improvement=Math.round((next.range/current.range-1)*100);
     const maxed=level===def.maxLevel;
-    const desc=element('p','',key==='pilot'?maxed?'최고 단계 · 충돌 에너지 보존 및 반발 강화':'충돌 추진력 손실 감소\n반발 강화' :maxed?`${BALL_NAMES[level]} · 최고 단계\n출발 추진력 ${fmt(current.launchSpeed)} · 낮은 마찰`:`${BALL_NAMES[level]} → ${BALL_NAMES[nextLevel]}\n기본 비거리 +${improvement}%\n${fmt(current.range)}m → ${fmt(next.range)}m`);
+    const desc=element('p','',key==='pilot'?maxed?'최고 단계 · 충돌 에너지 보존 및 반발 강화':'충돌 추진력 손실 감소\n반발 강화' :maxed?`${BALL_NAMES[level]} · ${BALL_TRAITS[profile.ballTrait].label}\n출발 추진력 ${fmt(ballStats(profile).launchSpeed)} · 낮은 마찰`:`${BALL_NAMES[level]} → ${BALL_NAMES[nextLevel]}\n기본 비거리 +${improvement}%\n${fmt(current.range)}m → ${fmt(next.range)}m`);
     if(key==='ball')desc.append(element('small','range-note','장애물 없는 평지 풀샷 기준 · 실제 충돌과 운에 따라 달라져요'));
     const buy=button(Number.isFinite(cost)?`강화 · ${fmt(cost)} G`:'최고 단계','primary',()=>{if(buyUpgrade(profile,key)){save();refreshLobby();tone('good');showUpgrades();}});
     buy.disabled=!Number.isFinite(cost)||profile.gold<cost;card.append(title,desc,buy);children.push(card);
   }
-  children.push(button(profile.name?'다음 비행':'대기실','primary panel-action',()=>{if(profile.name)ready();else{closePanel();refreshLobby();}}));openPanel('장비 강화',children,'upgrades');
+  children.push(button('연쇄 도전','secondary panel-action',showChallenges));
+  children.push(button(profile.name?'다음 비행':'대기실','primary panel-action',()=>{if(profile.name)ready({challenge:null});else{closePanel();refreshLobby();}}));openPanel('장비 강화',children,'upgrades');
 }
 function showRanks(){
   const list=element('ol','rank-list');profile.rankings.forEach((r,i)=>{const row=element('li','rank-row');const score=element('b','',fmt(r.distance));score.append(element('small','',' m'));row.append(element('span','',`${i+1}`),element('strong','',r.name),score);list.append(row);});
   openPanel('궤도 랭킹',[element('p','panel-intro','이 기기의 TOP 10 · 이름별 최고 기록'),profile.rankings.length?list:element('p','empty','아직 기록이 없습니다.'),button('확인','primary panel-action',closePanel)],'ranks');
 }
 function showHelp(){
-  const list=element('ol','help-list');['발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','360m 구간을 지나면 새로운 배치 기믹이 추가됩니다. 5·10·15번째 구간처럼 5구간마다 한 번에 3개가 추가됩니다.','10번째 구간 끝에는 거대한 수문장이 길을 막습니다. 화면의 충격이 필요 힘 이상이면 부수고 통과하며 40G를 얻습니다. 공을 강화하면 같은 속도에서도 충격이 커집니다. 이후 수문장은 10구간마다 나타납니다.','매 판 새로운 직선 코스가 펼쳐집니다. 긴 내리막·언덕·골짜기·연속 고개·평탄한 쉼터가 다른 높이와 순서로 이어집니다. 카메라는 뒤에서 공을 따라가며 수평을 유지합니다.','거대 동물의 몸통은 공을 크게 튀겨 내고, 외계인 촉수는 옆으로 던져 회전을 줍니다. 커다란 과자는 부서져 조각들이 다른 물체와 연쇄 충돌합니다.','충격 모루는 속도를 크게 빼앗고, 검은 타르는 즉시 감속한 뒤에도 마찰이 남습니다. 위험 직후에는 추진 효과가 잠시 억제되어 속도가 저절로 복구되지 않습니다.','높은 고개를 오를 때는 실제 속도를 잃고, 깊은 내리막에서는 중력으로 가속합니다. 360도 루프 없이 큰 높낮이의 길이 이어집니다.','마찰과 오르막은 속도를 줄이고 내리막은 가속을 돕습니다. 주황 추진기와 초록 패드에 닿으면 가속합니다. 충돌과 착지 뒤 속도가 자동으로 복구되지 않습니다.','공은 바닥에서 구르고, 떠오르면 포물선으로 날아갑니다. 바닥에 남은 그림자로 높이와 착지 위치를 확인하세요.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 조작이 멈추고 착지 후 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 마찰과 충돌 손실이 줄고 비거리가 늘어납니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다. 수문장이 남아 있으면 그 앞에서 내려옵니다.'].forEach(t=>list.append(element('li','',t)));
+  const list=element('ol','help-list');['연쇄 도전에서는 코랄 링의 물체를 조준해 금색 표적을 맞히세요. 날아간 물체의 충돌만 과제로 인정합니다.','결과 화면의 같은 코스는 배치를 그대로 다시 만듭니다. 새 코스는 새로운 길을 만듭니다.','공 Lv.5와 연쇄 도전 완료로 중량·탄성·회전 공을 해금합니다. 공 특성에서 무료로 바꾸며 각 공마다 강점과 약점이 있습니다.','발사각을 정하고 타격 버튼을 길게 누른 뒤 초록 구간에서 놓으세요.','360m 구간을 지나면 새로운 배치 기믹이 추가됩니다. 5·10·15번째 구간처럼 5구간마다 한 번에 3개가 추가됩니다.','10번째 구간 끝에는 거대한 수문장이 길을 막습니다. 화면의 충격이 필요 힘 이상이면 부수고 통과하며 40G를 얻습니다. 공을 강화하면 같은 속도에서도 충격이 커집니다. 이후 수문장은 10구간마다 나타납니다.','매 판 새로운 직선 코스가 펼쳐집니다. 긴 내리막·언덕·골짜기·연속 고개·평탄한 쉼터가 다른 높이와 순서로 이어집니다. 카메라는 뒤에서 공을 따라가며 수평을 유지합니다.','거대 동물의 몸통은 공을 크게 튀겨 내고, 외계인 촉수는 옆으로 던져 회전을 줍니다. 커다란 과자는 부서져 조각들이 다른 물체와 연쇄 충돌합니다.','충격 모루는 속도를 크게 빼앗고, 검은 타르는 즉시 감속한 뒤에도 마찰이 남습니다. 위험 직후에는 추진 효과가 잠시 억제되어 속도가 저절로 복구되지 않습니다.','높은 고개를 오를 때는 실제 속도를 잃고, 깊은 내리막에서는 중력으로 가속합니다. 360도 루프 없이 큰 높낮이의 길이 이어집니다.','마찰과 오르막은 속도를 줄이고 내리막은 가속을 돕습니다. 주황 추진기와 초록 패드에 닿으면 가속합니다. 충돌과 착지 뒤 속도가 자동으로 복구되지 않습니다.','공은 바닥에서 구르고, 떠오르면 포물선으로 날아갑니다. 바닥에 남은 그림자로 높이와 착지 위치를 확인하세요.','공과 장애물은 서로 충돌하며 반사·점프·연쇄 이동합니다. 물체마다 공에 주는 효과가 다릅니다.','스핀은 남은 전진 에너지 안에서만 방향을 바꿉니다. 전진할 힘이 소진되면 조작이 멈추고 착지 후 비행이 끝납니다.','스핀 슬라이더나 화면 드래그로 방향을 조절하세요. PC는 ← → 또는 A · D를 누르는 동안 스핀, 스페이스로 타격합니다.','첫 훈련은 최대 75초입니다. 보상으로 공을 강화하면 마찰과 충돌 손실이 줄고 비거리가 늘어납니다.','8m마다 1골드. 일반 비행은 최대 120초이며 자연 정지 후 40골드로 한 번만 이어갈 수 있습니다.','홀과 우주선을 이용하면 다른 트랙으로 이동합니다. 수문장이 남아 있으면 그 앞에서 내려옵니다.'].forEach(t=>list.append(element('li','',t)));
   const key=element('div','event-key');[
     ['넓은 금속 모루','큰 충격 손실 · 낮은 반동'],['검은 웅덩이','즉시 감속 · 지속 마찰'],['거대 동물','몸통 반발 · 높은 도약'],['거대 외계인','촉수 횡충격 · 강한 회전'],['거대 과자','파괴 · 조각 연쇄'],['완충 링','낮고 강하게 반발'],['코일 · 위 화살표','높이 뛰어오르기'],
     ['피스톤 · 전진 화살표','앞으로 강하게 추진'],['회전날 · 곡선 화살표','표시 방향으로 휘기'],
@@ -245,9 +317,9 @@ function showHelp(){
 try { scene=new OrbitScene($('space')); } catch(error){$('load-error').hidden=false;console.error('Orbit Golf WebGL:',error);}
 if(scene){
   refreshLobby();visibleMode();$('save-warning').hidden=storageOK;
-  on($('name-form'),'submit',e=>{e.preventDefault();const name=cleanName($('pilot-name').value);if(!name){$('name-error').textContent='파일럿 이름을 입력해주세요.';$('pilot-name').focus();return;}profile.name=name;$('name-error').textContent='';save();ready();});
-  on($('open-upgrades'),'click',showUpgrades);on($('open-ranks'),'click',showRanks);on($('open-help'),'click',showHelp);on($('close-panel'),'click',closePanel);
-  on($('panel'),'cancel',e=>{if(['pause','result'].includes($('panel').dataset.type))e.preventDefault();});
+  on($('name-form'),'submit',e=>{e.preventDefault();if(ensurePilot())ready({challenge:previewChallenge});});
+  on($('open-upgrades'),'click',showUpgrades);on($('open-challenges'),'click',showChallenges);on($('open-ranks'),'click',showRanks);on($('open-help'),'click',showHelp);on($('close-panel'),'click',closeMenu);
+  on($('panel'),'cancel',e=>{if(['pause','result'].includes($('panel').dataset.type))e.preventDefault();else if(mode==='stopped'&&run?.challenge){e.preventDefault();closeMenu();}});
   on($('sound'),'click',()=>{audioEnabled=!audioEnabled;$('sound').setAttribute('aria-pressed',audioEnabled);$('sound').setAttribute('aria-label',audioEnabled?'소리 끄기':'소리 켜기');$('sound').style.color=audioEnabled?'#d4ff72':'';if(audioEnabled)tone();else audio?.suspend().catch(()=>{});});
   on($('shoot'),'pointerdown',chargeStart);on($('shoot'),'pointerup',launch);on($('shoot'),'pointercancel',chargeCancel);on($('shoot'),'lostpointercapture',chargeCancel);on($('shoot'),'contextmenu',e=>e.preventDefault());
   on($('aim-control'),'input',updateAim);
@@ -289,7 +361,7 @@ if(scene){
       rollGain.gain.setTargetAtTime(audioEnabled?loudness:0,audio.currentTime,.08);
       rollSound.playbackRate.setTargetAtTime(mode==='rolling'?.6+Math.min(1.8,Math.abs(run.speed)/80):.6,audio.currentTime,.08);
     }
-    scene.render(dt,run,mode,power,profile.upgrades);raf=requestAnimationFrame(frame);
+    scene.render(dt,run,mode,power,{...profile.upgrades,trait:run?.trait||profile.ballTrait});raf=requestAnimationFrame(frame);
   }
   on(window,'pagehide',e=>{pause('비행을 멈췄어요');collectAndSave();cancelAnimationFrame(raf);raf=0;if(!e.persisted){finalize();disposed=true;scene.dispose();rollSound?.stop();audio?.close().catch(()=>{});aborter.abort();}});
   on(window,'pageshow',e=>{if(e.persisted&&!disposed){scene.resize();last=performance.now();if(!raf)raf=requestAnimationFrame(frame);}});

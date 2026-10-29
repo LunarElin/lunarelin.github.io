@@ -4,6 +4,7 @@ import * as THREE from '../assets/vendor/three.module.js';
 import { OrbitScene, BALL_HEIGHT } from '../scene.mjs';
 import { courseSample, coursePattern, COURSE_WORLD_PER_METER } from '../course.mjs';
 import { newProfile, newRun, placeRun, eventPose, BALL_RADIUS, TRACK_WIDTH, SIDE_LIMIT } from '../rules.mjs';
+import { CHALLENGES, challengeEvents, createChallenge } from '../challenges.mjs';
 
 // Actual Three.js geometry, camera and animation math; no GPU/device claims.
 function harness(width=390,height=844) {
@@ -501,4 +502,50 @@ test('consumed tar remains a visible fixed puddle while an anvil follows its rea
   assert.equal(puddle.userData.mechanism.encounter.visible,true);
   const pose=eventPose(anvil,run.elapsed);assert.ok(scene.eventMeshes.get('anvil').position.distanceTo(posePosition(scene,pose,anvil.height))<1e-8);
   scene.dispose();
+});
+
+test('authored challenge launchers and targets have distinct readable 3D marks on mobile and desktop',()=>{
+  for(const[width,height]of[[320,568],[390,844],[1440,900]])for(const definition of CHALLENGES){
+    const scene=harness(width,height),run=runFixture();run.s=18;run.challenge=createChallenge(definition.id,run.seed);run.events=challengeEvents(definition.id,run.seed);frame(scene,run,'ready');scene.scene.updateMatrixWorld(true);
+    const launcher=scene.eventMeshes.get(run.challenge.launcherId).userData.mechanism.challenge;
+    assert.ok(launcher.visible);assert.ok(launcher.getObjectByName('launcher-aim-ring'));assert.equal(launcher.getObjectByName('target-pin'),undefined);
+    assert.equal(launcher.userData.material.color.getHex(),0xff945e);
+    for(const id of run.challenge.targetIds){
+      const mark=scene.eventMeshes.get(id).userData.mechanism.challenge,ring=mark.userData.ring;
+      assert.ok(mark.visible);assert.ok(mark.getObjectByName('target-floor-ring'));assert.ok(mark.getObjectByName('target-pin'));assert.equal(mark.userData.material.color.getHex(),0xffd45c);
+      assert.equal(mark.userData.check.visible,false);assert.equal(mark.getObjectByName('launcher-aim-ring'),undefined);
+      const center=ring.getWorldPosition(new THREE.Vector3()),middle=project(scene,center),edge=project(scene,center.clone().add(new THREE.Vector3(.62,0,0)));
+      assert.ok(Math.abs(middle.x)<.85&&middle.y>-.5&&middle.y<.9,'the raised target stays inside the chase viewport');
+      assert.ok(Math.abs(edge.x-middle.x)*width>=6,'the target emblem must retain at least twelve CSS pixels of diameter at the authored approach');
+    }
+    const ordinary=scene.createEvent({id:'ordinary',type:'bumper',at:50,x:5});assert.equal(ordinary.userData.mechanism.challenge,null);scene.disposeObject(ordinary);scene.dispose();
+  }
+});
+
+test('target success follows only the active challenge hit list, never direct hits or cosmetic chain cues',()=>{
+  const scene=harness(),run=runFixture();run.challenge=createChallenge('domino',run.seed);run.events=challengeEvents('domino',run.seed);frame(scene,run);
+  const id=run.challenge.targetIds[0],mark=scene.eventMeshes.get(id).userData.mechanism.challenge,target=run.events.find(event=>event.id===id);
+  for(const kind of['bounce','chain']){target.hits++;scene.burst({type:target.type,eventId:id,kind,strength:1});frame(scene,run);assert.equal(mark.userData.success,false);assert.equal(mark.userData.material.color.getHex(),0xffd45c);}
+  run.challenge.hitTargetIds.push(id);frame(scene,run);
+  assert.equal(mark.userData.success,true);assert.equal(mark.userData.material.color.getHex(),0x83ffd2);assert.ok(mark.userData.check.visible);assert.equal(mark.userData.ring.visible,false);
+  const other=scene.eventMeshes.get(run.challenge.targetIds[1]).userData.mechanism.challenge;assert.equal(other.userData.success,false);assert.equal(other.userData.material.color.getHex(),0xffd45c);
+  run.challenge={...run.challenge,id:'another-challenge'};frame(scene,run);assert.equal(mark.visible,false);assert.equal(mark.userData.success,false);scene.dispose();
+});
+
+test('ball traits use one bounded procedural surface mesh and release resources when equipped or disposed',()=>{
+  const scene=harness(),run=runFixture(),identities=new Set(),colors=new Set(),geometries=[],materials=[];
+  for(const trait of['standard','heavy','elastic','spin']){
+    run.trait=trait;scene.render(0,run,'ready',0,{ball:2,trait:'standard'});const mark=scene.ballMark;
+    assert.equal(mark.userData.trait,trait);assert.equal(mark.parent,scene.ballBody);assert.equal(scene.ballBody.children.length,1);
+    assert.ok(mark.geometry.attributes.position.count<=3600,'mobile marks stay below twelve hundred triangles');assert.equal(mark.material.map,null);
+    identities.add(mark.geometry.attributes.position.count+':'+Array.from(mark.geometry.attributes.position.array.slice(0,12)).join(','));colors.add(scene.ballBody.material.color.getHex());
+    const geometry=mark.geometry,material=mark.material;let geometryDisposals=0,materialDisposals=0;
+    geometry.addEventListener('dispose',()=>geometryDisposals++);material.addEventListener('dispose',()=>materialDisposals++);
+    geometries.push(()=>geometryDisposals);materials.push(()=>materialDisposals);
+    if(trait==='heavy'){assert.ok(scene.ballBody.material.roughness>=.75);assert.ok(scene.ballBody.material.metalness>=.6);}
+    scene.render(.1,run,'ready',0,{ball:3,trait:'standard'});assert.equal(scene.ballMark,mark,'upgrades recolor the existing mark without rebuilding it');
+  }
+  assert.equal(identities.size,4);assert.equal(colors.size,4);
+  scene.render(0,null,'lobby',0,{ball:1,trait:'heavy'});assert.equal(scene.ballTrait,'heavy','the selected profile trait is visible before a run');scene.dispose();
+  for(let i=0;i<geometries.length;i++){assert.equal(geometries[i](),1);assert.equal(materials[i](),1);}
 });

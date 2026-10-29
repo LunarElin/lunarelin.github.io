@@ -1,4 +1,5 @@
-import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261029-motion2';
+import { COURSE_WORLD_PER_METER, courseSample } from './course.mjs?v=20261029-chain1';
+import { CHALLENGES, challengeDefinition, challengeEvents, createChallenge, updateChallenge } from './challenges.mjs?v=20261029-chain1';
 
 export const TRACK_LENGTH = 360;
 export const DISTANCE_PER_GOLD = 8;
@@ -6,6 +7,15 @@ export const CONTINUE_COST = 40;
 export const MAX_UPGRADE_LEVEL = 5;
 export const TUTORIAL_DURATION = 75;
 export const RUN_DURATION = 120;
+export const CHALLENGE_DURATION = 35;
+export const CHALLENGE_REWARD = 60;
+
+export const BALL_TRAITS = Object.freeze({
+  standard: Object.freeze({id:'standard',label:'기본 공',description:'균형 잡힌 직진과 반발',challengeId:null,launch:1,mass:1,drag:1,restitution:1,steer:1}),
+  heavy: Object.freeze({id:'heavy',label:'중량 공',description:'물체를 강하게 밀기 · 출발 속도와 회전 감소',challengeId:'bowling',launch:.88,mass:1.5,drag:1.12,restitution:.9,steer:.85}),
+  elastic: Object.freeze({id:'elastic',label:'탄성 공',description:'벽과 바닥에서 크게 반발 · 가벼운 질량과 짧은 직진',challengeId:'domino',launch:.94,mass:.65,drag:1.08,restitution:1.25,steer:1}),
+  spin: Object.freeze({id:'spin',label:'회전 공',description:'강한 스핀 조절 · 출발 속도 감소',challengeId:'cookie',launch:.92,mass:.9,drag:1.08,restitution:1,steer:1.75}),
+});
 
 export const UPGRADE_DEFS = Object.freeze({
   pilot: Object.freeze({
@@ -28,8 +38,18 @@ export function cleanName(value) {
 }
 
 export function newProfile() {
-  return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [], tutorialComplete: false };
+  return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [], tutorialComplete: false, challengeWins:[], ballTrait:'standard' };
 }
+
+export function availableTraits(profile) {
+  return Object.keys(BALL_TRAITS).filter(id=>id==='standard'||level(profile,'ball')===MAX_UPGRADE_LEVEL&&Array.isArray(profile?.challengeWins)&&profile.challengeWins.includes(BALL_TRAITS[id].challengeId));
+}
+export function selectBallTrait(profile,id) {
+  if(!profile||!Object.hasOwn(BALL_TRAITS,id)||!availableTraits(profile).includes(id))return false;
+  profile.ballTrait=id;return true;
+}
+function equippedTrait(profile) {return availableTraits(profile).includes(profile?.ballTrait)?profile.ballTrait:'standard';}
+function runTrait(run) {return Object.hasOwn(BALL_TRAITS,run?.trait)?BALL_TRAITS[run.trait]:BALL_TRAITS.standard;}
 
 function rankRows(rows) {
   const best = new Map();
@@ -56,6 +76,9 @@ export function sanitizeProfile(raw) {
   profile.upgrades.ball = level(raw, 'ball');
   profile.rankings = rankRows(Array.isArray(raw.rankings) ? raw.rankings.slice(0, 200) : []);
   profile.tutorialComplete = raw.tutorialComplete === true;
+  const known=new Set(CHALLENGES.map(challenge=>challenge.id));
+  profile.challengeWins=Array.isArray(raw.challengeWins)?[...new Set(raw.challengeWins.slice(0,100).filter(id=>typeof id==='string'&&known.has(id)))]:[];
+  profile.ballTrait=equippedTrait({...profile,ballTrait:raw.ballTrait});
   return profile;
 }
 
@@ -117,10 +140,19 @@ export const COLLISION_EFFECTS = Object.freeze({
 export function ballStats(profileOrLevel = 0) {
   const value = typeof profileOrLevel === 'number' ? profileOrLevel : level(profileOrLevel, 'ball');
   const ballLevel = Math.floor(clamp(finite(value), 0, MAX_UPGRADE_LEVEL));
+  return statsAt(ballLevel,typeof profileOrLevel==='number'?'standard':equippedTrait(profileOrLevel));
+}
+function statsAt(ballLevel,traitId='standard') {
+  const trait=BALL_TRAITS[traitId]||BALL_TRAITS.standard;
   const launchAt=stage=>76*1.32**stage*(stage===3?1.08:1);
-  const launchSpeed=launchAt(ballLevel);
-  const drag = 1.8 * .72 ** ballLevel;
-  return { level: ballLevel, launchSpeed, drag, range: launchSpeed ** 2 / (2 * drag), airDrag:AIR_DRAG*.72**ballLevel,rangeGain:ballLevel<MAX_UPGRADE_LEVEL?launchAt(ballLevel+1)**2/(1.8*.72**(ballLevel+1))/(launchSpeed**2/drag)-1:0 };
+  const launchSpeed=launchAt(ballLevel)*trait.launch;
+  const drag = 1.8 * .72 ** ballLevel*trait.drag;
+  return { level: ballLevel,trait:trait.id,launchSpeed,drag,range:launchSpeed**2/(2*drag),airDrag:AIR_DRAG*.72**ballLevel*trait.drag,rangeGain:ballLevel<MAX_UPGRADE_LEVEL?launchAt(ballLevel+1)**2/(1.8*.72**(ballLevel+1))/(launchAt(ballLevel)**2/(1.8*.72**ballLevel))-1:0 };
+}
+function runStats(run,profile){
+  const trait=runTrait(run);
+  if(run?.challenge)return {level:0,trait:trait.id,launchSpeed:84*trait.launch,drag:1.8*trait.drag,airDrag:AIR_DRAG*trait.drag};
+  return statsAt(level(profile,'ball'),trait.id);
 }
 
 const GIMMICKS = Object.freeze([
@@ -305,6 +337,7 @@ export function eventX(event, elapsed = 0) {
 
 function refreshEvents(run) {
   run.track = Math.max(0, Math.floor(run.s / TRACK_LENGTH));
+  if(run.challenge)return;
   if (run.eventTrack === run.track) return;
   const old = new Map(run.events.map(event => [event.id, event]));
   run.events = [Math.max(0, run.track - 1), run.track, run.track + 1]
@@ -316,7 +349,7 @@ function refreshEvents(run) {
 }
 function refreshEarnings(run) {
   run.distance = Math.min(MAX_DISTANCE, Math.max(run.distance, run.s, 0));
-  run.earned = Math.floor(run.distance / DISTANCE_PER_GOLD) + run.bonusGold;
+  run.earned = run.challenge?0:Math.floor(run.distance / DISTANCE_PER_GOLD) + run.bonusGold;
 }
 
 function floorCenter(s,seed,radius=BALL_RADIUS){const terrain=courseSample(s,seed);return {terrain,y:terrain.height+radius/terrain.normalY};}
@@ -347,12 +380,13 @@ function integrateRotation(run,dt,terrain){
   run.rotation=next.map(value=>value/n);
 }
 
-export function newRun(profile, power01, seed = Date.now(), aim = 8) {
-  const power = clamp(finite(power01, .5), 0, 1), stats = ballStats(profile);
+export function newRun(profile, power01, seed = Date.now(), aim = 8, options = {}) {
+  const challenge=createChallenge(options?.challenge,seed);
+  const power = clamp(finite(power01, .5), 0, 1),trait=equippedTrait(profile),stats=runStats({trait,challenge},profile);
   const angle = clamp(finite(aim, 8), -24, 24) * Math.PI / 180;
   const velocity = stats.launchSpeed * (.57 + .43 * power);
   const run = {
-    phase: 'rolling', name: cleanName(profile?.name) || '우주 골퍼',
+    phase: 'rolling', name: cleanName(profile?.name) || '우주 골퍼',trait:stats.trait,
     s: 0, distance: 0, x: 0, vx: Math.sin(angle) * velocity * WORLD_PER_METER,
     height: 0, vy: 0, speed: Math.cos(angle) * velocity, rollSpeed: Math.cos(angle) * velocity,
     aim: angle * 180 / Math.PI, steer: 0, spin: 0, curveSpin:0, slowTime:0, slowFactor:1.9, brakeTime:0, combo: 0, collisions: 0, maxHeight: 0,
@@ -365,6 +399,7 @@ export function newRun(profile, power01, seed = Date.now(), aim = 8) {
     durationLimit: profile?.tutorialComplete ? RUN_DURATION : TUTORIAL_DURATION,
     eventTrack: -1, events: [],
   };
+  if(challenge){run.challenge=challenge;run.challenge.arenaEnd=challengeDefinition(challenge.id)?.arenaLength||180;run.durationLimit=CHALLENGE_DURATION;run.tutorial=false;run.events=challengeEvents(challenge.id,run.seed);}
   placeRun(run,{s:0,x:0});refreshEvents(run);
   return run;
 }
@@ -382,6 +417,7 @@ function consumeEvent(run,event){event.used=true;if(event.id!==undefined)run.con
 function hazardImpact(run,event,before){
   const after=Math.abs(run.speed),lostRatio=clamp(1-after/Math.max(.0001,before),0,1);
   run.hazardFeedback={type:event.type,until:run.elapsed+1.8,before,after,ratio:lostRatio};
+  run.lastDecisiveImpact={type:event.type,eventId:event.id,at:run.elapsed,beforeSpeed:before,afterSpeed:after,lostRatio};
   return {...feedbackFor(run,event.type,'hazard',event,1.3),beforeSpeed:before,afterSpeed:after,lostRatio,powered:true};
 }
 
@@ -505,8 +541,8 @@ function collideProps(run,feedback,dt) {
 
 export function resolveEvent(run, event, profile, normal) {
   if (!run || !event || run.phase !== 'rolling' || event.used || run.consumed.has(event.id) || (event.cooldown || 0) > run.elapsed) return null;
-  const type = event.type, ballLevel = level(profile, 'ball'), pilotLevel = level(profile, 'pilot');
-  const topSpeed = ballStats(profile).launchSpeed * 1.25;
+  const type = event.type, ballLevel = run.challenge?0:level(profile, 'ball'), pilotLevel = run.challenge?0:level(profile, 'pilot');
+  const trait=runTrait(run),topSpeed = runStats(run,profile).launchSpeed * 1.25;
   const side = event.direction || (eventX(event, run.elapsed) < run.x ? 1 : -1);
   if (type === 'coins') {
     consumeEvent(run,event);run.bonusGold += 12;refreshEarnings(run);
@@ -524,7 +560,7 @@ export function resolveEvent(run, event, profile, normal) {
     return feedbackFor(run, type, 'warp', event, 1.4);
   }
   if (type === 'boost') {
-    consumeEvent(run,event);const boost = ballStats(profile).launchSpeed*COLLISION_EFFECTS.boost.forward;
+    consumeEvent(run,event);const boost = runStats(run,profile).launchSpeed*COLLISION_EFFECTS.boost.forward;
     const powered=!(run.brakeTime>0);
     run.speed += powered?boost*clamp(1-Math.max(0,run.speed)/topSpeed,0,1):0;
     if(run.grounded)run.worldVy=courseSample(run.s,run.seed).slope*run.speed*WORLD_PER_METER;publishPose(run);
@@ -550,7 +586,7 @@ export function resolveEvent(run, event, profile, normal) {
   const n={s:normal?.s??-.8,x:normal?.x??side*.6,y:normal?.y??0},norm=Math.hypot(n.s,n.x,n.y);n.s/=norm;n.x/=norm;n.y/=norm;
   const prop={s:wasMoving?event.body.vs*WORLD_PER_METER:0,x:wasMoving?event.body.vx:0,y:wasMoving?event.body.worldVy:0};
   const dot=(incoming.s-prop.s)*n.s+(incoming.x-prop.x)*n.x+(incoming.y-prop.y)*n.y;
-  const restitution=Math.min(.9,effect.restitution+pilotLevel*.008),ballMass=2+(ballLevel?8+ballLevel*12:0)+pilotLevel*.18,bodyMass=propMass(event);
+  const restitution=Math.min(1,Math.min(.9,effect.restitution+pilotLevel*.008)*trait.restitution),ballMass=(run.challenge?6:2+(ballLevel?8+ballLevel*12:0)+pilotLevel*.18)*trait.mass,bodyMass=propMass(event);
   const impulse=dot<0?-(1+restitution)*dot/(1/ballMass+1/bodyMass):0;
   const velocity={s:incoming.s+n.s*impulse/ballMass,x:incoming.x+n.x*impulse/ballMass,y:incoming.y+n.y*impulse/ballMass};
   const bodyVelocity={s:prop.s-n.s*impulse/bodyMass,x:prop.x-n.x*impulse/bodyMass,y:prop.y-n.y*impulse/bodyMass};
@@ -561,7 +597,7 @@ export function resolveEvent(run, event, profile, normal) {
     const terrain=courseSample(run.s,run.seed),up=velocity.y*terrain.normalY+velocity.s*terrain.normalZ,lift=Math.max(0,effect.lift-up);
     velocity.s+=terrain.normalZ*lift;velocity.y+=terrain.normalY*lift;
   }
-  if(powered&&(type==='alien'||type==='giant-alien')){run.curveSpin=side*effect.curve;velocity.x+=side*effect.lateral;run.angularVelocity.y+=side*effect.curve*.08;}
+  if(powered&&(type==='alien'||type==='giant-alien')){run.curveSpin=side*effect.curve*trait.steer;velocity.x+=side*effect.lateral;run.angularVelocity.y+=side*effect.curve*.08;}
   if(!wasMoving&&type==='trap'){
     const retention=Math.min(.6,BRAKE_RETENTION.trap[ballLevel]+pilotLevel*.005);velocity.s*=retention;velocity.x*=.12;
     run.curveSpin*=.1;run.slowTime=effect.duration;run.slowFactor=1.9;run.brakeTime=1.2;
@@ -593,7 +629,7 @@ function moveBall(run,stats,dt,feedback){
   if(!run.grounded){const damping=Math.exp(-stats.airDrag*dt);vz*=damping;run.vx*=damping;run.worldVy-=GRAVITY*dt;}
   if(run.exhausted){vz=0;run.vx=0;}
   const steering=clamp(Math.abs(vz)/10,0,1)*(run.slowTime>0?.16:1)*(run.grounded?1:.2);run.curveSpin*=Math.exp(-dt*1.1);
-  if(!run.exhausted){const budget=vz*vz+run.vx*run.vx;run.vx=clamp(run.vx+(run.steer*6.5+run.curveSpin)*steering*dt,-23,23);run.vx=clamp(run.vx,-Math.sqrt(budget),Math.sqrt(budget));vz=Math.sign(vz)*Math.sqrt(Math.max(0,budget-run.vx*run.vx));}
+  if(!run.exhausted){const budget=vz*vz+run.vx*run.vx;run.vx=clamp(run.vx+(run.steer*6.5*runTrait(run).steer+run.curveSpin)*steering*dt,-23,23);run.vx=clamp(run.vx,-Math.sqrt(budget),Math.sqrt(budget));vz=Math.sign(vz)*Math.sqrt(Math.max(0,budget-run.vx*run.vx));}
   run.speed=vz/WORLD_PER_METER;const oldS=run.s,oldY=run.worldY;run.s+=run.speed*dt;run.x+=run.vx*dt;const nextFloor=floorCenter(run.s,run.seed);
   if(run.grounded){const along=Math.sign(vz)*Math.hypot(vz,run.worldVy);vz=along*nextFloor.terrain.tangentZ;run.speed=vz/WORLD_PER_METER;run.worldY=nextFloor.y;run.worldVy=along*nextFloor.terrain.tangentY;}
   else{
@@ -602,7 +638,7 @@ function moveBall(run,stats,dt,feedback){
       let lo=0,hi=1;for(let i=0;i<10;i++){const t=(lo+hi)*.5,y=oldY+(run.worldY-oldY)*t,at=oldS+(run.s-oldS)*t;if(y>floorCenter(at,run.seed).y)lo=t;else hi=t;}
       const at=oldS+(run.s-oldS)*hi,contact=floorCenter(at,run.seed),n=contact.terrain;run.s=at;run.worldY=contact.y;
       const into=vz*n.normalZ+run.worldVy*n.normalY;
-      if(into<0){const bounce=-into>4.5?.45:0;vz-=(1+bounce)*into*n.normalZ;run.worldVy-=(1+bounce)*into*n.normalY;
+      if(into<0){const bounce=-into>4.5?Math.min(1,.45*runTrait(run).restitution):0;vz-=(1+bounce)*into*n.normalZ;run.worldVy-=(1+bounce)*into*n.normalY;
         const tangent=vz*n.tangentZ+run.worldVy*n.tangentY,normal=vz*n.normalZ+run.worldVy*n.normalY;run.grounded=normal<1.05;
         if(run.grounded){vz=tangent*n.tangentZ;run.worldVy=tangent*n.tangentY;}
         if(-into>3.5&&run.elapsed-run.lastLanding>.25){feedback.push(feedbackFor(run,'landing','landing',null,Math.min(1,-into/14)));run.lastLanding=run.elapsed;}
@@ -612,11 +648,11 @@ function moveBall(run,stats,dt,feedback){
 }
 
 function physicsStep(run,profile,dt,feedback){
-  const stats=ballStats(profile);run.previousS=run.s;run.previousX=run.x;run.previousWorldY=run.worldY;run.previousRotation=[...run.rotation];
+  const stats=runStats(run,profile),feedbackStart=feedback.length;run.previousS=run.s;run.previousX=run.x;run.previousWorldY=run.worldY;run.previousRotation=[...run.rotation];
   run.slowTime=Math.max(0,run.slowTime-dt);run.brakeTime=Math.max(0,(run.brakeTime||0)-dt);moveBall(run,stats,dt,feedback);
-  if(Math.abs(run.x)>SIDE_LIMIT){const sign=Math.sign(run.x);run.x=sign*SIDE_LIMIT;run.vx=-sign*Math.abs(run.vx)*.72;
+  if(Math.abs(run.x)>SIDE_LIMIT){const sign=Math.sign(run.x);run.x=sign*SIDE_LIMIT;run.vx=-sign*Math.abs(run.vx)*Math.min(1,.72*runTrait(run).restitution);
     if(run.elapsed-run.lastRail>.32&&Math.abs(run.vx)>1){run.collisions++;feedback.push(feedbackFor(run,'rail','bounce',null,Math.min(1,Math.abs(run.vx)/12)));run.lastRail=run.elapsed;}}
-  collideGuardian(run,profile,feedback);advanceProps(run,dt);
+  if(!run.challenge)collideGuardian(run,profile,feedback);advanceProps(run,dt);
   if(!run.exhausted)for(const event of run.events){
     if(event.used||(event.cooldown||0)>run.elapsed||event.body?.wheel!==undefined&&event.body.wheel!==run.wheel)continue;
     const body=event.body?.active?event.body:null,pose=eventPose(event,run.elapsed,run.seed);
@@ -634,9 +670,22 @@ function physicsStep(run,profile,dt,feedback){
   const floor=floorCenter(run.s,run.seed);if(run.worldY<floor.y){run.worldY=floor.y;const away=run.worldVy*floor.terrain.normalY+run.speed*WORLD_PER_METER*floor.terrain.normalZ;if(away<.35){run.grounded=true;run.worldVy=floor.terrain.slope*run.speed*WORLD_PER_METER;}}
   publishPose(run);integrateRotation(run,dt,floor.terrain);run.spin+=Math.hypot(run.speed*WORLD_PER_METER,run.vx)*dt/BALL_RADIUS;
   run.elapsed=Math.min(run.durationLimit,run.elapsed+dt);refreshEarnings(run);refreshEvents(run);
+  if(run.challenge){
+    const recent=feedback.slice(feedbackStart);updateChallenge(run,recent);
+    const targetHit=recent.findLast(event=>event.kind==='chain'&&run.challenge.hitTargetIds.includes(event.eventId));
+    if(targetHit)run.lastDecisiveImpact={...targetHit,at:run.elapsed};
+    if(run.challenge.success&&run.elapsed-run.challenge.completedAt>=1.1){stopRun(run,'challenge-success',feedback);return;}
+    if(!run.challenge.success&&run.s>=run.challenge.arenaEnd&&!run.events.some(event=>event.body?.active)){stopRun(run,'challenge-end',feedback);return;}
+  }
   if(Math.abs(run.speed)<1.4)run.restTime+=dt;else run.restTime=0;
   if(run.restTime>=.55||run.distance>=MAX_DISTANCE){run.exhausted=true;run.speed=0;run.rollSpeed=0;run.vx=0;run.steer=0;run.curveSpin=0;}
-  if(run.exhausted&&run.grounded){run.speed=0;run.rollSpeed=0;run.vx=0;run.steer=0;run.curveSpin=0;run.worldVy=0;run.vy=0;run.slowTime=0;run.brakeTime=0;run.angularVelocity={x:0,y:0,z:0};run.phase='stopped';run.stopReason='natural';feedback.push(feedbackFor(run,'stop','stop'));}
+  if(run.exhausted&&run.grounded&&(!run.challenge||!run.challenge.success&&!run.events.some(event=>event.body?.active))){stopRun(run,'natural',feedback);}
+}
+
+function stopRun(run,reason,feedback){
+  run.speed=0;run.rollSpeed=0;run.vx=0;run.steer=0;run.curveSpin=0;run.worldVy=0;run.vy=0;run.slowTime=0;run.brakeTime=0;run.angularVelocity={x:0,y:0,z:0};run.phase='stopped';run.stopReason=reason;
+  if(run.challenge)run.challenge.finished=true;
+  feedback.push(feedbackFor(run,'stop','stop'));
 }
 
 export function stepRun(run, profile, dt) {
@@ -648,15 +697,13 @@ export function stepRun(run, profile, dt) {
     physicsStep(run, profile, Math.min(FIXED_DT, run.durationLimit - run.elapsed), feedback);
   }
   if (run.phase === 'rolling' && run.elapsed >= run.durationLimit - 1e-9) {
-    run.elapsed = run.durationLimit;run.speed = 0;run.rollSpeed = 0;run.vx = 0;run.worldVy=0;run.vy = 0;run.steer=0;run.curveSpin=0;run.slowTime=0;run.brakeTime=0;
-    run.phase = 'stopped';run.stopReason = 'time';
-    feedback.push(feedbackFor(run, 'stop', 'stop'));
+    run.elapsed = run.durationLimit;stopRun(run,run.challenge?.success?'challenge-success':'time',feedback);
   }
   return feedback;
 }
 
 export function collectRunGold(profile, run) {
-  if (!profile || !run) return 0;
+  if (!profile || !run || run.challenge) return 0;
   const amount = Math.max(0, Math.floor(run.earned) - run.banked);
   profile.gold = Math.min(MAX_GOLD, profile.gold + amount);
   run.banked += amount;
@@ -668,7 +715,7 @@ export function continueCost() {
 }
 
 export function canContinue(profile, run) {
-  return Boolean(run && run.phase === 'stopped' && !run.finished && !run.continued && !run.tutorial
+  return Boolean(run && !run.challenge && run.phase === 'stopped' && !run.finished && !run.continued && !run.tutorial
     && run.elapsed < run.durationLimit
     && profile.gold + Math.max(0, run.earned - run.banked) >= CONTINUE_COST);
 }
@@ -679,13 +726,20 @@ export function continueRun(profile, run) {
   profile.gold -= CONTINUE_COST;
   run.continued = true;
   run.phase = 'rolling';
-  run.speed = ballStats(profile).launchSpeed * .82;
+  run.speed = runStats(run,profile).launchSpeed * .82;
   run.exhausted=false;run.grounded=true;run.worldVy=courseSample(run.s,run.seed).slope*run.speed*WORLD_PER_METER;run.rollSpeed = run.speed;run.steer = 0;run.curveSpin=0;run.slowTime=0;run.brakeTime=0;run.restTime = 0;run.accumulator = 0;
   return true;
 }
 
 export function settleRun(profile, run) {
   if (!profile || !run || run.finished || run.phase !== 'stopped') return false;
+  if(run.challenge){
+    const before=availableTraits(profile),definition=challengeDefinition(run.challenge.id),wins=Array.isArray(profile.challengeWins)?profile.challengeWins:[];
+    const firstWin=Boolean(definition&&run.challenge.success&&run.stopReason==='challenge-success'&&!wins.includes(definition.id));
+    if(firstWin){profile.challengeWins=[...wins,definition.id];profile.gold=Math.min(MAX_GOLD,profile.gold+CHALLENGE_REWARD);}
+    run.challengeAward={firstWin,gold:firstWin?CHALLENGE_REWARD:0,unlocked:availableTraits(profile).filter(id=>!before.includes(id))};
+    run.earned=run.challengeAward.gold;run.banked=run.earned;run.challenge.finished=true;run.finished=true;run.phase='ended';return true;
+  }
   if (run.distance <= 0) {
     run.finished = true;
     run.phase = 'ended';

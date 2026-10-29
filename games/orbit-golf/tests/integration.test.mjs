@@ -4,16 +4,18 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { JSDOM } from 'jsdom';
 import { courseSample, coursePattern } from '../course.mjs';
+import { ballStats } from '../rules.mjs';
 
 // This suite executes the shipped DOM controller and rules unchanged. Only the
 // WebGL scene is replaced: layout, pixels, real touch hardware and GPU rendering
 // require browser/device verification and are deliberately outside this suite.
 const KEY = 'orbit-golf:v1';
-const [html, gameSource, rulesSource, courseSource] = await Promise.all([
+const [html, gameSource, rulesSource, courseSource, challengesSource] = await Promise.all([
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
   readFile(new URL('../game.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../rules.mjs', import.meta.url), 'utf8'),
   readFile(new URL('../course.mjs', import.meta.url), 'utf8'),
+  readFile(new URL('../challenges.mjs', import.meta.url), 'utf8'),
 ]);
 const sceneSource = `
   export class OrbitScene {
@@ -22,9 +24,9 @@ const sceneSource = `
     resize() { this.resizes++; }
     dispose() { this.disposed = true; }
     render(dt, run, mode, power, upgrades) {
-      this.mode = mode; this.power = power; this.current = run;this.dt=dt;
+      this.mode = mode; this.power = power; this.current = run;this.dt=dt;this.upgrades={...upgrades};
       this.snapshot = run ? Object.fromEntries(
-        ['s','distance','x','vx','height','vy','worldY','worldVy','grounded','exhausted','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit','guardiansBroken','seed'].map(key => [key,run[key]])
+        ['s','distance','x','vx','height','vy','worldY','worldVy','grounded','exhausted','speed','rollSpeed','steer','spin','curveSpin','restTime','stopReason','combo','collisions','maxHeight','chainHits','maxChain','lastChain','earned','banked','phase','track','continued','finished','name','elapsed','tutorial','trainingBonus','wheel','durationLimit','guardiansBroken','seed','aim','trait'].map(key => [key,run[key]])
       ) : null;
     }
   }
@@ -33,6 +35,7 @@ const sceneSource = `
 function profile(overrides = {}) {
   return { version: 1, name: '', gold: 0, upgrades: { pilot: 0, ball: 0 }, rankings: [], tutorialComplete: true, ...overrides };
 }
+const rankingRecords=rows=>rows.map(({name,distance,date})=>({name,distance,date}));
 
 async function game(t, { stored = JSON.stringify(profile()), blockRead = false, blockWrite = false, url = 'https://orbit-golf.test/games/orbit-golf/', seeds=[0xffffffff] } = {}) {
   const dom = new JSDOM(html, {
@@ -73,12 +76,13 @@ async function game(t, { stored = JSON.stringify(profile()), blockRead = false, 
     ['./scene.mjs', new vm.SourceTextModule(sceneSource, { context, identifier: 'scene-stub.mjs' })],
     ['./rules.mjs', new vm.SourceTextModule(rulesSource, { context, identifier: 'rules.mjs' })],
     ['./course.mjs', new vm.SourceTextModule(courseSource, { context, identifier: 'course.mjs' })],
+    ['./challenges.mjs', new vm.SourceTextModule(challengesSource, { context, identifier: 'challenges.mjs' })],
   ]);
   const entry = new vm.SourceTextModule(gameSource, { context, identifier: 'game.mjs' });
   await entry.link(specifier => {
     const localSpecifier = specifier.startsWith('./') ? specifier.replace(/\?[^#]*/, '') : specifier;
     assert.ok(modules.has(localSpecifier), `Unexpected runtime import: ${specifier}`);
-    if (['./scene.mjs','./rules.mjs','./course.mjs'].includes(localSpecifier)) {
+    if (['./scene.mjs','./rules.mjs','./course.mjs','./challenges.mjs'].includes(localSpecifier)) {
       assert.equal(new URL(specifier, entryURL).searchParams.get('v'), entryURL.searchParams.get('v'),
         'Runtime imports and HTML entry must share their cache version');
     }
@@ -147,12 +151,22 @@ test('lap changes show the added mechanic and fifth-lap reinforcement in the liv
   assert.ok(app.$('growth-readout').classList.contains('milestone'));
 });
 
-test('each new flight owns a different seeded straight terrain and retry keeps the shown pattern consistent',async t=>{
-  const app=await game(t,{seeds:[17,23]});app.submit('새 길');app.launch();
+test('a new course changes the seed while the same course recreates its original terrain',async t=>{
+  const app=await game(t,{seeds:[17,23]});app.submit('새 길');app.input('aim-control',9);app.tick();
+  const ready=app.scene.current,layout=ready.events.map(event=>[event.id,event.at,event.x]);app.launch();
   const first=app.scene.current;assert.equal(first.seed,17);
   assert.match(app.$('growth-readout').textContent,new RegExp(coursePattern(0,17).label));
   const heights=[90,180,270,540].map(s=>courseSample(s,first.seed).height);
-  app.stop();app.panelButton('다시 타격').click();app.launch();
+  app.stop();const oldBody=first.events.find(event=>event.body)?.body;
+  app.panelButton('같은 코스').click();app.tick();
+  const reset=app.scene.current;assert.notEqual(reset,first);assert.equal(reset.phase,'ready');assert.equal(reset.s,0);assert.equal(reset.distance,0);assert.equal(reset.earned,0);
+  assert.equal(Number(app.$('aim-control').value),9);assert.equal(reset.aim,9);
+  assert.deepEqual(reset.events.map(event=>[event.id,event.at,event.x]),layout);
+  assert.ok(reset.events.every(event=>!event.used&&!event.body),'a retry recreates untouched colliders, never the previous flight bodies');
+  if(oldBody)assert.ok(reset.events.every(event=>event.body!==oldBody));app.launch();
+  const repeated=app.scene.current;assert.equal(repeated.seed,17);assert.notEqual(repeated,first);
+  assert.deepEqual([90,180,270,540].map(s=>courseSample(s,repeated.seed).height),heights);
+  app.stop();app.panelButton('새 코스').click();app.launch();
   const second=app.scene.current;assert.equal(second.seed,23);
   assert.notDeepEqual([90,180,270,540].map(s=>courseSample(s,second.seed).height),heights);
   assert.match(app.$('growth-readout').textContent,new RegExp(coursePattern(0,23).label));
@@ -694,7 +708,7 @@ test('retry from the result settles the old round and creates a fresh shot witho
   app.submit('재도전'); app.launch(4);
   const finished = app.stop();
   const balance = app.saved().gold;
-  app.panelButton('다시 타격').click();
+  app.panelButton('같은 코스').click();
   assert.equal(app.$('panel').open, false);
   assert.equal(app.$('launch-controls').hidden, false);
   assert.equal(app.saved().gold, balance);
@@ -762,6 +776,92 @@ test('ranking dialog renders at most ten personal bests as text in descending or
   assert.equal(rows[1].querySelector('strong').textContent, '파일럿11');
   const scores = rows.map(row => Number(row.querySelector('b').firstChild.textContent.replaceAll(',', '')));
   assert.deepEqual(scores, [...scores].sort((a, b) => b - a));
+});
+
+test('challenge entry validates a name, preserves old v1 data and cancels preparation without a reward',async t=>{
+  const rankings=[{name:'기존 파일럿',distance:1234,date:'2026-10-23T00:00:00.000Z'}],
+    stored=JSON.stringify(profile({gold:537,upgrades:{ball:4,pilot:3},rankings})),app=await game(t,{stored,seeds:[17]});
+  app.$('open-challenges').click();assert.equal(app.$('panel').open,false);assert.match(app.$('name-error').textContent,/이름/);assert.equal(app.raw,stored);
+  app.$('pilot-name').value='연쇄 입장';app.$('open-challenges').click();
+  assert.equal(app.$('panel').dataset.type,'challenges');assert.deepEqual([...app.document.querySelectorAll('[data-challenge]')].map(button=>button.dataset.challenge),['domino','cookie','bowling']);
+  app.panelButton('공 특성').click();
+  for(const id of['heavy','elastic','spin']){const choose=app.document.querySelector(`[data-trait="${id}"]`);assert.equal(choose.disabled,true);choose.dispatchEvent(new app.window.MouseEvent('click',{bubbles:true}));}
+  assert.equal(app.saved().ballTrait,'standard');assert.equal(app.saved().gold,537);
+  app.panelButton('연쇄 도전').click();app.document.querySelector('[data-challenge="domino"]').click();app.tick();
+  assert.equal(app.scene.current.challenge.id,'domino');assert.equal(app.scene.current.durationLimit,35);assert.equal(app.scene.current.tutorial,false);
+  app.$('cancel-run').click();assert.equal(app.$('lobby').hidden,false);
+  const saved=app.saved();assert.equal(saved.gold,537);assert.deepEqual(saved.upgrades,{ball:4,pilot:3});assert.deepEqual(rankingRecords(saved.rankings),rankings);assert.deepEqual(saved.challengeWins,[]);assert.equal(saved.tutorialComplete,true);assert.deepEqual(app.errors,[]);
+});
+
+test('a real cookie-fragment chain settles sixty gold once, unlocks a free trait and retries the same authored course',async t=>{
+  const rankings=[{name:'실제 연쇄',distance:9876,date:'2026-10-23T00:00:00.000Z'}],app=await game(t,{seeds:[42,23],stored:JSON.stringify(profile({name:'실제 연쇄',gold:500,upgrades:{ball:5,pilot:5},rankings}))});
+  app.$('open-challenges').click();app.document.querySelector('[data-challenge="cookie"]').click();app.input('aim-control',-12);app.launch();
+  const first=app.scene.current;
+  for(let frames=0;frames<100&&!first.challenge.success;frames++)app.tick();
+  assert.equal(first.challenge.success,true,'the shipped cookie layout and physics must complete without injecting success flags');
+  const decisive=app.scene.feedback.find(event=>event.kind==='chain'&&first.challenge.targetIds.includes(event.eventId));
+  assert.ok(decisive?.sourceId.startsWith(`${first.challenge.launcherId}:crumb:`));assert.ok(decisive.chainId>0);assert.ok(first.events.some(event=>event.id===decisive.sourceId&&event.fragment));
+  app.tick(2);assert.match(app.$('run-goal').textContent,/연쇄 성공/);assert.equal(app.$('orbit-fill').parentElement.getAttribute('aria-valuenow'),'1');
+  assert.equal(app.$('panel').open,false);assert.equal(app.saved().gold,500,'the observation interval must not pay before the result');
+  app.$('pause').click();const elapsed=first.elapsed;app.tick(40);assert.equal(first.elapsed,elapsed);assert.equal(app.saved().gold,500);app.panelButton('계속').click();
+  app.stop();assert.equal(first.stopReason,'challenge-success');assert.ok(first.elapsed-first.challenge.completedAt>=1.1);
+  assert.equal(first.finished,true);assert.equal(app.saved().gold,560);assert.deepEqual(app.saved().challengeWins,['cookie']);assert.deepEqual(rankingRecords(app.saved().rankings),rankings);assert.equal(first.challengeAward.firstWin,true);assert.ok(first.challengeAward.unlocked.includes('spin'));
+  assert.match(app.document.querySelector('.trait-unlock').textContent,/회전 공.*해금/);assert.ok(![...app.$('panel-content').querySelectorAll('button')].some(button=>/이어 달리기|이어하기/.test(button.textContent)),'challenge results must not sell a continuation');
+  assert.equal(app.document.querySelector('.result-cause').textContent,'과자 조각 → 금색 표적');
+  app.panelButton('공 특성 선택').click();assert.equal(app.$('panel').dataset.type,'traits');assert.equal(app.$('close-panel').hidden,false);app.$('close-panel').click();
+  assert.equal(app.$('panel').open,true);assert.equal(app.$('panel').dataset.type,'result');assert.equal(app.saved().gold,560);
+  app.panelButton('공 특성 선택').click();
+  // Native dialog Escape emits cancel; JSDOM does not synthesize that keyboard behavior.
+  const cancel=new app.window.Event('cancel',{cancelable:true});app.$('panel').dispatchEvent(cancel);
+  assert.ok(cancel.defaultPrevented);assert.equal(app.$('panel').open,true);assert.equal(app.$('panel').dataset.type,'result');assert.equal(app.saved().gold,560);
+  app.tick(10);assert.equal(app.saved().gold,560,'an open result must not pay repeatedly');
+  app.panelButton('같은 코스').click();app.tick();const prepared=app.scene.current;
+  assert.equal(prepared.seed,42);assert.equal(prepared.aim,-12);assert.equal(prepared.challenge.id,'cookie');assert.ok(prepared.events.every(event=>!event.used&&!event.body));assert.deepEqual(Array.from(prepared.challenge.hitTargetIds),[]);
+  app.launch();const repeated=app.scene.current;app.stop();assert.notEqual(repeated,first);assert.equal(repeated.challenge.success,true);assert.equal(repeated.challengeAward.firstWin,false);assert.equal(app.saved().gold,560);assert.deepEqual(app.saved().challengeWins,['cookie']);
+  app.panelButton('다른 과제').click();app.panelButton('공 특성').click();const choose=app.document.querySelector('[data-trait="spin"]');assert.equal(choose.disabled,false);choose.click();
+  assert.equal(app.saved().ballTrait,'spin');assert.equal(app.saved().gold,560,'equipping an unlocked trait must be free');assert.equal(app.document.querySelector('[data-trait="spin"]').getAttribute('aria-pressed'),'true');
+  app.panelButton('같은 코스').click();app.tick();assert.equal(app.scene.current.seed,42);assert.equal(app.scene.current.trait,'spin');assert.equal(app.scene.upgrades.trait,'spin');
+  app.$('cancel-run').click();app.submit('실제 연쇄');app.tick();assert.equal(app.scene.current.seed,23);assert.equal(app.scene.current.challenge,undefined);assert.equal(app.scene.current.trait,'spin');assert.equal(app.saved().gold,560);assert.deepEqual(app.errors,[]);
+});
+
+test('failed and abandoned challenges grant no gold, unlock or distance-ranking entry',async t=>{
+  const app=await game(t,{stored:JSON.stringify(profile({name:'실패도 연습',gold:300,upgrades:{ball:5,pilot:5}})),seeds:[42]});
+  app.$('open-challenges').click();app.document.querySelector('[data-challenge="cookie"]').click();app.input('aim-control',24);app.launch(4);const failed=app.scene.current;app.stop();
+  assert.equal(failed.challenge.success,false);assert.equal(failed.challengeAward.gold,0);assert.equal(app.saved().gold,300);assert.deepEqual(app.saved().challengeWins,[]);assert.deepEqual(app.saved().rankings,[]);
+  app.panelButton('같은 코스').click();app.input('aim-control',-12);app.launch();const abandoned=app.scene.current;app.$('pause').click();app.panelButton('비행 마치기').click();
+  assert.equal(abandoned.challenge.success,false);assert.equal(app.$('lobby').hidden,false);assert.equal(app.saved().gold,300);assert.deepEqual(app.saved().challengeWins,[]);assert.deepEqual(app.saved().rankings,[]);assert.deepEqual(app.errors,[]);
+});
+
+test('leaving during the real success observation interval preserves the earned win on pause-exit and pagehide',async t=>{
+  for(const exit of['pause-exit','pagehide']){
+    const app=await game(t,{stored:JSON.stringify(profile({name:'성공 즉시 보존',gold:1000,upgrades:{ball:5,pilot:5}})),seeds:[42]});
+    app.$('open-challenges').click();app.document.querySelector('[data-challenge="cookie"]').click();app.input('aim-control',-12);app.launch();const run=app.scene.current;
+    for(let frames=0;frames<100&&!run.challenge.success;frames++)app.tick();
+    assert.ok(run.challenge.success);assert.equal(run.phase,'rolling');assert.ok(run.elapsed-run.challenge.completedAt<1.1);assert.equal(app.saved().gold,1000);
+    if(exit==='pause-exit'){app.$('pause').click();app.panelButton('비행 마치기').click();assert.equal(app.$('lobby').hidden,false);}
+    else app.window.dispatchEvent(new app.window.PageTransitionEvent('pagehide',{persisted:false}));
+    assert.equal(run.finished,true);assert.equal(run.stopReason,'challenge-success');assert.equal(run.challengeAward.gold,60);assert.equal(app.saved().gold,1060);assert.deepEqual(app.saved().challengeWins,['cookie']);assert.deepEqual(app.saved().rankings,[]);
+    app.window.dispatchEvent(new app.window.PageTransitionEvent('pagehide',{persisted:false}));assert.equal(app.saved().gold,1060,'repeated exit must not pay an already settled challenge twice');assert.deepEqual(app.errors,[]);
+  }
+});
+
+test('the max-level upgrade panel describes the equipped heavy ball rather than the standard launch speed',async t=>{
+  const app=await game(t,{stored:JSON.stringify(profile({name:'중량 장비',gold:765,upgrades:{ball:5,pilot:5},challengeWins:['bowling'],ballTrait:'heavy'}))});
+  app.$('open-upgrades').click();const card=()=>[...app.$('panel-content').querySelectorAll('.upgrade-card')][1],heavy=ballStats(app.saved()),standard=ballStats(5);
+  assert.notEqual(Math.floor(heavy.launchSpeed),Math.floor(standard.launchSpeed));assert.match(card().querySelector('p').textContent,/중량 공/);
+  assert.ok(card().querySelector('p').textContent.includes(`출발 추진력 ${Math.floor(heavy.launchSpeed).toLocaleString('ko-KR')}`));assert.equal(card().querySelector('button').disabled,true);
+  app.panelButton('공 특성 ·').click();app.document.querySelector('[data-trait="standard"]').click();app.$('close-panel').click();app.$('open-upgrades').click();
+  assert.ok(card().querySelector('p').textContent.includes(`출발 추진력 ${Math.floor(standard.launchSpeed).toLocaleString('ko-KR')}`));assert.equal(app.saved().ballTrait,'standard');assert.equal(app.saved().gold,765);assert.deepEqual(app.errors,[]);
+});
+
+test('max-profile challenge preview unlocks in memory while ordinary preview parameters cannot alter a v1 save',async t=>{
+  const stored=JSON.stringify(profile({name:'보존할 이름',gold:987,upgrades:{ball:2,pilot:1},rankings:[{name:'보존할 이름',distance:2345,date:'2026-10-23T00:00:00.000Z'}]}));
+  const app=await game(t,{stored,blockRead:true,blockWrite:true,url:'https://orbit-golf.test/games/orbit-golf/?preview=1&profile=max&challenge=cookie&seed=42'});
+  app.submit('미리보기 연쇄');app.input('aim-control',-12);app.launch();assert.equal(app.scene.current.challenge.id,'cookie');assert.equal(app.scene.upgrades.ball,5);assert.equal(app.scene.upgrades.pilot,5);app.stop();
+  assert.equal(app.scene.current.challenge.success,true);assert.match(app.document.querySelector('.trait-unlock').textContent,/회전 공.*해금/);app.panelButton('공 특성 선택').click();app.document.querySelector('[data-trait="spin"]').click();app.panelButton('같은 코스').click();app.tick();assert.equal(app.scene.current.trait,'spin');
+  app.window.dispatchEvent(new app.window.PageTransitionEvent('pagehide',{persisted:false}));assert.deepEqual(app.storageAccess,{reads:0,writes:0});assert.equal(app.raw,stored);assert.deepEqual(app.errors,[]);
+  const ordinary=await game(t,{stored,seeds:[17],url:'https://orbit-golf.test/games/orbit-golf/?profile=max&challenge=cookie&seed=42&trait=spin'});ordinary.submit('보존할 이름');ordinary.tick();
+  assert.equal(ordinary.scene.current.seed,17);assert.equal(ordinary.scene.current.challenge,undefined);assert.equal(ordinary.scene.current.trait,'standard');assert.equal(ordinary.scene.upgrades.ball,2);assert.equal(ordinary.scene.upgrades.pilot,1);assert.equal(ordinary.saved().gold,987);assert.deepEqual(rankingRecords(ordinary.saved().rankings),JSON.parse(stored).rankings);assert.deepEqual(ordinary.saved().challengeWins,[]);assert.deepEqual(ordinary.errors,[]);
 });
 
 test('pagehide saves once, disposes the scene, cancels the loop and removes input listeners', async t => {

@@ -8,8 +8,8 @@
   <title>오빗 골프 · ORBIT GOLF</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20261029-motion2">
-  <script type="module" src="game.mjs?v=20261029-motion2"></script>
+  <link rel="stylesheet" href="styles.css?v=20261029-chain1">
+  <script type="module" src="game.mjs?v=20261029-chain1"></script>
 </head>
 <body>
   <main id="game" aria-label="오빗 골프">
@@ -24,11 +24,11 @@
 
     <section id="lobby" class="lobby">
       <div class="lobby-title"><p class="kicker">스페이스 물리 골프</p><h1>한 번의 타격,<br><em>더 먼 우주로.</em></h1><p class="tagline">충돌을 타고, 더 멀리.</p></div>
-      <div class="orbit-caption"><span class="live-dot"></span>매번 다른 길 · 거대한 만남<span class="caption-line"></span></div>
+      <div class="orbit-caption"><span class="live-dot"></span>연쇄 도전 · 새로운 공 특성<span class="caption-line"></span></div>
       <div class="lobby-dock">
         <div class="wallet-row"><span>최고 기록 <strong id="best">0 <small>m</small></strong></span><span class="gold-pill"><i aria-hidden="true">◆</i><b id="gold">0</b> G</span></div>
         <form id="name-form"><label for="pilot-name">파일럿 이름</label><div class="name-row"><input id="pilot-name" name="pilot" maxlength="12" placeholder="이름을 입력하세요" autocomplete="nickname" required aria-describedby="name-error"><button class="primary" type="submit">출발 <span aria-hidden="true">↗</span></button></div><p id="name-error" class="form-error" aria-live="polite"></p></form>
-        <div class="menu-row"><button id="open-upgrades" class="secondary"><span aria-hidden="true">✦</span> 강화</button><button id="open-ranks" class="secondary"><span aria-hidden="true">♜</span> 랭킹</button><button id="open-help" class="secondary" aria-label="게임 방법"><span aria-hidden="true">?</span> 방법</button></div>
+        <div class="menu-row"><button id="open-challenges" class="secondary challenge-menu">도전</button><button id="open-upgrades" class="secondary">강화</button><button id="open-ranks" class="secondary">랭킹</button><button id="open-help" class="secondary" aria-label="게임 방법">방법</button></div>
       </div>
     </section>
 
@@ -38,6 +38,7 @@
       <div class="run-stats"><span><i>◆</i> <b id="run-gold">0</b> G</span><span><span id="speed-label">속도</span> <b id="speed">0</b></span></div>
       <p id="run-goal" class="run-goal"></p>
       <p id="growth-readout" class="growth-readout"></p>
+      <p id="route-label" class="route-label" hidden></p>
       <span id="combo" class="chain-stat" aria-label="연쇄 충돌" hidden></span>
       <div class="orbit-progress" aria-label="구간 진행"><div id="orbit-fill"></div></div>
     </section>
