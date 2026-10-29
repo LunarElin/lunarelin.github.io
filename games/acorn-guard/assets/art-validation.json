@@ -1,0 +1,2894 @@
+{
+  "version": 4,
+  "generator": "sprite-gen 3.7.0 / GPT image rows",
+  "runtimeGenerationRequired": false,
+  "runtimeManifestVersion": 2,
+  "characters": {
+    "squirrel": {
+      "viewCount": 4,
+      "totalFrames": 64,
+      "runtimeMirroringUsed": false,
+      "canonicalExtractComposeInspectPassed": true,
+      "views": {
+        "front": {
+          "image": "squirrel-front.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 244370,
+          "sha256": "275647b3c886b032e77d5ccd7cdc972bf0627afbd3ba89e58ff197951619a4e6",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.0,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  28,
+                  12,
+                  118,
+                  119
+                ],
+                [
+                  28,
+                  9,
+                  118,
+                  119
+                ],
+                [
+                  28,
+                  12,
+                  118,
+                  119
+                ],
+                [
+                  28,
+                  12,
+                  116,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.981651,
+              "alphaBounds": [
+                [
+                  29,
+                  10,
+                  113,
+                  119
+                ],
+                [
+                  31,
+                  9,
+                  115,
+                  119
+                ],
+                [
+                  31,
+                  19,
+                  113,
+                  119
+                ],
+                [
+                  33,
+                  10,
+                  117,
+                  119
+                ],
+                [
+                  29,
+                  9,
+                  112,
+                  119
+                ],
+                [
+                  31,
+                  18,
+                  112,
+                  119
+                ]
+              ]
+            },
+            "attack": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.07,
+              "alphaBounds": [
+                [
+                  24,
+                  19,
+                  115,
+                  119
+                ],
+                [
+                  21,
+                  21,
+                  112,
+                  119
+                ],
+                [
+                  21,
+                  17,
+                  112,
+                  119
+                ],
+                [
+                  29,
+                  19,
+                  119,
+                  119
+                ],
+                [
+                  27,
+                  19,
+                  116,
+                  119
+                ],
+                [
+                  27,
+                  19,
+                  112,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          },
+          "canonicalWarnings": []
+        },
+        "back": {
+          "image": "squirrel-back.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 214160,
+          "sha256": "fb66c2a661c6224ffa0c3f025f222e16b52621c8618dbb1d5f316f8c47a021ed",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.009434,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  10,
+                  13,
+                  103,
+                  119
+                ],
+                [
+                  10,
+                  9,
+                  103,
+                  119
+                ],
+                [
+                  10,
+                  15,
+                  103,
+                  119
+                ],
+                [
+                  11,
+                  13,
+                  103,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.990654,
+              "alphaBounds": [
+                [
+                  19,
+                  12,
+                  104,
+                  119
+                ],
+                [
+                  19,
+                  11,
+                  106,
+                  119
+                ],
+                [
+                  16,
+                  9,
+                  103,
+                  119
+                ],
+                [
+                  18,
+                  11,
+                  105,
+                  119
+                ],
+                [
+                  13,
+                  11,
+                  100,
+                  119
+                ],
+                [
+                  14,
+                  9,
+                  101,
+                  119
+                ]
+              ]
+            },
+            "attack": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.972477,
+              "alphaBounds": [
+                [
+                  10,
+                  10,
+                  104,
+                  119
+                ],
+                [
+                  9,
+                  10,
+                  109,
+                  119
+                ],
+                [
+                  13,
+                  13,
+                  112,
+                  119
+                ],
+                [
+                  16,
+                  11,
+                  116,
+                  119
+                ],
+                [
+                  15,
+                  10,
+                  116,
+                  119
+                ],
+                [
+                  9,
+                  10,
+                  104,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          },
+          "canonicalWarnings": []
+        },
+        "right": {
+          "image": "squirrel-right.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 215806,
+          "sha256": "5b556a84b2e5b1d48ea9e2d05c79fe66c3f7c25c00fe7eb78d845ea6eae4e64d",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.059406,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  10,
+                  18,
+                  98,
+                  119
+                ],
+                [
+                  9,
+                  17,
+                  98,
+                  119
+                ],
+                [
+                  10,
+                  18,
+                  98,
+                  119
+                ],
+                [
+                  10,
+                  18,
+                  98,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.01,
+              "alphaBounds": [
+                [
+                  10,
+                  19,
+                  101,
+                  119
+                ],
+                [
+                  10,
+                  18,
+                  101,
+                  119
+                ],
+                [
+                  10,
+                  26,
+                  100,
+                  119
+                ],
+                [
+                  15,
+                  18,
+                  107,
+                  119
+                ],
+                [
+                  9,
+                  18,
+                  100,
+                  119
+                ],
+                [
+                  10,
+                  25,
+                  100,
+                  119
+                ]
+              ]
+            },
+            "attack": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.074468,
+              "alphaBounds": [
+                [
+                  12,
+                  25,
+                  96,
+                  119
+                ],
+                [
+                  9,
+                  29,
+                  97,
+                  119
+                ],
+                [
+                  12,
+                  29,
+                  100,
+                  119
+                ],
+                [
+                  17,
+                  28,
+                  115,
+                  119
+                ],
+                [
+                  13,
+                  26,
+                  110,
+                  119
+                ],
+                [
+                  12,
+                  26,
+                  96,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          },
+          "canonicalWarnings": []
+        },
+        "left": {
+          "image": "squirrel-left.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 231808,
+          "sha256": "3f50fb93850a90e550ad0abc70ea4cf70ba8629a209a6e6e34b70fe2200cbef2",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 0.981651,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  28,
+                  10,
+                  119,
+                  119
+                ],
+                [
+                  29,
+                  9,
+                  118,
+                  119
+                ],
+                [
+                  28,
+                  11,
+                  119,
+                  119
+                ],
+                [
+                  29,
+                  9,
+                  118,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.172043,
+              "alphaBounds": [
+                [
+                  29,
+                  26,
+                  117,
+                  119
+                ],
+                [
+                  28,
+                  27,
+                  114,
+                  119
+                ],
+                [
+                  28,
+                  34,
+                  114,
+                  119
+                ],
+                [
+                  32,
+                  27,
+                  120,
+                  119
+                ],
+                [
+                  28,
+                  26,
+                  115,
+                  119
+                ],
+                [
+                  27,
+                  34,
+                  110,
+                  119
+                ]
+              ]
+            },
+            "attack": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.990909,
+              "alphaBounds": [
+                [
+                  17,
+                  9,
+                  119,
+                  119
+                ],
+                [
+                  19,
+                  10,
+                  117,
+                  119
+                ],
+                [
+                  12,
+                  14,
+                  114,
+                  119
+                ],
+                [
+                  10,
+                  13,
+                  118,
+                  119
+                ],
+                [
+                  13,
+                  12,
+                  114,
+                  119
+                ],
+                [
+                  27,
+                  9,
+                  116,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          },
+          "canonicalWarnings": []
+        }
+      }
+    },
+    "bear": {
+      "viewCount": 4,
+      "totalFrames": 64,
+      "runtimeMirroringUsed": false,
+      "canonicalExtractComposeInspectPassed": true,
+      "views": {
+        "front": {
+          "image": "bear-front.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 204094,
+          "sha256": "63dc4a27e8265a149891c32253c2329d34979aa3aa448006979c2a8876e483e2",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.0,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  24,
+                  11,
+                  96,
+                  119
+                ],
+                [
+                  23,
+                  9,
+                  98,
+                  119
+                ],
+                [
+                  24,
+                  13,
+                  97,
+                  119
+                ],
+                [
+                  25,
+                  11,
+                  96,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.990826,
+              "alphaBounds": [
+                [
+                  18,
+                  10,
+                  97,
+                  119
+                ],
+                [
+                  19,
+                  9,
+                  98,
+                  119
+                ],
+                [
+                  18,
+                  10,
+                  93,
+                  119
+                ],
+                [
+                  26,
+                  10,
+                  105,
+                  119
+                ],
+                [
+                  19,
+                  9,
+                  98,
+                  119
+                ],
+                [
+                  19,
+                  12,
+                  93,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  23,
+                  11,
+                  100,
+                  119
+                ],
+                [
+                  22,
+                  28,
+                  106,
+                  119
+                ],
+                [
+                  19,
+                  9,
+                  111,
+                  119
+                ],
+                [
+                  20,
+                  28,
+                  108,
+                  119
+                ],
+                [
+                  22,
+                  28,
+                  105,
+                  119
+                ],
+                [
+                  23,
+                  11,
+                  100,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          },
+          "canonicalWarnings": []
+        },
+        "back": {
+          "image": "bear-back.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 156862,
+          "sha256": "4faa82837dacb306cca77c100379e2f63d2f3c424b4412c2f53f0fe9fa558625",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.0,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  32,
+                  11,
+                  105,
+                  119
+                ],
+                [
+                  31,
+                  9,
+                  106,
+                  119
+                ],
+                [
+                  32,
+                  11,
+                  105,
+                  119
+                ],
+                [
+                  32,
+                  11,
+                  104,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.981818,
+              "alphaBounds": [
+                [
+                  25,
+                  9,
+                  100,
+                  119
+                ],
+                [
+                  33,
+                  9,
+                  108,
+                  119
+                ],
+                [
+                  28,
+                  13,
+                  102,
+                  119
+                ],
+                [
+                  33,
+                  9,
+                  108,
+                  119
+                ],
+                [
+                  25,
+                  9,
+                  100,
+                  119
+                ],
+                [
+                  30,
+                  12,
+                  105,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.028571,
+              "alphaBounds": [
+                [
+                  31,
+                  14,
+                  104,
+                  119
+                ],
+                [
+                  27,
+                  26,
+                  106,
+                  119
+                ],
+                [
+                  22,
+                  9,
+                  108,
+                  119
+                ],
+                [
+                  26,
+                  42,
+                  106,
+                  119
+                ],
+                [
+                  29,
+                  38,
+                  107,
+                  119
+                ],
+                [
+                  31,
+                  14,
+                  104,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          },
+          "canonicalWarnings": []
+        },
+        "right": {
+          "image": "bear-right.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 170394,
+          "sha256": "5cbe14d80d39037be6092223d93100174e512630ca455ba95e32fe814b4b7bea",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 0.981818,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  29,
+                  9,
+                  95,
+                  119
+                ],
+                [
+                  28,
+                  9,
+                  95,
+                  119
+                ],
+                [
+                  29,
+                  9,
+                  95,
+                  119
+                ],
+                [
+                  28,
+                  9,
+                  95,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  29,
+                  9,
+                  103,
+                  119
+                ],
+                [
+                  33,
+                  9,
+                  107,
+                  119
+                ],
+                [
+                  28,
+                  13,
+                  104,
+                  119
+                ],
+                [
+                  30,
+                  11,
+                  106,
+                  119
+                ],
+                [
+                  35,
+                  11,
+                  111,
+                  119
+                ],
+                [
+                  28,
+                  14,
+                  103,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.028037,
+              "alphaBounds": [
+                [
+                  29,
+                  12,
+                  100,
+                  119
+                ],
+                [
+                  31,
+                  27,
+                  110,
+                  119
+                ],
+                [
+                  28,
+                  9,
+                  93,
+                  119
+                ],
+                [
+                  34,
+                  24,
+                  108,
+                  119
+                ],
+                [
+                  33,
+                  29,
+                  106,
+                  119
+                ],
+                [
+                  29,
+                  10,
+                  99,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          },
+          "canonicalWarnings": [
+            "idle: motion presence is too low (0.0097 < 0.0100)"
+          ]
+        },
+        "left": {
+          "image": "bear-left.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 168218,
+          "sha256": "29c6137718411d3b8026bc39df8feace7027dbcc1545d290902aca8a17ad1de9",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 0.981818,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  34,
+                  9,
+                  97,
+                  119
+                ],
+                [
+                  33,
+                  9,
+                  97,
+                  119
+                ],
+                [
+                  33,
+                  10,
+                  97,
+                  119
+                ],
+                [
+                  34,
+                  9,
+                  97,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.009174,
+              "alphaBounds": [
+                [
+                  24,
+                  10,
+                  103,
+                  119
+                ],
+                [
+                  23,
+                  9,
+                  99,
+                  119
+                ],
+                [
+                  20,
+                  19,
+                  103,
+                  119
+                ],
+                [
+                  25,
+                  10,
+                  102,
+                  119
+                ],
+                [
+                  23,
+                  11,
+                  99,
+                  119
+                ],
+                [
+                  23,
+                  16,
+                  101,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.057692,
+              "alphaBounds": [
+                [
+                  32,
+                  15,
+                  97,
+                  119
+                ],
+                [
+                  14,
+                  30,
+                  97,
+                  119
+                ],
+                [
+                  31,
+                  9,
+                  92,
+                  119
+                ],
+                [
+                  15,
+                  30,
+                  98,
+                  119
+                ],
+                [
+                  13,
+                  34,
+                  98,
+                  119
+                ],
+                [
+                  31,
+                  15,
+                  96,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          },
+          "canonicalWarnings": []
+        }
+      }
+    },
+    "fox": {
+      "viewCount": 4,
+      "totalFrames": 64,
+      "runtimeMirroringUsed": false,
+      "canonicalExtractComposeInspectPassed": true,
+      "views": {
+        "front": {
+          "image": "fox-front.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 206986,
+          "sha256": "242f84782145c2bb837922ae26c51c737ce77a01589f09a250b8572275cb07af",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.0,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  31,
+                  10,
+                  99,
+                  119
+                ],
+                [
+                  31,
+                  9,
+                  100,
+                  119
+                ],
+                [
+                  31,
+                  10,
+                  100,
+                  119
+                ],
+                [
+                  31,
+                  9,
+                  100,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  33,
+                  10,
+                  102,
+                  119
+                ],
+                [
+                  31,
+                  10,
+                  100,
+                  119
+                ],
+                [
+                  32,
+                  20,
+                  101,
+                  119
+                ],
+                [
+                  30,
+                  11,
+                  99,
+                  119
+                ],
+                [
+                  32,
+                  9,
+                  101,
+                  119
+                ],
+                [
+                  32,
+                  20,
+                  101,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.990909,
+              "alphaBounds": [
+                [
+                  27,
+                  9,
+                  104,
+                  119
+                ],
+                [
+                  27,
+                  9,
+                  106,
+                  119
+                ],
+                [
+                  25,
+                  19,
+                  103,
+                  119
+                ],
+                [
+                  25,
+                  27,
+                  104,
+                  119
+                ],
+                [
+                  28,
+                  9,
+                  104,
+                  119
+                ],
+                [
+                  28,
+                  9,
+                  104,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "back": {
+          "image": "fox-back.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 187588,
+          "sha256": "1318d1134c9f075d1ce46528b02f1b6875bc3fd2be98a6672404cee68095d66e",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.038095,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  16,
+                  14,
+                  101,
+                  119
+                ],
+                [
+                  16,
+                  9,
+                  101,
+                  119
+                ],
+                [
+                  16,
+                  11,
+                  100,
+                  119
+                ],
+                [
+                  17,
+                  13,
+                  100,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.963303,
+              "alphaBounds": [
+                [
+                  21,
+                  10,
+                  97,
+                  119
+                ],
+                [
+                  19,
+                  9,
+                  95,
+                  119
+                ],
+                [
+                  20,
+                  9,
+                  89,
+                  119
+                ],
+                [
+                  23,
+                  10,
+                  98,
+                  119
+                ],
+                [
+                  19,
+                  10,
+                  95,
+                  119
+                ],
+                [
+                  21,
+                  11,
+                  90,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.954545,
+              "alphaBounds": [
+                [
+                  18,
+                  9,
+                  100,
+                  119
+                ],
+                [
+                  12,
+                  15,
+                  99,
+                  119
+                ],
+                [
+                  9,
+                  20,
+                  103,
+                  119
+                ],
+                [
+                  12,
+                  24,
+                  106,
+                  119
+                ],
+                [
+                  12,
+                  12,
+                  99,
+                  119
+                ],
+                [
+                  19,
+                  9,
+                  97,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "right": {
+          "image": "fox-right.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 170106,
+          "sha256": "cf6f63626f2cb7cc080d26e0f40081a3a7d33c7dd566dd0b08d29cc2cd5944a0",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.09,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  14,
+                  19,
+                  118,
+                  119
+                ],
+                [
+                  15,
+                  18,
+                  119,
+                  119
+                ],
+                [
+                  14,
+                  19,
+                  118,
+                  119
+                ],
+                [
+                  14,
+                  19,
+                  118,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.190476,
+              "alphaBounds": [
+                [
+                  17,
+                  35,
+                  110,
+                  119
+                ],
+                [
+                  23,
+                  35,
+                  111,
+                  119
+                ],
+                [
+                  9,
+                  39,
+                  99,
+                  119
+                ],
+                [
+                  18,
+                  35,
+                  111,
+                  119
+                ],
+                [
+                  26,
+                  35,
+                  117,
+                  119
+                ],
+                [
+                  10,
+                  40,
+                  101,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.136364,
+              "alphaBounds": [
+                [
+                  26,
+                  31,
+                  116,
+                  119
+                ],
+                [
+                  28,
+                  34,
+                  117,
+                  119
+                ],
+                [
+                  19,
+                  43,
+                  119,
+                  119
+                ],
+                [
+                  19,
+                  51,
+                  118,
+                  119
+                ],
+                [
+                  29,
+                  32,
+                  117,
+                  119
+                ],
+                [
+                  25,
+                  30,
+                  113,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "left": {
+          "image": "fox-left.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 207570,
+          "sha256": "8ae7e2cee1698fe0a3098aa246ea10d4d053a23c11c9a7623628eda68e645e38",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.068627,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  13,
+                  17,
+                  114,
+                  119
+                ],
+                [
+                  9,
+                  14,
+                  111,
+                  119
+                ],
+                [
+                  12,
+                  17,
+                  114,
+                  119
+                ],
+                [
+                  11,
+                  16,
+                  112,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.073684,
+              "alphaBounds": [
+                [
+                  21,
+                  24,
+                  116,
+                  119
+                ],
+                [
+                  21,
+                  24,
+                  114,
+                  119
+                ],
+                [
+                  20,
+                  31,
+                  115,
+                  119
+                ],
+                [
+                  20,
+                  23,
+                  118,
+                  119
+                ],
+                [
+                  14,
+                  23,
+                  119,
+                  119
+                ],
+                [
+                  27,
+                  28,
+                  99,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.990291,
+              "alphaBounds": [
+                [
+                  15,
+                  16,
+                  108,
+                  119
+                ],
+                [
+                  9,
+                  19,
+                  107,
+                  119
+                ],
+                [
+                  11,
+                  28,
+                  114,
+                  119
+                ],
+                [
+                  9,
+                  41,
+                  118,
+                  119
+                ],
+                [
+                  15,
+                  18,
+                  107,
+                  119
+                ],
+                [
+                  19,
+                  16,
+                  104,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        }
+      }
+    },
+    "redpanda": {
+      "viewCount": 4,
+      "totalFrames": 64,
+      "runtimeMirroringUsed": false,
+      "canonicalExtractComposeInspectPassed": true,
+      "views": {
+        "front": {
+          "image": "redpanda-front.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 274448,
+          "sha256": "71b43c5840127bcb474612d964d394e5de7e2a1e661e93e098118a599707cc1a",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.0,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  9,
+                  14,
+                  114,
+                  119
+                ],
+                [
+                  9,
+                  11,
+                  115,
+                  119
+                ],
+                [
+                  9,
+                  15,
+                  114,
+                  119
+                ],
+                [
+                  9,
+                  15,
+                  115,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.963303,
+              "alphaBounds": [
+                [
+                  14,
+                  10,
+                  111,
+                  119
+                ],
+                [
+                  9,
+                  10,
+                  107,
+                  119
+                ],
+                [
+                  13,
+                  14,
+                  112,
+                  119
+                ],
+                [
+                  15,
+                  10,
+                  112,
+                  119
+                ],
+                [
+                  14,
+                  9,
+                  113,
+                  119
+                ],
+                [
+                  14,
+                  16,
+                  113,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.972222,
+              "alphaBounds": [
+                [
+                  9,
+                  11,
+                  113,
+                  119
+                ],
+                [
+                  11,
+                  14,
+                  112,
+                  119
+                ],
+                [
+                  12,
+                  28,
+                  113,
+                  119
+                ],
+                [
+                  12,
+                  30,
+                  113,
+                  119
+                ],
+                [
+                  12,
+                  14,
+                  113,
+                  119
+                ],
+                [
+                  9,
+                  11,
+                  113,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "back": {
+          "image": "redpanda-back.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 211464,
+          "sha256": "dedbeea62f56f94033c717e0fdee429e624c1edaaac0c7a0ccef73a439f5bba2",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.105263,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  14,
+                  24,
+                  118,
+                  119
+                ],
+                [
+                  13,
+                  21,
+                  119,
+                  119
+                ],
+                [
+                  13,
+                  21,
+                  118,
+                  119
+                ],
+                [
+                  15,
+                  25,
+                  118,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.87963,
+              "alphaBounds": [
+                [
+                  9,
+                  11,
+                  116,
+                  119
+                ],
+                [
+                  9,
+                  10,
+                  113,
+                  119
+                ],
+                [
+                  13,
+                  9,
+                  115,
+                  119
+                ],
+                [
+                  11,
+                  14,
+                  116,
+                  119
+                ],
+                [
+                  10,
+                  10,
+                  116,
+                  119
+                ],
+                [
+                  14,
+                  11,
+                  113,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.091954,
+              "alphaBounds": [
+                [
+                  12,
+                  32,
+                  107,
+                  119
+                ],
+                [
+                  15,
+                  30,
+                  107,
+                  119
+                ],
+                [
+                  15,
+                  29,
+                  117,
+                  119
+                ],
+                [
+                  9,
+                  43,
+                  109,
+                  119
+                ],
+                [
+                  13,
+                  31,
+                  102,
+                  119
+                ],
+                [
+                  14,
+                  32,
+                  107,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "right": {
+          "image": "redpanda-right.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 204338,
+          "sha256": "885987b12b7e103e7c37649b8eb35236e639ea19fb78f07ebcaa59dbe10b40e3",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.153846,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  11,
+                  28,
+                  106,
+                  119
+                ],
+                [
+                  9,
+                  26,
+                  106,
+                  119
+                ],
+                [
+                  11,
+                  28,
+                  107,
+                  119
+                ],
+                [
+                  11,
+                  28,
+                  106,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.98913,
+              "alphaBounds": [
+                [
+                  9,
+                  27,
+                  106,
+                  119
+                ],
+                [
+                  13,
+                  27,
+                  107,
+                  119
+                ],
+                [
+                  12,
+                  32,
+                  107,
+                  119
+                ],
+                [
+                  13,
+                  28,
+                  108,
+                  119
+                ],
+                [
+                  11,
+                  27,
+                  107,
+                  119
+                ],
+                [
+                  12,
+                  31,
+                  107,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.045977,
+              "alphaBounds": [
+                [
+                  17,
+                  32,
+                  101,
+                  119
+                ],
+                [
+                  15,
+                  32,
+                  114,
+                  119
+                ],
+                [
+                  22,
+                  38,
+                  119,
+                  119
+                ],
+                [
+                  19,
+                  45,
+                  107,
+                  119
+                ],
+                [
+                  14,
+                  29,
+                  106,
+                  119
+                ],
+                [
+                  13,
+                  32,
+                  102,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "left": {
+          "image": "redpanda-left.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 185976,
+          "sha256": "83ccd242f214ebbf1c8ee5c07876509b4c5c8b242f3109be3fc0a4a6b1211b5a",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.296296,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  23,
+                  38,
+                  118,
+                  119
+                ],
+                [
+                  25,
+                  36,
+                  119,
+                  119
+                ],
+                [
+                  24,
+                  38,
+                  118,
+                  119
+                ],
+                [
+                  24,
+                  38,
+                  117,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.910112,
+              "alphaBounds": [
+                [
+                  21,
+                  30,
+                  115,
+                  119
+                ],
+                [
+                  25,
+                  29,
+                  117,
+                  119
+                ],
+                [
+                  25,
+                  35,
+                  114,
+                  119
+                ],
+                [
+                  22,
+                  29,
+                  116,
+                  119
+                ],
+                [
+                  25,
+                  28,
+                  119,
+                  119
+                ],
+                [
+                  25,
+                  34,
+                  113,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.038462,
+              "alphaBounds": [
+                [
+                  29,
+                  41,
+                  108,
+                  119
+                ],
+                [
+                  15,
+                  41,
+                  105,
+                  119
+                ],
+                [
+                  9,
+                  49,
+                  102,
+                  119
+                ],
+                [
+                  16,
+                  56,
+                  108,
+                  119
+                ],
+                [
+                  27,
+                  41,
+                  106,
+                  119
+                ],
+                [
+                  29,
+                  41,
+                  108,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        }
+      }
+    },
+    "sparrow": {
+      "viewCount": 4,
+      "totalFrames": 56,
+      "runtimeMirroringUsed": false,
+      "canonicalExtractComposeInspectPassed": true,
+      "views": {
+        "front": {
+          "image": "sparrow-front.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 195038,
+          "sha256": "0bb579d777b00cd6e4646e1496ea4331daee3419bb6c07547a83c36ad094118f",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.0,
+          "states": {
+            "idle": {
+              "frameCount": 2,
+              "distinctFrames": 2,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  25,
+                  9,
+                  104,
+                  119
+                ],
+                [
+                  25,
+                  14,
+                  103,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0092,
+              "alphaBounds": [
+                [
+                  24,
+                  10,
+                  104,
+                  119
+                ],
+                [
+                  23,
+                  10,
+                  103,
+                  119
+                ],
+                [
+                  22,
+                  15,
+                  105,
+                  119
+                ],
+                [
+                  24,
+                  10,
+                  104,
+                  119
+                ],
+                [
+                  23,
+                  9,
+                  104,
+                  119
+                ],
+                [
+                  23,
+                  16,
+                  105,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0185,
+              "alphaBounds": [
+                [
+                  24,
+                  11,
+                  109,
+                  119
+                ],
+                [
+                  20,
+                  13,
+                  111,
+                  119
+                ],
+                [
+                  14,
+                  18,
+                  113,
+                  119
+                ],
+                [
+                  13,
+                  18,
+                  114,
+                  119
+                ],
+                [
+                  22,
+                  9,
+                  113,
+                  119
+                ],
+                [
+                  24,
+                  11,
+                  109,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "back": {
+          "image": "sparrow-back.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 168800,
+          "sha256": "2b41b2b75669ad56d7edf92f99aa55c0775546a29016c781d5ad54339231dcf4",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.0,
+          "states": {
+            "idle": {
+              "frameCount": 2,
+              "distinctFrames": 2,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  26,
+                  9,
+                  104,
+                  119
+                ],
+                [
+                  26,
+                  13,
+                  104,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0185,
+              "alphaBounds": [
+                [
+                  26,
+                  11,
+                  102,
+                  119
+                ],
+                [
+                  24,
+                  9,
+                  102,
+                  119
+                ],
+                [
+                  24,
+                  14,
+                  102,
+                  119
+                ],
+                [
+                  26,
+                  11,
+                  102,
+                  119
+                ],
+                [
+                  25,
+                  10,
+                  102,
+                  119
+                ],
+                [
+                  24,
+                  15,
+                  102,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0377,
+              "alphaBounds": [
+                [
+                  26,
+                  13,
+                  103,
+                  119
+                ],
+                [
+                  27,
+                  21,
+                  102,
+                  119
+                ],
+                [
+                  27,
+                  32,
+                  102,
+                  119
+                ],
+                [
+                  9,
+                  43,
+                  118,
+                  119
+                ],
+                [
+                  27,
+                  23,
+                  101,
+                  119
+                ],
+                [
+                  26,
+                  13,
+                  103,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "right": {
+          "image": "sparrow-right.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 178728,
+          "sha256": "3935160201553685b1039fb02aa542987f2dfa9b5fee9394b06d02f736914193",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.068,
+          "states": {
+            "idle": {
+              "frameCount": 2,
+              "distinctFrames": 2,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  9,
+                  16,
+                  108,
+                  119
+                ],
+                [
+                  11,
+                  12,
+                  108,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.9904,
+              "alphaBounds": [
+                [
+                  9,
+                  15,
+                  109,
+                  119
+                ],
+                [
+                  10,
+                  16,
+                  110,
+                  119
+                ],
+                [
+                  13,
+                  19,
+                  109,
+                  119
+                ],
+                [
+                  10,
+                  16,
+                  110,
+                  119
+                ],
+                [
+                  10,
+                  15,
+                  110,
+                  119
+                ],
+                [
+                  12,
+                  19,
+                  109,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.1573,
+              "alphaBounds": [
+                [
+                  9,
+                  30,
+                  109,
+                  119
+                ],
+                [
+                  12,
+                  44,
+                  109,
+                  119
+                ],
+                [
+                  12,
+                  50,
+                  109,
+                  119
+                ],
+                [
+                  11,
+                  42,
+                  111,
+                  119
+                ],
+                [
+                  15,
+                  44,
+                  106,
+                  119
+                ],
+                [
+                  11,
+                  30,
+                  108,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "left": {
+          "image": "sparrow-left.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 188158,
+          "sha256": "bde8e75de1aa864cf7bf42432aacefd0a392220a8efc1cba341c9c0d09c40ae0",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.134,
+          "states": {
+            "idle": {
+              "frameCount": 2,
+              "distinctFrames": 2,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  21,
+                  22,
+                  118,
+                  119
+                ],
+                [
+                  21,
+                  19,
+                  119,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.97,
+              "alphaBounds": [
+                [
+                  19,
+                  19,
+                  117,
+                  119
+                ],
+                [
+                  18,
+                  17,
+                  119,
+                  119
+                ],
+                [
+                  19,
+                  18,
+                  116,
+                  119
+                ],
+                [
+                  18,
+                  19,
+                  118,
+                  119
+                ],
+                [
+                  18,
+                  17,
+                  117,
+                  119
+                ],
+                [
+                  19,
+                  21,
+                  116,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 0.9898,
+              "alphaBounds": [
+                [
+                  18,
+                  21,
+                  116,
+                  119
+                ],
+                [
+                  14,
+                  39,
+                  119,
+                  119
+                ],
+                [
+                  15,
+                  39,
+                  115,
+                  119
+                ],
+                [
+                  15,
+                  36,
+                  115,
+                  119
+                ],
+                [
+                  14,
+                  39,
+                  118,
+                  119
+                ],
+                [
+                  18,
+                  21,
+                  114,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        }
+      }
+    }
+  },
+  "tree": {
+    "image": "oak.webp",
+    "dimensions": [
+      384,
+      576
+    ],
+    "bytes": 115128,
+    "alphaAndVisibleColorPreserved": true,
+    "canonicalExtractInspectPassed": true,
+    "warnings": [
+      "stump: motion presence is too low (0.0000 < 0.0100)"
+    ],
+    "states": {
+      "idle": {
+        "frameCount": 2,
+        "distinctFrames": 2,
+        "fps": 2,
+        "alphaBounds": [
+          [
+            16,
+            23,
+            175,
+            180
+          ],
+          [
+            13,
+            23,
+            180,
+            180
+          ]
+        ]
+      },
+      "hit": {
+        "frameCount": 2,
+        "distinctFrames": 2,
+        "fps": 8,
+        "alphaBounds": [
+          [
+            12,
+            57,
+            143,
+            180
+          ],
+          [
+            40,
+            56,
+            172,
+            180
+          ]
+        ]
+      },
+      "stump": {
+        "frameCount": 1,
+        "distinctFrames": 1,
+        "fps": 1,
+        "alphaBounds": [
+          [
+            19,
+            74,
+            180,
+            180
+          ]
+        ]
+      }
+    }
+  },
+  "resources": {
+    "berry": {
+      "image": "berry.webp",
+      "dimensions": [
+        192,
+        192
+      ],
+      "bytes": 34708,
+      "realAlpha": true,
+      "matchesAlphaAwareNormalization": true,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9375
+      }
+    },
+    "bamboo": {
+      "image": "bamboo.webp",
+      "dimensions": [
+        192,
+        192
+      ],
+      "bytes": 31946,
+      "realAlpha": true,
+      "matchesAlphaAwareNormalization": true,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9375
+      }
+    },
+    "grain": {
+      "image": "grain.webp",
+      "dimensions": [
+        192,
+        192
+      ],
+      "bytes": 36620,
+      "realAlpha": true,
+      "matchesAlphaAwareNormalization": true,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9375
+      }
+    }
+  },
+  "ground": {
+    "image": "grass.webp",
+    "dimensions": [
+      512,
+      512
+    ],
+    "repeat": "xy",
+    "canonicalTileStatus": "needs-review",
+    "canonicalReviewReasons": [
+      "x: Internal quilt color difference exceeds source interior variation."
+    ],
+    "visualReview": "A2x2 repeat and live projected-ground scrolling showed no obvious seam at native game display scale.",
+    "edges": {
+      "x": {
+        "mean": 2.208984375,
+        "p95": 8.59999942779541,
+        "max": 30.0
+      },
+      "y": {
+        "mean": 1.1614583730697632,
+        "p95": 4.0,
+        "max": 16.33333396911621
+      }
+    }
+  },
+  "totalAnimalFrames": 312,
+  "totalAnimalAtlasBytes": 3984912,
+  "motionReview": {
+    "views": "All five species have separately generated front, back, right and left art. Back views have no forward-facing eyes; anatomy and identity reviewed in contact sheets and the local browser.",
+    "contact": "All 20 six-frame actions use 600ms native cycles, with index3 contact at330ms. Rules and renderer share the timing contract; helpers finish recovery before moving.",
+    "scale": "Constant view and animation scales measured from ready body height; no per-frame resizing. Feet share the ground anchor.",
+    "limit": "Short six-frame cycles can show small shape changes. Exact same-foot contact across every transition, real mobile-device performance and human playtest enjoyment are unverified."
+  },
+  "totalRuntimeAssetBytes": 4718832
+}

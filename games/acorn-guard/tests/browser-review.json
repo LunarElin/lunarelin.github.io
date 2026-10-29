@@ -1,0 +1,64 @@
+{
+  "scope": "directional movement and natural harvesting",
+  "date": "2026-10-30",
+  "environment": "Desktop Chromium-based in-app browser; portrait viewport emulation, not a physical mobile device",
+  "viewports": [
+    [
+      320,
+      740
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      2710,
+      1191
+    ]
+  ],
+  "observed": [
+    "Five animals loaded from20 independently generated directional atlases",
+    "Manual up/down/left/right movement changed front/back/profile artwork; rear faces had no forward eyes",
+    "Species-specific gathering and contact effects observed during five-worker play",
+    "Drag released the temporary pad; automatic movement restored after input checks",
+    "Pause/resume, game to home and home to game navigation worked",
+    "Re-entry retained five recruited members, personal growth and automatic movement",
+    "No browser console warnings or errors in final review"
+  ],
+  "layout": {
+    "horizontalOverflow": false,
+    "fontLoaded": true,
+    "primaryNumberSizeAt320": "28px",
+    "minimumReviewedMainTouchTarget": "48x48 CSS px"
+  },
+  "automatedTests": {
+    "rules": 25,
+    "motion": 7,
+    "assets": 6,
+    "passed": 38
+  },
+  "assetReview": {
+    "animalViews": 20,
+    "animalFrames": 312,
+    "allFramesDistinctAndWithinAlphaBounds": true,
+    "animalAtlasBytes": 3984912,
+    "assetFolderApproxMB": 4.87,
+    "knownWarning": "Bear right idle movement0.0097 is slightly below canonical0.0100 motion-presence threshold."
+  },
+  "provisionalScore": {
+    "core": 24,
+    "mobile": 17,
+    "visual": 18,
+    "feedback": 13,
+    "performance": 8,
+    "maintenance": 9,
+    "total": 89
+  },
+  "limits": [
+    "Physical iOS Safari and Android Chrome touch/address-bar/notch behavior unverified",
+    "Sustained frame rate, battery and thermal behavior on real mobile hardware unmeasured",
+    "Six-frame cycles can retain small shape or pose transitions; exact same-foot contact across every transition unverified",
+    "No independent human enjoyment playtest"
+  ],
+  "nextPriority": "Verify real phones first; refine any visibly abrupt foot or recovery transitions found in longer play."
+}

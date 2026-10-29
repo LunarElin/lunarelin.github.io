@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#344e38">
+  <meta name="description" content="다섯 동물이 도토리로 나무를 쏘고 동전을 모으는 숲속 방치형 게임. 화면을 드래그하면 직접 이동합니다.">
+  <title>도토리 원정대</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <symbol id="i-acorn" viewBox="0 0 48 48"><path d="M14 20c-8 15 2 23 10 25 8-2 18-10 10-25" fill="#dd9a42"/><path d="M13 23c-3-2-4-4-2-7 5-7 21-7 26 0 2 3 1 5-2 7Z" fill="#805333"/><path d="m22 10 4-6 5 1" fill="none"/><path d="m17 16 5 5 6-7 5 6" fill="none" stroke="#bd8651" stroke-width="2"/><path d="M17 28q0 7 5 10" fill="none" stroke="#ffe2a2" stroke-width="3"/></symbol>
+      <symbol id="i-coin" viewBox="0 0 48 48"><ellipse cx="24" cy="26" rx="18" ry="19" fill="#cc872d"/><circle cx="24" cy="22" r="18" fill="#ffdc70"/><circle cx="24" cy="22" r="12" fill="#f5b93f" stroke="#db952d" stroke-width="2"/><path d="m24 12 3 7 7 1-5 5 1 8-6-4-7 4 2-8-6-5 8-1Z" fill="#ffedab" stroke="none"/></symbol>
+      <symbol id="i-heart" viewBox="0 0 48 48"><path d="M24 41S4 29 4 16C4 4 20 2 24 13 28 2 44 4 44 16c0 13-20 25-20 25Z" fill="#ee8073"/><path d="M11 16q0-5 6-5" stroke="#ffd6b5" fill="none" stroke-width="3"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 48 48"><path d="m27 3-20 25h15l-2 17 21-27H26Z" fill="#ffd968"/></symbol>
+      <symbol id="i-paw" viewBox="0 0 48 48"><path d="M10 34c0-7 9-16 14-16s14 9 14 16c0 10-10 4-14 4s-14 6-14-4Z" fill="#a8784b"/><ellipse cx="9" cy="17" rx="5" ry="7" transform="rotate(-25 9 17)" fill="#a8784b"/><ellipse cx="20" cy="10" rx="5" ry="7" fill="#a8784b"/><ellipse cx="32" cy="11" rx="5" ry="7" fill="#a8784b"/><ellipse cx="41" cy="21" rx="5" ry="7" transform="rotate(25 41 21)" fill="#a8784b"/></symbol>
+      <symbol id="i-feather" viewBox="0 0 48 48"><path d="M10 37C4 21 17 1 37 5c7 19-7 34-22 31" fill="#8dc6af"/><path d="m7 44 26-31M17 33l-2-12m10 3 11-1" fill="none"/></symbol>
+      <symbol id="i-sword" viewBox="0 0 48 48"><path d="m19 30 1-14L39 3l5 5-14 20-12 2" fill="#e7eee0"/><path d="m16 28 9 9M21 33l-9 10-7-7 10-9" fill="#d9a34b"/><path d="m23 25 13-14" stroke="#a9c1ae"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 48 48"><path d="M8 34C-1 12 21 3 42 5c-1 24-10 41-31 31" fill="#83b875"/><path d="m5 44 27-28M16 33l-1-13m9 5h11" fill="none"/></symbol>
+      <symbol id="i-home" viewBox="0 0 48 48"><path d="M7 22 24 6l17 16v20H29V28H19v14H7Z" fill="#e9c88c"/><path d="M3 23 24 3l21 20" fill="none"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 48 48"><path d="M13 10h7v29h-7zm15 0h7v29h-7Z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-play" viewBox="0 0 48 48"><path d="m16 7 25 17-25 17Z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-restart" viewBox="0 0 48 48"><path d="M10 16A17 17 0 1 1 8 29" fill="none" stroke="currentColor" stroke-width="5"/><path d="m7 5-3 17 17-3" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-close" viewBox="0 0 48 48"><path d="m13 13 22 22m0-22L13 35" fill="none" stroke="currentColor" stroke-width="5"/></symbol>
+      <symbol id="i-sound" viewBox="0 0 48 48"><path d="M5 18h9L27 7v34L14 30H5Z" fill="currentColor" stroke="none"/><path d="M34 15q10 9 0 18m5-27q18 18 0 36" stroke="currentColor" fill="none" stroke-width="3"/></symbol>
+      <symbol id="i-gift" viewBox="0 0 48 48"><path d="M7 20h34v23H7ZM4 13h40v10H4Z" fill="#e5bd73"/><path d="M20 13C4 15 11-4 21 6l3 7c15-20 23 5 3 0M24 15v27" fill="none" stroke="#a66542" stroke-width="5"/></symbol>
+      <symbol id="i-crown" viewBox="0 0 48 48"><path d="m6 13 11 9L24 5l8 17 10-9-5 26H11Z" fill="#f6cc61"/><path d="M12 34h24" stroke="#cb8e34"/></symbol>
+      <symbol id="i-infinity" viewBox="0 0 48 48"><path d="M24 24C2-5-4 48 24 24c28-24 22 29 0 0Z" fill="none" stroke="currentColor" stroke-width="5"/></symbol>
+      <symbol id="i-up" viewBox="0 0 48 48"><path d="m8 26 16-17 16 17H30v16H18V26Z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 48 48"><path d="m10 31 14-16 14 16Z" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 48 48"><path d="m24 4 17 6-2 19-15 15L9 29 7 10Z" fill="#8eb6a0"/><path d="m15 23 7 7 12-15" fill="none" stroke="#e9edc5" stroke-width="5"/></symbol>
+      <symbol id="i-tree" viewBox="0 0 48 48"><path d="M20 28h9v16h-9Z" fill="#a77848"/><path d="M10 30C0 26 4 15 12 14 9 3 27-1 31 10c13-3 20 18 7 21Z" fill="#9ab775"/><path d="m23 34 1-16m0 9 8-6" fill="none" stroke="#6f8954"/></symbol>
+      <symbol id="i-rapid" viewBox="0 0 48 48"><path d="M3 13h10M1 23h9M4 33h9" fill="none" stroke="#839a61" stroke-width="3"/><path d="M19 16c-9 3-9 17 0 20l10-10Z" fill="#dda04e"/><path d="m22 12 12 11-6 7-12-11Z" fill="#8e623c"/><path d="m31 13 7 10-7 10m8-20 7 10-7 10" fill="none" stroke="#7c9e67" stroke-width="3"/></symbol>
+      <symbol id="i-wood" viewBox="0 0 48 48"><path d="m11 11 27 3 3 24-26-3Z" fill="#a97b48"/><ellipse cx="13" cy="23" rx="10" ry="14" fill="#e3bd77"/><ellipse cx="13" cy="23" rx="5" ry="8" fill="none" stroke="#af814b"/><path d="m23 16 14 2m-13 7 14 2m-13 5 12 2" stroke="#785c3c"/></symbol>
+      <symbol id="i-berries" viewBox="0 0 48 48"><path d="M23 19c-14 1-15-12-11-14 10 0 14 4 11 14m1 0C24 5 35 4 40 6c0 10-6 15-16 13" fill="#8eac63"/><circle cx="15" cy="28" r="10" fill="#d77576"/><circle cx="33" cy="28" r="10" fill="#d98678"/><circle cx="24" cy="36" r="10" fill="#c96670"/><path d="m12 24 3-2m15 1 3-1m-12 11 3-1" stroke="#f5b5a0"/></symbol>
+      <symbol id="i-bamboo" viewBox="0 0 48 48"><path d="m16 43 3-38h10l-3 38Z" fill="#a5bd6b"/><path d="m18 15 10 1m-11 13 10 1M29 21c0-12 8-13 13-12-1 10-5 13-13 12M17 30C4 32 3 23 4 18c10 0 14 5 13 12" fill="#8daa62"/><path d="m20 7 1 34" stroke="#dce6a0" stroke-width="2"/></symbol>
+      <symbol id="i-grain" viewBox="0 0 48 48"><path d="m21 45 4-40m-1 34C8 39 7 32 7 27c10-1 17 3 17 12m0-11C9 28 9 21 10 17c10 0 15 3 14 11m1-10C14 18 13 11 15 7c8 0 11 4 10 11m1 20c14 0 17-9 15-13-9-1-15 4-15 13m0-12c13 0 15-8 13-12-8 0-13 5-13 12" fill="#e0b95d"/><path d="M25 5v35" stroke="#9b7b40" stroke-width="2"/></symbol>
+      <symbol id="i-combo" viewBox="0 0 48 48"><path d="m8 12 12 8-9 12m12-20 13 8-10 12" fill="none" stroke="#9b7249" stroke-width="6"/><path d="m9 40 29-2" stroke="#d4b96d" stroke-width="4"/></symbol>
+      <symbol id="i-ring" viewBox="0 0 48 48"><ellipse cx="24" cy="30" rx="20" ry="10" fill="#d9ca8b"/><ellipse cx="24" cy="28" rx="11" ry="5" fill="#a9b879"/><path d="m24 5-5 18h10ZM8 8l5 10m27-10-5 10" fill="#e5bd65"/></symbol>
+      <symbol id="i-rare" viewBox="0 0 48 48"><path d="m24 3 6 14 15 7-15 6-6 15-6-15-15-6 15-7Z" fill="#f1cc6d"/><path d="m24 15 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" fill="#fff1b4" stroke="none"/></symbol>
+      <symbol id="i-basket" viewBox="0 0 48 48"><path d="M7 20h34l-6 23H13Z" fill="#ceaa68"/><path d="M14 20C9-2 39-2 34 20" fill="none" stroke="#916d41" stroke-width="5"/><path d="M5 20h38M13 29h22M15 36h18M20 23v17m9-17v17" stroke="#987748" stroke-width="2"/></symbol>
+      <symbol id="i-sweep" viewBox="0 0 48 48"><path d="M5 37C7 12 30 4 43 12M8 36c9-15 18-19 31-15" fill="none" stroke="#8cae6b" stroke-width="6"/><path d="m34 4 11 8-12 7" fill="#d7d595"/><path d="M15 44 28 21" stroke="#ac874e" stroke-width="5"/></symbol>
+      <symbol id="i-beak" viewBox="0 0 48 48"><circle cx="20" cy="21" r="16" fill="#bf9466"/><path d="m30 14 15 9-15 6" fill="#e8ba55"/><circle cx="22" cy="17" r="3" fill="#594736" stroke="none"/><path d="m35 36 4 7m-15-3 2 5" stroke="#d8ac57" stroke-width="4"/></symbol>
+      <symbol id="i-double" viewBox="0 0 48 48"><path d="m8 7 16 10-16 9Zm17 14 17 10-17 10Z" fill="#e9be69"/><path d="m4 34 8 6m24-33 7 6" stroke="#b89961" stroke-width="3"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 48 48"><path d="M13 22V13a11 11 0 0 1 22 0v9" fill="none" stroke="#8d856c" stroke-width="5"/><rect x="8" y="20" width="32" height="24" rx="7" fill="#b8ac86"/><path d="M24 28v8" stroke="#7a7058" stroke-width="4"/></symbol>
+    </defs>
+  </svg>
+  <main id="game" class="game-shell" aria-label="도토리 원정대 게임">
+    <canvas id="world" aria-label="도토리로 나무를 쏘아 돈을 모으는 숲길. 화면을 누르고 드래그하면 직접 이동할 수 있습니다." tabindex="0"></canvas>
+    <div class="vignette"></div>
+    <header class="hud">
+      <button id="hero-button" class="hero-medallion" aria-label="원정대와 개인 성장"><canvas id="portrait" width="100" height="100"></canvas><span class="level-badge" id="level">1</span></button>
+      <div class="resources"><div class="coin-counter"><svg><use href="#i-coin"/></svg><strong id="coins">0</strong></div><div class="material-counter"><svg><use id="material-icon" href="#i-acorn"/></svg><strong id="materials">0</strong><span class="party-count"><svg><use href="#i-paw"/></svg><b id="party-count">1/5</b></span></div></div>
+      <button id="pause-button" class="round-button pause-button" aria-label="일시 정지"><svg><use href="#i-pause"/></svg></button>
+    </header>
+    <button id="stats-button" class="wave-hud" aria-label="원정 기록"><svg><use href="#i-leaf"/></svg><strong id="wave">1–1</strong><span class="wave-track"><i id="wave-fill"></i></span><svg class="wave-crown"><use href="#i-crown"/></svg></button>
+    <div class="side-actions"><button id="gift-button" class="round-button gift-button" aria-label="원정 보급 받기"><svg><use href="#i-gift"/></svg><span class="notification-dot"></span></button></div>
+    <div id="reward-toast" class="reward-toast" role="status" aria-live="polite"></div>
+    <div class="field-controls">
+      <div class="skill-controls"><button id="auto-button" class="auto-button active" aria-label="자동 이동 끄기" aria-pressed="true"><svg><use href="#i-infinity"/></svg></button><button id="skill-button" class="skill-button" aria-label="도토리 폭풍 사용"><svg><use href="#i-acorn"/></svg><svg class="skill-bolt"><use href="#i-bolt"/></svg><span id="skill-time"></span></button></div>
+    </div>
+    <div class="floating-pad" id="dpad" aria-hidden="true"><span class="pad-arrow up"></span><span class="pad-arrow left"></span><span class="pad-arrow right"></span><span class="pad-arrow down"></span><i id="pad-knob"></i></div>
+    <footer class="bottom-hud">
+      <div class="experience-track" role="meter" aria-label="경험치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="xp-fill"></i><span class="experience-star">✦</span></div>
+      <div class="upgrades" role="group" aria-label="능력 강화">
+        <button class="upgrade" data-slot="0" data-upgrade="power" aria-label="도토리 힘 강화"><span class="upgrade-top"><svg><use class="upgrade-icon" href="#i-acorn"/></svg><span class="upgrade-level">1</span><svg class="upgrade-arrow"><use href="#i-up"/></svg></span><strong class="upgrade-value">17</strong><span class="upgrade-cost"><span><svg><use href="#i-coin"/></svg><b class="coin-price">45</b></span><span><svg><use class="cost-material-icon" href="#i-acorn"/></svg><b class="material-price">3</b></span></span></button>
+        <button class="upgrade" data-slot="1" data-upgrade="burst" aria-label="도토리 연사 강화"><span class="upgrade-top"><svg><use class="upgrade-icon" href="#i-rapid"/></svg><span class="upgrade-level">1</span><svg class="upgrade-arrow"><use href="#i-up"/></svg></span><strong class="upgrade-value">×1</strong><span class="upgrade-cost"><span><svg><use href="#i-coin"/></svg><b class="coin-price">55</b></span><span><svg><use class="cost-material-icon" href="#i-acorn"/></svg><b class="material-price">4</b></span></span></button>
+        <button class="upgrade" data-slot="2" data-upgrade="bounty" aria-label="도토리 보상 강화"><span class="upgrade-top"><svg><use class="upgrade-icon" href="#i-coin"/></svg><span class="upgrade-level">1</span><svg class="upgrade-arrow"><use href="#i-up"/></svg></span><strong class="upgrade-value">120%</strong><span class="upgrade-cost"><span><svg><use href="#i-coin"/></svg><b class="coin-price">40</b></span><span><svg><use class="cost-material-icon" href="#i-acorn"/></svg><b class="material-price">3</b></span></span></button>
+      </div>
+      <nav class="party-bar" id="party-bar" aria-label="동물별 성장 선택"></nav>
+    </footer>
+    <div id="overlay" class="overlay" hidden><section id="dialog" class="dialog" role="dialog" aria-modal="true" aria-label="게임 메뉴"></section></div>
+    <div id="load-indicator" class="load-indicator" aria-label="리소스 불러오는 중"><svg><use href="#i-acorn"/></svg><div><i></i></div></div>
+    <span id="announcer" class="sr-only" aria-live="polite"></span>
+  </main>
+  <script type="module" src="game.mjs"></script>
+</body>
+</html>
