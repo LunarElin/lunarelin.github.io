@@ -1,9 +1,9 @@
 import * as THREE from './assets/vendor/three.module.js';
 import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
-import { eventPose, TRACK_WIDTH, BALL_RADIUS } from './rules.mjs?v=20261029-chain1';
-import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-chain1';
+import { eventPose, TRACK_WIDTH, BALL_RADIUS } from './rules.mjs?v=20261029-chain2';
+import { courseSample, COURSE_WORLD_PER_METER } from './course.mjs?v=20261029-chain2';
 
-import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-chain1';
+import { ENCOUNTER_ART_TYPES, createEncounterVisual, animateEncounterVisual } from './encounter-art.mjs?v=20261029-chain2';
 
 const TAU = Math.PI * 2;
 export const BALL_HEIGHT = BALL_RADIUS;
@@ -238,7 +238,10 @@ export class OrbitScene {
       for(let i=0;i<4;i++){const a=i*Math.PI/2,tick=add(new THREE.BoxGeometry(.15,.42,.15),'launcher-aim-tick');tick.position.set(Math.sin(a)*(r+.25),h+Math.cos(a)*(r+.25),-r*.94);tick.rotation.z=-a;}
     }else{
       const base=add(new THREE.TorusGeometry(r+.3,.1,5,32),'target-floor-ring');base.rotation.x=-Math.PI/2;base.position.y=.12;
-      const top=h+r+.9,pole=add(new THREE.CylinderGeometry(.065,.065,r+.75,6),'target-pin');pole.position.set(0,h+(r+.75)/2,0);
+      // Bowling targets sit behind the hippo. Lift only their sight marks above
+      // its head while the thin stem still points to the actual bumper below.
+      const top=event.challengeId==='bowling'?Math.max(h+r+.9,6.9):h+r+.9,stem=top-h-.15;
+      const pole=add(new THREE.CylinderGeometry(.065,.065,stem,6),'target-pin');pole.position.set(0,h+stem/2,0);
       const ring=add(new THREE.TorusGeometry(.62,.11,5,24),'target-bullseye');ring.position.set(0,top,-.09);
       const dot=add(new THREE.SphereGeometry(.18,8,5),'target-bullseye-dot');dot.position.set(0,top,-.09);
       const check=new THREE.Group();check.name='target-complete-check';check.position.set(0,top,-.09);check.visible=false;group.add(check);

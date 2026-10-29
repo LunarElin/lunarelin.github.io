@@ -1,8 +1,8 @@
-import { OrbitScene } from './scene.mjs?v=20261029-chain1';
-import { TRACK_LENGTH, UPGRADE_DEFS, BALL_TRAITS, availableTraits, selectBallTrait, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-chain1';
-import { CHALLENGES, challengeDefinition } from './challenges.mjs?v=20261029-chain1';
+import { OrbitScene } from './scene.mjs?v=20261029-chain2';
+import { TRACK_LENGTH, UPGRADE_DEFS, BALL_TRAITS, availableTraits, selectBallTrait, newProfile, sanitizeProfile, cleanName, upgradeCost, buyUpgrade, ballStats, lapConfig, guardianPower, generateTrack, newRun, placeRun, stepRun, steerRun, collectRunGold, continueCost, canContinue, continueRun, settleRun } from './rules.mjs?v=20261029-chain2';
+import { CHALLENGES, challengeDefinition } from './challenges.mjs?v=20261029-chain2';
 
-import { coursePattern, courseSample } from './course.mjs?v=20261029-chain1';
+import { coursePattern, courseSample } from './course.mjs?v=20261029-chain2';
 
 const $ = id => document.getElementById(id);
 const KEY = 'orbit-golf:v1';

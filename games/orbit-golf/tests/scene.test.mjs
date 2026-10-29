@@ -532,6 +532,28 @@ test('target success follows only the active challenge hit list, never direct hi
   run.challenge={...run.challenge,id:'another-challenge'};frame(scene,run);assert.equal(mark.visible,false);assert.equal(mark.userData.success,false);scene.dispose();
 });
 
+test('bowling sight pins clear the actual hippo silhouette and stay connected to both target bumpers',()=>{
+  for(const[width,height]of[[320,568],[390,844],[1440,900]]){
+    const scene=harness(width,height),run=runFixture();run.seed=42;run.s=0;run.challenge=createChallenge('bowling',42);run.events=challengeEvents('bowling',42);frame(scene,run,'ready');scene.scene.updateMatrixWorld(true);
+    const hippo=scene.eventMeshes.get(run.challenge.launcherId).userData.mechanism.encounter,hippoBounds=new THREE.Box3().setFromObject(hippo),ray=new THREE.Raycaster();
+    for(const id of run.challenge.targetIds){
+      const target=scene.eventMeshes.get(id),mark=target.userData.mechanism.challenge,ring=mark.userData.ring,
+        ringBounds=new THREE.Box3().setFromObject(ring),stemBounds=new THREE.Box3().setFromObject(mark.getObjectByName('target-pin')),
+        bodyBounds=new THREE.Box3().setFromObject(target.userData.visual.getObjectByName('elastic-shield'));
+      assert.ok(ringBounds.min.y>hippoBounds.max.y+.3,'the complete gold sight must clear the rendered hippo, not just its collider');
+      assert.ok(stemBounds.min.y<bodyBounds.max.y&&stemBounds.max.y>ringBounds.min.y,'a thin stem must connect the raised sight to its real target');
+      const center=ring.getWorldPosition(new THREE.Vector3());
+      for(const dy of[0,-.62]){
+        const point=center.clone().add(new THREE.Vector3(0,dy,0)),direction=point.clone().sub(scene.camera.position);ray.far=direction.length()-.01;ray.set(scene.camera.position,direction.normalize());
+        assert.equal(ray.intersectObject(hippo,true).length,0,`the hippo hides the target pin at ${width}px`);
+      }
+      const projected=project(scene,center);assert.ok(Math.abs(projected.x)<.85&&projected.y<.9&&projected.y>-.5);
+      assert.equal(target.userData.event.height,1.05);assert.equal(target.userData.event.radius,1.15);assert.equal(hippo.visible,true);
+    }
+    scene.dispose();
+  }
+});
+
 test('ball traits use one bounded procedural surface mesh and release resources when equipped or disposed',()=>{
   const scene=harness(),run=runFixture(),identities=new Set(),colors=new Set(),geometries=[],materials=[];
   for(const trait of['standard','heavy','elastic','spin']){
