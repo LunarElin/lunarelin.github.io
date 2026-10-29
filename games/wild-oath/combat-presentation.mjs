@@ -26,6 +26,14 @@ export function effectKind(card={}) {
   return 'form';
 }
 
+// Read the resolved impact, not an unplayed card or the already-advanced battle actor.
+// Fully blocked hits show a shield; capped overkill produces no phantom hit effect.
+export function targetImpactKind(beat={},card={}) {
+  if(!(beat.damage>0||beat.absorbed>0))return null;
+  if(!(beat.damage>0))return 'shield';
+  return {counter:'counter',reaction:'poison',shock:'shock',poison:'poison',burn:'fire',fatigue:'claw'}[beat.kind]||effectKind(card);
+}
+
 export function cardPlayStatus(event) {
   if(event.preview)return event.ready?'사용 준비':'충전 부족 · 버림 예정';
   return event.type==='charge'?'충전 부족으로 버림':'자동 발동';

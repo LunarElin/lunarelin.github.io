@@ -19,6 +19,7 @@
 - 2026-10-29 목재·황동 UI와 착지·타격 연출 이력: [TAVERN-REDESIGN.md](TAVERN-REDESIGN.md).
 - 최신 카툰 아트·25종 개별 그림과 검증: [CARTOON-ART-UPDATE.md](CARTOON-ART-UPDATE.md). 사용자 영상의 규칙 대조·화상 교정·밸런스: [VIDEO-RULES-REVIEW.md](VIDEO-RULES-REVIEW.md).
 - 전투 배치 고정·차례별 카드 정리·아이콘 메뉴: [QUIET-UI-UPDATE.md](QUIET-UI-UPDATE.md). 화면 수치 모델은 [combat-ui.mjs](combat-ui.mjs), 아이콘은 [menu-icons.mjs](menu-icons.mjs), 배치는 [menu-icons.css](menu-icons.css)·[battle-readability.css](battle-readability.css)다.
+- 최신 대상 위치 이펙트·레이저 제거: [TARGET-EFFECTS-UPDATE.md](TARGET-EFFECTS-UPDATE.md). 실제 Kenney 무료 PNG·CC0·가공 기록은 [assets/kenney-effects/README.md](assets/kenney-effects/README.md), 대상·리소스 회귀는 [tests/target-effects.test.mjs](tests/target-effects.test.mjs)다.
 - 런타임 외부 의존성·빌드·패키지 설치 없음. 로컬 이미지·글꼴·효과음을 사용한다.
 
 저장소 루트에서 실행한다. 기존 서버와 8765 포트를 먼저 확인하고 재사용한다.
@@ -37,7 +38,7 @@ node games/wild-oath/tests/serve.mjs
 
 전투의 이름·상태·자원·카드·하단 버튼은 고정된 칸을 사용한다. 긴 카드 설명·변신 규칙·발동 기록은 상시 노출하지 않으며 카드와 초상화를 눌러 상세를 확인한다. 상세를 여는 동안 전투는 멈추고 다음 미처리 카드부터 재개한다. 준비·보상·상대 덱·도감에서도 효과는 그림 기호와 수치로 요약하며 조건부 효과의 정확한 문장은 상세 창에 보존한다. 기력 별·감전 번개·다음 카드 충전·상대 기력 감소는 다른 기호를 쓴다. 앞/뒤 표식은 카드 뒷면 전환이 아니라 맨 앞/맨 뒤 정렬이며 화살표와 무작위 아이콘으로 표시한다. 현재 정렬은 누르는 버튼으로 만들지 않는다.
 
-사용할 카드는 들어올려 제시한 뒤 테이블에 착지하고 효과를 발사한다. 4배속에서도 뽑기 140ms·카드 제시 260ms·접촉 80ms·발사 180ms를 확보한다. 공격·화상·감전·독·방어·회복·기력·변신을 다른 형태와 선명한 색으로 표시하며, 연타·반격·독성 폭발은 실제 규칙 순서대로 160ms 간격으로 나온다. 일반·연계·강타의 타격 크기를 구분하고 실제 생명 피해가 있는 강타에 60ms 시각 정지를 적용한다. 큰 피해 숫자와 생명바가 타격마다 함께 바뀌고, 막은 피해는 별도로 표시한다. 효과음은 로컬 Kenney 타격음과 직접 합성한 준비·속성음을 조합한다. 음원 로딩이나 실패는 전투 진행을 기다리게 하지 않는다.
+사용할 카드는 들어올려 제시한 뒤 테이블에 착지하고 실제 효과 대상 위치에서만 이펙트를 표시한다. 레이저·이동 구체는 사용하지 않는다. 4배속에서도 뽑기 140ms·카드 제시 260ms·접촉 80ms·발동 준비 180ms를 확보한다. Kenney Particle Pack의 실제 CC0 투명 PNG 8개(120,851B)를 색 마스크·기호와 조합하여 공격·화상·감전·독·방어·회복·기력·변신을 구분한다. 연타·반격·독성 폭발은 실제 규칙 순서대로 160ms 간격으로 나온다. 일반·연계·강타의 타격 크기를 구분하고 실제 생명 피해가 있는 강타에 60ms 시각 정지를 적용한다. 큰 피해 숫자와 생명바가 타격마다 함께 바뀌고, 막은 피해는 별도로 표시한다. 효과음은 로컬 Kenney 타격음과 직접 합성한 준비·속성음을 조합한다. 이미지·음원 로딩이나 실패는 전투 진행을 기다리게 하지 않는다.
 
 모션 감소 설정에서는 이동·반동·흔들림을 끄고 대상별 피해를 합산하여 정적인 강조와 숫자를 유지한다. 연출은 저장된 결과를 표시할 뿐 규칙을 다시 실행하지 않는다. 카드 처리 도중 정지하면 표시를 이미 확정된 생명으로 맞추고, 재개 시 다음 행동으로 이어간다. 사용 전 제시 단계에서 정지하면 아직 해당 카드를 소비하지 않는다.
 
@@ -168,7 +169,7 @@ node --check games/wild-oath/combat-ui.mjs
 node --check games/wild-oath/menu-icons.mjs
 node --check games/wild-oath/catalog.mjs
 node --check games/wild-oath/tests/serve.mjs
-node --test games/wild-oath/tests/rules.test.mjs games/wild-oath/tests/combat-presentation.test.mjs games/wild-oath/tests/deck-analysis.test.mjs games/wild-oath/tests/card-integrity.test.mjs games/wild-oath/tests/card-art.test.mjs games/wild-oath/tests/combat-ui.test.mjs
+node --test games/wild-oath/tests/rules.test.mjs games/wild-oath/tests/combat-presentation.test.mjs games/wild-oath/tests/deck-analysis.test.mjs games/wild-oath/tests/card-integrity.test.mjs games/wild-oath/tests/card-art.test.mjs games/wild-oath/tests/combat-ui.test.mjs games/wild-oath/tests/target-effects.test.mjs
 node games/wild-oath/tests/balance-campaigns.mjs --seeds 100
 git diff --check -- games/wild-oath
 ```

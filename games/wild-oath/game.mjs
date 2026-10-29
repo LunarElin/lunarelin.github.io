@@ -1,5 +1,5 @@
 import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs?v=cartoon-4';
-import { presentationTiming, effectKind, impactBeats, impactTotals, cardPlayStatus, impactFeedback } from './combat-presentation.mjs?v=tavern-3';
+import { presentationTiming, impactBeats, impactTotals, cardPlayStatus, impactFeedback, targetImpactKind } from './combat-presentation.mjs?v=target-6';
 import { analyzeDeck } from './deck-analysis.mjs?v=cartoon-4';
 import { cardArtClass } from './card-art.mjs?v=cartoon-4';
 import { icon, decorateMenus } from './menu-icons.mjs?v=quiet-5';
@@ -16,6 +16,7 @@ let activeTab = 'deck', detail = null, presentedCard = null;
 let mainTimer = null, toastTimer = null, audioContext = null, master = null, audioLoading = false;
 let audioBuffers = {}, activeSources = new Set();
 let lastJourneyChoiceAt = 0;
+let targetEffectsWarmed=false;
 const effectTimers = new Set();
 const effectClasses = new WeakMap();
 try {
@@ -201,6 +202,7 @@ function renderHealth(battle) {
 }
 function renderBattle() {
   if (!state.battle) return;
+  warmTargetEffects();
   const battle = state.battle, player = battle.player, enemy = battle.enemy;
   const owner=visibleCardActor(battle.actor,presentedCard);
   $('battle-stage').textContent = `${state.stage+1} / ${ENCOUNTERS.length}`;
@@ -330,38 +332,44 @@ function fxNode(className, p, duration=800, extra='') {
 }
 function floatText(text, id, kind='', index=0) {
   const p=point($(id).querySelector('.portrait-ring')), width=$('battlefield').clientWidth;
-  p.x=Math.max(68,Math.min(width-68,p.x+(index%3-1)*18));p.y-=Math.floor(index/3)*12;
+  p.x=Math.max(48,Math.min(width-48,p.x+18+(index%2)*6));p.y-=12+Math.floor(index/3)*12;
   const node=fxNode(`damage-float ${kind}`,p,1050);node.textContent=text;
 }
 function effectChip(text,id,kind,index=0) {
   const p=point($(id).querySelector('.portrait-ring')),width=$('battlefield').clientWidth;
   const slot=`${id}-${Math.min(index,1)}`;
   $('effects').querySelectorAll('.effect-chip').forEach(node=>{if(node.dataset.slot===slot)node.remove();});
-  p.x=Math.max(70,Math.min(width-70,p.x));p.y-=16;
+  p.x=Math.max(40,Math.min(width-40,p.x+34));p.y-=16;
   const symbol={shield:'defense',burn:'fire',energy:'energy',charge:'charge',poison:'poison',shock:'shock'}[kind]||kind;
   const node=fxNode(`effect-chip kind-${kind}`,p,1050,`--chip-index:${Math.min(index,1)};`);node.dataset.slot=slot;node.setAttribute('aria-label',text);node.innerHTML=`${icon(symbol)}<b>${(text.match(/[+−]?\d+/g)||[]).join(' ')}</b>`;
 }
-function aura(id,kind) {fxNode(`support-aura kind-${kind}`,point($(id).querySelector('.portrait-ring')),900);}
-function impact(id,heavy,kind='claw',form='wolf',tier='normal',stopMs=0) {
+function warmTargetEffects() {
+  if(targetEffectsWarmed)return;
+  targetEffectsWarmed=true;
+  for(const name of ['scratch','burst','fire','splash','ring','spark','smoke','flare']){
+    const texture=new Image();texture.decoding='async';texture.src=`assets/kenney-effects/${name}.png`;
+    if(texture.decode)texture.decode().catch(()=>{});
+  }
+}
+function targetEffect(id,kind,tier='normal',role='impact') {
+  const p=point($(id).querySelector('.portrait-ring'));
+  const node=fxNode(`target-fx kind-${kind} tier-${tier} fx-${role}`,p,reducedMotion?440:370);
+  node.dataset.fxTarget=id;node.dataset.fxKind=kind;
+  const emblem={shield:'defense',heal:'heal',poison:'poison',counter:'counter',form:'form',charge:'charge'}[kind];
+  node.innerHTML=`<span class="fx-sprite fx-wave"></span><span class="fx-sprite fx-core"></span>${emblem?`<span class="fx-emblem">${icon(emblem)}</span>`:''}${reducedMotion?'':'<span class="fx-sprite fx-fleck fleck-a"></span><span class="fx-sprite fx-fleck fleck-b"></span>'}`;
+}
+function aura(id,kind) {targetEffect(id,kind,'normal','support');}
+function impact(id,heavy,kind='claw',tier='normal',stopMs=0) {
   $(id).classList.remove(heavy?'hit':'heavy-hit');
   playClass($(id),heavy?'heavy-hit':'hit',(heavy?460:380)+stopMs);
   if(stopMs)playClass($(id),'hit-stop',stopMs);
   if(!reducedMotion)playClass($('battlefield'),heavy?'shake-heavy':'shake',heavy?320:240);
-  const p=point($(id).querySelector('.portrait-ring'));
-  fxNode(`hit-burst kind-${kind} tier-${tier}`,p,560,`--fx-size:${heavy?130:tier==='linked'?105:90}px;`);
-  fxNode(`effect-ripple kind-${kind}`,p,600);
-  if(reducedMotion)return;
-  for(let i=0;i<(heavy?8:5);i++){
-    const angle=i/8*Math.PI*2,distance=25+(i%3)*13;
-    fxNode(`spark ${form} kind-${kind}`,p,550,`--sx:${Math.cos(angle)*distance}px;--sy:${Math.sin(angle)*distance}px;`);
-  }
+  targetEffect(id,kind,tier);
 }
 function landCard(actor) {
   const slot=$(`${actor}-active-card`);
   if(!reducedMotion){
     playClass(slot,'card-slam',180);
-    const card=slot.getBoundingClientRect(),field=$('battlefield').getBoundingClientRect();
-    fxNode('card-landing',{x:card.left+card.width/2-field.left,y:card.bottom-field.top-3},420);
   }
   sound('slam');
 }
@@ -372,14 +380,6 @@ function flyCard(instance,actor) {
   node.className=`flying-card dealt-card ${cardArtClass(card)}`;node.dataset.owner=actor;
   node.style.cssText=`left:${origin.x+origin.width/2}px;top:${origin.y+origin.height/2}px;--dx:${dest.x+dest.width/2-origin.x-origin.width/2}px;--dy:${dest.y+dest.height/2-origin.y-origin.height/2}px;animation-duration:${duration}ms;`;
   node.innerHTML=`<span>${card.name}</span>`;document.body.append(node);effectLater(()=>node.remove(),duration+30);
-}
-function castEffect(actor,kind,travel) {
-  const source=actor==='player'?'hero':'enemy',target=actor==='player'?'enemy':'hero';
-  playClass($(source),'casting',340);
-  if(reducedMotion)return;
-  const from=point($(`${actor}-active-card`)),to=point($(target).querySelector('.portrait-ring')),dx=to.x-from.x,dy=to.y-from.y;
-  const extra=`--dx:${dx}px;--dy:${dy}px;--distance:${Math.hypot(dx,dy)}px;--angle:${Math.atan2(dy,dx)*180/Math.PI}deg;--travel-ms:${travel}ms;`;
-  fxNode(`cast-trail kind-${kind}`,from,travel+30,extra);fxNode(`effect-orb kind-${kind}`,from,travel+30,extra);
 }
 function beginStep() {
   if(state.phase!=='battle'||modalOpen()||document.hidden)return;
@@ -400,9 +400,8 @@ function beginStep() {
       if(ready){
         landCard(actor);
         later(()=>{
-          const hostile=card.type==='attack'?effectKind(card):card.shock?'shock':card.burn?'fire':card.poison?'poison':null;
-          if(hostile)castEffect(actor,hostile,timing.travel);
-          else playClass($(actor==='player'?'hero':'enemy'),'casting',340);
+          playClass($(actor==='player'?'hero':'enemy'),'casting',340);
+          // Keep a short anticipation beat; effects begin at the resolved recipient only.
           sound('cast');later(resolveStep,timing.travel);
         },timing.contact);
       } else {
@@ -413,13 +412,13 @@ function beginStep() {
 }
 function showImpactBeat(beat,event,health) {
   const targetId=beat.target==='player'?'hero':'enemy',sourceId=beat.actor==='player'?'hero':'enemy';
-  const kind={counter:'counter',reaction:'poison',shock:'shock',poison:'poison',burn:'fire',fatigue:'claw'}[beat.kind]||effectKind(CARDS[event.cardId]);
+  const kind=targetImpactKind(beat,CARDS[event.cardId]);
   const feedback=impactFeedback(beat,reducedMotion),heavy=feedback.heavy;
   health[beat.target].hp=Math.max(0,health[beat.target].hp-beat.damage);
   if(beat.kind==='reaction')health[beat.actor].hp=Math.min(health[beat.actor].maxHp,health[beat.actor].hp+event.reactionHeal);
   renderHealth(health);
   $('battlefield').dataset.presentation='impact';$('battlefield').dataset.beat=String(beat.index+1);
-  if(beat.damage||beat.absorbed)impact(targetId,heavy,beat.damage?kind:'shield',beat.kind==='counter'?'bear':event.formAfter,feedback.tier,feedback.stopMs);
+  if(kind)impact(targetId,heavy,kind,feedback.tier,feedback.stopMs);
   if(!reducedMotion&&(beat.damage||beat.absorbed)){
     $('effects').querySelectorAll('.damage-float[data-damage-target]').forEach(node=>{if(node.dataset.damageTarget===targetId)node.remove();});
     if(beat.damage){floatText(`−${beat.damage}`,targetId,heavy?'critical':kind==='poison'?'poison':'',beat.index);$('effects').lastElementChild.dataset.damageTarget=targetId;}
@@ -468,9 +467,13 @@ function resolveStep() {
     if(event.heal){aura(sourceId,'heal');floatText(`+${event.heal}`,sourceId,'heal');if(!beats.length)sound('heal');}
     const supplied=event.energyGained-event.energyRecovered;
     if(supplied>0){aura(sourceId,'energy');effectChip(`기력 +${supplied}`,sourceId,'energy',ownChip++);if(!beats.length)sound('energy');}
-    if(event.nextCharged)effectChip(`다음 충전 +${event.nextCharged}`,sourceId,'charge',ownChip++);
+    if(event.nextCharged){aura(sourceId,'charge');effectChip(`다음 충전 +${event.nextCharged}`,sourceId,'charge',ownChip++);}
     let targetChip=0;
-    for(const [key,label] of [['poison','맹독'],['burn','화상'],['shock','감전']])if(event[key])effectChip(`${label} +${event[key]}`,targetId,key,targetChip++);
+    for(const [key,label] of [['poison','맹독'],['burn','화상'],['shock','감전']])if(event[key]){
+      const statusKind={burn:'fire',shock:'shock',poison:'poison'}[key];
+      if(!beats.some(beat=>beat.target===event.target&&beat.delay===0&&targetImpactKind(beat,CARDS[event.cardId])===statusKind))targetEffect(targetId,statusKind,'normal','status');
+      effectChip(`${label} +${event[key]}`,targetId,key,targetChip++);
+    }
   }
   const lead=event.links?.find(link=>link.kind==='form')||event.links?.[0];
   $('battle-caption').textContent=`${event.actor==='player'?'내':'상대'} ${event.name||'재섞기'}${event.type==='charge'?`, 충전 ${event.charged}/${event.cost}`:lead?`, ${lead.name}`:''}`;

@@ -1,5 +1,9 @@
 # 리소스 출처
 
+## 대상 위치 파티클 · 2026-10-29~30
+
+공식 [Kenney Particle Pack](https://kenney.nl/assets/particle-pack)의 실제 투명 PNG 8개를 반입했다. 공식 CC0 표시와 ZIP 동봉 라이선스를 확인했다. 런타임 파일은 `kenney-effects/` 안의 256×256 PNG 8개, 합계120,851B이며 외부 핫링크·전체 팩·미사용 파일은 포함하지 않는다. 원본 경로·가공·출처는 [리소스 기록](kenney-effects/README.md)·[manifest](kenney-effects/manifest.json), 라이선스 원문은 [LICENSE.txt](kenney-effects/LICENSE.txt), 대상·화면 검증은 [업데이트 기록](../TARGET-EFFECTS-UPDATE.md)을 참고한다. 캐릭터 아트와 UI 기호의 별도 출처는 아래 기록을 유지한다.
+
 ## 원본 기능 아이콘 · 2026-10-29
 
 `../menu-icons.mjs`의 메뉴·효과 기호는 이 프로젝트에서 직접 작성한 SVG 경로다. 외부 아이콘 팩·폰트·이미지를 반입하지 않았다. 기력 별·감전 번개·선충전 카드·기력 감소·정렬 화살표를 구분하고, 접근성 이름은 코드로 표시한다. [정보·차례 UI 개선 검증](../QUIET-UI-UPDATE.md)을 참고한다. 아래 카툰 아트와 Kenney CC0 UI/효과음의 출처는 그대로 유지한다.

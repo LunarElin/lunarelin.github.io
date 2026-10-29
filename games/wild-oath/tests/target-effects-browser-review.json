@@ -1,0 +1,375 @@
+{
+  "date": "2026-10-30",
+  "environment": "Codex internal browser; desktop viewport emulation, not physical phones",
+  "viewports": [
+    {
+      "width": 320,
+      "height": 640
+    },
+    {
+      "width": 390,
+      "height": 640
+    },
+    {
+      "width": 844,
+      "height": 390
+    },
+    {
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "samples320": [
+    {
+      "beams": 0,
+      "cards": 1,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [],
+      "overflow": false,
+      "phase": "cast"
+    },
+    {
+      "beams": 0,
+      "cards": 1,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [
+        {
+          "kind": "shield",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/ring.png\")",
+          "offsetX": 0,
+          "offsetY": 0,
+          "target": "hero"
+        }
+      ],
+      "overflow": false,
+      "phase": "impact"
+    },
+    {
+      "beams": 0,
+      "cards": 0,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [
+        {
+          "kind": "shield",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/ring.png\")",
+          "offsetX": 0,
+          "offsetY": 0,
+          "target": "hero"
+        }
+      ],
+      "overflow": false,
+      "phase": "settle"
+    },
+    {
+      "beams": 0,
+      "cards": 1,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [],
+      "overflow": false,
+      "phase": "cast"
+    },
+    {
+      "beams": 0,
+      "cards": 1,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [
+        {
+          "kind": "claw",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/scratch.png\")",
+          "offsetX": 1.649810791015625,
+          "offsetY": -1.1012496948242188,
+          "target": "enemy"
+        }
+      ],
+      "overflow": false,
+      "phase": "impact"
+    },
+    {
+      "beams": 0,
+      "cards": 0,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [
+        {
+          "kind": "claw",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/scratch.png\")",
+          "offsetX": -0.31852054595947266,
+          "offsetY": -0.30326080322265625,
+          "target": "enemy"
+        },
+        {
+          "kind": "claw",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/scratch.png\")",
+          "offsetX": -0.31852054595947266,
+          "offsetY": -0.30326080322265625,
+          "target": "enemy"
+        }
+      ],
+      "overflow": false,
+      "phase": "settle"
+    },
+    {
+      "beams": 0,
+      "cards": 1,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [],
+      "overflow": false,
+      "phase": "cast"
+    },
+    {
+      "beams": 0,
+      "cards": 1,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [
+        {
+          "kind": "claw",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/scratch.png\")",
+          "offsetX": -0.000031781005858988465,
+          "offsetY": 0.00001389770508097854,
+          "target": "enemy"
+        }
+      ],
+      "overflow": false,
+      "phase": "impact"
+    },
+    {
+      "beams": 0,
+      "cards": 0,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [
+        {
+          "kind": "claw",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/scratch.png\")",
+          "offsetX": 21.491023707580567,
+          "offsetY": -9.256146838378903,
+          "target": "enemy"
+        }
+      ],
+      "overflow": false,
+      "phase": "settle"
+    },
+    {
+      "beams": 0,
+      "cards": 1,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [],
+      "overflow": false,
+      "phase": "cast"
+    },
+    {
+      "beams": 0,
+      "cards": 1,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [
+        {
+          "kind": "shield",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/ring.png\")",
+          "offsetX": 0,
+          "offsetY": 0,
+          "target": "hero"
+        },
+        {
+          "kind": "heal",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/ring.png\")",
+          "offsetX": 0,
+          "offsetY": 0,
+          "target": "hero"
+        }
+      ],
+      "overflow": false,
+      "phase": "impact"
+    },
+    {
+      "beams": 0,
+      "cards": 0,
+      "caster": "player",
+      "footerBottom": 632,
+      "fx": [
+        {
+          "kind": "shield",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/ring.png\")",
+          "offsetX": 0,
+          "offsetY": 0,
+          "target": "hero"
+        },
+        {
+          "kind": "heal",
+          "mask": "url(\"http://localhost:8765/games/wild-oath/assets/kenney-effects/ring.png\")",
+          "offsetX": 0,
+          "offsetY": 0,
+          "target": "hero"
+        }
+      ],
+      "overflow": false,
+      "phase": "settle"
+    }
+  ],
+  "summary": {
+    "samples": 12,
+    "noBeams": true,
+    "noHorizontalOverflow": true,
+    "noPreResolutionTargetEffects": true,
+    "atMostOneCard": true,
+    "impactAnchor": "Visible effect centers match recipient at contact; subsequent recoil can move the portrait by about22px relative to the stationary contact burst."
+  },
+  "savePauseReload": {
+    "playerHP": 70,
+    "enemyHP": 4,
+    "afterReloadSame": true,
+    "effectsAfterPause": 0,
+    "cardsAfterPause": 0
+  },
+  "play": {
+    "resumed": "wolf campaign at trial2,turn14,HP60/53",
+    "trial2": "natural victory at turn25,HP70 before reward",
+    "reward": "wolf",
+    "exploration": "gift -> kindle",
+    "bulkMerge": "one wolf pair -> tier2, retained top mark",
+    "trial3": "natural victory at HP69, then storm reward",
+    "trial4": "merchant -> tier2 storm; ordinary top mark set; first attack HP70/65 and shock5; paused"
+  },
+  "nativeMasks": "All8 inspected at130CSSpx on dark game-like ground",
+  "representativeRuntimeKinds": [
+    "claw",
+    "shield",
+    "heal",
+    "energy",
+    "form",
+    "shock"
+  ],
+  "formFrames": [
+    [
+      {
+        "kind": "form",
+        "opacity": "1",
+        "target": "hero"
+      },
+      {
+        "kind": "energy",
+        "opacity": "1",
+        "target": "hero"
+      }
+    ],
+    [
+      {
+        "kind": "form",
+        "opacity": "1",
+        "target": "hero"
+      },
+      {
+        "kind": "energy",
+        "opacity": "1",
+        "target": "hero"
+      }
+    ],
+    [
+      {
+        "kind": "form",
+        "opacity": "0.436201",
+        "target": "hero"
+      },
+      {
+        "kind": "energy",
+        "opacity": "0.436201",
+        "target": "hero"
+      }
+    ],
+    [
+      {
+        "kind": "form",
+        "opacity": "0.0430583",
+        "target": "hero"
+      },
+      {
+        "kind": "energy",
+        "opacity": "0.0430583",
+        "target": "hero"
+      }
+    ]
+  ],
+  "energyFrames": [
+    [
+      {
+        "kind": "energy",
+        "opacity": "0.985972",
+        "target": "hero"
+      }
+    ],
+    [
+      {
+        "kind": "energy",
+        "opacity": "1",
+        "target": "hero"
+      }
+    ],
+    [
+      {
+        "kind": "energy",
+        "opacity": "1",
+        "target": "hero"
+      }
+    ],
+    [
+      {
+        "kind": "energy",
+        "opacity": "1",
+        "target": "hero"
+      }
+    ]
+  ],
+  "landscape": {
+    "beams": 0,
+    "footerBottom": 383,
+    "horizontalOverflow": false,
+    "clawRecipient": "enemy"
+  },
+  "consoleWarningsAndErrors": 0,
+  "unverified": [
+    "physical iOS Safari/Android Chrome, notch/address bar",
+    "audio listening and FPS/GPU profiling",
+    "OS reduced-motion runtime",
+    "every sprite/card/form combination in motion",
+    "fresh five-trial completion with this effect change"
+  ],
+  "shockFrames": [
+    [
+      {
+        "kind": "shock",
+        "opacity": "1",
+        "target": "enemy"
+      }
+    ],
+    [
+      {
+        "kind": "shock",
+        "opacity": "1",
+        "target": "enemy"
+      }
+    ],
+    [
+      {
+        "kind": "shock",
+        "opacity": "1",
+        "target": "enemy"
+      }
+    ],
+    [
+      {
+        "kind": "shock",
+        "opacity": "1",
+        "target": "enemy"
+      }
+    ]
+  ],
+  "shockDeduplication": "one target shock effect in each of four frames for the card that deals shock damage and applies shock status"
+}

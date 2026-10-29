@@ -1,0 +1,284 @@
+{
+  "pack": "Particle Pack",
+  "creator": "Kenney Vleugels (Kenney.nl)",
+  "source_url": "https://kenney.nl/assets/particle-pack",
+  "acquired": "2026-10-29",
+  "license": "CC0-1.0",
+  "license_file": "LICENSE.txt",
+  "license_version_note": "Downloaded archive License.txt says Particle Pack (1.1); official page lists 1.0 released 2018. License wording preserved; one initial whitespace-only line removed for repository whitespace checks.",
+  "archive_sha256": "b631d4b07f7002549fdcf155f01141ad482f79f3440e4e301eed49ce5f1d8958",
+  "normalization": "Original nonzero alpha bounds cropped; proportional Lanczos resize to fit232x232; center on256x256 transparent RGBA; RGB normalized to white for alpha-mask use (this RGB step preserves resized alpha); optimized PNG. No semantic repainting. Runtime CSS tints alpha masks.",
+  "intended_css_pixels": [
+    80,
+    130
+  ],
+  "budget_bytes": 150000,
+  "total_image_bytes": 120851,
+  "review_scope": "Native 130px contact sheets for all eight files and representative integrated IAB battle effects at 1280x720, 320x640, 390x640, 844x390 reviewed. Not every effect combination or physical mobile device. See ../../TARGET-EFFECTS-UPDATE.md.",
+  "assets": [
+    {
+      "id": "scratch",
+      "file": "scratch.png",
+      "source_path": "PNG (Transparent)/scratch_01.png",
+      "source_sha256": "7dc0b16a5240738273684bfdf423eefd8a135356af1fee759217cdd560a4a935",
+      "source_size": [
+        512,
+        512
+      ],
+      "alpha_crop": [
+        15,
+        0,
+        497,
+        499
+      ],
+      "fitted_size": [
+        224,
+        232
+      ],
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "transparent_pixels": 38606,
+      "nontransparent_pixels": 26930,
+      "bytes": 15252,
+      "sha256": "d10a2951659a029297f0d3aa7a9fa7a15abbc5f01f508d7077909cf9e0f309c1",
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "burst",
+      "file": "burst.png",
+      "source_path": "PNG (Transparent)/magic_03.png",
+      "source_sha256": "c2ef5fe86cd2fd08e5b9768389ab6580b346c391db3c7c09fc9b0a63e00ec4ce",
+      "source_size": [
+        512,
+        512
+      ],
+      "alpha_crop": [
+        10,
+        0,
+        502,
+        504
+      ],
+      "fitted_size": [
+        226,
+        232
+      ],
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "transparent_pixels": 42126,
+      "nontransparent_pixels": 23410,
+      "bytes": 16346,
+      "sha256": "35a128792a16a739c342ca7deb687fb31871fc023c23de7d540743a098fa8e9e",
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "fire",
+      "file": "fire.png",
+      "source_path": "PNG (Transparent)/flame_05.png",
+      "source_sha256": "4c5cc587260010e4bb58b03cc2561ca0e96409e7db25ea4183cd3fb1d0237dc8",
+      "source_size": [
+        512,
+        512
+      ],
+      "alpha_crop": [
+        209,
+        112,
+        309,
+        382
+      ],
+      "fitted_size": [
+        86,
+        232
+      ],
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "transparent_pixels": 52508,
+      "nontransparent_pixels": 13028,
+      "bytes": 8228,
+      "sha256": "b673d70d17ab7228dc864aca81dff151f80b7936a475b479f88013736e7f9976",
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "splash",
+      "file": "splash.png",
+      "source_path": "PNG (Transparent)/smoke_03.png",
+      "source_sha256": "a71f8abcac64f8d73a94625cc9a10033dbeafa7eaea750560cba0daa73fe8752",
+      "source_size": [
+        512,
+        512
+      ],
+      "alpha_crop": [
+        113,
+        123,
+        400,
+        392
+      ],
+      "fitted_size": [
+        232,
+        217
+      ],
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "alpha_min": 0,
+      "alpha_max": 185,
+      "transparent_pixels": 35360,
+      "nontransparent_pixels": 30176,
+      "bytes": 19275,
+      "sha256": "43dd0318a5819d400e1253133bb558139e5fa2fc90e4af2887fd9cc420089786",
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "ring",
+      "file": "ring.png",
+      "source_path": "PNG (Transparent)/circle_02.png",
+      "source_sha256": "8a2112a6a5610c7cdcbfe8af0a5162b42dfb3431c63f494743945337b7981e51",
+      "source_size": [
+        512,
+        512
+      ],
+      "alpha_crop": [
+        64,
+        0,
+        449,
+        449
+      ],
+      "fitted_size": [
+        199,
+        232
+      ],
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "transparent_pixels": 48706,
+      "nontransparent_pixels": 16830,
+      "bytes": 13326,
+      "sha256": "9b51647f34e7eaf8f04676eb1edd464246910f623a61b487633c74cc07ed69aa",
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "spark",
+      "file": "spark.png",
+      "source_path": "PNG (Transparent)/spark_01.png",
+      "source_sha256": "5902da3a324cad0a4b5a88ce1e3c9cc18fee50922c358ce93d8c9f1ad7708f0a",
+      "source_size": [
+        512,
+        512
+      ],
+      "alpha_crop": [
+        9,
+        0,
+        507,
+        484
+      ],
+      "fitted_size": [
+        232,
+        225
+      ],
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "transparent_pixels": 29721,
+      "nontransparent_pixels": 35815,
+      "bytes": 20931,
+      "sha256": "ef26eea1f8387cadbacb12e1cdcdc9af430af381add207b5d0c78df8743cca6d",
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "smoke",
+      "file": "smoke.png",
+      "source_path": "PNG (Transparent)/smoke_06.png",
+      "source_sha256": "d988b03bb46797be913333f06b26ff2aad55ec082cfb7d3d18ce86ccb71559b5",
+      "source_size": [
+        512,
+        512
+      ],
+      "alpha_crop": [
+        61,
+        61,
+        420,
+        439
+      ],
+      "fitted_size": [
+        220,
+        232
+      ],
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "alpha_min": 0,
+      "alpha_max": 190,
+      "transparent_pixels": 31403,
+      "nontransparent_pixels": 34133,
+      "bytes": 19388,
+      "sha256": "26068a3d24804111b77b6c34e94b1ed276705606635d1dbd340159dc88d898d0",
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "flare",
+      "file": "flare.png",
+      "source_path": "PNG (Transparent)/star_07.png",
+      "source_sha256": "d3bc9b8f1960baab452e8a5e816b9edeee4420dbed5ddd7ebe174519860a451a",
+      "source_size": [
+        512,
+        512
+      ],
+      "alpha_crop": [
+        19,
+        21,
+        493,
+        491
+      ],
+      "fitted_size": [
+        232,
+        230
+      ],
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "transparent_pixels": 55257,
+      "nontransparent_pixels": 10279,
+      "bytes": 8105,
+      "sha256": "ada3c860eab543f45c1f5f752a9b5e7d2e12de04cbf099f723d167dfc760c7da",
+      "pivot": [
+        0.5,
+        0.5
+      ]
+    }
+  ]
+}
