@@ -77,3 +77,49 @@ test('leaving combat clears temporary danger and blessing but preserves uncollec
   assert.equal(state.fieldEvents.boon, null); assert.deepEqual(state.fieldEvents.hazards, []);
   assert.equal(state.fieldEvents.items.length, 1); assert.equal(state.player.hp, 100);
 });
+
+test('a locked later stage creates neither discoveries nor combat hazards', () => {
+  const { state, context, tick } = fixture();
+  state.progress.unlockedDeep = true; state.player.z = -60; state.enemies[0].z = -60;
+  context.world.minZ = -98; context.zones = [{ id: 'later', stageId: 'sky', x: 0, z: -60, radius: 6, deep: true }];
+  context.zoneUnlocked = () => false; context.unlockedMinZ = () => -42;
+  state.fieldEvents.nextDiscovery = state.fieldEvents.nextHazard = 0; tick(20);
+  assert.deepEqual(state.fieldEvents.items, []); assert.deepEqual(state.fieldEvents.hazards, []);
+  assert.equal(state.opened, 0); assert.equal(state.hurts, 0);
+});
+
+test('later-stage discoveries respect the unlocked boundary and every local safe camp', () => {
+  let discoveries = 0;
+  for (let seed = 1; seed <= 32; seed++) {
+    const { state, context, tick } = fixture(); state.rng = seed * 7919;
+    state.player.z = -67; context.world.minZ = -98;
+    context.zones = [{ id: 'later', stageId: 'ancient', x: 0, z: -67, radius: 6 }];
+    const camps = [context.world.camp, { x: -3, z: -65, radius: 1.2 }];
+    context.zoneUnlocked = () => true; context.unlockedMinZ = () => -70; context.camps = () => camps;
+    state.fieldEvents.nextDiscovery = 0; tick(.05);
+    for (const item of state.fieldEvents.items) {
+      discoveries++;
+      assert.ok(item.z >= -69.2);
+      assert.ok(camps.every(camp => Math.hypot(item.x - camp.x, item.z - camp.z) >= camp.radius + 1.5));
+      assert.ok(Math.hypot(item.x - state.player.x, item.z - state.player.z) >= 2.6);
+    }
+  }
+  assert.ok(discoveries > 10);
+});
+
+test('later-stage warnings never overlap a local camp or extend past a locked gate', () => {
+  const { state, context, tick } = fixture();
+  state.player.z = -48; state.enemies[0].z = -48; context.world.minZ = -98;
+  context.zones = [{ id: 'later', stageId: 'ancient', x: 0, z: -48, radius: 6 }];
+  const camp = { x: 0, z: -44, radius: 3 };
+  context.zoneUnlocked = () => true; context.camps = () => [context.world.camp, camp];
+  context.unlockedMinZ = () => -50; context.random = () => .1;
+  state.fieldEvents.nextDiscovery = 100; state.fieldEvents.nextHazard = 0; tick(.05);
+  assert.equal(state.fieldEvents.hazards.length, 0);
+  state.player.z = state.enemies[0].z = -50; state.fieldEvents.nextHazard = 0; tick(.05);
+  assert.equal(state.fieldEvents.hazards.length, 1);
+  for (const center of state.fieldEvents.hazards[0].centers) {
+    assert.ok(center.z - center.radius >= -50 - 1e-9);
+    assert.ok(Math.hypot(center.x - camp.x, center.z - camp.z) > camp.radius + center.radius);
+  }
+});

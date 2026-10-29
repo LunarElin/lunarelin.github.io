@@ -2,6 +2,8 @@ import { EQUIPMENT } from './equipment.mjs';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const safeCamps = (state, context) => context.camps?.(state) ?? [context.world.camp];
+const accessibleMinZ = (state, context) => context.unlockedMinZ?.(state) ?? (state.progress.unlockedDeep ? context.world.minZ : context.world.gateZ + .5);
 export function createFieldState() {
   return { items: [], hazards: [], boon: null, nextDiscovery: 9, nextHazard: 11, discoveries: 0, nextId: 1 };
 }
@@ -12,7 +14,7 @@ export function clearFieldCombat(state) {
 function nearbyZone(state, context) {
   let nearest = null, nearestEdge = Infinity;
   for (const zone of context.zones) {
-    if (zone.deep && !state.progress.unlockedDeep) continue;
+    if (context.zoneUnlocked ? !context.zoneUnlocked(state, zone) : zone.deep && !state.progress.unlockedDeep) continue;
     const edge = distance(state.player, zone) - zone.radius;
     if (edge <= 2 && edge < nearestEdge) { nearest = zone; nearestEdge = edge; }
   }
@@ -22,8 +24,8 @@ function discoveryPoint(state, context, zone) {
   for (let i = 0; i < 8; i++) {
     const angle = context.random(state) * Math.PI * 2, radius = (.3 + context.random(state) * .45) * zone.radius;
     const point = { x: zone.x + Math.cos(angle) * radius, z: zone.z + Math.sin(angle) * radius };
-    if (point.x < context.world.minX + .8 || point.x > context.world.maxX - .8 || point.z < context.world.minZ + .8 || point.z > context.world.maxZ - .8) continue;
-    if (distance(point, state.player) < 2.6 || distance(point, context.world.camp) < context.world.camp.radius + 1.5) continue;
+    if (point.x < context.world.minX + .8 || point.x > context.world.maxX - .8 || point.z < accessibleMinZ(state, context) + .8 || point.z > context.world.maxZ - .8) continue;
+    if (distance(point, state.player) < 2.6 || safeCamps(state, context).some(camp => distance(point, camp) < camp.radius + 1.5)) continue;
     return point;
   }
   return null;
@@ -46,13 +48,13 @@ function spawnHazard(state, context) {
   const angle = context.random(state) * Math.PI * 2, centers = [];
   const offsets = pattern === 'spores' ? [0] : [-1.6, 0, 1.6];
   const radius = pattern === 'spores' ? 1.45 : .9;
-  const minZ = state.progress.unlockedDeep ? context.world.minZ : context.world.gateZ + .5;
+  const minZ = accessibleMinZ(state, context);
   for (const offset of offsets) {
     const point = {
       x: clamp(state.player.x + Math.cos(angle) * offset, context.world.minX + radius, context.world.maxX - radius),
       z: clamp(state.player.z + Math.sin(angle) * offset, minZ + radius, context.world.maxZ - radius), radius,
     };
-    if (distance(point, context.world.camp) > context.world.camp.radius + radius) centers.push(point);
+    if (safeCamps(state, context).every(camp => distance(point, camp) > camp.radius + radius)) centers.push(point);
   }
   if (!centers.length) { field.nextHazard = 3; return; }
   field.hazards.push({ id: field.nextId++, pattern, centers, x: state.player.x, z: state.player.z,

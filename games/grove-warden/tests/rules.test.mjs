@@ -1,7 +1,7 @@
 import * as exportedRules from '../rules.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, stepGame, useSkill, setPaused, RULES, WORLD, HUNT_ZONES, MONSTER_STATS, SKILLS, getSkillOffer, learnSkill, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, equipmentAction, respawnAtCamp } from '../rules.mjs';
+import { createGame, stepGame, useSkill, setPaused, RULES, WORLD, STAGES, HUNT_ZONES, MONSTER_STATS, SKILLS, getSkillOffer, learnSkill, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, equipmentAction, respawnAtCamp, getStage, getCamp, getUnlockedMinZ, isStageUnlocked, getFormOffer, buyFormUpgrade } from '../rules.mjs';
 import { EQUIPMENT, normalizeGear, gearBonuses, getEquipmentOffer } from '../equipment.mjs';
 
 function playing(seed = 11) {
@@ -501,7 +501,7 @@ test('saved first boss kill records never suppress a new field boss or unlock a 
   const unlocked = createGame(403, { version: 4, questIndex: 4, bosses: records });
   for (const id of records) assert.equal(unlocked.enemies.filter(actor => actor.bossId === id).length, 1);
   assert.deepEqual(exportProgress(unlocked).bosses, records);
-  assert.equal(exportProgress(unlocked).version, 5);
+  assert.equal(exportProgress(unlocked).version, 6);
   const locked = createGame(403, { version: 4, questIndex: 3, bosses: records });
   assert.equal(locked.enemies.filter(actor => actor.bossId === records[0]).length, 1);
   assert.equal(locked.enemies.filter(actor => actor.bossId === records[1]).length, 0);
@@ -511,8 +511,9 @@ test('v4 progression gains a zero-bonus starter item without losing any existing
   const old = { version: 4, gold: 75, cargo: 33, xp: 720, upgrades: { attack: 2, health: 1, bag: 2 },
     skills: { owl: 2, roots: 1 }, questIndex: 4, totals: { kills: 30, mushrooms: 20, deepKills: 1, banked: 63 }, bosses: ['meadow-guardian'] };
   const progress = normalizeProgress(old), state = createGame(404, old);
-  assert.equal(progress.version, 5);
-  for (const key of ['gold', 'cargo', 'xp', 'upgrades', 'skills', 'questIndex', 'totals', 'bosses']) assert.deepEqual(progress[key], old[key]);
+  assert.equal(progress.version, 6);
+  for (const key of ['gold', 'cargo', 'xp', 'upgrades', 'skills', 'questIndex', 'bosses']) assert.deepEqual(progress[key], old[key]);
+  for (const [key, value] of Object.entries(old.totals)) assert.equal(progress.totals[key], value);
   assert.deepEqual(gearBonuses(progress.gear), { damage: 0, health: 0 });
   assert.deepEqual(progress.gear, normalizeGear());
   assert.equal(state.player.attackDamage, 16 + (state.player.level - 1) * 2);
@@ -794,13 +795,14 @@ test('gold of any category never attracts automatic movement even at low health'
   assert.equal(state.loot[0].id, 901);
 });
 
-test('v2 progression migrates to v5 with no lost gold, cargo, ranks, quests or bosses', () => {
+test('v2 progression migrates to v6 with no lost gold, cargo, ranks, quests or bosses', () => {
   const old = { version: 2, gold: 215, cargo: 33, xp: 150, upgrades: { attack: 2, health: 1, bag: 2 }, questIndex: 4,
     totals: { kills: 19, mushrooms: 12, deepKills: 3, banked: 70 }, bosses: ['meadow-guardian'], unlockedDeep: true };
   const migrated = normalizeProgress(old);
-  assert.equal(migrated.version, 5);
+  assert.equal(migrated.version, 6);
   for (const key of ['gold', 'cargo', 'xp', 'questIndex', 'unlockedDeep']) assert.equal(migrated[key], old[key]);
-  for (const key of ['upgrades', 'totals', 'bosses']) assert.deepEqual(migrated[key], old[key]);
+  for (const key of ['upgrades', 'bosses']) assert.deepEqual(migrated[key], old[key]);
+  for (const [key, value] of Object.entries(old.totals)) assert.equal(migrated.totals[key], value);
   assert.deepEqual(migrated.skills, { owl: 0, roots: 0 });
   const restored = createGame(99, migrated);
   assert.deepEqual(exportProgress(restored), migrated);
@@ -880,13 +882,13 @@ test('hunting territories contain one species and stay within the global actor c
   assert.equal(state.enemies.length, 29);
   assert.equal(state.enemies.filter(item => item.type !== 'boss').length, 27);
   assert.equal(state.enemies.filter(item => item.type === 'boss').length, 2);
-  assert.deepEqual(HUNT_ZONES.map(zone => zone.count), [9, 6, 1, 6, 6, 1]);
+  assert.deepEqual(HUNT_ZONES.filter(zone => isStageUnlocked(state.progress, zone.stageId)).map(zone => zone.count), [9, 6, 1, 6, 6, 1]);
   assert.equal(createGame(2).enemies.length, 16);
-  assert.equal(RULES.maxEnemies, 36);
+  assert.equal(RULES.maxEnemies, 72);
   assert.ok(state.enemies.length <= RULES.maxEnemies);
   for (const zone of HUNT_ZONES) {
     const members = state.enemies.filter(item => item.zoneId === zone.id);
-    assert.equal(members.length, zone.count);
+    assert.equal(members.length, isStageUnlocked(state.progress, zone.stageId) ? zone.count : 0);
     assert.ok(members.every(item => item.type === zone.type && Math.hypot(item.x - zone.x, item.z - zone.z) < zone.radius));
   }
 });
@@ -1277,7 +1279,7 @@ test('learned automatic skills fight nearby enemies without any active hunt regi
 
 test('an outside-hunt owl stays world-bounded and never moves or shields the player', () => {
   const state = playing(); state.progress.questIndex = 4; state.progress.unlockedDeep = true;
-  state.player.x = WORLD.maxX - state.player.radius; state.player.z = WORLD.minZ + state.player.radius;
+  state.player.x = WORLD.maxX - state.player.radius; state.player.z = getUnlockedMinZ(state.progress) + state.player.radius;
   state.progress.skills = { owl: 1, roots: 0 };
   state.owl.x = state.player.x - 1.25; state.owl.z = state.player.z + 0.3;
   enemy(state, state.player.x - 2, state.player.z, { zoneId: 'deep-casters' });
@@ -1363,10 +1365,11 @@ test('v3 learned movement ranks become an owl without losing purchases or existi
     const old = { version: 3, gold: 73, cargo: 33, xp: 720, upgrades: { attack: 2, health: 1, bag: 2 },
       skills: { dodge: rank, roots: 2 }, questIndex: 4, totals: { kills: 31, mushrooms: 20, deepKills: 2, banked: 89 }, bosses: ['meadow-guardian'] };
     const migrated = normalizeProgress(old);
-    assert.equal(migrated.version, 5);
+    assert.equal(migrated.version, 6);
     assert.deepEqual(migrated.skills, { owl: rank, roots: 2 });
     for (const key of ['gold', 'cargo', 'xp', 'questIndex']) assert.equal(migrated[key], old[key]);
-    for (const key of ['upgrades', 'totals', 'bosses']) assert.deepEqual(migrated[key], old[key]);
+    for (const key of ['upgrades', 'bosses']) assert.deepEqual(migrated[key], old[key]);
+    for (const [key, value] of Object.entries(old.totals)) assert.equal(migrated.totals[key], value);
     assert.deepEqual(normalizeProgress(migrated), migrated);
     assert.equal('dodge' in migrated.skills, false);
   }

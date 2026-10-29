@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#19785d">
-  <meta name="description" content="인간 드루이드가 되어 숲을 탐험하고, 전리품을 모아 거점을 키우는 모바일 웹 3D 액션 RPG.">
+  <meta name="description" content="드루이드가 상황에 맞춰 늑대·곰·용으로 변신하고, 네 지역을 탐험하며 성장하는 모바일 웹 3D 액션 RPG.">
   <title>숲의 수호자 · Grove Warden</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="preload" href="./assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
@@ -53,6 +53,7 @@
           <div class="skill-cooldown-track" aria-hidden="true"><div id="roots-cooldown-fill"></div></div>
         </div>
       </div>
+      <div id="form-status" class="form-status" role="status" aria-label="현재 자동 변신" hidden><span>자동 변신</span><strong id="form-name"></strong><span id="form-counter"></span></div>
     </div>
 
     <nav class="growth-nav" aria-label="성장">
@@ -122,11 +123,12 @@
         <dl class="help-controls">
           <div><dt>이동</dt><dd>화면을 누른 채 끌어 움직여요. 직접 이동이 자동 추적보다 우선해요. PC는 WASD·방향키를 사용해요.</dd></div>
           <div><dt>사냥</dt><dd>가까운 적은 원 밖에서도 공격해요. 군락 주변에서 손을 떼면 같은 종류를 추적하고 사거리에서 멈춰요.</dd></div>
-          <div><dt>성장</dt><dd>능력치 탭의 장비에서 지팡이를 장착·강화·승급해요. 드루이드 탭에서 배운 부엉이와 덩굴은 자동으로 사용해요.</dd></div>
+          <div><dt>변신</dt><dd>고속 몹은 늑대, 작은 군체는 곰의 광역 내려찍기, 공중 몹은 용의 화염으로 상대해요. Lv.4·8·12에 자동 해금되고 상황에 맞춰 변신해요.</dd></div>
+          <div><dt>성장</dt><dd>능력치 탭의 장비에서 지팡이를 장착·강화·승급해요. 각 변신 탭에서 다음 단계를 성장시켜요. 부엉이·덩굴은 드루이드 모습일 때 자동 사용해요.</dd></div>
           <div><dt>돌발</dt><dd>보물과 축복은 직접 다가가 얻어요. 붉은 바닥 전조는 터지기 전에 벗어나세요. 수문장은 잠시 뒤 다시 나타나요.</dd></div>
           <div><dt>가방</dt><dd>금화는 직접 다가가서 주워요. 가방이 차면 게이지가 붉게 바뀌어요. 거점으로 운반해 보관 골드로 바꾸세요.</dd></div>
-          <div><dt>거점</dt><dd>생명이 위험하면 방향 표시를 보고 직접 돌아오세요. 거점에서 생명을 회복하고 강화해요.</dd></div>
-          <div><dt>의뢰</dt><dd>목표를 달성하면 보상을 누르세요. 수문장 의뢰의 보상을 받으면 다음 숲이 열려요.</dd></div>
+          <div><dt>거점</dt><dd>방향 표시를 보고 가까운 거점으로 직접 이동해요. 입금·회복·성장이 가능하며, 마지막으로 방문한 거점에서 모험을 이어가요.</dd></div>
+          <div><dt>지역</dt><dd>초원 → 깊은 숲 → 고대 수림 → 천공 능선으로 이어져요. 수문장 의뢰 보상과 필요한 레벨을 채우면 다음 문이 열려요.</dd></div>
         </dl>
         <p class="reference-note">XP Hero를 참고해 제작한<br>모바일 웹 액션 RPG</p>
         <button id="close-help-btn" class="button primary-button" type="button">알겠어요</button>
