@@ -1,5 +1,5 @@
 import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs?v=cartoon-4';
-import { presentationTiming, impactBeats, impactTotals, cardPlayStatus, impactFeedback, targetImpactKind } from './combat-presentation.mjs?v=target-6';
+import { presentationTiming, impactBeats, impactTotals, cardPlayStatus, impactFeedback, targetImpactKind, TARGET_EFFECT_TEXTURES, targetEffectVisual } from './combat-presentation.mjs?v=closeup-7';
 import { analyzeDeck } from './deck-analysis.mjs?v=cartoon-4';
 import { cardArtClass } from './card-art.mjs?v=cartoon-4';
 import { icon, decorateMenus } from './menu-icons.mjs?v=quiet-5';
@@ -39,7 +39,6 @@ function modalOpen() { return Boolean(document.querySelector('dialog[open]')); }
 function clearEffects() {
   for (const timer of effectTimers) clearTimeout(timer);
   effectTimers.clear(); $('effects').replaceChildren();
-  document.querySelectorAll('.flying-card').forEach(node => node.remove());
   document.querySelectorAll('.side-draw-pile,.active-card').forEach(node=>node.classList.remove('drawing','dealing','card-slam','is-playing'));
   for (const id of ['hero','enemy','battlefield']) $(id).classList.remove('hit','heavy-hit','hit-stop','casting','lunge','shake','shake-heavy','flash','morph','countering','reacting');
   delete $('battlefield').dataset.presentation; delete $('battlefield').dataset.caster; delete $('battlefield').dataset.beat;
@@ -346,17 +345,19 @@ function effectChip(text,id,kind,index=0) {
 function warmTargetEffects() {
   if(targetEffectsWarmed)return;
   targetEffectsWarmed=true;
-  for(const name of ['scratch','burst','fire','splash','ring','spark','smoke','flare']){
+  for(const name of TARGET_EFFECT_TEXTURES){
     const texture=new Image();texture.decoding='async';texture.src=`assets/kenney-effects/${name}.png`;
     if(texture.decode)texture.decode().catch(()=>{});
   }
 }
 function targetEffect(id,kind,tier='normal',role='impact') {
-  const p=point($(id).querySelector('.portrait-ring'));
+  const portrait=$(id).querySelector('.portrait-ring'),p=point(portrait),visual=targetEffectVisual(kind);
   const node=fxNode(`target-fx kind-${kind} tier-${tier} fx-${role}`,p,reducedMotion?440:370);
   node.dataset.fxTarget=id;node.dataset.fxKind=kind;
-  const emblem={shield:'defense',heal:'heal',poison:'poison',counter:'counter',form:'form',charge:'charge'}[kind];
-  node.innerHTML=`<span class="fx-sprite fx-wave"></span><span class="fx-sprite fx-core"></span>${emblem?`<span class="fx-emblem">${icon(emblem)}</span>`:''}${reducedMotion?'':'<span class="fx-sprite fx-fleck fleck-a"></span><span class="fx-sprite fx-fleck fleck-b"></span>'}`;
+  const ratio=tier==='heavy'?1.24:tier==='linked'?1.14:1.06;
+  node.style.setProperty('--fx-size',`${Math.round(Math.max(84,Math.min(160,portrait.offsetWidth*ratio)))}px`);
+  node.style.setProperty('--fx-mask',`url('assets/kenney-effects/${visual.texture}.png')`);
+  node.innerHTML=`<span class="fx-sprite fx-wave"></span><span class="fx-sprite fx-core"></span>${visual.emblem?`<span class="fx-emblem">${icon(visual.emblem)}</span>`:''}`;
 }
 function aura(id,kind) {targetEffect(id,kind,'normal','support');}
 function impact(id,heavy,kind='claw',tier='normal',stopMs=0) {
@@ -373,14 +374,6 @@ function landCard(actor) {
   }
   sound('slam');
 }
-function flyCard(instance,actor) {
-  if(reducedMotion)return;
-  const origin=$(`${actor}-draw-pile`).querySelector('.card-back').getBoundingClientRect(),dest=$(`${actor}-active-card`).getBoundingClientRect(),card=describeCard(instance),node=document.createElement('div');
-  const duration=presentationTiming(speed).draw;
-  node.className=`flying-card dealt-card ${cardArtClass(card)}`;node.dataset.owner=actor;
-  node.style.cssText=`left:${origin.x+origin.width/2}px;top:${origin.y+origin.height/2}px;--dx:${dest.x+dest.width/2-origin.x-origin.width/2}px;--dy:${dest.y+dest.height/2-origin.y-origin.height/2}px;animation-duration:${duration}ms;`;
-  node.innerHTML=`<span>${card.name}</span>`;document.body.append(node);effectLater(()=>node.remove(),duration+30);
-}
 function beginStep() {
   if(state.phase!=='battle'||modalOpen()||document.hidden)return;
   clearEffects();presentedCard=null;renderBattle();
@@ -392,7 +385,7 @@ function beginStep() {
   presentedCard={cardId:instance.id,tier:instance.tier,name:card.name,actor,charged,preview:true,ready};renderActive(presentedCard);
   $(`${actor}-active-card`).classList.add('is-playing');
   $('battle-caption').textContent=`${actor==='player'?'내':'상대'} ${card.name}, ${ready?'사용 준비':`충전 ${charged}/${card.cost}`}`;
-  playClass($(`${actor}-draw-pile`),'drawing',timing.draw);flyCard(instance,actor);sound('draw');
+  playClass($(`${actor}-draw-pile`),'drawing',timing.draw);sound('draw');
   later(()=>{
     $('battlefield').dataset.presentation='showcase';playClass($(`${actor}-active-card`),'dealing',300);
     later(()=>{

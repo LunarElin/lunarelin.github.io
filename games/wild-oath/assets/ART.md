@@ -2,7 +2,7 @@
 
 ## 대상 위치 파티클 · 2026-10-29~30
 
-공식 [Kenney Particle Pack](https://kenney.nl/assets/particle-pack)의 실제 투명 PNG 8개를 반입했다. 공식 CC0 표시와 ZIP 동봉 라이선스를 확인했다. 런타임 파일은 `kenney-effects/` 안의 256×256 PNG 8개, 합계120,851B이며 외부 핫링크·전체 팩·미사용 파일은 포함하지 않는다. 원본 경로·가공·출처는 [리소스 기록](kenney-effects/README.md)·[manifest](kenney-effects/manifest.json), 라이선스 원문은 [LICENSE.txt](kenney-effects/LICENSE.txt), 대상·화면 검증은 [업데이트 기록](../TARGET-EFFECTS-UPDATE.md)을 참고한다. 캐릭터 아트와 UI 기호의 별도 출처는 아래 기록을 유지한다.
+공식 [Kenney Particle Pack](https://kenney.nl/assets/particle-pack)의 CC0 표시와 ZIP 동봉 라이선스를 확인했다. 현행 `closeup-7` 런타임 파일은 `kenney-effects/` 안의 256×256 PNG 4종 `fire`·`ring`·`smoke`·`splash`, 합계 60,217 B다. `target-6`에서 빛줄기처럼 보일 수 있었던 `scratch`·`burst`·`spark`·`flare`는 제거하고, 둥근 대상 마스크에 원본 효과 기호를 조합한다. 외부 핫링크·전체 팩·미사용 파티클은 포함하지 않는다. 원본 경로·가공·출처는 [리소스 기록](kenney-effects/README.md)·[manifest](kenney-effects/manifest.json), 라이선스 원문은 [LICENSE.txt](kenney-effects/LICENSE.txt), 현행 대상·화면 검증은 [확대·이펙트 업데이트](../CLOSEUP-UPDATE.md)를 참고한다. [이전 대상 이펙트 기록](../TARGET-EFFECTS-UPDATE.md)과 캐릭터 아트·UI 기호의 별도 출처는 보존한다.
 
 ## 원본 기능 아이콘 · 2026-10-29
 
@@ -97,14 +97,14 @@ v3 당시 이미지 family 예산은 **550KB**였다. `card-art.css`가 초상�
 - 팩: Kenney **UI Pack 2.0** (2024-06-12).
 - 공식 상세: <https://kenney.nl/assets/ui-pack>. 상세 페이지의 Creative Commons CC0 표기와 ZIP 동봉 `License.txt`를 확인했다.
 - 라이선스: CC0 (Creative Commons Zero). 원문은 `kenney-pop/LICENSE.txt`에 보관한다.
-- 사용 목적: 플레이어·상대의 별도 덱 뒷면, 진영별 드로우 화살표, 출전·재섞기 아이콘. 둥근 입체 UI에 필요한 원본 SVG 다섯 개만 반입했다 (6,411 bytes). 글꼴·PNG·미사용 벡터·전체 팩은 배포하지 않는다.
+- 현행 사용 목적: 플레이어·상대의 별도 덱 뒷면, 출전·재섞기 아이콘. 앞서 반입한 원본 SVG 다섯 개(6,411 bytes)는 보존하며, `closeup-7`에서는 진영별 드로우 화살표 두 개를 표시하지 않는다. 글꼴·PNG·전체 팩은 반입하지 않았다.
 - 가공: 아래 이름으로 변경하고 화면에서 크기만 조정한다. 원본 SVG의 모양과 색은 변경하지 않았다.
 
 | 프로젝트 파일 | 팩 내 원본 파일 | 실제 용도 |
 | --- | --- | --- |
 | `kenney-pop/star.svg` | `Vector/Yellow/star.svg` | 양쪽 덱 뒷면 별 |
-| `kenney-pop/arrow-blue.svg` | `Vector/Blue/arrow_basic_e.svg` | 플레이어 덱에서 플레이 영역으로 향하는 화살표 |
-| `kenney-pop/arrow-red.svg` | `Vector/Red/arrow_basic_e.svg` | 상대 덱에서 플레이 영역으로 향하는 화살표 |
+| `kenney-pop/arrow-blue.svg` | `Vector/Blue/arrow_basic_e.svg` | 이전 플레이어 덱 화살표, `closeup-7`에서는 미사용 |
+| `kenney-pop/arrow-red.svg` | `Vector/Red/arrow_basic_e.svg` | 이전 상대 덱 화살표, `closeup-7`에서는 미사용 |
 | `kenney-pop/play.svg` | `Vector/Extra/icon_play_dark.svg` | 출전 버튼 |
 | `kenney-pop/repeat.svg` | `Vector/Extra/icon_repeat_dark.svg` | 재섞기 안내 |
 

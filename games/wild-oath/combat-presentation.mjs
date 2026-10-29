@@ -26,6 +26,25 @@ export function effectKind(card={}) {
   return 'form';
 }
 
+// Shared by texture warming and rendering: keep only compact, local target shapes.
+export const TARGET_EFFECT_TEXTURES=Object.freeze(['fire','ring','smoke','splash']);
+const targetVisuals=Object.freeze(Object.fromEntries([
+  ['claw',{texture:'splash',emblem:'attack'}],
+  ['counter',{texture:'splash',emblem:'counter'}],
+  ['fire',{texture:'fire',emblem:null}],
+  ['poison',{texture:'splash',emblem:'poison'}],
+  ['shock',{texture:'smoke',emblem:'shock'}],
+  ['shield',{texture:'ring',emblem:'defense'}],
+  ['heal',{texture:'ring',emblem:'heal'}],
+  ['energy',{texture:'ring',emblem:'energy'}],
+  ['form',{texture:'smoke',emblem:'form'}],
+  ['charge',{texture:'ring',emblem:'charge'}],
+].map(([kind,visual])=>[kind,Object.freeze(visual)])));
+
+export function targetEffectVisual(kind) {
+  return typeof kind==='string'&&Object.hasOwn(targetVisuals,kind)?targetVisuals[kind]:targetVisuals.claw;
+}
+
 // Read the resolved impact, not an unplayed card or the already-advanced battle actor.
 // Fully blocked hits show a shield; capped overkill produces no phantom hit effect.
 export function targetImpactKind(beat={},card={}) {

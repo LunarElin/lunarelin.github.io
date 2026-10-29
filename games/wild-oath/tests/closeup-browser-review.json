@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-30",
+  "version": "closeup-7",
+  "method": "Codex in-app browser, actual DOM and screenshots, normal UI clicks; no state injection",
+  "physical_devices_tested": false,
+  "viewports": [
+    {"width":1280,"height":720,"portrait":130,"card":[280,223],"footer_bottom":708,"horizontal_overflow":false},
+    {"width":390,"height":640,"portrait":96,"card":[200,190],"footer_bottom":632,"horizontal_overflow":false},
+    {"width":320,"height":640,"portrait":84,"card":[152,190],"art":[132,76],"footer_bottom":632,"visible_active_cards":1,"horizontal_overflow":false},
+    {"width":390,"height":580,"portrait":80,"card":[216,174],"footer_bottom":575,"font_px":{"hp":30,"energy":28,"card_name":18},"touch_px":{"speed":[75,46],"pause":[50,48]},"horizontal_overflow":false},
+    {"width":844,"height":390,"portrait":88,"card":[235,208],"footer_bottom":383,"horizontal_overflow":false}
+  ],
+  "normal_play_observations": {
+    "trial":4,
+    "attack":{"kind":"claw","target":"enemy","mask":"splash.png","enemy_hp_before":65,"enemy_hp_after":58},
+    "transformation":"enemy wyvern, round smoke at own portrait; poison effect at player portrait",
+    "hp_after_pause_and_reload":{"enemy":53,"player":70},
+    "forbidden_dom_nodes":0,
+    "effects_after_pause":0,
+    "effects_after_reload":0,
+    "home_return_and_reentry":true,
+    "console_warnings_and_errors":[]
+  },
+  "automated":{"tests_passed":90,"tests_failed":0,"mjs_syntax_files":9,"diff_check":true},
+  "score":{"core":24,"mobile":17,"ui":18,"feedback":13,"performance":8,"maintenance":9,"total":89,"provisional":true},
+  "limits":["No physical iOS or Android device","No measured FPS or memory profile","No audio listening check","No exhaustive visual review of all effects, speeds and simultaneous statuses","No new full campaign after this visual-only patch","No OS reduced-motion or storage-failure browser reproduction"]
+}

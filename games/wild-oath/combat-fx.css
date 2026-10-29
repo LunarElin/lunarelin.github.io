@@ -5,11 +5,11 @@
 .active-card{--card-lean:-1.4deg;z-index:1;transition:opacity .14s ease}
 .active-card[data-owner=enemy]{--card-lean:1.4deg}
 .active-card.is-playing{z-index:4;border-color:transparent;background:transparent}
-.active-card.is-playing .card{position:relative;transform:translateY(-3px) scale(1.065);transform-origin:center 88%;transition:transform .14s cubic-bezier(.16,.9,.2,1),box-shadow .14s ease;border-color:#bd8b3b;box-shadow:0 5px 0 #4a2c15,0 12px 18px #090604b3,inset 0 2px #fff0bd66,0 0 0 2px #e6b85b,0 0 15px #db931c50}
+.active-card.is-playing .card{position:relative;transform:translateY(-3px);transform-origin:center 88%;transition:transform .14s cubic-bezier(.16,.9,.2,1),box-shadow .14s ease;border-color:#bd8b3b;box-shadow:0 5px 0 #4a2c15,0 12px 18px #090604b3,inset 0 2px #fff0bd66,0 0 0 2px #e6b85b,0 0 15px #db931c50}
 .active-card.is-playing .card:after{content:'';position:absolute;inset:-4px;border:1px solid #f4d78f;border-radius:inherit;pointer-events:none}
-.battlefield[data-presentation=showcase] .active-card.is-playing .card{transform:translateY(-8px) rotate(var(--card-lean)) scale(1.08);box-shadow:0 6px #4a2c15,0 17px 20px #090604bf,inset 0 2px #fff0bd66,0 0 0 2px #e6b85b,0 0 18px #db931c50}
-.battlefield[data-presentation=cast] .active-card.is-playing .card{transform:translateY(0) rotate(0) scale(1.035);box-shadow:0 3px #4a2c15,0 5px 8px #090604b3,inset 0 2px #fff0bd66,0 0 0 2px #e6b85b}
-.battlefield[data-presentation=impact] .active-card.is-playing .card{transform:translateY(0) scale(1.025)}
+.battlefield[data-presentation=showcase] .active-card.is-playing .card{transform:translateY(-5px);box-shadow:0 6px #4a2c15,0 17px 20px #090604bf,inset 0 2px #fff0bd66,0 0 0 2px #e6b85b,0 0 18px #db931c50}
+.battlefield[data-presentation=cast] .active-card.is-playing .card{transform:translateY(0);box-shadow:0 3px #4a2c15,0 5px 8px #090604b3,inset 0 2px #fff0bd66,0 0 0 2px #e6b85b}
+.battlefield[data-presentation=impact] .active-card.is-playing .card{transform:translateY(0)}
 .battlefield[data-presentation=settle] .active-card.is-playing .card{transform:none}
 .side-draw-pile.drawing .card-back{animation:fx-deck-lift .3s cubic-bezier(.16,.85,.3,1)}
 .active-card.dealing{animation:fx-card-arrive .26s cubic-bezier(.18,.85,.3,1)}
@@ -23,50 +23,32 @@
 .battlefield.shake-heavy{animation:fx-shake-heavy .3s ease-out}
 .battlefield.flash:after{display:none}
 .effects{overflow:visible}
-.target-fx{--fx-size:104px;--fx-color:#fff1b1;--fx-edge:#f1ac35;--fx-mask:url('assets/kenney-effects/burst.png');position:absolute;pointer-events:none;width:var(--fx-size);height:var(--fx-size);transform:translate(-50%,-50%);z-index:3;isolation:isolate;animation:target-fade .36s linear both}
+/* Every effect is a compact mark at its recipient. No needle sprites or travel. */
+.target-fx{--fx-size:104px;--fx-color:#ffe5af;--fx-edge:#e4ae57;--fx-mask:url('assets/kenney-effects/ring.png');position:absolute;pointer-events:none;width:var(--fx-size);height:var(--fx-size);transform:translate(-50%,-50%);z-index:3;isolation:isolate;animation:target-fade .36s linear both}
 .target-fx .fx-sprite{position:absolute;inset:0;background:var(--fx-color);-webkit-mask:var(--fx-mask) center/contain no-repeat;mask:var(--fx-mask) center/contain no-repeat;pointer-events:none}
-.target-fx .fx-core{animation:target-pop .34s cubic-bezier(.14,.8,.22,1) both;filter:drop-shadow(0 2px 1px #21160b80)}
+.target-fx .fx-core{animation:target-pop .34s ease-out both;filter:drop-shadow(0 2px 1px #21160b80)}
 .target-fx .fx-wave{--fx-mask:url('assets/kenney-effects/ring.png');background:var(--fx-edge);animation:target-wave .34s ease-out both}
-.target-fx .fx-fleck{--fx-mask:url('assets/kenney-effects/flare.png');inset:34%;background:var(--fx-edge);animation:target-fleck .3s ease-out both;--flake-x:30px;--flake-y:-23px}
-.target-fx .fleck-b{--flake-x:-25px;--flake-y:22px;animation-delay:25ms;inset:39%}
 .target-fx .fx-emblem{position:absolute;inset:0;display:grid;place-items:center;color:var(--fx-color);filter:drop-shadow(0 2px 1px #121c20);animation:target-emblem .34s ease-out both}
-.target-fx .fx-emblem .menu-icon{width:34px;height:34px;min-width:0;stroke-width:2.6}
-.target-fx.tier-linked{--fx-size:116px}
-.target-fx.tier-heavy{--fx-size:132px}
-.target-fx.tier-linked .fx-wave,.target-fx.tier-heavy .fx-wave{--fx-mask:url('assets/kenney-effects/burst.png')}
-.target-fx.kind-claw{--fx-mask:url('assets/kenney-effects/scratch.png');--fx-color:#fff3c5;--fx-edge:#f8b839}
-.target-fx.kind-claw .fx-core{rotate:-12deg}
-.target-fx.kind-counter{--fx-color:#ffda83;--fx-edge:#f1852b}
-.target-fx.kind-fire{--fx-mask:url('assets/kenney-effects/fire.png');--fx-color:#ffac27;--fx-edge:#ff642d}
-.target-fx.kind-fire .fx-core{rotate:8deg}
-.target-fx.kind-fire .fx-fleck{--fx-mask:url('assets/kenney-effects/fire.png');--flake-y:-34px}
-.target-fx.kind-shock{--fx-mask:url('assets/kenney-effects/spark.png');--fx-color:#edb9ff;--fx-edge:#ba61ef}
-.target-fx.kind-shock .fx-core{rotate:18deg}
-.target-fx.kind-poison{--fx-mask:url('assets/kenney-effects/splash.png');--fx-color:#a3eb45;--fx-edge:#5fbf39}
-.target-fx.kind-poison .fx-wave{opacity:.7}
-.target-fx.kind-poison .fx-emblem{color:#d8ff90}
-.target-fx.kind-shield{--fx-mask:url('assets/kenney-effects/ring.png');--fx-color:#c8f1ff;--fx-edge:#62b8f5}
-.target-fx.kind-shield .fx-core{transform:scale(.85)}
-.target-fx.kind-heal{--fx-mask:url('assets/kenney-effects/ring.png');--fx-color:#d7ffac;--fx-edge:#7edf68}
-.target-fx.kind-heal .fx-core{transform:scale(.72)}
-.target-fx.kind-energy,.target-fx.kind-charge{--fx-mask:url('assets/kenney-effects/flare.png');--fx-color:#fff1a6;--fx-edge:#f9be40}
-.target-fx.kind-energy .fx-wave,.target-fx.kind-charge .fx-wave{transform:scale(.65)}
-.target-fx.kind-form{--fx-mask:url('assets/kenney-effects/smoke.png');--fx-color:#c5a1ed;--fx-edge:#a680df}
-.target-fx.kind-form .fx-emblem{color:#f0ddff}
-.target-fx.fx-support{--fx-size:94px}
-.target-fx.fx-status{--fx-size:80px;z-index:2}
-.target-fx.fx-status .fx-emblem .menu-icon{width:26px;height:26px}
-.target-fx.fx-support.kind-heal .fx-emblem{translate:11px 0}
-.target-fx.fx-support.kind-shield .fx-emblem{translate:-11px 0}
+.target-fx .fx-emblem .menu-icon{width:clamp(28px,calc(var(--fx-size) * .32),44px);height:clamp(28px,calc(var(--fx-size) * .32),44px);min-width:0;stroke-width:2.6}
+.target-fx.kind-claw{--fx-color:#ffe1a2;--fx-edge:#e7b75e}
+.target-fx.kind-counter{--fx-color:#ffd09a;--fx-edge:#df914e}
+.target-fx.kind-fire{--fx-color:#ffac38;--fx-edge:#e47635}
+.target-fx.kind-shock{--fx-color:#dfbcff;--fx-edge:#ac7bd6}
+.target-fx.kind-poison{--fx-color:#b7e56e;--fx-edge:#79ac53}
+.target-fx.kind-shield{--fx-color:#d0efff;--fx-edge:#79b9e4}
+.target-fx.kind-heal{--fx-color:#dcffbd;--fx-edge:#86bd6b}
+.target-fx.kind-energy,.target-fx.kind-charge{--fx-color:#ffe8a4;--fx-edge:#d4ae53}
+.target-fx.kind-form{--fx-color:#d4b6ef;--fx-edge:#a788cd}
+.target-fx.kind-claw .fx-core,.target-fx.kind-counter .fx-core{transform:scale(.9)}
+.target-fx.fx-status{z-index:2}
 .target-fx.fx-status .fx-core{opacity:.8}
+.target-fx.fx-support.kind-heal .fx-emblem{translate:12px 0}
+.target-fx.fx-support.kind-shield .fx-emblem{translate:-12px 0}
 @keyframes target-fade{0%,72%{opacity:1}100%{opacity:0}}
-@keyframes target-pop{0%{scale:.38;opacity:0}14%{scale:1.08;opacity:1}64%{scale:.96;opacity:1}100%{scale:1.12;opacity:0}}
-@keyframes target-wave{0%{scale:.42;opacity:.95}65%{opacity:.5}100%{scale:1.22;opacity:0}}
-@keyframes target-fleck{0%{translate:0 0;scale:.4;opacity:0}15%{opacity:1}100%{translate:var(--flake-x) var(--flake-y);scale:.8;opacity:0}}
-@keyframes target-emblem{0%{scale:.7;opacity:0}16%,58%{scale:1;opacity:1}100%{scale:1.05;opacity:0}}
-@media(max-width:700px){.target-fx{--fx-size:90px}.target-fx.tier-linked{--fx-size:104px}.target-fx.tier-heavy{--fx-size:116px}.target-fx.fx-support{--fx-size:84px}.target-fx.fx-status{--fx-size:72px}.target-fx .fx-emblem .menu-icon{width:30px;height:30px}}
-@media(max-height:610px){.target-fx{--fx-size:82px}.target-fx.tier-linked{--fx-size:94px}.target-fx.tier-heavy{--fx-size:104px}.target-fx.fx-support{--fx-size:76px}.target-fx.fx-status{--fx-size:66px}}
-@media(prefers-reduced-motion:reduce){.target-fx{animation:fx-reduced-fade .42s linear both!important}.target-fx .fx-core,.target-fx .fx-wave,.target-fx .fx-emblem{animation:none!important;scale:1!important;opacity:.85}.target-fx .fx-wave{scale:1.06!important;opacity:.5}.target-fx .fx-fleck{display:none!important}}
+@keyframes target-pop{0%{scale:.76;opacity:0}18%{scale:1.04;opacity:1}64%{scale:1;opacity:1}100%{scale:1.04;opacity:0}}
+@keyframes target-wave{0%{scale:.76;opacity:.85}65%{opacity:.5}100%{scale:1.1;opacity:0}}
+@keyframes target-emblem{0%{scale:.86;opacity:0}18%,62%{scale:1;opacity:1}100%{scale:1;opacity:0}}
+@media(prefers-reduced-motion:reduce){.target-fx{animation:fx-reduced-fade .42s linear both!important}.target-fx .fx-core,.target-fx .fx-wave,.target-fx .fx-emblem{animation:none!important;scale:1!important;opacity:.85}.target-fx .fx-wave{opacity:.5}}
 .effect-chip{position:absolute;pointer-events:none}
 .effect-chip{--chip-index:0;--chip-bg:#182b20;--chip-edge:#689245;z-index:5;max-width:150px;padding:4px 8px;border:2px solid var(--chip-edge);border-radius:6px;background:var(--chip-bg);box-shadow:0 3px #0a0806b3,inset 0 1px #fff2;color:#edf2d8;font-size:16px;line-height:1;white-space:nowrap;transform:translate(-50%,calc(-50% + var(--chip-index) * 28px));animation:fx-chip 1s ease-out forwards}
 .effect-chip.kind-poison{--chip-bg:#223613;--chip-edge:#80b533;color:#d5f198}.effect-chip.kind-burn{--chip-bg:#50230f;--chip-edge:#c56d1e;color:#ffd395}.effect-chip.kind-shock{--chip-bg:#32194f;--chip-edge:#9553d3;color:#e4b6ff}.effect-chip.kind-energy{--chip-bg:#473410;--chip-edge:#c4922d;color:#ffe298}.effect-chip.kind-heal{--chip-bg:#193c20;--chip-edge:#68a540;color:#d5f6b0}.effect-chip.kind-shield{--chip-bg:#142e45;--chip-edge:#4b8eb9;color:#cbe9ff}
@@ -81,7 +63,6 @@
 .damage-float.poison{color:#ecffc3;text-shadow:2px 2px #29430f,-2px -2px #29430f,2px -2px #29430f,-2px 2px #29430f}.damage-float.poison:before{background:#658d21}
 .damage-float.synergy{font-size:22px;margin-top:-43px;min-width:0;padding:3px 6px;color:#ffd481;text-shadow:1px 2px #2d190a,-1px -1px #2d190a,1px -1px #2d190a,-1px 1px #2d190a}.damage-float.synergy:before{display:none}
 .battle-caption.card-cast-title{color:#e5d6b6;font-size:20px;text-shadow:0 1px #150d08}.battle-caption.card-cast-title strong{color:#ecc16b}
-@keyframes deal-to-slot{0%{transform:translate(-50%,-50%) scale(.65) rotate(-12deg);opacity:.9}68%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy) - 16px)) scale(1.02) rotate(2deg);opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1) rotate(0);opacity:0}}
 @keyframes fx-deck-lift{0%,100%{transform:none}45%{transform:translateY(-5px) rotate(-3deg)}70%{transform:translateY(-2px)}}
 @keyframes fx-card-arrive{0%{opacity:.7;transform:translateY(6px) rotate(-2deg) scale(.97)}65%{opacity:1;transform:translateY(-3px) rotate(.7deg) scale(1.015)}100%{transform:none}}
 @keyframes fx-card-slam{0%{transform:translateY(-10px) rotate(-1.4deg) scale(1.025)}45%{transform:translateY(3px) rotate(.3deg) scale(.99)}72%{transform:translateY(-1px) scale(1.005)}100%{transform:none}}
@@ -93,8 +74,8 @@
 @keyframes fx-chip{0%{opacity:0;transform:translate(-50%,calc(-30% + var(--chip-index) * 28px)) scale(.9)}18%,73%{opacity:1;transform:translate(-50%,calc(-50% + var(--chip-index) * 28px)) scale(1)}100%{opacity:0;transform:translate(-50%,calc(-80% + var(--chip-index) * 28px)) scale(.98)}}
 @keyframes fx-number{0%{opacity:0;transform:translate(-50%,-40%) scale(.65)}10%,23%{opacity:1;transform:translate(-50%,-62%) scale(1.13)}40%,68%{opacity:1;transform:translate(-50%,-70%) scale(1)}100%{opacity:0;transform:translate(-50%,-112%) scale(.97)}}
 @media(max-width:700px){
-  .active-card.is-playing .card{transform:translateY(-2px) scale(1.065);box-shadow:0 5px #4a2c15,0 9px 12px #090604b3,inset 0 1px #fff0bd66,0 0 0 2px #e6b85b,0 0 12px #db931c40}
-  .battlefield[data-presentation=showcase] .active-card.is-playing .card{transform:translateY(-5px) rotate(var(--card-lean)) scale(1.065)}
+  .active-card.is-playing .card{transform:translateY(-2px);box-shadow:0 5px #4a2c15,0 9px 12px #090604b3,inset 0 1px #fff0bd66,0 0 0 2px #e6b85b,0 0 12px #db931c40}
+  .battlefield[data-presentation=showcase] .active-card.is-playing .card{transform:translateY(-3px)}
   .effect-chip{max-width:125px;padding:4px 6px;font-size:16px}
   .damage-float{font-size:36px}.damage-float.critical{font-size:46px}.damage-float.heal{font-size:32px}.damage-float.block{font-size:24px}.damage-float.synergy{font-size:22px}
   .battle-caption.card-cast-title{font-size:18px}
