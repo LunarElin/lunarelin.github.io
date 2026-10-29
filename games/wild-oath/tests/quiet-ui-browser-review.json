@@ -1,0 +1,1213 @@
+{
+  "date": "2026-10-29",
+  "environment": "Codex internal browser, desktop viewport override; no physical mobile device",
+  "sourceVideo": {
+    "url": "https://www.youtube.com/watch?v=gyqe3jZ0cYE&t=53s",
+    "observedFrame": "5:36: lower player area, dimmed scenery, card icons and numerical effects"
+  },
+  "viewports": [
+    {
+      "width": 320,
+      "height": 640
+    },
+    {
+      "width": 390,
+      "height": 640
+    },
+    {
+      "width": 390,
+      "height": 580
+    },
+    {
+      "width": 844,
+      "height": 390
+    },
+    {
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "geometryMeasurement": {
+    "viewport": {
+      "width": 320,
+      "height": 640
+    },
+    "samples": [
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [
+          {
+            "action": "preview",
+            "actor": "player",
+            "name": "달빛 늑대"
+          }
+        ],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "draw"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [
+          {
+            "action": "card",
+            "actor": "player",
+            "name": "달빛 늑대"
+          }
+        ],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "impact"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "settle"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [
+          {
+            "action": "preview",
+            "actor": "player",
+            "name": "굳은 가죽"
+          }
+        ],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "draw"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [
+          {
+            "action": "card",
+            "actor": "player",
+            "name": "굳은 가죽"
+          }
+        ],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "impact"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "settle"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [
+          {
+            "action": "preview",
+            "actor": "player",
+            "name": "나무껍질"
+          }
+        ],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "draw"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [
+          {
+            "action": "card",
+            "actor": "player",
+            "name": "나무껍질"
+          }
+        ],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "impact"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "settle"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [
+          {
+            "action": "preview",
+            "actor": "player",
+            "name": "쌍발톱"
+          }
+        ],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "draw"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [
+          {
+            "action": "card",
+            "actor": "player",
+            "name": "쌍발톱"
+          }
+        ],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "impact"
+      },
+      {
+        "active": [
+          "player"
+        ],
+        "cards": [],
+        "caster": "player",
+        "geometry": [
+          {
+            "height": 230,
+            "id": "enemy-lane",
+            "top": 5,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "enemy",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "enemy-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "enemy-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 230,
+            "id": "player-lane",
+            "top": 254,
+            "width": 296
+          },
+          {
+            "height": 190,
+            "id": "lane-body",
+            "top": 32,
+            "width": 284
+          },
+          {
+            "height": 205,
+            "id": "hero",
+            "top": 24,
+            "width": 92
+          },
+          {
+            "height": 46,
+            "id": "hero-status",
+            "top": 128,
+            "width": 92
+          },
+          {
+            "height": 31,
+            "id": "resource-row",
+            "top": 174,
+            "width": 92
+          },
+          {
+            "height": 174,
+            "id": "player-active-card",
+            "top": 0,
+            "width": 140
+          },
+          {
+            "height": 49,
+            "id": "battle-footer",
+            "top": 580,
+            "width": 304
+          }
+        ],
+        "overflow": false,
+        "phase": "settle"
+      }
+    ],
+    "allGeometryIdentical": true,
+    "allOneOrZeroCards": true,
+    "allCardsMatchCaster": true,
+    "allNoHorizontalOverflow": true
+  },
+  "observations": {
+    "newDraft": [
+      "wolf",
+      "claw",
+      "hide",
+      "sap",
+      "harry",
+      "sprout",
+      "bite",
+      "pounce"
+    ],
+    "merchantReward": "bark tier 2",
+    "firstTrial": "natural victory; reward renewal; HP70 after reward",
+    "secondTrial": "ongoing; observed both actors, wolf and bear forms, successful support and multihit, and shuffle",
+    "pauseReload": {
+      "playerHP": 57,
+      "enemyHP": 47,
+      "cardsBefore": 0,
+      "cardsAfter": 0
+    },
+    "readonlyDetails": [
+      "wolf ability via portrait",
+      "bark tier2 via active card; no management buttons; HP57/47 unchanged",
+      "enemy bark tier1 via nested opponent dialog; returns to opponent"
+    ],
+    "catalog": {
+      "cards": 28,
+      "visibleProseBlocksOnCards": 0,
+      "search": "야생의 신호 also returns ancient partner",
+      "tier3Rally": {
+        "focus": 6,
+        "nextCharge": 4
+      },
+      "fullConditionalTextPreserved": true
+    },
+    "mobileFonts": {
+      "hp": "30px",
+      "energy": "28px",
+      "activeCardName": "18px",
+      "effectValues": "18px or larger"
+    },
+    "footerBottom": {
+      "portrait640": 632,
+      "portrait580": 575,
+      "landscape390": 383
+    },
+    "unverified": [
+      "physical iOS Safari and Android Chrome touch, address bar and notch",
+      "audio listening",
+      "FPS/GPU profile",
+      "OS reduced motion runtime",
+      "full five-trial completion after this UI change",
+      "new player icon comprehension study"
+    ]
+  }
+}

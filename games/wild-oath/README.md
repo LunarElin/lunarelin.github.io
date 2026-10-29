@@ -18,6 +18,7 @@
 - 2026-10-28 카드 게임 스킬 기준 중간 검토: [CARD-GAME-REVIEW.md](CARD-GAME-REVIEW.md). 후속 내부 브라우저 검증·UI·아트 개선: [UI-ART-UPDATE.md](UI-ART-UPDATE.md).
 - 2026-10-29 목재·황동 UI와 착지·타격 연출 이력: [TAVERN-REDESIGN.md](TAVERN-REDESIGN.md).
 - 최신 카툰 아트·25종 개별 그림과 검증: [CARTOON-ART-UPDATE.md](CARTOON-ART-UPDATE.md). 사용자 영상의 규칙 대조·화상 교정·밸런스: [VIDEO-RULES-REVIEW.md](VIDEO-RULES-REVIEW.md).
+- 전투 배치 고정·차례별 카드 정리·아이콘 메뉴: [QUIET-UI-UPDATE.md](QUIET-UI-UPDATE.md). 화면 수치 모델은 [combat-ui.mjs](combat-ui.mjs), 아이콘은 [menu-icons.mjs](menu-icons.mjs), 배치는 [menu-icons.css](menu-icons.css)·[battle-readability.css](battle-readability.css)다.
 - 런타임 외부 의존성·빌드·패키지 설치 없음. 로컬 이미지·글꼴·효과음을 사용한다.
 
 저장소 루트에서 실행한다. 기존 서버와 8765 포트를 먼저 확인하고 재사용한다.
@@ -32,7 +33,9 @@ node games/wild-oath/tests/serve.mjs
 
 ## 전투 화면·그래픽
 
-상대 진영은 위쪽 적갈색 가죽, 내 진영은 아래쪽 코발트색 가죽으로 구분한다. 각 진영에 캐릭터·생명·기력, 자기 덱과 사용 카드 자리가 따로 있다. 카드는 자기 덱에서 자기 사용 영역으로 이동하고, 공격은 그 자리에서 상대 캐릭터를 향한다. 상대가 행동해도 다른 쪽의 마지막 카드는 남는다. 낮은 가로 화면에서는 두 진영을 좌우로 나누며 같은 색과 역할 표시를 유지한다.
+상대 진영은 위쪽 적갈색 가죽, 내 진영은 아래쪽 코발트색 가죽으로 구분한다. 각 진영에 캐릭터·생명·기력, 자기 덱과 사용 카드 자리가 따로 있다. 카드는 자기 덱에서 자기 사용 영역으로 이동하고, 공격은 그 자리에서 상대 캐릭터를 향한다. 현재 행동하는 진영만 밝은 테두리·차례 표시·사용 카드를 보여준다. 효과 정리가 끝나면 카드를 비우며, 상대 행동 중 내 마지막 카드가 남지 않는다. 규칙이 다음 차례로 넘어가도 타격 연출 중에는 실제 카드 사용자의 진영을 유지한다. 낮은 가로 화면에서는 두 진영을 좌우로 나눈다.
+
+전투의 이름·상태·자원·카드·하단 버튼은 고정된 칸을 사용한다. 긴 카드 설명·변신 규칙·발동 기록은 상시 노출하지 않으며 카드와 초상화를 눌러 상세를 확인한다. 상세를 여는 동안 전투는 멈추고 다음 미처리 카드부터 재개한다. 준비·보상·상대 덱·도감에서도 효과는 그림 기호와 수치로 요약하며 조건부 효과의 정확한 문장은 상세 창에 보존한다. 기력 별·감전 번개·다음 카드 충전·상대 기력 감소는 다른 기호를 쓴다. 앞/뒤 표식은 카드 뒷면 전환이 아니라 맨 앞/맨 뒤 정렬이며 화살표와 무작위 아이콘으로 표시한다. 현재 정렬은 누르는 버튼으로 만들지 않는다.
 
 사용할 카드는 들어올려 제시한 뒤 테이블에 착지하고 효과를 발사한다. 4배속에서도 뽑기 140ms·카드 제시 260ms·접촉 80ms·발사 180ms를 확보한다. 공격·화상·감전·독·방어·회복·기력·변신을 다른 형태와 선명한 색으로 표시하며, 연타·반격·독성 폭발은 실제 규칙 순서대로 160ms 간격으로 나온다. 일반·연계·강타의 타격 크기를 구분하고 실제 생명 피해가 있는 강타에 60ms 시각 정지를 적용한다. 큰 피해 숫자와 생명바가 타격마다 함께 바뀌고, 막은 피해는 별도로 표시한다. 효과음은 로컬 Kenney 타격음과 직접 합성한 준비·속성음을 조합한다. 음원 로딩이나 실패는 전투 진행을 기다리게 하지 않는다.
 
@@ -40,7 +43,7 @@ node games/wild-oath/tests/serve.mjs
 
 초상화와 카드 그림은 굵은 잉크 외곽선·큰 실루엣·셀 채색의 2D 카툰이다. 짙은 목재·가죽·황동·양피지 구조는 유지하면서 잔무늬를 줄이고 큰 색면으로 정리했다. 실사적인 털·비늘·역광 묘사와 옅은 파스텔 면을 사용하지 않는다. 시작 선택·탐험·야영지·전투·도감·팝업에 같은 스타일을 적용한다. Kenney UI Pack 2.0의 CC0 별·화살표·재생·재섞기 SVG도 유지한다. 상용 게임의 이미지·로고·캐릭터는 사용하지 않는다. 생성 프롬프트, 리소스 출처와 라이선스는 [assets/ART.md](assets/ART.md)에 기록한다.
 
-일반 카드 25종은 각각 다른 삽화를 사용하고, 세 변신은 새 초상화를 사용한다. 관통은 방패를 뚫는 흰 송곳, 맹독은 독 방울, 선충전은 포효와 두 광점처럼 효과와 큰 형태를 연결한다. 카드 ID가 같은 그림 파일에 직접 대응하며 등급이 달라도 정체성을 유지한다. 선택·덱·상점·보상·도감·전투·발동 기록에 일관되게 적용하고 작은 세로/가로 전투에서도 일반 카드의 그림 높이를 30px 확보한다. 26개 WebP 합계는 498,884B, 별도 원본 보드 SVG는 1,276B다. WebP는 550KB 이내로 검증한다. [v4 아트 기록](assets/cartoon-v4/ART.md)과 [manifest](assets/cartoon-v4/manifest.json)에 전체 프롬프트·정규화·체크섬을 보관한다. 앞선 v1~v3 이미지는 이력으로 남기며 현재 화면에서는 불러오지 않는다.
+일반 카드 25종은 각각 다른 삽화를 사용하고, 세 변신은 새 초상화를 사용한다. 관통은 방패를 뚫는 흰 송곳, 맹독은 독 방울, 선충전은 포효와 두 광점처럼 효과와 큰 형태를 연결한다. 카드 ID가 같은 그림 파일에 직접 대응하며 등급이 달라도 정체성을 유지한다. 선택·덱·상점·보상·도감·전투에 일관되게 적용하고 작은 세로/가로 전투에서도 일반 카드의 그림 높이를 30px 확보한다. 26개 WebP 합계는 498,884B, 별도 원본 보드 SVG는 1,276B다. WebP는 550KB 이내로 검증한다. [v4 아트 기록](assets/cartoon-v4/ART.md)과 [manifest](assets/cartoon-v4/manifest.json)에 전체 프롬프트·정규화·체크섬을 보관한다. 앞선 v1~v3 이미지는 이력으로 남기며 현재 화면에서는 불러오지 않는다.
 
 덱 분석 위에서 연계 카드를 열면 상세 창이 위에 쌓인다. 상세를 닫거나 편입/제외하면 분석으로 돌아오고 현재 덱의 비용·역할·등급·정렬 표식을 다시 계산한다. 분석의 상단 닫기 버튼은 스크롤 중에도 유지된다.
 
@@ -52,7 +55,7 @@ node games/wild-oath/tests/serve.mjs
 4. 전투를 시작하면 현재 차례인 쪽이 덱 맨 위부터 기력이 허용하는 만큼 카드를 연속 사용한다. 플레이어가 카드를 고르거나 변신을 지시하지 않는다.
 5. 승리하면 카드 세 장 중 하나를 받고 다음 탐험 갈림길로 간다. 다섯 시련을 통과하면 성공하며, 패배하면 이번 여정이 끝난다.
 
-카드의 충전 비용, 덱 두께, 변신 카드의 비중과 상태 이상 조합이 준비 단계의 판단 요소다. 야영지의 **덱 분석** 버튼에서 비용별 장수(0·1·2·3 이상)·평균 비용·공격/보호막/회복/기력 공급/선충전 카드 수·앞장/뒷장·상대와의 선공을 확인한다. 기력 공급은 실제 기력을 더하는 카드이며 선충전은 다음 카드의 빈 충전 칸을 채우는 별도 효과다. 여러 역할을 가진 카드는 각 역할에 포함되며 통계는 승률이나 발동 순서를 보장하지 않는다. 같은 창에서 변신 고유 능력·연계 조건·추천 카드의 보유 여부를 확인한다. 카드 표면에는 짧은 연계 요약을, 상세 창에는 정확한 조건을 표시한다. 전투에서는 집중과 연타 진행, 추격·반격·독성 폭발의 발동을 표시한다.
+카드의 충전 비용, 덱 두께, 변신 카드의 비중과 상태 이상 조합이 준비 단계의 판단 요소다. 야영지의 **덱 분석** 버튼에서 비용별 장수(0·1·2·3 이상)·평균 비용·공격/보호막/회복/기력 공급/선충전 카드 수·앞장/뒷장·상대와의 선공을 확인한다. 기력 공급은 실제 기력을 더하는 카드이며 선충전은 다음 카드의 빈 충전 칸을 채우는 별도 효과다. 여러 역할을 가진 카드는 각 역할에 포함되며 통계는 승률이나 발동 순서를 보장하지 않는다. 같은 창에서 변신 고유 능력·연계 조건·추천 카드의 보유 여부를 확인한다. 카드 표면에는 효과 기호·수치와 연계 표식을, 상세 창에는 정확한 조건을 표시한다. 전투에서는 집중과 연타 진행, 추격·반격·독성 폭발의 발동을 표시한다.
 
 ## 덱 구성·상점
 
@@ -161,9 +164,11 @@ node --check games/wild-oath/game.mjs
 node --check games/wild-oath/combat-presentation.mjs
 node --check games/wild-oath/deck-analysis.mjs
 node --check games/wild-oath/card-art.mjs
+node --check games/wild-oath/combat-ui.mjs
+node --check games/wild-oath/menu-icons.mjs
 node --check games/wild-oath/catalog.mjs
 node --check games/wild-oath/tests/serve.mjs
-node --test games/wild-oath/tests/rules.test.mjs games/wild-oath/tests/combat-presentation.test.mjs games/wild-oath/tests/deck-analysis.test.mjs games/wild-oath/tests/card-integrity.test.mjs games/wild-oath/tests/card-art.test.mjs
+node --test games/wild-oath/tests/rules.test.mjs games/wild-oath/tests/combat-presentation.test.mjs games/wild-oath/tests/deck-analysis.test.mjs games/wild-oath/tests/card-integrity.test.mjs games/wild-oath/tests/card-art.test.mjs games/wild-oath/tests/combat-ui.test.mjs
 node games/wild-oath/tests/balance-campaigns.mjs --seeds 100
 git diff --check -- games/wild-oath
 ```

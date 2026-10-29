@@ -1,5 +1,7 @@
 import { CARDS, FORMS, describeCard } from './rules.mjs?v=cartoon-4';
 import { cardArtClass } from './card-art.mjs?v=cartoon-4';
+import { icon, decorateMenus } from './menu-icons.mjs?v=quiet-5';
+import { cardSymbols } from './combat-ui.mjs?v=quiet-5';
 
 const $ = id => document.getElementById(id);
 const typeNames = { attack: '공격', defense: '방어', heal: '회복', energy: '기력', form: '변신', support: '지원' };
@@ -37,16 +39,24 @@ function cardButton(card) {
   button.append(node('span', 'card-cost', String(card.cost)));
   button.append(node('span', `card-art ${cardArtClass(card)}`));
   button.append(node('strong', 'card-name', card.name));
-  const effects = node('span', 'card-effects');
-  for (const effect of card.text.split(' · ')) effects.append(node('span', '', effect));
+  const effects = node('span', 'battle-symbols catalog-symbols');
+  effects.innerHTML = cardSymbols(card).map(effect=>`<span class="effect-token kind-${effect.icon}" role="img" aria-label="${effect.label}" title="${effect.label}">${icon(effect.icon)}<b>${effect.value}</b></span>`).join('');
   button.append(effects);
-  if (card.linkShort || form) {
-    const link = node('span', `card-link${form ? ' form-link' : ''}`);
-    link.append(node('b', '', form ? '고유 능력' : '연계'), node('span', '', form ? form.rule : card.linkShort));
-    button.append(link);
-  }
   const footer = node('span', 'card-footer');
-  footer.append(node('span', '', typeName(card.type)), node('span', 'card-stars', '★'.repeat(state.tier)));
+  const kind = node('span', 'card-kind-symbol');
+  kind.setAttribute('role','img');
+  kind.setAttribute('aria-label',typeName(card.type));
+  kind.title = typeName(card.type);
+  kind.innerHTML = icon(card.type);
+  footer.append(kind, node('span', 'card-stars', '★'.repeat(state.tier)));
+  if (card.linkText || form) {
+    const link = node('span', 'card-link-symbol');
+    link.setAttribute('role','img');
+    link.setAttribute('aria-label', form ? '변신 고유 능력 있음, 상세 보기' : '카드 연계 있음, 상세 보기');
+    link.title = form ? '고유 능력' : '연계';
+    link.innerHTML = icon(form ? 'form' : 'combo');
+    footer.append(link);
+  }
   button.append(footer);
   return button;
 }
@@ -134,4 +144,8 @@ listen($('card-detail'), 'click', event => {
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) $('card-detail').close();
 });
 window.addEventListener('pagehide', event => { if (!event.persisted) lifetime.abort(); });
+decorateMenus();
+const searchIcon = document.createElement('span');
+searchIcon.innerHTML = icon('search');
+$('card-search').parentElement.prepend(searchIcon.firstElementChild);
 render();

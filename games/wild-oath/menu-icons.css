@@ -1,0 +1,128 @@
+/* Original ink pictograms: familiar actions stay large, prose lives in details. */
+.menu-icon { display:inline-block; width:26px; height:26px; min-width:0; vertical-align:middle; flex-shrink:0; pointer-events:none; }
+.icon-control { display:inline-flex; align-items:center; justify-content:center; gap:9px; }
+.icon-only-control { min-width:48px; min-height:48px; flex-shrink:0; }
+.icon-only-control > .menu-label { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.icon-button.icon-control { padding:6px; }
+.icon-only-control:focus-visible::after { content:attr(aria-label); position:absolute; z-index:25; top:calc(100% + 7px); left:50%; transform:translateX(-50%); max-width:220px; width:max-content; padding:6px 9px; border:2px solid #eac17c; border-radius:8px; background:#302115; color:#fff1d4; font-size:16px; line-height:1.25; box-shadow:0 3px 8px #1009059c; pointer-events:none; }
+.icon-only-control { position:relative; }
+.topbar .wordmark { display:block; }
+.topbar .wordmark > span { display:none; }
+.topbar .wordmark h1 { margin:0; font-size:24px; white-space:nowrap; }
+.camp-title h2 { font-size:30px; }
+.camp-title p { display:none; }
+.camp-currency > span { display:flex; align-items:center; justify-content:center; gap:8px; }
+.camp-currency .menu-icon { width:23px; height:23px; min-width:23px; color:#f8cb6a; }
+.camp-currency > span:first-child .menu-icon { color:#ff8575; }
+.camp-tabs button.icon-control { gap:9px; }
+.camp-tabs button .menu-icon { width:27px; height:27px; min-width:27px; }
+.camp-tabs button span { margin:0; }
+.collection-heading { justify-content:flex-end; gap:10px; height:60px; }
+.collection-heading #collection-hint { display:none; }
+.collection-heading #deck-limit { margin-right:auto; font-size:16px; color:#f5dfb3; }
+.collection-heading .bulk-upgrade { margin:0; min-height:48px; padding:5px 10px; gap:7px; }
+.collection-heading .deck-links,.collection-heading .catalog-link { width:50px; min-height:48px; padding:7px; border-radius:11px; border:3px solid #9c7848; background:#4c3524; color:#ffe0a0; box-shadow:inset 0 2px #d0aa6a4d,0 3px #21140f; text-decoration:none; }
+.collection-heading .bulk-upgrade > span:not(.menu-label) { min-width:27px; padding:1px 5px; }
+.camp-footer .launch.icon-control { min-height:64px; font-size:27px; gap:9px; }
+.camp-footer .launch .menu-icon { width:29px; height:29px; }
+.next-enemy .menu-icon { width:24px; height:24px; color:#f4d18b; }
+.next-enemy .next-enemy-copy { text-align:left; min-width:0; }
+.next-enemy #next-enemy-info { font-size:16px; }
+.menu-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; margin-top:18px; }
+.game-dialog .menu-grid .secondary-button,.game-dialog .menu-grid .dialog-home { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:9px; min-height:88px; width:100%; margin:0; padding:12px 6px; text-decoration:none; border:3px solid #9c7848; border-radius:13px; background:#513924; box-shadow:inset 0 2px #d0aa6a4d,0 4px #21140f; color:#ffebc2; font-size:18px; }
+.menu-grid .menu-icon { width:31px; height:31px; min-width:31px; }
+.game-dialog .overline:empty { display:none; }
+.game-dialog .compact-dialog-title { margin-bottom:7px; }
+.game-dialog .compact-note { margin-top:10px!important; font-size:16px!important; }
+.game-dialog .detail-actions .icon-control { gap:8px; }
+.game-dialog .detail-actions .sticker-row .icon-control { min-height:48px; }
+.game-dialog .detail-actions .sticker-row .menu-icon { width:27px; height:27px; }
+.portrait-ring > .portrait { display:block; }
+#card-dialog .dialog-content { padding-top:14px; }
+#card-dialog [data-close="card-dialog"] { position:sticky; top:0; z-index:5; float:right; display:inline-flex; width:48px; min-width:48px; height:48px; min-height:48px; margin:0 -8px -48px 0; padding:7px; border-radius:12px; }
+#card-dialog .detail-card { margin-top:10px; }
+.collection .card { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; height:230px; padding:7px 8px 30px; gap:5px; }
+.collection .card > .card-art { flex:0 0 72px; height:72px; min-height:72px; width:100%; margin:0; }
+.collection .card > .card-name { display:flex; align-items:center; justify-content:center; flex:0 0 44px; min-height:44px; margin:0; font-size:20px; line-height:22px; overflow-wrap:anywhere; }
+.collection .card > .card-text { display:flex; align-items:flex-start; justify-content:center; flex:1; min-height:0; margin:0; }
+.collection .card > .card-bottom { min-height:22px; bottom:7px; left:8px; right:8px; }
+.battle-symbols { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:5px; }
+.form-identity{font-size:16px;color:#49361e;white-space:nowrap}
+.picked-card.picked-art{inline-size:40px;block-size:34px;padding:0;border-radius:7px;background-size:300% 200%}
+#draft-deck-count{display:flex;align-items:center;gap:5px}
+.draft-preview:empty:before{content:none}
+.order-current{display:inline-flex;align-items:center;justify-content:center;opacity:1;outline:2px solid #ffe69a;outline-offset:-3px}
+.sticker-row>.secondary-button{min-width:44px;min-height:44px}
+.card-sticker .menu-icon{width:20px;height:20px}
+.card-price{display:inline-flex;align-items:center;gap:3px}
+.card-price .menu-icon,.card-link-mark .menu-icon{width:20px;height:20px}
+.effect-chip{display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap}
+.effect-chip .menu-icon{width:23px;height:23px}
+.reward .battle-symbols,.opponent-card .battle-symbols{display:flex;justify-content:flex-start;margin-top:6px}
+.reward strong,.opponent-card strong,.card-name{word-break:keep-all;overflow-wrap:normal}
+.reward>span:nth-child(2){flex:1;min-width:0}
+.game-dialog #detail-text,.game-dialog .detail-link p{word-break:keep-all;overflow-wrap:break-word}
+.reward-cost{font-size:28px;min-width:28px;text-align:center;color:#78bde7}
+.opponent-card{width:100%;text-align:left;font:inherit;cursor:pointer}
+#reward-note{display:flex;align-items:center;justify-content:center;gap:8px;font-size:20px}
+.effect-token { display:inline-flex; align-items:center; justify-content:center; gap:3px; min-height:27px; padding:1px 5px; border:1px solid #8a663c; border-radius:7px; background:#fff0cb; color:#342517; white-space:nowrap; }
+.effect-token .menu-icon { width:20px; height:20px; min-width:20px; }
+.effect-token b { font-size:20px; line-height:1; }
+.effect-token.kind-attack { color:#882818; background:#ffe4bc; }
+.effect-token.kind-defense,.effect-token.kind-counter { color:#174b83; background:#d9ecff; }
+.effect-token.kind-heart { color:#8b2649; background:#ffe1e8; }
+.effect-token.kind-energy,.effect-token.kind-charge { color:#775100; background:#fff0a3; }
+.effect-token.kind-drain{color:#774219;background:#fbd5ae}
+.effect-token.kind-poison { color:#2f6322; background:#e0f6ba; }
+.effect-token.kind-fire { color:#96320c; background:#ffdfab; }
+.effect-token.kind-shock { color:#603b98; background:#e9dcff; }
+.effect-token.kind-focus,.effect-token.kind-combo { color:#245866; background:#d8f0ef; }
+.effect-token.kind-form { color:#63348b; background:#edddff; }
+.catalog-symbols { min-height:56px; margin:2px 0 0; align-content:center; }
+.catalog-card .card-name { min-height:47px; display:grid; place-items:center; margin:8px 0 4px; }
+.catalog-card .card-link-symbol { margin-left:auto; color:#7a4c20; }
+.catalog-card .card-footer { margin-top:10px; }
+.card .battle-symbols,.draft-option .battle-symbols { position:relative; }
+.card .battle-symbols .effect-token,.draft-option .battle-symbols .effect-token { min-height:25px; padding:1px 4px; }
+.card .battle-symbols .menu-icon,.draft-option .battle-symbols .menu-icon { width:19px; height:19px; min-width:19px; }
+.catalog-header .back-button,.catalog-header .home-button { width:49px; min-width:49px; padding:7px; }
+.catalog-header > div > p { display:none; }
+.catalog-header h1 { font-size:30px; }
+.catalog-toolbar .tier-control { gap:8px; }
+.catalog-toolbar .tier-control button { min-width:59px; padding-inline:8px; }
+.catalog-toolbar .tier-control .menu-icon { width:21px; height:21px; min-width:21px; }
+.catalog-controls .pool-note,.card-detail .detail-note { display:none; }
+.catalog-card .card-link { display:none; }
+.catalog-card { min-height:236px; }
+.catalog-card .card-footer > span:first-child { display:inline-flex; align-items:center; padding:2px 6px; }
+.catalog-card .card-footer .menu-icon { width:21px; height:21px; min-width:21px; }
+.catalog-card .card-effects { font-size:16px; }
+.search-label { position:relative; }
+.search-label > .menu-icon { position:absolute; z-index:1; left:13px; top:13px; color:#78552c; pointer-events:none; }
+.search-label input { padding-left:45px; }
+@media(max-width:700px) {
+  .topbar .wordmark h1 { font-size:22px; }
+  .topbar .icon-only-control { min-width:44px; min-height:44px; }
+  .topbar .menu-icon { width:25px; height:25px; min-width:25px; }
+  .camp-title h2 { font-size:28px; }
+  .camp-tabs button.icon-control { gap:7px; }
+  .collection-heading { height:57px; gap:9px; }
+  .collection-heading #deck-limit { display:block; font-size:16px; }
+  .collection-heading .bulk-upgrade { padding-inline:8px; }
+  .camp-currency .menu-icon { width:21px; height:21px; min-width:21px; }
+  .camp-footer .launch.icon-control { min-height:60px; font-size:25px; width:112px; gap:7px; }
+  .camp-footer .launch .menu-icon { width:26px; height:26px; }
+  .catalog-card { min-height:224px; }
+  .collection .card { height:224px; padding:6px 7px 29px; gap:4px; }
+  .collection .card > .card-art { flex-basis:68px; height:68px; min-height:68px; }
+  .collection .card > .card-name { font-size:19px; }
+}
+@media(max-width:350px) {
+  .topbar .wordmark h1 { font-size:20px; }
+  .topbar { gap:6px; }
+  .top-actions { gap:4px; }
+  .camp-tabs button .menu-icon { width:25px; height:25px; min-width:25px; }
+  .collection-heading #deck-limit { font-size:14px; }
+  .collection-heading { gap:8px; }
+  .collection-heading .deck-links,.collection-heading .catalog-link { width:46px; min-width:46px; }
+}

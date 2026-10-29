@@ -2,16 +2,17 @@ import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, active
 import { presentationTiming, effectKind, impactBeats, impactTotals, cardPlayStatus, impactFeedback } from './combat-presentation.mjs?v=tavern-3';
 import { analyzeDeck } from './deck-analysis.mjs?v=cartoon-4';
 import { cardArtClass } from './card-art.mjs?v=cartoon-4';
+import { icon, decorateMenus } from './menu-icons.mjs?v=quiet-5';
+import { cardSymbols, visibleCardActor } from './combat-ui.mjs?v=quiet-5';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'wild-oath:v5';
 const LEGACY_SAVE_KEY = 'wild-oath:v4';
 const PREF_KEY = 'wild-oath:settings:v1';
-const typeNames = { attack: '공격', defense: '방어', heal: '회복', energy: '기력', form: '변신' };
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const lifetime = new AbortController();
 let state, hadSave = false, saveAvailable = true, soundEnabled = false, speed = 1;
-let activeTab = 'deck', detail = null, lastCards = {player:null,enemy:null}, history = [];
+let activeTab = 'deck', detail = null, presentedCard = null;
 let mainTimer = null, toastTimer = null, audioContext = null, master = null, audioLoading = false;
 let audioBuffers = {}, activeSources = new Set();
 let lastJourneyChoiceAt = 0;
@@ -42,7 +43,7 @@ function clearEffects() {
   for (const id of ['hero','enemy','battlefield']) $(id).classList.remove('hit','heavy-hit','hit-stop','casting','lunge','shake','shake-heavy','flash','morph','countering','reacting');
   delete $('battlefield').dataset.presentation; delete $('battlefield').dataset.caster; delete $('battlefield').dataset.beat;
 }
-function stopLoop() { clearTimeout(mainTimer); mainTimer = null; clearEffects(); if(state.battle)renderHealth(state.battle); }
+function stopLoop() { clearTimeout(mainTimer); mainTimer = null; clearEffects(); presentedCard=null; if(state.battle)renderBattle(); }
 function showDialog(id) { stopLoop(); stopAudio(); if (!$(id).open) $(id).showModal(); }
 function closeDialog(id) {
   $(id).close();
@@ -107,12 +108,13 @@ function stopAudio() { for (const source of activeSources) { try { source.stop()
 function cardMarkup(instance, { offer = null, displayedCharge = null } = {}) {
   const card = describeCard(instance);
   const cost = card.cost;
-  const typeLabel = card.form ? FORMS[card.form].label : card.linkShort ? '연계' : typeNames[card.type];
-  const linkHint = card.linkShort || (card.form ? {wolf:'세 번째 공격 추격',bear:'막은 공격에 반격',wyvern:'독성 폭발 · 생명 흡수'}[card.form] : '');
-  const cardLines = card.text.split(' · ').filter(line=>!card.form || !line.endsWith(' 변신'));
-  const sticker = instance.sticker && instance.sticker !== 'none' ? `<span class="card-sticker">${instance.sticker === 'top' ? '앞장' : '뒷장'}</span>` : '';
-  const bubbles = displayedCharge !== null ? `<span class="charge-bubbles" aria-label="충전 ${displayedCharge} / ${cost}">${Array.from({length:cost},(_,i)=>`<i class="${i < displayedCharge ? 'full' : ''}"></i>`).join('')}${!cost ? '<small>즉시 발동</small>' : ''}</span>` : '';
-  return `<span class="card-cost">${cost}</span>${sticker}<div class="card-art ${cardArtClass(card)}"></div><strong class="card-name">${card.name}</strong><span class="card-text">${cardLines.join('\n')}${linkHint ? `<span class="card-link-hint">↳ ${linkHint}</span>` : ''}</span><span class="card-bottom">${displayedCharge !== null ? bubbles : `<span class="card-tier">${'★'.repeat(card.tier)}</span>${offer ? `<span class="card-price ${state.gold < offer.price ? 'unaffordable' : ''}">${offer.price} 골드</span>` : `<span>${typeLabel}</span>`}`}</span>`;
+  const combat=displayedCharge!==null;
+  const sticker=instance.sticker&&instance.sticker!=='none'?`<span class="card-sticker" title="${instance.sticker==='top'?'맨 앞 고정':'맨 뒤 고정'}">${icon(instance.sticker)}</span>`:'';
+  const bubbles=combat?`<span class="charge-bubbles combat-charge" aria-label="충전 ${displayedCharge} / ${cost}">${Array.from({length:cost},(_,i)=>`<i class="${i<displayedCharge?'full':''}"></i>`).join('')}${!cost?icon('energy'):''}</span>`:'';
+  return `<span class="card-cost" aria-label="기력 비용 ${cost}">${cost}</span>${sticker}<div class="card-art ${combat?'combat-card-art ':''}${cardArtClass(card)}"></div><strong class="card-name ${combat?'combat-card-name':''}">${card.name}</strong><span class="card-text">${symbolsMarkup(card)}</span><span class="card-bottom">${combat?bubbles:`<span class="card-tier" aria-label="${card.tier}등급">${'★'.repeat(card.tier)}</span>${card.form?`<span class="form-identity">${{wolf:'연타·추격',bear:'수호·반격',wyvern:'관통·흡수'}[card.form]}</span>`:''}${offer?`<span class="card-price ${state.gold<offer.price?'unaffordable':''}">${icon('coin')}${offer.price}</span>`:card.linkText?`<span class="card-link-mark" title="연계 효과 있음">${icon('support')}</span>`:''}`}</span>`;
+}
+function symbolsMarkup(card) {
+  return `<span class="battle-symbols">${cardSymbols(card).map(item=>`<span class="effect-token kind-${item.icon}" role="img" aria-label="${item.label}" title="${item.label}">${icon(item.icon)}<b>${item.value}</b></span>`).join('')}</span>`;
 }
 
 function render() {
@@ -123,42 +125,43 @@ function render() {
   $('explore-view').hidden = state.phase !== 'explore';
   $('battle-view').hidden = !['battle','reward','won','lost'].includes(state.phase);
   $('journey').innerHTML = ENCOUNTERS.map((encounter,index)=>`<span class="step ${index === state.stage ? 'current' : index < state.stage ? 'done' : ''}" data-number="${index+1}" ${index === state.stage ? 'aria-current="step"' : ''}><span>${encounter.subtitle}</span></span>`).join('');
-  $('sound').setAttribute('aria-pressed', String(soundEnabled)); $('sound').setAttribute('aria-label', soundEnabled ? '효과음 끄기' : '효과음 켜기'); $('sound').textContent = soundEnabled ? '♫' : '♪';
-  $('speed').textContent = `속도 ×${speed}`;
+  $('sound').setAttribute('aria-pressed', String(soundEnabled)); $('sound').setAttribute('aria-label', soundEnabled ? '효과음 끄기' : '효과음 켜기'); $('sound').dataset.uiIcon=soundEnabled?'sound':'muted';
+  $('speed').innerHTML = `${icon('speed')}<span>×${speed}</span>`;
   $('save-warning').hidden = saveAvailable;
   $('pause-opponent').hidden = !state.opponent;
   if (state.phase === 'draft') renderDraft();
   else if (state.phase === 'explore') renderExplore();
   else if (state.phase === 'camp') renderCamp();
   else renderBattle();
+  decorateMenus();
 }
 function renderDraft() {
   const draft = state.draft, starting = draft.kind === 'start';
   const roles = ['변신','공격','방어','기력','공격','회복','자유','자유'];
-  $('draft-kicker').textContent = starting ? '첫 서약 · 시작 덱 만들기' : `${state.stage+1}번째 탐험 · ${draft.title}`;
+  $('draft-kicker').textContent = starting ? '첫 서약' : `${state.stage+1}번째 탐험`;
   $('draft-title').textContent = starting ? `${roles[draft.picked]} 카드를 골라요` : draft.title;
-  $('draft-subtitle').textContent = starting ? '매번 다른 세 장 중 한 장을 선택' : `세 장 중 한 장 · ${draft.tier}등급 카드`;
-  $('draft-count').textContent = `${draft.picked} / ${draft.total}장 선택`;
+  $('draft-subtitle').textContent = '';
+  $('draft-count').textContent = `${draft.picked} / ${draft.total}`;
   $('draft-dots').innerHTML = Array.from({length:draft.total},(_,i)=>`<i class="${i < draft.picked ? 'done' : i === draft.picked ? 'current' : ''}"></i>`).join('');
   $('draft-options').innerHTML = draft.offers.map(offer=>{
     const card = describeCard(offer);
     return `<button class="draft-option" data-draft-offer="${offer.uid}" data-type="${card.type}" aria-label="${card.name} 선택, 기력 ${card.cost}, ${card.tier}등급, ${card.text}${card.linkText ? `, 연계 ${card.linkText}` : ''}${card.form ? `, ${FORMS[card.form].detail}` : ''}">${cardMarkup(offer)}</button>`;
   }).join('');
-  $('draft-deck-count').textContent = `모은 카드 ${state.collection.length}장`;
-  $('draft-preview').innerHTML = state.collection.length ? state.collection.map(instance=>`<span class="picked-card">${CARDS[instance.id].name}</span>`).join('') : '<span class="picked-card">첫 카드부터 직접 선택해요</span>';
+  $('draft-deck-count').innerHTML = `${icon('deck')} ${state.collection.length}`;
+  $('draft-preview').innerHTML = state.collection.map(instance=>`<span class="picked-card picked-art ${cardArtClass(CARDS[instance.id])}" role="img" aria-label="${CARDS[instance.id].name}" title="${CARDS[instance.id].name}"></span>`).join('');
   $('draft-preview').scrollLeft = $('draft-preview').scrollWidth;
-  $('draft-note').textContent = starting ? '8장을 고르면 숲의 탐험이 시작됩니다' : state.collection.length >= 36 ? '전체 보관 한도 · 선택 카드 대신 골드 +3' : activeDeck(state).length < DECK_MAX ? '획득 카드는 바로 내 덱에 들어갑니다' : '출전 덱이 가득 차면 보관함에 들어갑니다';
+  $('draft-note').textContent = state.collection.length>=36?'보관 한도 · 골드 +3':'';
 }
 function renderExplore() {
-  $('explore-kicker').textContent = `${state.stage+1} / ${ENCOUNTERS.length} 시련 · 숲의 갈림길`;
+  $('explore-kicker').textContent = `${state.stage+1} / ${ENCOUNTERS.length}`;
   $('explore-title').textContent = state.stage === 0 ? '첫 발걸음은 어디로?' : '다음 길을 골라요';
-  $('explore-subtitle').textContent = '한 곳을 탐험한 뒤 전투를 준비합니다';
-  $('explore-supplies').innerHTML = `<span>생명 <b>${state.hp}</b></span><span>골드 <b>${state.gold}</b></span><span>덱 <b>${activeDeck(state).length}장</b></span>`;
+  $('explore-subtitle').textContent = '';
+  $('explore-supplies').innerHTML = `<span aria-label="생명 ${state.hp}">${icon('heart')}<b>${state.hp}</b></span><span aria-label="골드 ${state.gold}">${icon('coin')}<b>${state.gold}</b></span><span aria-label="덱 ${activeDeck(state).length}장">${icon('deck')}<b>${activeDeck(state).length}</b></span>`;
   $('explore-options').innerHTML = state.exploration.offers.map(offer=>{
     const event = EVENTS[offer.eventId];
     const cardRoom = Math.max(0,36-state.collection.length), converted = Math.max(0,event.total-cardRoom);
     const reward = converted ? `${event.total-converted ? `카드 ${event.total-converted}장 · ` : '보관 한도 · '}골드 +${converted*3}` : event.rewardLabel;
-    return `<button class="encounter-option" data-encounter="${offer.uid}" data-event="${offer.eventId}" aria-label="${event.title}, ${event.description}, ${reward}, ${event.costLabel}"><span class="encounter-art art art-${event.art}"></span><span class="encounter-copy"><strong>${event.title}</strong><span class="description">${event.description}</span><span class="encounter-reward">${reward}</span></span><span class="encounter-cost">${event.costLabel}</span></button>`;
+    return `<button class="encounter-option" data-encounter="${offer.uid}" data-event="${offer.eventId}" aria-label="${event.title}, ${event.description}, ${reward}, ${event.costLabel}"><span class="encounter-art art art-${event.art}"></span><span class="encounter-copy"><strong>${event.title}</strong><span class="encounter-reward">${reward}</span></span><span class="encounter-cost">${event.costLabel}</span></button>`;
   }).join('');
 }
 function renderCamp() {
@@ -171,9 +174,9 @@ function renderCamp() {
   $('collection-hint').textContent = activeTab === 'shop' ? '구매 → 보관함' : activeTab === 'bench' ? '눌러서 덱에 편입' : '눌러서 카드 관리';
   $('deck-limit').textContent = activeTab === 'shop' ? '전투마다 새 상품' : `${DECK_MIN}~${DECK_MAX}장`;
   const mergeCount = upgradeAll(structuredClone(state)).merged || 0;
-  $('upgrade-all').hidden = activeTab === 'shop';
+  $('upgrade-all').hidden = activeTab === 'shop'||mergeCount===0;
   $('upgrade-all').disabled = mergeCount === 0;
-  $('upgrade-count').textContent = `${mergeCount}회`;
+  $('upgrade-count').textContent = `${mergeCount}`;
   $('upgrade-all').setAttribute('aria-label', mergeCount ? `일괄 합성 ${mergeCount}회, 덱과 보관함의 같은 카드를 최대 3등급까지 합성, 출전 ${DECK_MIN}장 유지` : '일괄 합성, 합성 가능한 카드 없음');
   const cards = activeTab === 'shop' ? state.shop : state.collection.filter(card => card.inDeck === (activeTab === 'deck'));
   const scroll = $('collection').scrollTop;
@@ -183,11 +186,11 @@ function renderCamp() {
   }).join('') : `<div class="empty-collection">${activeTab === 'shop' ? '오늘의 상품을 모두 샀습니다' : '보관함이 비었습니다'}<small>${activeTab === 'shop' ? '다음 시련에서 새 상품이 들어옵니다' : '상점에서 새 카드를 찾아보세요'}</small></div>`;
   $('collection').scrollTop = scroll;
   $('next-enemy-name').textContent = encounter.name;
-  $('next-enemy-info').textContent = `덱 ${enemyDeck(state).length}장 · 살펴보기 ›`;
+  $('next-enemy-info').innerHTML = `${icon('deck')} ${enemyDeck(state).length}`;
   $('launch').disabled = deck.length < DECK_MIN || deck.length > DECK_MAX;
 }
 function fighterStatus(fighter) {
-  return `${fighter.shield ? `<span>보호막 ${fighter.shield}</span>` : ''}${fighter.poison ? `<span class="poison">맹독 ${fighter.poison}</span>` : ''}${fighter.burn ? `<span class="burn">화상 ${fighter.burn}</span>` : ''}${fighter.shock ? `<span class="shock">감전 ${fighter.shock}</span>` : ''}`;
+  return [['shield','defense','보호막'],['poison','poison','맹독'],['burn','fire','화상'],['shock','shock','감전']].map(([key,symbol,label])=>`<span class="status-token ${key}" ${fighter[key]?'':'hidden'} role="img" aria-label="${label} ${fighter[key]||0}" title="${label}">${icon(symbol)}<b>${fighter[key]||0}</b></span>`).join('');
 }
 function renderHealth(battle) {
   for(const [actor,id] of [['player','hero'],['enemy','enemy']]){
@@ -199,49 +202,51 @@ function renderHealth(battle) {
 function renderBattle() {
   if (!state.battle) return;
   const battle = state.battle, player = battle.player, enemy = battle.enemy;
-  $('battle-stage').textContent = `${state.stage+1} / ${ENCOUNTERS.length} · ${ENCOUNTERS[state.stage].subtitle}`;
-  $('battle-turn').textContent = `${battle.turn}턴 · ${battle.actor === 'player' ? '내' : '상대'} 차례`;
-  $('hero').dataset.active = String(battle.actor === 'player');
-  $('enemy').dataset.active = String(battle.actor === 'enemy');
+  const owner=visibleCardActor(battle.actor,presentedCard);
+  $('battle-stage').textContent = `${state.stage+1} / ${ENCOUNTERS.length}`;
+  $('battle-turn').textContent = `${battle.turn}턴`;
+  $('hero').dataset.active = String(owner === 'player');
+  $('enemy').dataset.active = String(owner === 'enemy');
   for (const actor of ['player','enemy']) {
-    $(`${actor}-lane`).dataset.active = String(battle.actor === actor && state.phase === 'battle');
+    $(`${actor}-lane`).dataset.active = String(owner === actor);
     $(`${actor}-lane`).dataset.form = battle[actor].form;
-    $(`${actor}-turn-label`).textContent = battle.actor === actor && state.phase === 'battle' ? '내 차례' : '대기';
+    $(`${actor}-turn-label`).textContent = owner===actor?(actor==='player'?'내 차례':'상대 차례'):'';
     $(`${actor}-form-rule`).textContent = FORMS[battle[actor].form].rule;
   }
-  if (battle.actor === 'enemy' && state.phase === 'battle') $('enemy-turn-label').textContent = '상대 차례';
   for (const actor of ['player','enemy']) {
     const fighter = battle[actor], id = actor === 'player' ? 'hero' : 'enemy';
-    if (fighter.form === 'wolf') $(`${actor}-turn-label`).textContent += ` · 연타 ${fighter.combo%3}/3`;
     let focus = $(`${id}-focus`);
     if (!focus) {focus=document.createElement('span');focus.id=`${id}-focus`;focus.className='focus-tag';$(id).querySelector('.resource-row').append(focus);}
-    focus.hidden=!fighter.focus;focus.textContent=`집중 ${fighter.focus || 0}`;
+    focus.hidden=!fighter.focus;focus.innerHTML=`${icon('focus')}<b>${fighter.focus||0}</b>`;focus.setAttribute('aria-label',`집중 ${fighter.focus||0}`);
+    $(id).querySelector('.portrait-ring').setAttribute('aria-label',`${actor==='player'?'내':'상대'} ${FORMS[fighter.form].name}, 능력 보기`);
   }
   $('hero-art').className = `portrait art art-${player.form}`;
   $('hero-name').textContent = FORMS[player.form].name; $('enemy-name').textContent = FORMS[enemy.form].name;
   $('enemy-name').title = enemy.name;
   $('enemy-art').className = `portrait art art-${enemy.form}`;
+  for(const [actor,id] of [['player','hero'],['enemy','enemy']])if(battle[actor].form==='wolf'){
+    const combo=document.createElement('span');combo.id=`${id}-combo`;combo.className='combo-tag';combo.innerHTML=`<b>${battle[actor].combo%3}/3</b>`;combo.setAttribute('aria-label',`추격까지 연타 ${battle[actor].combo%3} / 3`);$(`${id}-name`).append(combo);
+  }
   renderHealth(battle);
   $('hero-status').innerHTML = fighterStatus(player); $('enemy-status').innerHTML = fighterStatus(enemy);
   $('hero-energy').textContent = player.energy; $('enemy-energy').textContent = enemy.energy;
-  $('hero-deck').textContent = `덱 ${player.draw.length}\n버림 ${player.discard.length}`;
-  $('enemy-deck').textContent = `덱 ${enemy.draw.length}\n버림 ${enemy.discard.length}`;
-  $('history').innerHTML = history.slice(-4).map(event=>{
-    const lead=event.links?.find(link=>link.kind==='form')||event.links?.[0],owner=lead?.actor||event.actor,art=lead?.name==='곰 반격'?'art art-bear':event.cardId?cardArtClass(CARDS[event.cardId]):null;
-    return `<span class="history-item ${owner === 'enemy' ? 'enemy-action' : ''} ${event.type === 'charge' ? 'charge' : ''} ${lead ? 'linked-action' : ''}" title="${event.name || '재섞기'}${event.links?.length ? ` · ${event.links.map(link=>`${link.name}: ${link.text}`).join(' · ')}` : ''}">${art ? `<i class="${art}"></i>` : ''}<span><small>${event.turn}턴 ${owner === 'player' ? '나' : '적'}</small>${event.type === 'shuffle' ? '재섞기' : event.type === 'charge' ? '충전·버림' : lead ? lead.name : event.name}</span></span>`;
-  }).join('');
-  for (const actor of ['player','enemy']) renderActive(lastCards[actor] || {actor,type:'waiting'});
+  for(const [actor,id] of [['player','hero'],['enemy','enemy']]){
+    const fighter=battle[actor];
+    $(`${id}-deck`).innerHTML=`<span class="pile-count" title="뽑을 카드" aria-label="뽑을 카드 ${fighter.draw.length}">${icon('deck')}<b>${fighter.draw.length}</b></span><span class="pile-count" title="버림" aria-label="버린 카드 ${fighter.discard.length}">${icon('chest')}<b>${fighter.discard.length}</b></span>`;
+  }
+  for (const actor of ['player','enemy']) renderActive(presentedCard?.actor===actor?presentedCard:{actor,type:'waiting'});
 }
 function renderActive(event) {
   const slot = $(`${event.actor}-active-card`), owner = event.actor === 'player' ? '내' : '상대';
-  slot.dataset.action = event.type;
+  slot.dataset.action = event.preview?'preview':event.type;
+  slot.setAttribute('aria-hidden',String(event.type==='waiting'));
   slot.dataset.linked = String(Boolean(event.links?.some(link=>link.actor===event.actor)));
-  if (event.type === 'waiting') {slot.innerHTML = `<span class="await-card">${owner} 카드<br>사용 대기</span>`;return;}
-  if (!event.cardId) { slot.innerHTML = '<span class="await-card"><img class="shuffle-icon" src="assets/kenney-pop/repeat.svg" alt=""><br>덱 재섞기<br><small>한 턴 휴식</small></span>'; return; }
+  if (event.type === 'waiting') {slot.replaceChildren();return;}
+  if (!event.cardId) { slot.innerHTML = `<span class="await-card" role="img" aria-label="덱 재섞기">${icon('shuffle')}</span>`; return; }
   const info = { id:event.cardId, tier:event.tier || 1 };
   const card = describeCard(info);
   const status=cardPlayStatus(event);
-  slot.innerHTML = `<div class="card" data-type="${card.type}" aria-label="${owner} 카드, ${event.name || card.name}, ${status}, 충전 ${event.charged || 0}/${card.cost}">${cardMarkup(info,{displayedCharge:event.charged || 0})}</div>`;
+  slot.innerHTML = `<button type="button" class="card" data-inspect-card="${card.id}" data-inspect-tier="${card.tier}" data-type="${card.type}" aria-label="${owner} 카드, ${card.name}, ${status}, 충전 ${event.charged||0}/${card.cost}. 효과 자세히 보기">${cardMarkup(info,{displayedCharge:event.charged||0})}</button>`;
 }
 function showCard(kind, uid) {
   if (state.phase !== 'camp') return;
@@ -249,7 +254,7 @@ function showCard(kind, uid) {
   if (!instance) return;
   detail = { kind, uid };
   const card = describeCard(instance), shop = kind === 'shop';
-  $('detail-overline').textContent = shop ? `FOREST MARKET · ${instance.price} 골드` : `${instance.inDeck ? 'MY DECK' : 'COLLECTION'} · ${card.tier}등급`;
+  $('detail-overline').textContent = `${shop?'상점':instance.inDeck?'내 덱':'보관함'} · ${card.tier}등급`;
   $('detail-card').className = `detail-card ${cardArtClass(card)}`;
   $('detail-title').textContent = card.name;
   $('detail-text').textContent = `기력 ${card.cost} · ${card.text}${card.form ? `\n${FORMS[card.form].detail}` : ''}`;
@@ -257,14 +262,36 @@ function showCard(kind, uid) {
   $('detail-link').innerHTML = card.linkText ? `<strong>카드 연계</strong><p>${card.linkText}</p><span>함께 쓰기 · ${card.linkPartners.map(id=>CARDS[id].name).join(' · ')}</span>` : '';
   $('detail-feedback')?.remove();
   if (shop) {
-    $('detail-actions').innerHTML = `<button class="primary-button" data-action="buy" ${state.gold < instance.price ? 'disabled' : ''}>구매 · ${instance.price} 골드</button><span class="action-note">보관함에 들어옵니다 · 보유 ${state.gold} 골드</span>`;
+    $('detail-actions').innerHTML = `<button class="primary-button" data-action="buy" aria-label="구매, ${instance.price} 골드" ${state.gold < instance.price ? 'disabled' : ''}>${icon('shop')} 구매 ${icon('coin')}${instance.price}</button>`;
   } else {
     const twin = state.collection.filter(item=>item.uid !== uid && item.id === instance.id && item.tier === instance.tier).sort((a,b)=>Number(a.inDeck)-Number(b.inDeck))[0];
     const canMerge = instance.tier < 3 && twin && !(instance.inDeck && twin.inDeck && activeDeck(state).length <= DECK_MIN);
-    $('detail-actions').innerHTML = `<button class="primary-button" data-action="equip">${instance.inDeck ? '덱에서 빼기' : '덱에 넣기'}</button><button class="secondary-button" data-action="upgrade" ${canMerge ? '' : 'disabled'}>합성 · 2장 → 1장</button><button class="secondary-button" data-action="sell">판매 · +${instance.tier} 골드</button>${instance.inDeck ? `<div class="sticker-row">${[['top','앞장'],['none','기본'],['bottom','뒷장']].map(([key,label])=>`<button class="secondary-button" data-action="sticker" data-sticker="${key}" aria-pressed="${instance.sticker === key}">${label}</button>`).join('')}</div><span class="action-note">앞장·뒷장은 덱마다 한 장씩 · 재섞을 때도 적용</span>` : '<span class="action-note">덱에 편입한 뒤 정렬 스티커를 붙일 수 있습니다</span>'}`;
+    const atMinimum=instance.inDeck&&activeDeck(state).length<=DECK_MIN;
+    $('detail-actions').innerHTML = `<button class="primary-button" data-action="equip" aria-label="${instance.inDeck?'덱에서 빼기':'덱에 넣기'}" ${atMinimum?'disabled title="출전 덱 6장 유지"':''}>${icon(instance.inDeck?'remove':'plus')}${instance.inDeck?'덱 제외':'덱 편입'}</button>${canMerge?`<button class="secondary-button" data-action="upgrade" aria-label="같은 카드 두 장 합성">${icon('merge')}합성</button>`:''}<button class="secondary-button" data-action="sell" aria-label="판매, ${instance.tier} 골드 획득" ${atMinimum?'disabled title="출전 덱 6장 유지"':''}>${icon('sell')}${icon('coin')}+${instance.tier}</button>${instance.inDeck?`<div class="sticker-row" role="group" aria-label="덱 정렬">${[['top','맨 앞 고정'],['none','무작위'],['bottom','맨 뒤 고정']].map(([key,label])=>instance.sticker===key?`<span class="secondary-button order-current" role="img" aria-label="현재 정렬: ${label}" title="현재: ${label}">${icon(key==='none'?'shuffle':key)}</span>`:`<button class="secondary-button" data-action="sticker" data-sticker="${key}" aria-label="${label}" title="${label}">${icon(key==='none'?'shuffle':key)}</button>`).join('')}</div><span class="action-note">${instance.sticker==='top'?'맨 앞 고정':instance.sticker==='bottom'?'맨 뒤 고정':'무작위'} · 재섞을 때도 유지</span>`:''}`;
   }
   const feedback = document.createElement('p'); feedback.id = 'detail-feedback'; feedback.className = 'detail-feedback'; feedback.setAttribute('role','status'); $('detail-actions').after(feedback);
   showDialog('card-dialog');
+  decorateMenus();
+}
+function inspectBattleCard(id,tier=1) {
+  const card=describeCard({id,tier});if(!card)return;
+  detail=null;
+  $('detail-overline').textContent=`${tier}등급`;
+  $('detail-card').className=`detail-card ${cardArtClass(card)}`;
+  $('detail-title').textContent=card.name;
+  $('detail-text').textContent=`기력 ${card.cost} · ${card.text}${card.form?`\n${FORMS[card.form].detail}`:''}`;
+  $('detail-link').hidden=!card.linkText;
+  $('detail-link').innerHTML=card.linkText?`<p>${card.linkText}</p>`:'';
+  $('detail-actions').replaceChildren();$('detail-feedback')?.remove();
+  showDialog('card-dialog');
+}
+function inspectForm(actor) {
+  if(!state.battle)return;
+  const form=state.battle[actor].form;
+  detail=null;$('detail-overline').textContent=actor==='player'?'내 능력':'상대 능력';
+  $('detail-card').className=`detail-card art art-${form}`;
+  $('detail-title').textContent=FORMS[form].name;$('detail-text').textContent=FORMS[form].detail;
+  $('detail-link').hidden=true;$('detail-actions').replaceChildren();$('detail-feedback')?.remove();showDialog('card-dialog');
 }
 
 function showDeckLinks() {
@@ -289,7 +316,7 @@ function showOpponent() {
   $('opponent-info').textContent = `생명 ${ENCOUNTERS[state.stage].hp} · ${cards.length}장 · 드루이드로 시작`;
   $('opponent-cards').innerHTML = cards.map(instance => {
     const card = describeCard(instance);
-    return `<div class="opponent-card"><span class="${cardArtClass(card)}"></span><span><strong>${card.name} <small>${'★'.repeat(card.tier)}${instance.sticker === 'top' ? ' · 앞장' : instance.sticker === 'bottom' ? ' · 뒷장' : ''}</small></strong><span>기력 ${card.cost} · ${card.text}${card.linkText ? `<br>연계 · ${card.linkText}` : ''}${card.form ? `<br>${FORMS[card.form].rule}` : ''}</span></span></div>`;
+    return `<button type="button" class="opponent-card" data-inspect-card="${card.id}" data-inspect-tier="${card.tier}" aria-label="${card.name}, ${card.tier}등급, 기력 ${card.cost}. 효과 자세히 보기"><span class="${cardArtClass(card)}"></span><span><strong>${card.name} <small>${'★'.repeat(card.tier)}</small></strong>${symbolsMarkup(card)}</span></button>`;
   }).join('');
   showDialog('opponent-dialog');
 }
@@ -311,7 +338,8 @@ function effectChip(text,id,kind,index=0) {
   const slot=`${id}-${Math.min(index,1)}`;
   $('effects').querySelectorAll('.effect-chip').forEach(node=>{if(node.dataset.slot===slot)node.remove();});
   p.x=Math.max(70,Math.min(width-70,p.x));p.y-=16;
-  const node=fxNode(`effect-chip kind-${kind}`,p,1050,`--chip-index:${Math.min(index,1)};`);node.dataset.slot=slot;node.textContent=text;
+  const symbol={shield:'defense',burn:'fire',energy:'energy',charge:'charge',poison:'poison',shock:'shock'}[kind]||kind;
+  const node=fxNode(`effect-chip kind-${kind}`,p,1050,`--chip-index:${Math.min(index,1)};`);node.dataset.slot=slot;node.setAttribute('aria-label',text);node.innerHTML=`${icon(symbol)}<b>${(text.match(/[+−]?\d+/g)||[]).join(' ')}</b>`;
 }
 function aura(id,kind) {fxNode(`support-aura kind-${kind}`,point($(id).querySelector('.portrait-ring')),900);}
 function impact(id,heavy,kind='claw',form='wolf',tier='normal',stopMs=0) {
@@ -355,16 +383,15 @@ function castEffect(actor,kind,travel) {
 }
 function beginStep() {
   if(state.phase!=='battle'||modalOpen()||document.hidden)return;
-  clearEffects();renderBattle();
+  clearEffects();presentedCard=null;renderBattle();
   const actor=state.battle.actor,fighter=state.battle[actor],instance=fighter.draw[0],timing=presentationTiming(speed,reducedMotion);
   $('battlefield').dataset.caster=actor;$('battlefield').dataset.presentation='draw';
   $('battle-caption').classList.remove('has-link');$('battle-caption').classList.add('card-cast-title');
-  if(!instance){renderActive({actor});$('battle-caption').textContent=`${actor==='player'?'내':'상대'} 덱 재섞기 · 한 턴 휴식`;later(resolveStep,timing.reveal);return;}
+  if(!instance){presentedCard={actor,type:'shuffle'};renderActive(presentedCard);$('battle-caption').textContent=`${actor==='player'?'내':'상대'} 덱 재섞기`;later(resolveStep,timing.reveal);return;}
   const card=describeCard(instance),charged=Math.min(card.cost,instance.charge+fighter.energy),ready=charged>=card.cost;
-  renderActive({cardId:instance.id,tier:instance.tier,name:card.name,actor,charged,preview:true,ready});
+  presentedCard={cardId:instance.id,tier:instance.tier,name:card.name,actor,charged,preview:true,ready};renderActive(presentedCard);
   $(`${actor}-active-card`).classList.add('is-playing');
-  $(`${actor}-turn-label`).textContent=`${(state.battle.turnCard||0)+1}장째${fighter.form==='wolf'?` · 연타 ${fighter.combo%3}/3`:''}`;
-  $('battle-caption').innerHTML=`<strong>${actor==='player'?'내 카드':'상대 카드'} · ${card.name}</strong><span class="link-caption-detail">${ready?`${typeNames[card.type]} · 기력 ${card.cost}`:`충전 ${charged}/${card.cost} · 이번에는 버림`}</span>`;
+  $('battle-caption').textContent=`${actor==='player'?'내':'상대'} ${card.name}, ${ready?'사용 준비':`충전 ${charged}/${card.cost}`}`;
   playClass($(`${actor}-draw-pile`),'drawing',timing.draw);flyCard(instance,actor);sound('draw');
   later(()=>{
     $('battlefield').dataset.presentation='showcase';playClass($(`${actor}-active-card`),'dealing',300);
@@ -396,7 +423,7 @@ function showImpactBeat(beat,event,health) {
   if(!reducedMotion&&(beat.damage||beat.absorbed)){
     $('effects').querySelectorAll('.damage-float[data-damage-target]').forEach(node=>{if(node.dataset.damageTarget===targetId)node.remove();});
     if(beat.damage){floatText(`−${beat.damage}`,targetId,heavy?'critical':kind==='poison'?'poison':'',beat.index);$('effects').lastElementChild.dataset.damageTarget=targetId;}
-    else if(beat.absorbed){floatText(`방어 ${beat.absorbed}`,targetId,'block',beat.index);$('effects').lastElementChild.dataset.damageTarget=targetId;}
+    else if(beat.absorbed){floatText(`${beat.absorbed}`,targetId,'block',beat.index);$('effects').lastElementChild.dataset.damageTarget=targetId;}
     if(beat.damage&&beat.absorbed)effectChip(`보호막 −${beat.absorbed}`,targetId,'shield');
   }
   if(beat.kind==='counter')playClass($(sourceId),'countering',600);
@@ -412,7 +439,7 @@ function resolveStep() {
   clearEffects();
   const before=state.battle,health={player:{hp:before.player.hp,maxHp:before.player.maxHp},enemy:{hp:before.enemy.hp,maxHp:before.enemy.maxHp}};
   const event=stepBattle(state),timing=presentationTiming(speed,reducedMotion);
-  lastCards[event.actor]=event;history.push(event);if(history.length>5)history.shift();
+  presentedCard=event;
   render();save();
   health[event.actor].hp=Math.min(health[event.actor].maxHp,health[event.actor].hp+event.heal);renderHealth(health);
   const sourceId=event.actor==='player'?'hero':'enemy',targetId=event.actor==='player'?'enemy':'hero';
@@ -421,15 +448,15 @@ function resolveStep() {
   for(const side of ['player','enemy']){
     $(`${side}-lane`).dataset.active=String(side===event.actor);
     $(side==='player'?'hero':'enemy').dataset.active=String(side===event.actor);
-    $(`${side}-turn-label`).textContent=side===event.actor?'효과 발동':'대기';
+    $(`${side}-turn-label`).textContent=side===event.actor?(side==='player'?'내 차례':'상대 차례'):'';
   }
-  $('battle-turn').textContent=`${event.turn}턴 · ${event.actor==='player'?'내':'상대'} 카드`;
+  $('battle-turn').textContent=`${event.turn}턴`;
   const beats=impactBeats(event,timing.impactGap);
   for(const beat of beats)if(beat.delay)effectLater(()=>showImpactBeat(beat,event,health),beat.delay);else showImpactBeat(beat,event,health);
   if(reducedMotion)for(const total of impactTotals(beats)){
     const id=total.target==='player'?'hero':'enemy';
     if(total.damage)floatText(`−${total.damage}`,id,total.damage>=18?'critical':'');
-    else if(total.absorbed)floatText(`방어 ${total.absorbed}`,id,'block');
+    else if(total.absorbed)floatText(`${total.absorbed}`,id,'block');
     if(total.damage&&total.absorbed)effectChip(`보호막 −${total.absorbed}`,id,'shield');
   }
   const lastBeat=beats.at(-1)?.delay||0;
@@ -441,37 +468,29 @@ function resolveStep() {
     if(event.heal){aura(sourceId,'heal');floatText(`+${event.heal}`,sourceId,'heal');if(!beats.length)sound('heal');}
     const supplied=event.energyGained-event.energyRecovered;
     if(supplied>0){aura(sourceId,'energy');effectChip(`기력 +${supplied}`,sourceId,'energy',ownChip++);if(!beats.length)sound('energy');}
-    if(event.nextCharged)effectChip(`다음 충전 +${event.nextCharged}`,sourceId,'energy',ownChip++);
+    if(event.nextCharged)effectChip(`다음 충전 +${event.nextCharged}`,sourceId,'charge',ownChip++);
     let targetChip=0;
     for(const [key,label] of [['poison','맹독'],['burn','화상'],['shock','감전']])if(event[key])effectChip(`${label} +${event[key]}`,targetId,key,targetChip++);
   }
   const lead=event.links?.find(link=>link.kind==='form')||event.links?.[0];
-  $('battle-caption').classList.toggle('has-link',Boolean(lead));$('battle-caption').classList.add('card-cast-title');
-  if(event.type==='card'){
-    const values=[event.strikes.length>1?`${event.strikes.length}연격`:'',event.damage?`총 피해 ${event.damage}`:'',event.shield?`보호막 +${event.shield}`:'',event.heal?`회복 +${event.heal}`:''].filter(Boolean).join(' · ')||'효과 발동';
-    $('battle-caption').innerHTML=`<strong class="link-caption">${lead?.kind==='form'?`${lead.actor==='player'?'내':'상대'} ${lead.name}`:`${event.actor==='player'?'내':'상대'} · ${event.name}`}</strong><span class="link-caption-detail">${lead?`${lead.name} · ${lead.text}`:values}</span>`;
-    if(lead?.kind==='form'){
-      effectLater(()=>floatText(lead.name,lead.actor==='player'?'hero':'enemy','synergy'),lastBeat);
-      $('battle-caption').querySelector('.link-caption-detail').textContent=lead.text;
-    }
-  }else $('battle-caption').textContent=event.type==='charge'?`${event.actor==='player'?'내':'상대'} · ${event.name} 충전 ${event.charged}/${event.cost} · 버림`:`${event.actor==='player'?'내':'상대'} 재섞기 · 한 턴 휴식${event.poisonDamage?` · 맹독 피해 ${event.poisonDamage}`:''}`;
+  $('battle-caption').textContent=`${event.actor==='player'?'내':'상대'} ${event.name||'재섞기'}${event.type==='charge'?`, 충전 ${event.charged}/${event.cost}`:lead?`, ${lead.name}`:''}`;
+  if(lead?.kind==='form')effectLater(()=>floatText(lead.name,lead.actor==='player'?'hero':'enemy','synergy'),lastBeat);
   const discardedBurn=beats.find(beat=>beat.kind==='burn');
   if(discardedBurn){
     const label=discardedBurn.damage?`버림 화상 −${discardedBurn.damage}`:`화상 방어 ${discardedBurn.absorbed}`;
-    const detail=$('battle-caption').querySelector('.link-caption-detail');
-    if(detail)detail.textContent+=` · ${label}`;else $('battle-caption').textContent+=` · ${label}`;
+    $('battle-caption').textContent+=` · ${label}`;
   }
   if(event.fatigue)$('battle-caption').textContent+=` · 피로 ${event.fatigue}`;
   const duration=lastBeat;
-  effectLater(()=>{renderHealth(state.battle);$('battlefield').dataset.presentation='settle';},duration+160);
+  effectLater(()=>{renderHealth(state.battle);$('battlefield').dataset.presentation='settle';presentedCard=null;for(const actor of ['player','enemy'])renderActive({actor,type:'waiting'});},duration+160);
   const hold=lead?.kind==='form'||event.cardType==='form'?timing.formSettle:timing.settle;
   later(state.phase==='battle'?beginStep:showPhase,duration+hold);
 }
 function showPhase() {
   if (document.hidden || modalOpen()) return;
   if (state.phase === 'reward') {
-    $('rewards').innerHTML=state.rewards.map(reward=>{ const card=describeCard(reward.cardId); return `<button class="reward" data-reward="${reward.id}"><span class="${cardArtClass(card)}"></span><span><strong>${card.name}</strong><small>기력 ${card.cost} · ${card.text}</small>${card.linkShort || card.form ? `<small class="reward-link">↳ ${card.linkShort || FORMS[card.form].rule}</small>` : ''}</span><span class="arrow">›</span></button>`; }).join('');
-    $('reward-note').textContent=state.collection.length>=36?'보관 한도 · 골드 +9 · 생명 +18':'카드 1장 · 골드 +6 · 생명 +18';
+    $('rewards').innerHTML=state.rewards.map(reward=>{const card=describeCard(reward.cardId);return `<button class="reward" data-reward="${reward.id}" aria-label="${card.name} 선택, 기력 ${card.cost}, ${card.text}${card.linkText?`, ${card.linkText}`:''}"><span class="${cardArtClass(card)}"></span><span><strong>${card.name}</strong>${symbolsMarkup(card)}</span><span class="reward-cost" aria-label="기력 비용 ${card.cost}">${card.cost}</span></button>`;}).join('');
+    $('reward-note').innerHTML=`${icon('coin')}+${state.collection.length>=36?9:6} ${icon('heart')}+18`;
     showDialog('reward-dialog');
   } else if (state.phase === 'won' || state.phase === 'lost') {
     const won=state.phase==='won';
@@ -484,7 +503,7 @@ function showPhase() {
 function newRun() {
   stopLoop(); document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
   clearTimeout(toastTimer); $('toast').classList.remove('visible'); $('toast').textContent='';
-  state=createRun(); activeTab='deck'; detail=null; lastCards={player:null,enemy:null}; history=[];
+  state=createRun(); activeTab='deck'; detail=null; presentedCard=null;
   lastJourneyChoiceAt=0;
   $('collection').scrollTop=0;
   render(); save(); if(soundEnabled)enableAudio();
@@ -542,11 +561,13 @@ listen($('detail-actions'),'click',event=>{
 });
 listen($('launch'),'click',()=>{
   const result=startBattle(state);if(!result.ok)return toast(result.error);
-  lastCards={player:null,enemy:null};history=[];render();save();enableAudio();
+  presentedCard=null;render();save();enableAudio();
   $('battle-caption').textContent=`${state.battle.actor==='player'?'내 덱':'상대 덱'}이 먼저 시작합니다`;
   later(beginStep,600/speed);
 });
-listen($('speed'),'click',()=>{speed=speed===1?2:speed===2?4:1;savePrefs();$('speed').textContent=`속도 ×${speed}`;});
+listen($('speed'),'click',()=>{speed=speed===1?2:speed===2?4:1;savePrefs();$('speed').innerHTML=`${icon('speed')}<span>×${speed}</span>`;});
+listen($('battlefield'),'click',event=>{const card=event.target.closest('[data-inspect-card]'),form=event.target.closest('[data-inspect-form]');if(card)inspectBattleCard(card.dataset.inspectCard,Number(card.dataset.inspectTier));else if(form)inspectForm(form.dataset.inspectForm);});
+listen($('opponent-cards'),'click',event=>{const card=event.target.closest('[data-inspect-card]');if(card)inspectBattleCard(card.dataset.inspectCard,Number(card.dataset.inspectTier));});
 listen($('sound'),'click',()=>{const fighting=state.phase==='battle';if(fighting)stopLoop();soundEnabled=!soundEnabled;savePrefs();if(soundEnabled){void enableAudio();sound('soft');}else stopAudio();render();if(fighting)resume();});
 listen($('help'),'click',()=>showDialog('help-dialog'));
 listen($('inspect-opponent'),'click',showOpponent);
@@ -556,7 +577,7 @@ listen($('battle-pause'),'click',()=>showDialog('pause-dialog'));
 listen($('begin'),'click',()=>closeDialog('welcome-dialog'));
 listen($('restart'),'click',()=>{$('pause-dialog').close();showDialog('restart-dialog');});
 listen($('confirm-restart'),'click',newRun);listen($('play-again'),'click',newRun);
-listen($('rewards'),'click',event=>{const button=event.target.closest('[data-reward]');if(!button)return;const result=chooseReward(state,button.dataset.reward);if(!result.ok)return toast(result.error);$('reward-dialog').close();lastCards={player:null,enemy:null};history=[];activeTab='deck';render();save();$('collection').scrollTop=0;toast(result.converted ? '보관 한도 · 골드 +9 · 생명 +18' : '새 카드 · 골드 +6 · 생명 +18');});
+listen($('rewards'),'click',event=>{const button=event.target.closest('[data-reward]');if(!button)return;const result=chooseReward(state,button.dataset.reward);if(!result.ok)return toast(result.error);$('reward-dialog').close();presentedCard=null;activeTab='deck';render();save();$('collection').scrollTop=0;toast(result.converted ? '보관 한도 · 골드 +9 · 생명 +18' : '새 카드 · 골드 +6 · 생명 +18');});
 document.querySelectorAll('[data-close]').forEach(button=>listen(button,'click',()=>closeDialog(button.dataset.close)));
 document.querySelectorAll('dialog').forEach(dialog=>listen(dialog,'cancel',event=>{event.preventDefault();if(['welcome-dialog','reward-dialog','result-dialog'].includes(dialog.id))return;closeDialog(dialog.id);}));
 listen(document,'visibilitychange',()=>{if(document.hidden){stopLoop();stopAudio();save();}else if(!modalOpen())showDialog('pause-dialog');});
