@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EQUIPMENT, TIERS, normalizeGear, gearBonuses, getEquipmentOffer, applyEquipmentAction, grantEquipment } from '../equipment.mjs';
+import { EQUIPMENT, TIERS, normalizeGear, gearBonuses, getEquipmentOffer, applyEquipmentAction, grantEquipment, getStaffAttack } from '../equipment.mjs';
 
 const progress = (overrides = {}) => ({ gold: 1000, level: 20, gear: normalizeGear(), ...overrides });
 const snapshot = value => structuredClone(value);
@@ -11,8 +11,56 @@ function unchangedAfterFailure(state, id, action) {
   assert.equal(state.gear, gear);
 }
 
+test('each staff has a distinct bounded attack profile computed from actual player damage once', () => {
+  const player = { attackDamage: 40, damageMult: 1.5 }, before = snapshot(player);
+  const single = getStaffAttack('sprout', player), burst = getStaffAttack('thorn', player);
+  const spread = getStaffAttack('moon', player), blast = getStaffAttack('ember', player);
+  assert.deepEqual([single.damage, burst.damage, spread.damage, blast.damage], [60, 30, 25.2, 78]);
+  assert.deepEqual([single.weaponStyle, burst.weaponStyle, spread.weaponStyle, blast.weaponStyle], ['single', 'burst', 'spread', 'explosive']);
+  assert.equal(burst.burstCount, 3); assert.equal(burst.burstSpacing, .1);
+  assert.equal(spread.spreadAngles.length, 5); assert.equal(spread.spreadAngles[2], 0);
+  assert.ok(spread.range < single.range); assert.ok(spread.projectileLife < single.projectileLife);
+  assert.equal(blast.blastRadius, 2); assert.ok(blast.interval > single.interval);
+  assert.ok(Object.isFrozen(spread.spreadAngles)); assert.deepEqual(player, before);
+  assert.equal(getStaffAttack('__proto__', { attackDamage: NaN, damageMult: Infinity }).damage, 16);
+});
+
+test('a missing base staff can be received and equipped once without spending earned resources', () => {
+  const state = progress({ gold: 0 }); state.gear.scrolls = 7; state.gear.items.sprout.level = 3;
+  for (const id of ['thorn', 'moon', 'ember']) {
+    assert.equal(getEquipmentOffer(state, id).canUnlock, true);
+    assert.equal(applyEquipmentAction(state, id, 'unlock'), true);
+    assert.equal(state.gear.equipped, id);
+    assert.deepEqual(state.gear.items[id], { copies: 1, level: 0, tier: 0 });
+    assert.equal(state.gold, 0); assert.equal(state.gear.scrolls, 7); assert.equal(state.gear.items.sprout.level, 3);
+    unchangedAfterFailure(state, id, 'unlock');
+  }
+  unchangedAfterFailure(state, 'unknown', 'unlock');
+});
+
+test('receiving a base staff cannot restore corrupt unowned growth or overwrite an owned staff', () => {
+  const state = progress({ gear: { equipped: 'sprout', scrolls: 0, items: { ember: { copies: 0, level: 20, tier: 3 } } } });
+  assert.equal(applyEquipmentAction(state, 'ember', 'unlock'), true);
+  assert.deepEqual(state.gear.items.ember, { copies: 1, level: 0, tier: 0 });
+  assert.deepEqual(gearBonuses(state.gear), { damage: 1, health: 8 });
+  state.gear.items.ember = { copies: 4, level: 3, tier: 1 };
+  unchangedAfterFailure(state, 'ember', 'unlock');
+  assert.deepEqual(normalizeGear(JSON.parse(JSON.stringify(state.gear))), state.gear);
+});
+
+test('the explosive staff uses the same enhancement and duplicate promotion economy', () => {
+  const state = progress(); assert.equal(applyEquipmentAction(state, 'ember', 'unlock'), true);
+  assert.equal(applyEquipmentAction(state, 'ember', 'enhance'), false);
+  state.gear.scrolls = 4; grantEquipment(state.gear, 'ember', 2);
+  assert.equal(applyEquipmentAction(state, 'ember', 'enhance'), true);
+  assert.equal(applyEquipmentAction(state, 'ember', 'promote'), true);
+  assert.deepEqual(state.gear.items.ember, { copies: 1, level: 1, tier: 1 });
+  assert.equal(state.gold, 955); assert.equal(state.gear.scrolls, 0);
+  assert.deepEqual(gearBonuses(state.gear), { damage: 6, health: 21 });
+});
+
 test('the equipment and tier catalogs are bounded immutable data', () => {
-  assert.deepEqual(EQUIPMENT.map(item => item.id), ['sprout', 'thorn', 'moon']);
+  assert.deepEqual(EQUIPMENT.map(item => item.id), ['sprout', 'thorn', 'moon', 'ember']);
   assert.deepEqual(TIERS, ['일반', '고급', '희귀', '영웅']);
   assert.ok(Object.isFrozen(EQUIPMENT) && Object.isFrozen(TIERS));
   for (const item of EQUIPMENT) {
@@ -25,7 +73,7 @@ test('the equipment and tier catalogs are bounded immutable data', () => {
 test('a new save owns one basic sprout and adds no combat stats', () => {
   const a = normalizeGear(), b = normalizeGear();
   assert.deepEqual(a, { equipped: 'sprout', scrolls: 0, items: {
-    sprout: { copies: 1, level: 0, tier: 0 }, thorn: { copies: 0, level: 0, tier: 0 }, moon: { copies: 0, level: 0, tier: 0 },
+    sprout: { copies: 1, level: 0, tier: 0 }, thorn: { copies: 0, level: 0, tier: 0 }, moon: { copies: 0, level: 0, tier: 0 }, ember: { copies: 0, level: 0, tier: 0 },
   } });
   assert.deepEqual(gearBonuses(a), { damage: 0, health: 0 });
   a.items.sprout.level = 5;
@@ -40,7 +88,7 @@ test('normalization deeply whitelists saved data, rejects coercion and copies no
   } };
   const before = snapshot(raw), gear = normalizeGear(raw);
   assert.deepEqual(gear, { equipped: 'thorn', scrolls: 99999, items: {
-    sprout: { copies: 1, level: 20, tier: 3 }, thorn: { copies: 999, level: 4, tier: 1 }, moon: { copies: 0, level: 0, tier: 0 },
+    sprout: { copies: 1, level: 20, tier: 3 }, thorn: { copies: 999, level: 4, tier: 1 }, moon: { copies: 0, level: 0, tier: 0 }, ember: { copies: 0, level: 0, tier: 0 },
   } });
   assert.deepEqual(raw, before);
   gear.items.thorn.level++;

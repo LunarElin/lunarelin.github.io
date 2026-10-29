@@ -1,15 +1,29 @@
 export const EQUIPMENT = Object.freeze([
-  Object.freeze({ id: 'sprout', name: '새싹 지팡이', color: 0x8fea6b, description: '공격과 생명이 고르게 자라는 지팡이' }),
-  Object.freeze({ id: 'thorn', name: '가시 지팡이', color: 0xef987b, description: '공격 성장에 집중하는 지팡이' }),
-  Object.freeze({ id: 'moon', name: '달빛 지팡이', color: 0xaaa4ff, description: '생명을 높이는 든든한 지팡이' }),
+  Object.freeze({ id: 'sprout', name: '새싹 지팡이', color: 0x8fea6b, description: '공격과 생명이 고르게 자라는 지팡이', attackStyle: 'single', attackLabel: '단발', attackDescription: '빠르고 정확한 한 발' }),
+  Object.freeze({ id: 'thorn', name: '가시 지팡이', color: 0xef987b, description: '공격 성장에 집중하는 지팡이', attackStyle: 'burst', attackLabel: '연발', attackDescription: '짧은 간격으로 세 발 발사' }),
+  Object.freeze({ id: 'moon', name: '달빛 지팡이', color: 0xaaa4ff, description: '생명을 높이는 든든한 지팡이', attackStyle: 'spread', attackLabel: '방사', attackDescription: '짧고 넓은 부채꼴 다섯 발' }),
+  Object.freeze({ id: 'ember', name: '불씨 지팡이', color: 0xff934f, description: '한곳에 모인 적을 터뜨리는 지팡이', attackStyle: 'explosive', attackLabel: '폭발', attackDescription: '맞은 곳에서 주변 적까지 폭발' }),
 ]);
 export const TIERS = Object.freeze(['일반', '고급', '희귀', '영웅']);
+const STAFF_ATTACKS = Object.freeze({
+  single: Object.freeze({ range: 4.4, interval: .58, damageScale: 1, projectileSpeed: 13, projectileLife: .55, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([0]), blastRadius: 0 }),
+  burst: Object.freeze({ range: 4.4, interval: .9, damageScale: .5, projectileSpeed: 13, projectileLife: .55, burstCount: 3, burstSpacing: .1, spreadAngles: Object.freeze([0]), blastRadius: 0 }),
+  spread: Object.freeze({ range: 3.6, interval: 1.05, damageScale: .42, projectileSpeed: 11, projectileLife: .36, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([-.4, -.2, 0, .2, .4]), blastRadius: 0 }),
+  explosive: Object.freeze({ range: 4.4, interval: 1.05, damageScale: 1.3, projectileSpeed: 11, projectileLife: .65, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([0]), blastRadius: 2 }),
+});
 
 const empty = Object.freeze({});
 const record = value => value && typeof value === 'object' && !Array.isArray(value) ? value : empty;
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key) ? value[key] : undefined;
 const integer = (value, max) => Number.isFinite(value) ? Math.min(max, Math.max(0, Math.floor(value))) : 0;
 const definitionFor = id => EQUIPMENT.find(item => item.id === id);
+
+export function getStaffAttack(id, player = {}) {
+  const definition = definitionFor(id) ?? EQUIPMENT[0], profile = STAFF_ATTACKS[definition.attackStyle];
+  const base = Number.isFinite(player.attackDamage) && player.attackDamage >= 0 ? player.attackDamage : 16;
+  const multiplier = Number.isFinite(player.damageMult) && player.damageMult >= 0 ? player.damageMult : 1;
+  return { ...profile, id: 'druid', weaponId: definition.id, weaponStyle: definition.attackStyle, groundOnly: false, damage: base * multiplier * profile.damageScale };
+}
 
 export function normalizeGear(raw) {
   const source = record(raw), rawItems = record(own(source, 'items')), items = {};
@@ -31,8 +45,8 @@ export function normalizeGear(raw) {
 }
 
 function itemBonuses(id, { level, tier }) {
-  const damage = id === 'thorn' ? 2 + level * 3 : id === 'moon' ? 1 + level : level * 2;
-  const health = id === 'moon' ? 20 + level * 8 : id === 'sprout' ? level * 3 : 0;
+  const damage = id === 'thorn' ? 2 + level * 3 : id === 'moon' ? 1 + level : id === 'ember' ? 1 + level * 2 : level * 2;
+  const health = id === 'moon' ? 20 + level * 8 : id === 'sprout' ? level * 3 : id === 'ember' ? 8 + level * 3 : 0;
   return { damage: damage + tier * 3, health: health + tier * 10 };
 }
 
@@ -52,7 +66,7 @@ export function getEquipmentOffer(progress, id) {
   const promoteCost = 30 * (item.tier + 1), promoteScrollCost = 3 * (item.tier + 1), promoteRequiredLevel = 3 + item.tier * 3;
   const current = itemBonuses(id, item), next = maxed ? null : itemBonuses(id, { ...item, level: item.level + 1 });
   return {
-    id, name: definition.name, owned, equipped: owned && gear.equipped === id,
+    id, name: definition.name, attackStyle: definition.attackStyle, attackLabel: definition.attackLabel, owned, equipped: owned && gear.equipped === id, canUnlock: !owned,
     copies: item.copies, level: item.level, tier: item.tier, tierName: TIERS[item.tier],
     ...current, nextDamage: next?.damage ?? null, nextHealth: next?.health ?? null,
     enhanceCost, scrollCost, requiredLevel,
@@ -69,7 +83,10 @@ export function applyEquipmentAction(progress, id, action) {
   if (!offer) return false;
   const gear = normalizeGear(progress.gear);
   let goldCost = 0;
-  if (action === 'equip') {
+  if (action === 'unlock') {
+    if (offer.owned) return false;
+    gear.items[id] = { copies: 1, level: 0, tier: 0 }; gear.equipped = id;
+  } else if (action === 'equip') {
     if (!offer.owned || offer.equipped) return false;
     gear.equipped = id;
   } else if (action === 'enhance') {

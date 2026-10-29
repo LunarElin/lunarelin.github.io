@@ -1,4 +1,4 @@
-import { EQUIPMENT, normalizeGear, gearBonuses, applyEquipmentAction, grantEquipment } from './equipment.mjs';
+import { EQUIPMENT, normalizeGear, gearBonuses, applyEquipmentAction, grantEquipment, getStaffAttack } from './equipment.mjs';
 import { createFieldState, advanceFieldEvents, clearFieldCombat } from './field-events.mjs';
 import { FORMS, normalizeForms, formRank, getFormDefinition, getFormOffer, applyFormUpgrade, chooseForm } from './forms.mjs';
 
@@ -12,7 +12,7 @@ export const STAGES = Object.freeze([
   camp: Object.freeze({ ...stage.camp, stageId: stage.id, name: `${stage.title} 거점`, title: `${stage.title} 거점` }) })));
 export const WORLD = Object.freeze({ minX: -15, maxX: 15, minZ: -98, maxZ: 23, camp: STAGES[0].camp, gateZ: -14 });
 export const RULES = Object.freeze({
-  arena: WORLD, huntEnterPadding: 2, huntLeavePadding: 3.25, maxEnemies: 72, maxProjectiles: 90, maxEffects: 100, maxStep: 0.05,
+  arena: WORLD, huntEnterPadding: 2, huntLeavePadding: 3.25, maxEnemies: 72, maxProjectiles: 90, maxPendingStaffShots: 12, maxEffects: 100, maxStep: 0.05,
   playerSpeed: 4.4, attackRange: 4.4, skillCooldown: 6, skillRadius: 2.7,
   skillAimRange: 4.8,
 });
@@ -42,6 +42,8 @@ export const HUNT_ZONES = Object.freeze([
   { id: 'meadow-mushrooms', name: '버섯 군락', x: -6, z: 4, radius: 5.5, type: 'mushroom', count: 9, respawnSeconds: 15 },
   { id: 'meadow-boars', name: '멧돼지 숲', x: 6, z: -3, radius: 5, type: 'boar', count: 6, respawnSeconds: 8 },
   { id: 'meadow-boss', name: '초원 수문장', x: -6, z: -8, radius: 3.8, type: 'boss', count: 1, bossId: 'meadow-guardian', hp: MONSTER_STATS.boss.hp, damage: MONSTER_STATS.boss.damage, xp: MONSTER_STATS.boss.xp, loot: MONSTER_STATS.boss.loot, speed: MONSTER_STATS.boss.speed, respawnSeconds: 30 },
+  { id: 'meadow-runners', name: '질주 초원', x: 7, z: 7, radius: 4.2, type: 'runner', trait: 'fast', stageId: 'meadow', unlockLevel: 4,
+    count: 4, level: 4, hp: 90, damage: 4, xp: 4, loot: 6, speed: 4.9, respawnSeconds: 8 },
   { id: 'deep-boars', name: '깊은 멧돼지 숲', x: -7, z: -24, radius: 5, type: 'boar', count: 6, respawnSeconds: 8, deep: true },
   { id: 'deep-casters', name: '석상 터', x: 6, z: -27, radius: 5, type: 'caster', count: 6, respawnSeconds: 8, deep: true },
   { id: 'deep-boss', name: '깊은 수문장', x: 0, z: -37, radius: 3.8, type: 'boss', count: 1, bossId: 'deep-guardian', hp: MONSTER_STATS.deepBoss.hp, damage: MONSTER_STATS.deepBoss.damage, xp: MONSTER_STATS.deepBoss.xp, loot: MONSTER_STATS.deepBoss.loot, speed: MONSTER_STATS.deepBoss.speed, respawnSeconds: 60, deep: true },
@@ -51,16 +53,16 @@ export const HUNT_ZONES = Object.freeze([
   { id: 'sky-flyers', name: '비행 군락', x: -6, z: -80, radius: 5, type: 'flyer', count: 6, respawnSeconds: 10, stageId: 'sky', trait: 'airborne' },
   { id: 'sky-runners', name: '능선 질주 숲', x: 6, z: -85, radius: 5, type: 'runner', count: 6, hp: 320, damage: 14, level: 13, respawnSeconds: 8, stageId: 'sky', trait: 'fast' },
   { id: 'sky-boss', name: '천공 수호자', x: 0, z: -93, type: 'boss', count: 1, bossId: 'sky-guardian', ...MONSTER_STATS.skyBoss, radius: 3.8, respawnSeconds: 60, stageId: 'sky', trait: 'airborne', variant: 'sky' },
-].map(zone => Object.freeze({ ...zone, stageId: zone.stageId || (zone.deep ? 'deep' : 'meadow'), trait: zone.trait || 'normal',
+].map(zone => Object.freeze({ ...zone, unlockLevel: zone.unlockLevel ?? 1, stageId: zone.stageId || (zone.deep ? 'deep' : 'meadow'), trait: zone.trait || 'normal',
   level: zone.level ?? MONSTER_STATS[zone.id === 'deep-boss' ? 'deepBoss' : zone.type].level, title: zone.name, enemyType: zone.type })));
 const FIELD_CONTEXT = { world: WORLD, zones: HUNT_ZONES, random, hurtPlayer, openTreasure,
-  camps: state => unlockedCamps(state.progress), unlockedMinZ: state => getUnlockedMinZ(state.progress), zoneUnlocked: (state, zone) => zoneUnlocked(state.progress, zone) };
+  camps: state => unlockedCamps(state.progress), unlockedMinZ: state => getUnlockedMinZ(state.progress), zoneUnlocked: (state, zone) => isZoneUnlocked(state.progress, zone) };
 const BOSS_IDS = ['meadow-guardian', 'deep-guardian', 'ancient-guardian', 'sky-guardian'];
 const SPAWNS = HUNT_ZONES.flatMap(zone => Array.from({ length: zone.count }, (_, index) => {
   const angle = index / zone.count * Math.PI * 2;
   const spread = zone.count === 1 ? 0 : zone.radius * 0.43;
   return { id: `${zone.id}-${index}`, zoneId: zone.id, type: zone.type, bossId: zone.bossId, hp: zone.hp, damage: zone.damage, xp: zone.xp, loot: zone.loot, speed: zone.speed, respawnSeconds: zone.respawnSeconds,
-    stageId: zone.stageId, trait: zone.trait, variant: zone.variant, level: zone.level,
+    stageId: zone.stageId, trait: zone.trait, variant: zone.variant, level: zone.level, unlockLevel: zone.unlockLevel,
     deep: !!zone.deep, x: zone.x + Math.cos(angle) * spread, z: zone.z + Math.sin(angle) * spread };
 }));
 const QUESTS = [
@@ -128,7 +130,11 @@ export function getUnlockedMinZ(progress) {
 
 export function getStage(state) { return STAGES.find(stage => state.player.z >= stage.minZ) || STAGES[STAGES.length - 1]; }
 function unlockedCamps(progress) { return STAGES.filter(stage => isStageUnlocked(progress, stage.id)).map(stage => stage.camp); }
-function zoneUnlocked(progress, zone) { return isStageUnlocked(progress, zone.stageId || (zone.deep ? 'deep' : 'meadow')); }
+export function isZoneUnlocked(progress, zone) {
+  if (!zone || typeof zone !== 'object') return false;
+  const level = Number.isFinite(progress?.level) ? progress.level : levelFromXp(number(progress?.xp));
+  return isStageUnlocked(progress, zone.stageId || (zone.deep ? 'deep' : 'meadow')) && level >= (zone.unlockLevel ?? 1);
+}
 function campAtPosition(progress, point, margin = 0) {
   for (const stage of STAGES) if (isStageUnlocked(progress, stage.id) && distance(point, stage.camp) <= stage.camp.radius + margin) return stage.camp;
   return null;
@@ -157,7 +163,7 @@ export function normalizeProgress(raw) {
   for (const key of ['kills', 'mushrooms', 'deepKills', 'banked', 'ancientRunners', 'swarms', 'flyers', 'ancientKills', 'skyKills']) totals[key] = integer(source.totals?.[key]);
   const questIndex = integer(source.questIndex, QUESTS.length);
   const progress = {
-    version: 6, gold: integer(source.gold), cargo: integer(source.cargo, 24 + upgrades.bag * 16),
+    version: 7, gold: integer(source.gold), cargo: integer(source.cargo, 24 + upgrades.bag * 16),
     xp, level: levelFromXp(xp), upgrades, skills, gear: normalizeGear(source.gear), forms: normalizeForms(source.forms), questIndex, totals,
     bosses: BOSS_IDS.filter(id => Array.isArray(source.bosses) && source.bosses.includes(id)),
     unlockedDeep: questIndex >= 4, checkpoint: 'meadow',
@@ -194,7 +200,7 @@ export function createGame(seed = 73491, savedProgress) {
     time: 0, elapsed: 0, revision: 0, progress, inCamp: true, cargo: progress.cargo,
     autoHunt: false, huntZoneId: null, fightTargetId: null, kills: progress.totals.kills,
     owl: { active: false, rank: 0, x: camp.x - 1.25, z: camp.z + 0.3, fireCd: 0, fireCooldown: 1.6, damage: 0, range: 5.5, targetId: null },
-    pendingSkills: [], events: [], queuedEvents: [], enemies: [], projectiles: [], effects: [], loot: [], fieldLoot: [], fieldEvents: createFieldState(),
+    pendingSkills: [], pendingStaffShots: [], events: [], queuedEvents: [], enemies: [], projectiles: [], effects: [], loot: [], fieldLoot: [], fieldEvents: createFieldState(),
     spawners: SPAWNS.map(spawn => ({ ...spawn, remaining: 0 })),
     player: {
       id: 0, x: camp.x, z: camp.z, radius: 0.4,
@@ -325,6 +331,7 @@ function clearCombatSession(state) {
   state.fightTargetId = null;
   state.owl.active = false; state.owl.targetId = null; state.owl.fireCd = 0;
   state.pendingSkills = [];
+  state.pendingStaffShots = [];
   state.projectiles = [];
   state.effects = [];
 }
@@ -380,7 +387,7 @@ function hurtPlayer(state, damage, x, z) {
   return true;
 }
 
-function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff') {
+function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff', weaponStyle) {
   if (enemy.hp <= 0) return;
   enemy.hp = Math.max(0, enemy.hp - damage);
   if (damage > 0 && enemy.phase === 'return' && !state.inCamp && distance(enemy, state.player) <= 9) {
@@ -388,7 +395,7 @@ function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff') {
     enemy.phase = 'chase';
   }
   effect(state, 'hit', enemy.x, enemy.z, 0.22, enemy.radius, { team: 'player' });
-  event(state, 'hit', enemy.x, enemy.z, { damage, targetId: enemy.id, source });
+  event(state, 'hit', enemy.x, enemy.z, { damage, targetId: enemy.id, source, ...(weaponStyle ? { weaponStyle } : {}) });
   if (enemy.hp === 0) {
     enemy.phase = 'dead';
     const p = state.progress, data = MONSTER_STATS[enemy.type];
@@ -445,14 +452,14 @@ function openTreasure(state, item) {
 
 function updateSpawns(state, dt) {
   for (const spawn of state.spawners) {
-    if (!zoneUnlocked(state.progress, spawn)) continue;
+    if (!isZoneUnlocked(state.progress, spawn)) continue;
     if (state.enemies.some(enemy => enemy.hp > 0 && enemy.spawnId === spawn.id)) continue;
     spawn.remaining = Math.max(0, spawn.remaining - dt);
     if (spawn.remaining > 0 || state.enemies.length >= RULES.maxEnemies) continue;
     const data = MONSTER_STATS[spawn.type], hp = spawn.hp ?? data.hp;
     state.enemies.push({
       id: state.nextId++, spawnId: spawn.id, zoneId: spawn.zoneId, bossId: spawn.bossId, type: spawn.type,
-      stageId: spawn.stageId, trait: spawn.trait, variant: spawn.variant, level: spawn.level,
+      stageId: spawn.stageId, trait: spawn.trait, variant: spawn.variant, level: spawn.level, unlockLevel: spawn.unlockLevel,
       x: spawn.x, z: spawn.z, homeX: spawn.x, homeZ: spawn.z,
       hp, maxHp: hp, radius: data.radius, speed: spawn.speed ?? data.speed, damage: spawn.damage ?? data.damage,
       xp: spawn.xp ?? data.xp, loot: spawn.loot ?? data.loot,
@@ -514,6 +521,7 @@ function projectile(state, x, z, aimX, aimZ, team, damage, speed, extra = {}) {
     radius: team === 'player' ? 0.17 : 0.26, hitIds: [], pierce: 0,
     ...(team === 'player' ? { source: 'staff' } : {}), ...extra,
   };
+  bolt.maxLife = bolt.life;
   state.projectiles.push(bolt);
   return bolt;
 }
@@ -728,9 +736,19 @@ function updateProjectiles(state, dt) {
     }
     hits.sort((a, b) => a.t - b.t || a.target.id - b.target.id);
     let consumed = false;
+    if (bolt.team === 'player' && bolt.blastRadius > 0 && hits.length > 0) {
+      const contact = hits[0].t, x = bolt.x + (endX - bolt.x) * contact, z = bolt.z + (endZ - bolt.z) * contact;
+      const damage = bolt.damage, radius = bolt.blastRadius;
+      for (const target of state.enemies) if (target.hp > 0 && !bolt.hitIds.includes(target.id) && Math.hypot(target.x - x, target.z - z) <= radius + target.radius) {
+        bolt.hitIds.push(target.id);
+        hurtEnemy(state, target, damage, 0, 'staff', bolt.weaponStyle);
+      }
+      event(state, 'staff-explosion', x, z, { radius });
+      continue;
+    }
     for (const { target } of hits) {
       bolt.hitIds.push(target.id);
-      if (bolt.team === 'player') hurtEnemy(state, target, bolt.damage * (target.trait === 'airborne' ? bolt.airborneBonus || 1 : 1), 0, bolt.source || 'staff');
+      if (bolt.team === 'player') hurtEnemy(state, target, bolt.damage * (target.trait === 'airborne' ? bolt.airborneBonus || 1 : 1), 0, bolt.source || 'staff', bolt.weaponStyle);
       else hurtPlayer(state, bolt.damage, bolt.x, bolt.z);
       if (bolt.pierce <= 0) { consumed = true; break; }
       bolt.pierce--;
@@ -805,11 +823,11 @@ function leaveHuntZone(state) {
 function refreshHuntZone(state) {
   if (state.inCamp) { leaveHuntZone(state); return; }
   const current = HUNT_ZONES.find(zone => zone.id === state.huntZoneId);
-  if (current && zoneUnlocked(state.progress, current) && distance(current, state.player) <= current.radius + RULES.huntLeavePadding) return;
+  if (current && isZoneUnlocked(state.progress, current) && distance(current, state.player) <= current.radius + RULES.huntLeavePadding) return;
   if (state.huntZoneId) leaveHuntZone(state);
   let next = null, nearestEdge = Infinity;
   for (const zone of HUNT_ZONES) {
-    if (!zoneUnlocked(state.progress, zone)) continue;
+    if (!isZoneUnlocked(state.progress, zone)) continue;
     const edge = distance(zone, state.player) - zone.radius;
     if (edge <= RULES.huntEnterPadding && (edge < nearestEdge - 1e-9 || (Math.abs(edge - nearestEdge) <= 1e-9 && (!next || zone.id < next.id)))) {
       next = zone; nearestEdge = edge;
@@ -826,7 +844,7 @@ function autoMovement(state) {
   if (!state.autoHunt || !state.huntZoneId) return { x: 0, z: 0 };
   if (nearestCombatTarget(state)) return { x: 0, z: 0 };
   const zone = HUNT_ZONES.find(item => item.id === state.huntZoneId);
-  if (!zone) return { x: 0, z: 0 };
+  if (!zone || !isZoneUnlocked(state.progress, zone)) return { x: 0, z: 0 };
   const steerLocally = target => {
     const dx = target.x - zone.x, dz = target.z - zone.z;
     const scale = Math.min(1, (zone.radius - 0.2) / Math.max(0.00001, Math.hypot(dx, dz)));
@@ -845,14 +863,14 @@ function autoMovement(state) {
 
 function attackProfile(state) {
   const player = state.player;
-  return getFormDefinition(player.form, formRank(state.progress, player.form), player) ||
-    { id: 'druid', range: RULES.attackRange, interval: 0.58, damage: player.attackDamage * player.damageMult, groundOnly: false };
+  return getFormDefinition(player.form, formRank(state.progress, player.form), player) || getStaffAttack(state.progress.gear.equipped, player);
 }
 
 function changeForm(state, form, reason) {
   const player = state.player, from = player.form || 'druid';
   player.formRank = formRank(state.progress, form);
   if (from === form) { if (form === 'druid') player.formReason = reason; return false; }
+  state.pendingStaffShots.length = 0;
   player.form = form; player.formTime = 0; player.formQuietTime = 0; player.formReason = reason;
   event(state, 'transform', player.x, player.z, { from, form, reason });
   return true;
@@ -861,7 +879,7 @@ function changeForm(state, form, reason) {
 function updateForm(state, dt) {
   const player = state.player;
   if (player.hp <= 0 || state.phase === 'down') { changeForm(state, 'druid', 'down'); return; }
-  if (state.inCamp) { changeForm(state, 'druid', 'camp'); return; }
+  if (state.inCamp) { state.pendingStaffShots.length = 0; changeForm(state, 'druid', 'camp'); return; }
   player.formTime += dt;
   const choice = chooseForm(state);
   const nearby = state.enemies.some(enemy => enemy.hp > 0 && distance(enemy, player) <= 6.5);
@@ -877,8 +895,17 @@ function playerAttack(state, target) {
   const player = state.player, profile = attackProfile(state);
   const aim = direction(target.x - player.x, target.z - player.z);
   if (profile.id === 'druid') {
-    projectile(state, player.x, player.z, aim.x, aim.z, 'player', profile.damage, 13);
-    event(state, 'shoot', player.x, player.z, { aimX: aim.x, aimZ: aim.z, targetId: target.id });
+    if (profile.weaponStyle === 'spread') {
+      let fired = 0;
+      for (const angle of profile.spreadAngles) if (launchStaffShot(state, profile, target, angle, false)) fired++;
+      if (!fired) return false;
+      event(state, 'shoot', player.x, player.z, { aimX: aim.x, aimZ: aim.z, targetId: target.id, weaponStyle: profile.weaponStyle, weaponId: profile.weaponId });
+    } else {
+      if (!launchStaffShot(state, profile, target)) return false;
+      for (let index = 1; index < profile.burstCount && state.pendingStaffShots.length < RULES.maxPendingStaffShots; index++) {
+        state.pendingStaffShots.push({ time: index * profile.burstSpacing, targetId: target.id, profile });
+      }
+    }
   } else if (profile.id === 'wolf') {
     hurtEnemy(state, target, profile.damage, 0, 'wolf');
   } else if (profile.id === 'bear') {
@@ -892,6 +919,38 @@ function playerAttack(state, target) {
   if (profile.id !== 'druid') event(state, 'form-attack', player.x, player.z,
     { form: profile.id, targetId: target.id, targetX: target.x, targetZ: target.z, radius: profile.range, damage: profile.damage, aimX: aim.x, aimZ: aim.z });
   return true;
+}
+
+function launchStaffShot(state, profile, target, offset = 0, emit = true) {
+  const player = state.player, aim = direction(target.x - player.x, target.z - player.z);
+  const angle = Math.atan2(aim.x, aim.z) + offset, dx = Math.sin(angle), dz = Math.cos(angle);
+  const bolt = projectile(state, player.x, player.z, dx, dz, 'player', profile.damage, profile.projectileSpeed,
+    { source: 'staff', life: profile.projectileLife, weaponStyle: profile.weaponStyle, weaponId: profile.weaponId, blastRadius: profile.blastRadius });
+  if (bolt && emit) {
+    if (player.movingX === 0 && player.movingZ === 0) { player.facingX = dx; player.facingZ = dz; }
+    event(state, 'shoot', player.x, player.z, { aimX: dx, aimZ: dz, targetId: target.id, weaponStyle: profile.weaponStyle, weaponId: profile.weaponId });
+  }
+  return bolt;
+}
+
+function updatePendingStaffShots(state, dt) {
+  if (state.player.form !== 'druid' || state.inCamp) { state.pendingStaffShots.length = 0; return; }
+  const pending = [];
+  for (const shot of state.pendingStaffShots) {
+    shot.time -= dt;
+    if (shot.time > 1e-9) { pending.push(shot); continue; }
+    let target = state.enemies.find(enemy => enemy.id === shot.targetId && enemy.hp > 0 && distance(enemy, state.player) <= shot.profile.range);
+    if (!target) {
+      let nearest = shot.profile.range;
+      for (const enemy of state.enemies) {
+        if (enemy.hp <= 0) continue;
+        const dist = distance(enemy, state.player);
+        if (dist < nearest || dist === nearest && (!target || enemy.id < target.id)) { target = enemy; nearest = dist; }
+      }
+    }
+    if (target) launchStaffShot(state, shot.profile, target);
+  }
+  state.pendingStaffShots = pending;
 }
 
 function automaticSkills(state) {
@@ -966,6 +1025,7 @@ export function stepGame(state, input = {}, dt = 1 / 60) {
   if (!Number.isFinite(dt) || dt <= 0) return state;
   dt = Math.min(dt, RULES.maxStep);
   const player = state.player;
+  const levelAtStart = state.progress.level;
   if (player.hp <= 0) { state.phase = 'down'; clearCombatSession(state); return state; }
   state.time += dt; state.elapsed = state.time;
   for (const item of state.effects) item.life -= dt;
@@ -1000,10 +1060,12 @@ export function stepGame(state, input = {}, dt = 1 / 60) {
   advanceFieldEvents(state, dt, FIELD_CONTEXT);
   if (state.phase !== 'playing') return state;
   updateOwl(state, dt);
+  updatePendingStaffShots(state, dt);
   const target = nearestCombatTarget(state);
   if (player.attackCd <= 0 && target) playerAttack(state, target);
   updateProjectiles(state, dt);
   state.enemies = state.enemies.filter(enemy => enemy.hp > 0);
+  if (state.phase === 'playing' && state.progress.level > levelAtStart) updateSpawns(state, 0);
   if (state.owl.targetId !== null && !state.enemies.some(enemy => enemy.id === state.owl.targetId)) state.owl.targetId = null;
   state.fightTargetId = nearestCombatTarget(state)?.id ?? null;
   return state;

@@ -142,13 +142,13 @@ button, a.button { transition: transform .1s ease-out, filter .15s ease-out; }
 .equipment-heading strong { display: block; color: #fff5cc; font-size: 20px; font-weight: 400; }
 .equipment-heading span:not(.equipment-icon) { display: block; margin-top: 3px; color: #bde4ed; font-size: 16px; }
 .equipment-card .equipment-effect { margin: 10px 0 4px; color: #f1ffc7; font-size: 18px; text-align: left; }
-.equipment-next { margin: 0 0 10px; color: #c9f0e4; font-size: 16px; text-align: left; }
+.equipment-next { margin: 0 0 10px; color: #c9f0e4; font-size: 16px; line-height: 1.35; text-align: left; white-space: pre-line; }
 .equipment-actions { display: grid; grid-template-columns: 1fr 1.2fr 1.2fr; gap: 6px; }
 .equipment-actions button { display: grid; align-content: center; gap: 3px; min-width: 0; min-height: 52px; padding: 6px 2px; border: 1px solid #ffeda3; border-radius: 10px; background: linear-gradient(#ffe588, #e8ae3d); box-shadow: inset 0 2px #fff7ca80, 0 3px #84602f; color: #20495d; font-size: 18px; line-height: 1.1; }
 .equipment-actions button small { font-size: 14px; white-space: nowrap; }
 .equipment-actions button small:empty { display: none; }
 .equipment-actions button:disabled { border-color: #64889d; background: linear-gradient(#476a82, #32516e); box-shadow: inset 0 1px #b9d9e52e, 0 2px #17374f; color: #bfd7dc; }
-.equipment-card .equipment-condition { margin: 10px 0 0; color: #d8eff2; font-size: 14px; line-height: 1.4; text-align: left; word-break: keep-all; }
+.equipment-card .equipment-condition { margin: 10px 0 0; color: #d8eff2; font-size: 14px; line-height: 1.4; text-align: left; word-break: keep-all; white-space: pre-line; }
 .form-status { position: absolute; z-index: 5; right: 10px; bottom: 74px; display: grid; gap: 4px; width: 126px; padding: 10px 9px; border: 2px solid #bcf4ea; border-radius: 14px; background: linear-gradient(145deg, #397d9bee, #234c78f5); box-shadow: inset 0 2px #e0ffff66, 0 4px #163452; pointer-events: none; text-align: center; }
 .form-status span { color: #e2faff; font-size: 14px; line-height: 1.2; }
 .form-status strong { color: #fff1b0; font-size: 25px; font-weight: 400; line-height: 1.1; }

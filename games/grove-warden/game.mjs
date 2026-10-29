@@ -1,16 +1,16 @@
-import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, STAGES, FORMS, getStage, getCamp, isStageUnlocked, getFormOffer, buyFormUpgrade, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, getSkillOffer, learnSkill, respawnAtCamp, equipmentAction } from './rules.mjs';
+import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, STAGES, FORMS, getStage, getCamp, isStageUnlocked, isZoneUnlocked, getFormOffer, buyFormUpgrade, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, getSkillOffer, learnSkill, respawnAtCamp, equipmentAction } from './rules.mjs';
 import { createRenderer } from './renderer.mjs';
 import { createGameAudio } from './audio.mjs';
-import { EQUIPMENT, getEquipmentOffer } from './equipment.mjs';
+import { EQUIPMENT, getEquipmentOffer, getStaffAttack } from './equipment.mjs';
 
 const $ = id => document.getElementById(id);
 const lifetime = new AbortController();
 const listen = (element, type, handler, options = {}) => element.addEventListener(type, handler, { ...options, signal: lifetime.signal });
-const SAVE_KEY = 'grove-warden:v6';
+const SAVE_KEY = 'grove-warden:v7';
 let settings = { sound: true }, savedProgress = normalizeProgress(), storageFailed = false;
 try {
   let saved;
-  for (const key of [SAVE_KEY, 'grove-warden:v5', 'grove-warden:v4', 'grove-warden:v3', 'grove-warden:v2']) {
+  for (const key of [SAVE_KEY, 'grove-warden:v6', 'grove-warden:v5', 'grove-warden:v4', 'grove-warden:v3', 'grove-warden:v2']) {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {
@@ -28,7 +28,7 @@ try {
 } catch { storageFailed = true; }
 
 let state = createGame((Date.now() ^ 73519) >>> 0, savedProgress), view, ready = false, stopped = false, frameId;
-let accumulator = 0, lastTime = performance.now(), visualTime = 0, lastPhase = '', toastUntil = 0, lastHud = '', pauseKind = 'pause';
+let accumulator = 0, lastTime = performance.now(), visualTime = 0, lastPhase = '', toastUntil = 0, lastHud = '', pauseKind = 'pause', triedWolf = false;
 let savedRevision = state.revision, lastSaveAt = 0, helpOrigin = 'menu', growthCategory = 'stats', renderedGrowthCategory = '', lastGrowth = '', statsPage = 'stats';
 function saveProgress(force = false) {
   if (!force && (state.revision === savedRevision || performance.now() - lastSaveAt < (storageFailed ? 2000 : 400))) return;
@@ -63,7 +63,7 @@ function showReward(title, detail, priority = 1) {
   banner.hidden = false; rewardPriority = priority; rewardUntil = visualTime + 1.4;
 }
 function presentEvent(event) {
-  sound(event.type);
+  sound(event.type === 'shoot' && ['burst', 'spread', 'explosive'].includes(event.weaponStyle) ? `staff-${event.weaponStyle}` : event.type);
   if (event.type === 'player-hit') pulse('hp-value', 'hurt-pop');
   if (event.type === 'pickup') pulse('cargo-value');
   if (event.type === 'deposit') {
@@ -73,7 +73,7 @@ function presentEvent(event) {
   if (event.type === 'level-up') {
     pulse('level-value'); pulse('hp-value'); pulse('xp-value');
     const unlocked = FORMS.find(form => form.firstLevel === event.level);
-    showReward(`레벨 ${event.level}`, unlocked ? `${unlocked.name} 자동 변신 해금!` : '생명과 공격력 상승', 3);
+    showReward(`레벨 ${event.level}`, unlocked?.id === 'wolf' ? '늑대 해금 · 질주 초원에서 써보세요!' : unlocked ? `${unlocked.name} 자동 변신 해금!` : '생명과 공격력 상승', 3);
   }
   if (event.type === 'kill' && event.bossId) {
     const quest = getQuest(state), zone = HUNT_ZONES.find(item => item.bossId === event.bossId);
@@ -90,6 +90,8 @@ function presentEvent(event) {
   }
   if (event.type === 'field-boon') { sound('upgrade'); showReward('생명의 축복', '15초간 생명을 회복해요', 2); }
   if (event.type === 'field-hazard') sound('burst');
+  if (event.type === 'staff-explosion') sound('burst');
+  if (event.type === 'transform' && event.form === 'wolf') triedWolf = true;
   if (event.type === 'transform' && event.form !== 'druid') sound('transform');
   if (event.type === 'form-attack') sound(event.form === 'wolf' ? 'wolf-swipe' : event.form === 'bear' ? 'bear-slam' : 'dragon-fire');
   if (event.type === 'quest') {
@@ -209,23 +211,27 @@ function renderEquipment() {
     const offer = getEquipmentOffer(state.progress, definition.id);
     row.card.classList.toggle('equipped', offer.equipped); row.card.classList.toggle('undiscovered', !offer.owned);
     row.name.textContent = offer.name;
-    row.details.textContent = offer.owned ? `${offer.tierName} · +${offer.level} · 보유 ${offer.copies}` : '미발견 · 필드와 보스 전리품';
-    row.effect.textContent = `피해 +${offer.damage} · 생명 +${offer.health}`;
-    row.next.textContent = offer.maxed ? '최대 강화' : `강화 후 피해 +${offer.nextDamage} · 생명 +${offer.nextHealth}`;
+    row.details.textContent = offer.owned ? `${offer.attackLabel} · ${offer.tierName} · +${offer.level} · 보유 ${offer.copies}` : `${offer.attackLabel} · 기본형 무료`;
+    const attack = getStaffAttack(definition.id, { attackDamage: state.player.attackDamage - state.player.gearDamage + offer.damage, damageMult: state.player.damageMult });
+    const shots = attack.burstCount * attack.spreadAngles.length;
+    row.effect.textContent = `피해 ${Math.round(attack.damage)}${shots > 1 ? `×${shots}` : ''} · ${attack.interval}초 · ${attack.blastRadius ? `폭발 ${attack.blastRadius}m` : `${attack.range}m`}`;
+    row.next.textContent = `${definition.attackDescription}\n${offer.maxed ? `최대 · 피해 +${offer.damage} · 생명 +${offer.health}` : `보너스 피해 +${offer.damage}→+${offer.nextDamage} · 생명 +${offer.health}→+${offer.nextHealth}`}`;
     const { equip, enhance, promote } = row.buttons;
-    equip.label.textContent = offer.equipped ? '장착 중' : '장착'; equip.cost.textContent = '';
+    equip.label.textContent = !offer.owned ? '무료 받기' : offer.equipped ? '장착 중' : '장착'; equip.cost.textContent = '';
+    equip.button.dataset.equipmentAction = offer.owned ? 'equip' : 'unlock';
     enhance.label.textContent = offer.maxed ? '최대' : '강화';
     enhance.cost.textContent = offer.maxed ? '' : `${offer.enhanceCost}G · ${offer.scrollCost}장`;
     promote.label.textContent = offer.promotionMaxed ? '최대' : '승급';
     promote.cost.textContent = offer.promotionMaxed ? '' : `${offer.promoteCost}G · ${offer.promoteScrollCost}장`;
-    equip.button.disabled = !state.inCamp || !offer.owned || offer.equipped;
+    equip.button.disabled = !state.inCamp || offer.equipped;
     enhance.button.disabled = !state.inCamp || !offer.canEnhance;
     promote.button.disabled = !state.inCamp || !offer.canPromote;
-    equip.button.setAttribute('aria-label', `${offer.name} ${offer.equipped ? '장착 중' : '장착'}`);
+    equip.button.setAttribute('aria-label', `${offer.name} ${!offer.owned ? '기본형 무료 받기와 장착' : offer.equipped ? '장착 중' : '장착'}`);
     enhance.button.setAttribute('aria-label', offer.maxed ? `${offer.name} 최대 강화` : `${offer.name} 강화, ${offer.enhanceCost} 골드와 두루마리 ${offer.scrollCost}장`);
     promote.button.setAttribute('aria-label', offer.promotionMaxed ? `${offer.name} 최고 등급` : `${offer.name} 승급, ${offer.promoteCost} 골드와 두루마리 ${offer.promoteScrollCost}장, 같은 장비 2개`);
-    row.condition.textContent = !offer.owned ? definition.description
+    const condition = !offer.owned ? definition.description
       : `${offer.maxed ? '최대 강화' : `강화 Lv.${offer.requiredLevel}`} · ${offer.promotionMaxed ? '최고 등급' : `승급 Lv.${offer.promoteRequiredLevel} · ${offer.copies >= 3 ? '장비 수량 충족' : `같은 장비 ${3 - offer.copies}개 더 필요`}`}`;
+    row.condition.textContent = state.inCamp ? condition : `거점에서 선택·성장\n${condition}`;
   }
 }
 function updateNavigation() {
@@ -291,7 +297,7 @@ function renderGrowth() {
   $('growth-title').textContent = growthCategory === 'stats' ? '능력치' : growthCategory === 'druid' ? '드루이드' : `${form.name} 성장`;
   $('growth-bank-value').textContent = state.progress.gold; $('growth-level-value').textContent = `Lv.${state.player.level}`;
   $('growth-summary').textContent = form
-    ? `${form.description}\n${state.player.level >= form.firstLevel ? '상황에 맞춰 자동으로 변신해요.' : `Lv.${form.firstLevel}에 무료로 자동 해금돼요.`}`
+    ? `${form.description}\n${state.player.level >= form.firstLevel ? form.id === 'wolf' ? '초원의 질주 초원에서 바로 써보세요.' : '상황에 맞춰 자동으로 변신해요.' : `Lv.${form.firstLevel}에 무료로 자동 해금돼요.`}`
     : `${state.inCamp ? '보관 골드로 영구 성장해요.' : '거점에서 성장할 수 있어요.'}${growthCategory === 'druid' ? ' 배운 기술은 전투 중 자동으로 사용해요.' : ' 필요한 레벨과 골드를 확인하세요.'}`;
   if (equipmentPage) {
     $('growth-title').textContent = '장비';
@@ -436,6 +442,12 @@ function directionTo(target) {
 }
 function guideText(quest) {
   if (state.phase !== 'playing' || $('toast').textContent || !$('reward-banner').hidden) return '';
+  if (!triedWolf && state.player.level >= 4 && state.player.level < 8 && state.inCamp && getStage(state).id === 'meadow') {
+    const practice = HUNT_ZONES.find(zone => zone.id === 'meadow-runners');
+    if (practice && isZoneUnlocked(state.progress, practice)) {
+      const direction = directionTo(practice); return `${direction.arrow} 질주 초원 ${direction.distance}m · 늑대 사냥`;
+    }
+  }
   const blocked = STAGES.find(stage => stage.id !== 'meadow' && !isStageUnlocked(state.progress, stage.id) && Math.abs(state.player.z - stage.maxZ) < 4);
   if (blocked) return state.player.level < blocked.firstLevel ? `Lv.${blocked.firstLevel}에 ${blocked.name} 개방` : '수문장 의뢰 보상으로 개방';
   let target, label;
@@ -448,7 +460,7 @@ function guideText(quest) {
     else if (quest.id === 'meadow-boss' || quest.id === 'deep-boss') zone = HUNT_ZONES.find(item => item.id === quest.id);
     else if (quest.id === 'deep') zone = HUNT_ZONES.filter(item => item.deep && item.type !== 'boss').sort((a, b) => Math.hypot(a.x - state.player.x, a.z - state.player.z) - Math.hypot(b.x - state.player.x, b.z - state.player.z))[0];
     else if (!quest.done) zone = HUNT_ZONES.find(item => item.id === 'meadow-mushrooms');
-    else zone = HUNT_ZONES.filter(item => isStageUnlocked(state.progress, item.stageId) && item.type !== 'boss').sort((a, b) => Math.hypot(a.x - state.player.x, a.z - state.player.z) - Math.hypot(b.x - state.player.x, b.z - state.player.z))[0];
+    else zone = HUNT_ZONES.filter(item => isZoneUnlocked(state.progress, item) && item.type !== 'boss').sort((a, b) => Math.hypot(a.x - state.player.x, a.z - state.player.z) - Math.hypot(b.x - state.player.x, b.z - state.player.z))[0];
     if (!zone) return '';
     if (!isStageUnlocked(state.progress, zone.stageId)) {
       const stage = STAGES.find(item => item.id === zone.stageId);

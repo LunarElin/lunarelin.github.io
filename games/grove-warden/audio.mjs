@@ -2,6 +2,9 @@ const gainFromDb = db => 10 ** (db / 20);
 const chime = (frequencies, duration = .16) => frequencies.map((frequency, i) => [frequency, frequency, duration, 'sine', .15, i * .075]);
 const cues = {
   shoot: { gap: .12, notes: [[630, 360, .065, 'sine', .08]] },
+  'staff-burst': { gap: .075, notes: [[700, 390, .045, 'triangle', .07]] },
+  'staff-spread': { gap: .5, notes: [[520, 250, .09, 'triangle', .07], [400, 150, .05, 'noise', .055]] },
+  'staff-explosive': { gap: .5, notes: [[240, 120, .12, 'sine', .1]] },
   'owl-shoot': { gap: .16, notes: [[720, 1040, .08, 'sine', .07]] },
   hit: { gap: .075, notes: [[270, 110, .085, 'triangle', .28], [1120, 680, .04, 'sine', .11], [500, 100, .045, 'noise', .16]] },
   kill: { gap: .12, notes: [[430, 660, .11, 'sine', .09]] },

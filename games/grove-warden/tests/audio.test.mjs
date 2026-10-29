@@ -76,6 +76,14 @@ test('rapid repeated cues throttle and successive attacks vary without changing 
   assert.ok(context.oscillators[4].startTime > context.oscillators[2].startTime);
 });
 
+test('all three burst shots can sound at their actual cadence while duplicate frames stay throttled', () => {
+  const { audio, context } = setup(); audio.wake();
+  for (const time of [0, .1, .2]) { context.currentTime = time; audio.play('staff-burst'); audio.play('staff-burst'); }
+  assert.equal(context.oscillators.length, 3);
+  audio.suspend(); assert.equal(audio.stats().voices, 0);
+  assert.ok(context.oscillators.every(node => node.disconnected));
+});
+
 test('mute and pause cancel scheduled tones instead of replaying tails when resumed', () => {
   const { audio, context } = setup(); audio.wake(); audio.play('level-up');
   audio.setEnabled(false); assert.equal(audio.stats().voices, 0); assert.equal(context.state, 'suspended');

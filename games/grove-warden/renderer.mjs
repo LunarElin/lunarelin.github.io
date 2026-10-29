@@ -1,10 +1,11 @@
 import * as THREE from './vendor/three.module.min.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
-import { WORLD, HUNT_ZONES, STAGES, isStageUnlocked, getCamp } from './rules.mjs';
+import { WORLD, HUNT_ZONES, STAGES, isStageUnlocked, isZoneUnlocked, getCamp } from './rules.mjs';
 
 const TAU = Math.PI * 2;
 const palette = { grass: 0x9bd650, pale: 0xe1f6a0, green: 0x20a466, dark: 0x145f4b, bark: 0xa86c36, gold: 0xffc735, skin: 0xffd2a0, red: 0xff684a };
-const gearColors = { sprout: 0x8fea6b, thorn: 0xef987b, moon: 0xaaa4ff };
+const gearColors = { sprout: 0x8fea6b, thorn: 0xef987b, moon: 0xaaa4ff, ember: 0xff934f };
+const staffColors = { single: gearColors.sprout, burst: gearColors.thorn, spread: gearColors.moon, explosive: gearColors.ember };
 const materials = new Map();
 const geometries = new Map();
 function material(color, extra = {}) {
@@ -329,6 +330,7 @@ export async function createRenderer(container) {
   const owl = makeOwl(); scene.add(owl.root);
   const aimMarker = new THREE.Group(); ring(aimMarker, .96, 1, 0xe3ffb3, .9); circle(aimMarker, 1, 0xc8f2a1, .14); scene.add(aimMarker); aimMarker.visible = false;
   const actors = new Map(), actorPool = [], bolts = new Map(), boltPool = [], fx = new Map(), fxPool = [], coins = new Map(), coinPool = [];
+  const zonesById = new Map(HUNT_ZONES.map(zone => [zone.id, zone]));
   const dyingActors = [], pulsePool = [], pulses = [], impactPool = [], impacts = [], feedbackMaterials = new Set();
   const formBursts = [], formBurstPool = [];
   const fieldLootVisuals = new Map(), fieldLootPool = [], discoveryVisuals = new Map(), discoveryPool = [], hazardVisuals = new Map(), hazardPool = [];
@@ -359,6 +361,12 @@ export async function createRenderer(container) {
     fireCore: material(0xffe8ac, { emissive: 0xffbe63, emissiveIntensity: .9 }),
     fireTail: material(0xffb657, { emissive: 0xe86925, emissiveIntensity: .6, transparent: true, opacity: .7, depthWrite: false }),
   };
+  const staffMaterials = Object.fromEntries(Object.entries(staffColors).map(([style, color]) => [style, {
+    body: material(color, { emissive: color, emissiveIntensity: .45 }),
+    tail: material(color, { emissive: color, emissiveIntensity: .6, transparent: true, opacity: .65, depthWrite: false }),
+    core: material(style === 'explosive' ? 0xffe1a0 : style === 'burst' ? 0xffd6c9 : style === 'spread' ? 0xeee6ff : 0xeaffcc, { emissive: color, emissiveIntensity: .5 }),
+  }]));
+  const boltGeometry = { sphere: geometry('SphereGeometry', [1, 7, 5]), needle: geometry('ConeGeometry', [.105, .85, 5]), shard: geometry('OctahedronGeometry', [1, 0]) };
   const labels = document.createElement('div'); labels.className = 'combat-labels'; container.append(labels);
   const floaters = []; const vector = new THREE.Vector3();
   for (const territory of territories) {
@@ -366,7 +374,7 @@ export async function createRenderer(container) {
     labels.append(label); territory.label = label;
     territory.labelHalfWidth = [...label.textContent].reduce((width, character) => width + (character.codePointAt(0) > 0x2e80 ? 16 : 9), 0) / 2 + 10;
   }
-  let width = 0, height = 0, lastPlayer = { x: 0, z: WORLD.camp.z }, previousHp = 100, shake = 0, castFlash = 0, castAngle = 0, owlFlash = 0, owlAngle = 0, owlAppeared = 0, owlWasActive = false, depositFlash = 0, renderTime = 0, walkBlend = 0, formAttack = 0, formAngle = 0, formAppeared = 1, lastForm = 'druid', disposed = false;
+  let width = 0, height = 0, lastPlayer = { x: 0, z: WORLD.camp.z }, previousHp = 100, shake = 0, castFlash = 0, castAngle = 0, castStyle = 'single', owlFlash = 0, owlAngle = 0, owlAppeared = 0, owlWasActive = false, depositFlash = 0, renderTime = 0, walkBlend = 0, formAttack = 0, formAngle = 0, formAppeared = 1, lastForm = 'druid', disposed = false;
   const shadowDirection = new THREE.Vector3(-8, 19, 12), shadowNormal = shadowDirection.clone().normalize();
   const shadowX = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), shadowNormal).normalize(), shadowY = new THREE.Vector3().crossVectors(shadowNormal, shadowX).normalize();
   const shadowAnchor = new THREE.Vector3();
@@ -549,11 +557,11 @@ export async function createRenderer(container) {
     const reduce = motionPreference?.matches;
     for (let i = 0, total = reduce ? Math.ceil(count / 2) : count; i < total; i++) {
       const index = particleCursor++ % particleCapacity, particle = particleData[index], angle = random() * TAU;
-      const speed = kind === 'hit' ? .6 + random() * 1.2 : 1 + random() * 2;
+      const speed = kind === 'explosion' ? 2.2 + random() * 2.6 : kind === 'hit' ? .6 + random() * 1.2 : 1 + random() * 2;
       Object.assign(particle, {
         x, y, z, vx: Math.cos(angle) * speed, vz: Math.sin(angle) * speed, vy: 1.1 + random() * 1.8,
         life: kind === 'hit' ? .2 + random() * .12 : .4 + random() * .22,
-        size: kind === 'hit' ? .08 + random() * .04 : .06 + random() * .055,
+        size: kind === 'explosion' ? .1 + random() * .07 : kind === 'hit' ? .08 + random() * .04 : .06 + random() * .055,
         kind, targetX: target?.x ?? x, targetZ: target?.z ?? z, spin: random() * TAU,
       });
       particle.maxLife = particle.life;
@@ -584,11 +592,14 @@ export async function createRenderer(container) {
       for (let i = 0; i < 2; i++) { const edge = ring(slam, .94, 1, i === 0 ? 0xffd087 : 0x8e6446, 1); edge.material = ownBasic(i === 0 ? 0xffd087 : 0x8e6446, { transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide }); edge.position.y = .025 + i * .015; rings.push(edge); }
       burst = { root, claws, slam, clawParts, rings };
     }
-    burst.form = event.form; burst.age = 0; burst.life = event.form === 'bear' ? .45 : .25; burst.radius = event.radius || (event.form === 'bear' ? 2.6 : 1);
+    burst.form = event.form; burst.age = 0; burst.life = event.form === 'staff-explosion' ? .42 : event.form === 'bear' ? .45 : .25; burst.radius = event.radius || (event.form === 'bear' ? 2.6 : 1);
+    burst.root.name = event.form === 'staff-explosion' ? 'staff-explosion-fx' : 'form-attack-fx';
     burst.root.position.set(event.form === 'wolf' ? event.targetX ?? event.x : event.x, event.form === 'wolf' ? 1.05 : .07, event.form === 'wolf' ? event.targetZ ?? event.z : event.z);
-    burst.claws.visible = event.form === 'wolf'; burst.slam.visible = event.form === 'bear'; burst.root.visible = true;
+    burst.claws.visible = event.form === 'wolf'; burst.slam.visible = event.form === 'bear' || event.form === 'staff-explosion'; burst.root.visible = true;
+    for (let i = 0; i < burst.rings.length; i++) burst.rings[i].material.color.setHex(event.form === 'staff-explosion' ? i === 0 ? 0xffa761 : 0xffdf97 : i === 0 ? 0xffd087 : 0x8e6446);
     burst.root.quaternion.identity(); scene.add(burst.root); formBursts.push(burst);
     if (event.form === 'bear') emitParticles(event.x, .2, event.z, 0xb68b54, 14);
+    else if (event.form === 'staff-explosion') emitParticles(event.x, .55, event.z, gearColors.ember, 18, 'explosion');
   }
   function emitImpact(event, enemy) {
     // Keep the impact wider than its damage text on portrait screens.
@@ -609,7 +620,7 @@ export async function createRenderer(container) {
       for (const part of [outer, fill, core, shock]) { part.castShadow = part.receiveShadow = false; part.renderOrder = 20; }
       impact = { root, flash, outer, fill, core, shock };
     }
-    const source = event.source || 'staff', color = source === 'owl' ? 0x62b9ff : source === 'roots' ? 0x80ff76 : source === 'bear' ? 0xffcc82 : source === 'dragon' ? 0xff9e58 : 0x8df8ff;
+    const source = event.source || 'staff', color = source === 'owl' ? 0x62b9ff : source === 'roots' ? 0x80ff76 : source === 'bear' ? 0xffcc82 : source === 'dragon' ? 0xff9e58 : source === 'staff' && event.weaponStyle !== 'single' && staffColors[event.weaponStyle] ? staffColors[event.weaponStyle] : 0x8df8ff;
     impact.age = 0; impact.life = .28; impact.source = source;
     impact.fill.material.color.setHex(color); impact.shock.material.color.setHex(color);
     impact.root.position.set(event.x, enemy?.variant === 'sky' ? 2.9 : enemy?.type === 'boss' ? 1.75 : enemy?.type === 'flyer' ? 1.9 : 1.05, event.z);
@@ -699,6 +710,7 @@ export async function createRenderer(container) {
         } else if (e.type === 'field-boon') {
           rewardPulse(e.x, e.z, true); emitParticles(e.x, .5, e.z, 0x94ff9c, 14, 'rise');
         } else if (e.type === 'field-hazard') emitParticles(e.x, .5, e.z, 0xffa052, 10);
+        else if (e.type === 'staff-explosion') emitFormBurst({ ...e, form: 'staff-explosion' });
         else if (e.type === 'transform') { emitParticles(e.x, .7, e.z, e.form === 'dragon' ? 0xffcb7c : e.form === 'bear' ? 0xffdf99 : 0xb6fff3, 16, 'rise'); rewardPulse(e.x, e.z, true); }
         else if (e.type === 'form-attack') { formAttack = .35; formAngle = Math.atan2((e.targetX ?? e.x) - e.x, (e.targetZ ?? e.z + 1) - e.z); emitFormBurst(e); }
       }
@@ -717,8 +729,7 @@ export async function createRenderer(container) {
       light.position.copy(shadowAnchor).add(shadowDirection); light.target.position.copy(shadowAnchor); light.target.updateMatrixWorld();
       for (const territory of territories) {
         const { zone, root, edge, label } = territory, active = state.huntZoneId === zone.id;
-        const stageId = zone.stageId || STAGES.find(stage => zone.z >= stage.minZ && zone.z <= stage.maxZ)?.id || 'meadow';
-        root.visible = isStageUnlocked(state.progress, stageId);
+        root.visible = isZoneUnlocked(state.progress, zone);
         edge.material.opacity = active ? .35 + Math.sin(visualTime * 2) * .08 : .12;
         vector.set(zone.x, .2, zone.z + zone.radius * .75).project(camera);
         // Nearby names belong in the HUD; keep approaching-territory labels off the fighters too.
@@ -737,7 +748,7 @@ export async function createRenderer(container) {
       const chestPop = depositFlash > 0 ? Math.sin((1 - depositFlash / .65) * Math.PI) : 0;
       chest.position.y = chestPop * .18 * motion; chest.rotation.z = Math.sin((1 - depositFlash / .65) * TAU * 1.5) * depositFlash * .06 * motion;
       castFlash = Math.max(0, castFlash - dt);
-      for (const e of events) if (e.type === 'shoot') { castFlash = .22; castAngle = Math.atan2(e.aimX ?? p.facingX, e.aimZ ?? p.facingZ); }
+      for (const e of events) if (e.type === 'shoot') { castFlash = .22; castAngle = Math.atan2(e.aimX ?? p.facingX, e.aimZ ?? p.facingZ); castStyle = staffColors[e.weaponStyle] ? e.weaponStyle : 'single'; }
       walkBlend += ((moving ? 1 : 0) - walkBlend) * Math.min(1, dt * 14);
       const stride = Math.sin(visualTime * 13) * walkBlend * motion;
       const castPose = castFlash > 0 ? Math.sin(castFlash / .22 * Math.PI) : 0;
@@ -745,7 +756,7 @@ export async function createRenderer(container) {
       druid.rig.position.y = (Math.abs(stride) * .075 + Math.sin(visualTime * 2) * .025 * (1 - walkBlend)) * motion;
       druid.rig.rotation.x = (walkBlend * .055 - castPose * .055) * motion; druid.rig.rotation.z = stride * .035;
       druid.arm.rotation.x = -.6 * castPose; druid.staff.rotation.x = -.14 * castPose * motion; druid.staff.rotation.z = -.05 * castPose * motion;
-      druid.castGlow.visible = castFlash > .1; druid.castGlow.scale.setScalar(.27 * (.7 + castFlash * 3)); druid.castGlow.material.opacity = reduceMotion ? .3 : .8;
+      druid.castGlow.visible = castFlash > .1; druid.castGlow.scale.setScalar(.27 * (.7 + castFlash * 3)); druid.castGlow.material.opacity = reduceMotion ? .3 : .8; druid.castGlow.material.color.setHex(staffColors[castStyle]);
       druid.bag.visible = state.cargo > 0; druid.bag.scale.setScalar(.75 + Math.min(1, (state.cargo || 0) / (p.capacity || 24)) * .4);
       druid.bag.rotation.z = -stride * .07;
       druid.left.position.z = .06 + stride * .17; druid.right.position.z = .06 - stride * .17;
@@ -792,7 +803,7 @@ export async function createRenderer(container) {
       if (p.hp < previousHp && !reduceMotion) shake = .12; previousHp = p.hp;
       const alive = new Set();
       for (const enemy of state.enemies) {
-        if (enemy.hp <= 0 || (enemy.stageId && !isStageUnlocked(state.progress, enemy.stageId))) continue; alive.add(enemy.id); const a = getActor(enemy); a.root.position.set(enemy.x, .03, enemy.z);
+        if (enemy.hp <= 0 || !isZoneUnlocked(state.progress, zonesById.get(enemy.zoneId) || enemy)) continue; alive.add(enemy.id); const a = getActor(enemy); a.root.position.set(enemy.x, .03, enemy.z);
         const stepX = a.lastX === null ? 0 : enemy.x - a.lastX, stepZ = a.lastZ === null ? 0 : enemy.z - a.lastZ;
         const walking = Math.hypot(stepX, stepZ) > .0001 && !['windup', 'stunned'].includes(enemy.phase);
         if (walking) a.moveAngle = Math.atan2(stepX, stepZ);
@@ -851,20 +862,34 @@ export async function createRenderer(container) {
       const activeBolts = new Set();
       for (const b of state.projectiles) {
         activeBolts.add(b.id);
-        if (!bolts.has(b.id)) { const bolt = boltPool.pop() || makeBolt(); bolt.root.visible = true; scene.add(bolt.root); bolts.set(b.id, bolt); }
+        if (!bolts.has(b.id)) { const bolt = boltPool.pop() || makeBolt(); bolt.startLife = b.life; bolt.root.visible = true; scene.add(bolt.root); bolts.set(b.id, bolt); }
         const bolt = bolts.get(b.id), fromOwl = b.team === 'player' && b.source === 'owl', fromDragon = b.team === 'player' && b.source === 'dragon';
-        const flight = Math.min(1, Math.max(0, ((fromOwl ? 2 : 1.5) - b.life) / (fromOwl ? .5 : .35)));
+        const fromStaff = b.team === 'player' && !fromOwl && !fromDragon, weaponStyle = fromStaff && staffColors[b.weaponStyle] ? b.weaponStyle : 'single';
+        const flight = Math.min(1, Math.max(0, ((b.maxLife ?? bolt.startLife) - b.life) / (fromOwl ? .5 : .35)));
         // Reset every visual property so one shared pool can safely change projectile sources.
         bolt.root.name = fromDragon ? 'dragon-flame' : fromOwl ? 'owl-missile' : b.team === 'player' ? 'staff-bolt' : 'enemy-bolt';
+        bolt.root.userData.source = fromStaff ? 'staff' : fromOwl ? 'owl' : fromDragon ? 'dragon' : 'enemy'; bolt.root.userData.weaponStyle = fromStaff ? weaponStyle : null; bolt.root.userData.weaponId = fromStaff ? b.weaponId || null : null;
         bolt.root.position.set(b.x, fromDragon ? 1.7 + (b.targetId && state.enemies.find(enemy => enemy.id === b.targetId)?.trait === 'airborne' ? .45 : 0) : fromOwl ? 1.95 - flight : b.team === 'player' ? 2.25 - flight * 1.35 : 1.25, b.z);
         bolt.root.rotation.set(0, Math.atan2(b.dx, b.dz), 0); bolt.root.scale.set(1, 1, 1);
-        bolt.body.material = fromDragon ? boltMaterials.dragon : fromOwl ? boltMaterials.owl : boltMaterials[b.team] || boltMaterials.enemy;
+        bolt.body.geometry = boltGeometry.sphere; bolt.body.material = fromDragon ? boltMaterials.dragon : fromOwl ? boltMaterials.owl : boltMaterials[b.team] || boltMaterials.enemy;
         bolt.body.position.set(0, 0, 0); bolt.body.rotation.set(0, 0, 0);
         bolt.body.scale.set(fromDragon ? .25 : fromOwl ? .125 : b.team === 'player' ? .18 : .24, fromDragon ? .23 : fromOwl ? .13 : .18, fromDragon ? .46 : fromOwl ? .24 : .4);
         bolt.tail.visible = b.team === 'player'; bolt.tail.material = fromDragon ? boltMaterials.fireTail : fromOwl ? boltMaterials.owlTail : boltMaterials.staffTail;
         bolt.tail.position.set(0, 0, fromDragon ? -.55 : fromOwl ? -.39 : -.46); bolt.tail.rotation.set(0, 0, 0); bolt.tail.scale.set(fromDragon ? .16 : fromOwl ? .075 : .1, fromDragon ? .14 : fromOwl ? .07 : .085, fromDragon ? .65 : fromOwl ? .35 : .5);
         bolt.core.visible = b.team === 'player'; bolt.core.material = fromDragon ? boltMaterials.fireCore : boltMaterials.owlCore;
         bolt.core.position.set(0, 0, .12); bolt.core.rotation.set(0, 0, 0); bolt.core.scale.set(fromDragon ? .14 : fromOwl ? .075 : .105, fromDragon ? .14 : fromOwl ? .085 : .105, fromDragon ? .23 : fromOwl ? .115 : .16);
+        if (fromStaff) {
+          const visualMaterials = staffMaterials[weaponStyle]; bolt.body.material = visualMaterials.body; bolt.tail.material = visualMaterials.tail; bolt.core.material = visualMaterials.core;
+          if (weaponStyle === 'burst') {
+            bolt.body.geometry = boltGeometry.needle; bolt.body.rotation.x = Math.PI / 2; bolt.body.scale.setScalar(1);
+            bolt.tail.position.z = -.53; bolt.tail.scale.set(.045, .045, .4); bolt.core.scale.set(.065, .065, .12);
+          } else if (weaponStyle === 'spread') {
+            bolt.body.geometry = boltGeometry.shard; bolt.body.scale.set(.17, .14, .28);
+            bolt.tail.position.z = -.28; bolt.tail.scale.set(.075, .06, .28); bolt.core.scale.set(.08, .08, .12);
+          } else if (weaponStyle === 'explosive') {
+            bolt.body.scale.set(.26, .25, .3); bolt.tail.position.z = -.36; bolt.tail.scale.set(.13, .1, .45); bolt.core.scale.set(.14, .14, .2);
+          }
+        }
       }
       for (const [id, bolt] of bolts) if (!activeBolts.has(id)) { bolt.root.visible = false; scene.remove(bolt.root); boltPool.push(bolt); bolts.delete(id); }
       const activeCoins = new Set();
@@ -917,7 +942,13 @@ export async function createRenderer(container) {
         if (burst.age >= burst.life) { scene.remove(burst.root); burst.root.visible = false; formBurstPool.push(burst); formBursts.splice(i, 1); continue; }
         const progress = burst.age / burst.life, fade = 1 - progress;
         if (burst.form === 'wolf') { burst.root.quaternion.copy(camera.quaternion); burst.claws.scale.setScalar(reduceMotion ? 1 : .7 + progress * .7); for (const part of burst.clawParts) part.material.opacity = fade; }
-        else { burst.root.quaternion.identity(); for (let j = 0; j < burst.rings.length; j++) { burst.rings[j].scale.setScalar(burst.radius * Math.max(.1, .25 + progress * (.85 - j * .1))); burst.rings[j].material.opacity = fade * .8; } }
+        else {
+          burst.root.quaternion.identity();
+          for (let j = 0; j < burst.rings.length; j++) {
+            const scale = burst.form === 'staff-explosion' ? j === 0 ? 1 : .2 + (1 - (1 - progress) ** 3) * .8 : Math.max(.1, .25 + progress * (.85 - j * .1));
+            burst.rings[j].scale.setScalar(burst.radius * scale); burst.rings[j].material.opacity = fade * (reduceMotion ? .45 : .8);
+          }
+        }
       }
       for (let i = impacts.length - 1; i >= 0; i--) {
         const impact = impacts[i]; impact.age += dt;

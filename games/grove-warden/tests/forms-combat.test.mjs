@@ -199,3 +199,40 @@ test('released local hunting stops at wolf range while manual retreat and a held
   tick(state, 1, {}); assert.ok(state.player.x > manualStop.x);
   assert.equal(target.hp, target.maxHp);
 });
+
+test('the level-four meadow runner territory provides a free wolf hunt and manually collected kill reward', () => {
+  const state = createGame(1744, { xp: 120, questIndex: 0 }), zone = HUNT_ZONES.find(item => item.id === 'meadow-runners');
+  assert.ok(zone);
+  const members = state.enemies.filter(actor => actor.zoneId === zone.id);
+  assert.equal(state.player.level, 4); assert.equal(members.length, 4);
+  assert.equal(state.progress.forms.wolf, 0);
+  const target = members.reduce((rightmost, actor) => actor.x > rightmost.x ? actor : rightmost);
+  assert.deepEqual([target.type, target.trait, target.maxHp, target.damage, target.speed, target.xp, target.loot], ['runner', 'fast', 90, 4, 4.9, 4, 6]);
+  state.enemies = [target]; state.spawners = state.spawners.filter(spawn => spawn.id === target.spawnId);
+  // Hold this body's intent still so ranged stopping and manual pickup are separate from its melee approach.
+  target.phase = 'stunned'; target.phaseTime = 999; target.attackCd = 999;
+  state.phase = 'playing'; state.player.x = zone.x - 3.5; state.player.z = zone.z; state.inCamp = false;
+  state.fieldEvents.nextDiscovery = state.fieldEvents.nextHazard = 1e9;
+  const origin = { x: state.player.x, z: state.player.z }, events = tick(state, 1, {});
+  assert.equal(state.huntZoneId, zone.id); assert.equal(state.autoHunt, true);
+  assert.equal(state.player.form, 'wolf'); assert.equal(state.player.formRank, 1);
+  assert.ok(state.player.x > origin.x);
+  tick(state, 1, { moveX: -1, moveZ: 0, manual: true }); close(state.player.x, origin.x);
+  const held = { x: state.player.x, z: state.player.z };
+  tick(state, 1, { moveX: 0, moveZ: 0, manual: true }); assert.deepEqual({ x: state.player.x, z: state.player.z }, held);
+  for (let i = 0; i < 200 && target.hp > 0; i++) events.push(...tick(state, 1, {}));
+  assert.equal(target.hp, 0); assert.equal(state.progress.totals.kills, 1);
+  assert.equal(state.progress.xp, 124); assert.equal(state.progress.forms.wolf, 0);
+  assert.ok(events.some(event => event.type === 'hit' && event.source === 'wolf' && event.targetId === target.id));
+  assert.equal(events.filter(event => event.type === 'kill' && event.targetId === target.id).length, 1);
+  assert.equal(state.loot.length, 1); assert.equal(state.loot[0].value, 6); assert.equal(state.cargo, 0);
+  const drop = state.loot[0], stopped = { x: state.player.x, z: state.player.z };
+  tick(state, 10, {});
+  assert.deepEqual({ x: state.player.x, z: state.player.z }, stopped);
+  assert.equal(state.cargo, 0); assert.equal(state.loot[0].value, 6);
+  const pickups = [];
+  for (let i = 0; i < 20 && state.cargo < 6; i++) pickups.push(...tick(state, 1, { moveX: drop.x - state.player.x, moveZ: drop.z - state.player.z, manual: true }));
+  assert.equal(state.cargo, 6); assert.equal(state.progress.gold, 0); assert.equal(state.loot.length, 0);
+  assert.equal(pickups.filter(event => event.type === 'pickup').length, 1);
+  assert.equal(pickups.find(event => event.type === 'pickup').amount, 6);
+});
