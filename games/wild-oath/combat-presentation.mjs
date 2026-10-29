@@ -53,6 +53,14 @@ export function targetImpactKind(beat={},card={}) {
   return {counter:'counter',reaction:'poison',shock:'shock',poison:'poison',burn:'fire',fatigue:'claw'}[beat.kind]||effectKind(card);
 }
 
+// Fly one played attack card to its real opponent, never a support card or a status tick.
+export function cardAttackTarget(event={}) {
+  if(event?.type!=='card'||event.cardType!=='attack')return null;
+  if(!['player','enemy'].includes(event.actor))return null;
+  if(event.target!==(event.actor==='player'?'enemy':'player'))return null;
+  return impactBeats(event).some(beat=>beat.kind==='strike'&&beat.actor===event.actor&&beat.target===event.target&&(beat.damage>0||beat.absorbed>0))?event.target:null;
+}
+
 export function cardPlayStatus(event) {
   if(event.preview)return event.ready?'사용 준비':'충전 부족 · 버림 예정';
   return event.type==='charge'?'충전 부족으로 버림':'자동 발동';

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRun,chooseDraft,chooseEncounter,chooseReward,startBattle,stepBattle,describeCard,serialize,restoreRun} from '../rules.mjs';
-import {presentationTiming,effectKind,impactBeats,impactTotals,cardPlayStatus,impactFeedback} from '../combat-presentation.mjs';
+import {presentationTiming,effectKind,impactBeats,impactTotals,cardPlayStatus,impactFeedback,cardAttackTarget} from '../combat-presentation.mjs';
 
 function battle(seed=1) {
   const state=createRun(seed);
@@ -124,6 +124,51 @@ test('two real strikes report separate shield absorption and capped lethal damag
     assert.deepEqual(beats.map(beat=>beat.damage),expected.map(strike=>strike.damage));
     assert.ok(beats.every(beat=>beat.actor===actor&&beat.target===event.target&&beat.kind==='strike'&&beat.total===2));
   }
+});
+
+test('a successful attack selects its real opponent once for either card owner',()=>{
+  for(const actor of ['player','enemy'])for(const [id,source,target] of [
+    ['claw',{},{}],
+    ['ancient',{}, {shield:100}],
+    ['pounce',{form:'wolf',combo:2,focus:3},{}],
+    ['pounce',{}, {hp:2}],
+    ['pounce',{shield:2}, {form:'bear',shield:10}],
+  ]){
+    const {event,state}=play(id,{actor,source,target});
+    const original=structuredClone(event),saved=serialize(state),next=stepBattle(structuredClone(state));
+    assert.equal(cardAttackTarget(Object.freeze(event)),actor==='player'?'enemy':'player',id);
+    assert.deepEqual(event,original,'target selection cannot consume or edit impact beats');
+    assert.equal(serialize(state),saved,'target selection cannot change saved combat');
+    assert.deepEqual(stepBattle(structuredClone(state)),next,'target selection cannot affect the next action');
+  }
+});
+
+test('support, failed charge, shuffle and status-only damage never launch an attack card',()=>{
+  for(const actor of ['player','enemy']){
+    for(const id of ['bark','mend','sap','wolf','bear','wyvern'])assert.equal(cardAttackTarget(play(id,{actor}).event),null,id);
+    const failed=play('ancient',{actor,source:{energy:0,burn:5}}).event;
+    assert.equal(failed.type,'charge');assert.ok(failed.impacts.some(beat=>beat.kind==='burn'));
+    assert.equal(cardAttackTarget(failed),null,'a failed attack with discard burn is not an attack flight');
+    const reaction=play('kindle',{actor,source:{form:'wyvern'},target:{poison:4,shock:5}}).event;
+    assert.ok(reaction.impacts.some(beat=>beat.kind==='reaction'));assert.ok(reaction.impacts.some(beat=>beat.kind==='shock'));
+    assert.equal(cardAttackTarget(reaction),null,'support damage cannot turn a support card into a projectile');
+    const state=battle(),other=actor==='player'?'enemy':'player';state.battle.actor=actor;
+    Object.assign(state.battle[actor],{draw:[],discard:[],poison:5});state.battle[other].shock=2;
+    const shuffle=stepBattle(state);assert.equal(shuffle.type,'shuffle');assert.ok(shuffle.impacts.some(beat=>beat.kind==='poison'));
+    assert.equal(cardAttackTarget(shuffle),null,'shuffle poison stays at its own fighter');
+  }
+});
+
+test('attack target rejects invalid owners, self targets and zero-damage or counter-only events',()=>{
+  const real=play('claw').event;
+  for(const actor of [undefined,null,'hero','opponent','',0])assert.equal(cardAttackTarget({...real,actor}),null);
+  for(const target of [undefined,null,'player','hero','',0])assert.equal(cardAttackTarget({...real,target}),null);
+  for(const kind of ['counter','reaction','shock','poison','burn','fatigue']){
+    assert.equal(cardAttackTarget({...real,impacts:[{kind,damage:5,absorbed:0,rawDamage:5}]}),null,kind);
+  }
+  assert.equal(cardAttackTarget({...real,impacts:[{kind:'strike',damage:0,absorbed:0,rawDamage:99}]}),null,'capped overkill cannot invent a collision');
+  for(const type of ['charge','shuffle','idle'])assert.equal(cardAttackTarget({...real,type}),null,type);
+  assert.equal(cardAttackTarget(),null);assert.equal(cardAttackTarget(null),null);
 });
 
 test('wolf pursuit is an extra real strike and concentration is included only in the first',()=>{

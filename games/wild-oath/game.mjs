@@ -1,5 +1,5 @@
 import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs?v=cartoon-4';
-import { presentationTiming, impactBeats, impactTotals, cardPlayStatus, impactFeedback, targetImpactKind, TARGET_EFFECT_TEXTURES, targetEffectVisual } from './combat-presentation.mjs?v=closeup-7';
+import { presentationTiming, impactBeats, impactTotals, cardPlayStatus, impactFeedback, targetImpactKind, TARGET_EFFECT_TEXTURES, targetEffectVisual, cardAttackTarget } from './combat-presentation.mjs?v=strike-8';
 import { analyzeDeck } from './deck-analysis.mjs?v=cartoon-4';
 import { cardArtClass } from './card-art.mjs?v=cartoon-4';
 import { icon, decorateMenus } from './menu-icons.mjs?v=quiet-5';
@@ -39,7 +39,7 @@ function modalOpen() { return Boolean(document.querySelector('dialog[open]')); }
 function clearEffects() {
   for (const timer of effectTimers) clearTimeout(timer);
   effectTimers.clear(); $('effects').replaceChildren();
-  document.querySelectorAll('.side-draw-pile,.active-card').forEach(node=>node.classList.remove('drawing','dealing','card-slam','is-playing'));
+  document.querySelectorAll('.side-draw-pile,.active-card').forEach(node=>node.classList.remove('drawing','dealing','card-slam','is-playing','is-in-flight'));
   for (const id of ['hero','enemy','battlefield']) $(id).classList.remove('hit','heavy-hit','hit-stop','casting','lunge','shake','shake-heavy','flash','morph','countering','reacting');
   delete $('battlefield').dataset.presentation; delete $('battlefield').dataset.caster; delete $('battlefield').dataset.beat;
 }
@@ -374,6 +374,23 @@ function landCard(actor) {
   }
   sound('slam');
 }
+function launchAttackCard(actor,target,duration) {
+  const slot=$(`${actor}-active-card`),source=slot.querySelector('.card');
+  if(!source)return null;
+  const rect=source.getBoundingClientRect(),origin=point(source);
+  const portrait=$(target==='player'?'hero':'enemy').querySelector('.portrait-ring'),destination=point(portrait);
+  const node=fxNode('active-card attack-card-flight',origin,duration+210);
+  node.dataset.attackActor=actor;node.dataset.attackTarget=target;node.dataset.flightState='travel';
+  node.setAttribute('aria-hidden','true');node.inert=true;
+  node.style.setProperty('inline-size',`${rect.width}px`);node.style.setProperty('block-size',`${rect.height}px`);
+  node.style.setProperty('--attack-x',`${destination.x-origin.x}px`);node.style.setProperty('--attack-y',`${destination.y-origin.y}px`);
+  node.style.setProperty('--attack-scale',String(Math.min(.6,portrait.offsetWidth*.92/rect.width)));
+  node.style.setProperty('--attack-tilt',actor==='player'?'-7deg':'7deg');
+  node.style.setProperty('--attack-duration',`${duration}ms`);
+  const face=document.createElement('div');face.className='card';face.dataset.type=source.dataset.type;face.innerHTML=source.innerHTML;
+  node.append(face);slot.classList.add('is-in-flight');
+  return node;
+}
 function beginStep() {
   if(state.phase!=='battle'||modalOpen()||document.hidden)return;
   clearEffects();presentedCard=null;renderBattle();
@@ -394,8 +411,7 @@ function beginStep() {
         landCard(actor);
         later(()=>{
           playClass($(actor==='player'?'hero':'enemy'),'casting',340);
-          // Keep a short anticipation beat; effects begin at the resolved recipient only.
-          sound('cast');later(resolveStep,timing.travel);
+          sound('cast');resolveStep();
         },timing.contact);
       } else {
         later(resolveStep,timing.travel);
@@ -430,12 +446,12 @@ function resolveStep() {
   if(state.phase!=='battle'||modalOpen()||document.hidden)return;
   clearEffects();
   const before=state.battle,health={player:{hp:before.player.hp,maxHp:before.player.maxHp},enemy:{hp:before.enemy.hp,maxHp:before.enemy.maxHp}};
+  const statusBefore={player:fighterStatus(before.player),enemy:fighterStatus(before.enemy)};
   const event=stepBattle(state),timing=presentationTiming(speed,reducedMotion);
   presentedCard=event;
   render();save();
-  health[event.actor].hp=Math.min(health[event.actor].maxHp,health[event.actor].hp+event.heal);renderHealth(health);
-  const sourceId=event.actor==='player'?'hero':'enemy',targetId=event.actor==='player'?'enemy':'hero';
-  $('battlefield').dataset.caster=event.actor;$('battlefield').dataset.presentation='impact';
+  renderHealth(health);
+  $('battlefield').dataset.caster=event.actor;
   $(`${event.actor}-active-card`).classList.add('is-playing');
   for(const side of ['player','enemy']){
     $(`${side}-lane`).dataset.active=String(side===event.actor);
@@ -443,6 +459,24 @@ function resolveStep() {
     $(`${side}-turn-label`).textContent=side===event.actor?(side==='player'?'내 차례':'상대 차례'):'';
   }
   $('battle-turn').textContent=`${event.turn}턴`;
+  const attackTarget=reducedMotion?null:cardAttackTarget(event);
+  const travel=attackTarget?Math.max(260,timing.travel):timing.travel;
+  const flight=attackTarget?launchAttackCard(event.actor,attackTarget,travel):null;
+  if(event.type==='card'){
+    $('hero-status').innerHTML=statusBefore.player;$('enemy-status').innerHTML=statusBefore.enemy;
+    $('battlefield').dataset.presentation=flight?'flight':'cast';
+    later(()=>{
+      if(flight?.isConnected){flight.dataset.flightState='collision';flight.classList.add('colliding');}
+      presentResolvedStep(event,health,timing);
+    },travel);
+  }else presentResolvedStep(event,health,timing);
+}
+function presentResolvedStep(event,health,timing) {
+  // Rules and saves are already committed. A cancelled flight never replays the card.
+  $('hero-status').innerHTML=fighterStatus(state.battle.player);$('enemy-status').innerHTML=fighterStatus(state.battle.enemy);
+  health[event.actor].hp=Math.min(health[event.actor].maxHp,health[event.actor].hp+event.heal);renderHealth(health);
+  const sourceId=event.actor==='player'?'hero':'enemy',targetId=event.actor==='player'?'enemy':'hero';
+  $('battlefield').dataset.presentation='impact';
   const beats=impactBeats(event,timing.impactGap);
   for(const beat of beats)if(beat.delay)effectLater(()=>showImpactBeat(beat,event,health),beat.delay);else showImpactBeat(beat,event,health);
   if(reducedMotion)for(const total of impactTotals(beats)){
@@ -577,6 +611,7 @@ listen($('rewards'),'click',event=>{const button=event.target.closest('[data-rew
 document.querySelectorAll('[data-close]').forEach(button=>listen(button,'click',()=>closeDialog(button.dataset.close)));
 document.querySelectorAll('dialog').forEach(dialog=>listen(dialog,'cancel',event=>{event.preventDefault();if(['welcome-dialog','reward-dialog','result-dialog'].includes(dialog.id))return;closeDialog(dialog.id);}));
 listen(document,'visibilitychange',()=>{if(document.hidden){stopLoop();stopAudio();save();}else if(!modalOpen())showDialog('pause-dialog');});
+listen(window,'resize',()=>{if($('effects').querySelector('.attack-card-flight'))showDialog('pause-dialog');});
 listen(window,'pagehide',event=>{stopLoop();stopAudio();save();clearTimeout(toastTimer);if(!event.persisted){lifetime.abort();audioContext?.close().catch(()=>{});}});
 listen(window,'pageshow',event=>{if(event.persisted){render();if(!modalOpen())showDialog('pause-dialog');}});
 render();save();

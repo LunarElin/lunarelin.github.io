@@ -1,0 +1,19 @@
+{
+  "date":"2026-10-30",
+  "version":"strike-8",
+  "method":"Codex in-app browser, actual DOM and screenshots, normal UI; no state injection",
+  "physical_devices_tested":false,
+  "views":[
+    {"width":1280,"height":720,"attack_actor":"enemy","target":"player","flight_size":[280,223],"interactive_clone_children":0,"source_visibility":"hidden","overflow":false},
+    {"width":390,"height":640,"attack_actor":"player","target":"enemy","before_hp":[26,50],"after_hp":[18,50],"before_target_effects":0,"arrival_effect":{"kind":"claw","target":"enemy"},"overflow":false},
+    {"width":320,"height":640,"attack_actor":"player","target":"enemy","flight_font_style":"normal","footer_bottom":632,"overflow":false},
+    {"width":844,"height":390,"attack_actor":"player","target":"enemy","destination_delta":[-620.5,-42],"footer_bottom":383,"overflow":false},
+    {"width":390,"height":580,"support_card":"생명의 고리","type":"heal","presentation":"cast","flights":0,"footer_bottom":575,"overflow":false}
+  ],
+  "cleanup":{"after_pause":0,"after_resize":0,"resize_opens_pause":true,"hp_after_resize":[65,70],"reload_and_resume":true},
+  "progression":"Continued existing local trial 4; victory reward, exploration, camp and trial 5 defeat verified; result 4/5, shifts 4, damage 359; restart returned to 0/8 draft with no residual flight; home return and game reentry verified",
+  "console_warnings_and_errors":[],
+  "automated":{"tests":93,"failures":0,"mjs_syntax_files":9,"diff_check":true},
+  "score":{"core":24,"mobile":17,"ui":18,"feedback":14,"performance":8,"maintenance":9,"total":90,"provisional":true},
+  "unverified":["Physical iOS/Android devices","Measured FPS/memory/audio listening","New campaign from initial draft on strike-8","Exhaustive effects/status combinations and speeds","OS reduced-motion and storage-failure reproduction"]
+}

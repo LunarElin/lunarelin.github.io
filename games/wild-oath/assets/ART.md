@@ -2,7 +2,7 @@
 
 ## 대상 위치 파티클 · 2026-10-29~30
 
-공식 [Kenney Particle Pack](https://kenney.nl/assets/particle-pack)의 CC0 표시와 ZIP 동봉 라이선스를 확인했다. 현행 `closeup-7` 런타임 파일은 `kenney-effects/` 안의 256×256 PNG 4종 `fire`·`ring`·`smoke`·`splash`, 합계 60,217 B다. `target-6`에서 빛줄기처럼 보일 수 있었던 `scratch`·`burst`·`spark`·`flare`는 제거하고, 둥근 대상 마스크에 원본 효과 기호를 조합한다. 외부 핫링크·전체 팩·미사용 파티클은 포함하지 않는다. 원본 경로·가공·출처는 [리소스 기록](kenney-effects/README.md)·[manifest](kenney-effects/manifest.json), 라이선스 원문은 [LICENSE.txt](kenney-effects/LICENSE.txt), 현행 대상·화면 검증은 [확대·이펙트 업데이트](../CLOSEUP-UPDATE.md)를 참고한다. [이전 대상 이펙트 기록](../TARGET-EFFECTS-UPDATE.md)과 캐릭터 아트·UI 기호의 별도 출처는 보존한다.
+공식 [Kenney Particle Pack](https://kenney.nl/assets/particle-pack)의 CC0 표시와 ZIP 동봉 라이선스를 확인했다. `closeup-7`에서 정리한 파티클은 `strike-8`에서도 유지한다. 현행 런타임 파일은 `kenney-effects/` 안의 256×256 PNG 4종 `fire`·`ring`·`smoke`·`splash`, 합계 60,217 B다. `target-6`에서 빛줄기처럼 보일 수 있었던 `scratch`·`burst`·`spark`·`flare`는 제거하고, 둥근 대상 마스크에 원본 효과 기호를 조합한다. 외부 핫링크·전체 팩·미사용 파티클은 포함하지 않는다. 원본 경로·가공·출처는 [리소스 기록](kenney-effects/README.md)·[manifest](kenney-effects/manifest.json), 라이선스 원문은 [LICENSE.txt](kenney-effects/LICENSE.txt), 현행 대상·화면 검증은 [공격 카드 돌진 업데이트](../STRIKE-UPDATE.md)를 참고한다. [이전 확대·이펙트 업데이트](../CLOSEUP-UPDATE.md)는 당시 기록으로 보존한다. [이전 대상 이펙트 기록](../TARGET-EFFECTS-UPDATE.md)과 캐릭터 아트·UI 기호의 별도 출처는 보존한다.
 
 ## 원본 기능 아이콘 · 2026-10-29
 
