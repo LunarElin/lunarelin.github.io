@@ -38,14 +38,14 @@ test('sprout fires one finite single bolt and reports its real style on shooting
 });
 
 test('thorn fires three real shots from the current moving position with one original damage snapshot', () => {
-  const state = field('thorn'), target = enemy(state, 4), damage = getStaffAttack('thorn', state.player).damage;
+  const state = field('thorn'), target = enemy(state, 3.4), profile = getStaffAttack('thorn', state.player), damage = profile.damage;
   const events = tick(state, 1); assert.equal(state.pendingStaffShots.length, 2);
   state.player.attackCd = 999; state.player.attackDamage = 100; state.player.damageMult = 5;
   for (let i = 0; i < 8; i++) {
     const frame = tick(state, 1, { moveX: 0, moveZ: 1, manual: true });
     for (const shot of frame.filter(event => event.type === 'shoot')) { close(shot.x, state.player.x); close(shot.z, state.player.z); }
     events.push(...frame);
-    assert.ok(state.projectiles.filter(bolt => bolt.source === 'staff').every(bolt => bolt.damage === damage && bolt.weaponStyle === 'burst' && bolt.weaponId === 'thorn' && bolt.maxLife === 0.55));
+    assert.ok(state.projectiles.filter(bolt => bolt.source === 'staff').every(bolt => bolt.damage === damage && bolt.weaponStyle === 'burst' && bolt.weaponId === 'thorn' && bolt.maxLife === profile.projectileLife));
   }
   events.push(...tick(state, 16));
   const shots = events.filter(event => event.type === 'shoot'), hits = events.filter(event => event.type === 'hit');
@@ -57,7 +57,7 @@ test('thorn fires three real shots from the current moving position with one ori
 
 test('remaining burst shots reacquire a living in-range target or stop when no replacement exists', () => {
   for (const mode of ['dead', 'out-of-range', 'missing']) {
-    const state = field('thorn'), original = enemy(state, 4), first = tick(state, 1);
+    const state = field('thorn'), original = enemy(state, 3.4), first = tick(state, 1);
     state.player.attackCd = 999;
     if (mode === 'out-of-range') original.x = 10; else original.hp = 0;
     const replacement = mode === 'missing' ? null : enemy(state, 2.5, 2);
@@ -103,12 +103,12 @@ test('ember explodes at the first swept contact and snapshots one hit per ground
 });
 
 test('pause freezes scheduled bursts while camp transformation and death cancel only the appropriate attacks', () => {
-  const paused = field('thorn'); enemy(paused, 4); tick(paused, 1); paused.player.attackCd = 999;
+  const paused = field('thorn'); enemy(paused, 3.4); tick(paused, 1); paused.player.attackCd = 999;
   setPaused(paused, true); const frozen = structuredClone({ pending: paused.pendingStaffShots, bolts: paused.projectiles });
   tick(paused, 10); assert.deepEqual({ pending: paused.pendingStaffShots, bolts: paused.projectiles }, frozen);
   setPaused(paused, false); assert.equal(tick(paused, 5).filter(event => event.type === 'shoot').length, 2);
   for (const mode of ['camp', 'transform', 'death']) {
-    const state = field('thorn', mode === 'transform' ? { xp: 120 } : {}), target = enemy(state, 4);
+    const state = field('thorn', mode === 'transform' ? { xp: 120 } : {}), target = enemy(state, 3.4);
     const damage = getStaffAttack('thorn', state.player).damage; tick(state, 1); state.player.attackCd = 999;
     const firedId = state.projectiles[0].id;
     if (mode === 'camp') { state.player.x = 0; state.player.z = 16; }
@@ -133,7 +133,7 @@ test('partial volleys and adversarial burst requests respect shared projectile a
   assert.equal(spread.projectiles.length, RULES.maxProjectiles);
   assert.equal(spread.projectiles.filter(bolt => bolt.source === 'staff').length, 1);
   assert.equal(events.filter(event => event.type === 'shoot').length, 1);
-  const burst = field('thorn'); enemy(burst, 4); let maxPending = 0;
+  const burst = field('thorn'); enemy(burst, 3.4); let maxPending = 0;
   for (let i = 0; i < 100; i++) {
     burst.player.attackCd = 0; tick(burst, 1, { manual: true }, 0.001);
     maxPending = Math.max(maxPending, burst.pendingStaffShots.length);

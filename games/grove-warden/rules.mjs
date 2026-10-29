@@ -13,7 +13,7 @@ export const STAGES = Object.freeze([
 export const WORLD = Object.freeze({ minX: -15, maxX: 15, minZ: -98, maxZ: 23, camp: STAGES[0].camp, gateZ: -14 });
 export const RULES = Object.freeze({
   arena: WORLD, huntEnterPadding: 2, huntLeavePadding: 3.25, maxEnemies: 72, maxProjectiles: 90, maxPendingStaffShots: 12, maxEffects: 100, maxStep: 0.05,
-  playerSpeed: 4.4, attackRange: 4.4, skillCooldown: 6, skillRadius: 2.7,
+  playerSpeed: 4.4, attackRange: 5.4, skillCooldown: 6, skillRadius: 2.7, skillTargetRange: 4.9,
   skillAimRange: 4.8,
 });
 export const UPGRADES = Object.freeze([
@@ -387,7 +387,7 @@ function hurtPlayer(state, damage, x, z) {
   return true;
 }
 
-function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff', weaponStyle) {
+function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff', weaponStyle, volleyId) {
   if (enemy.hp <= 0) return;
   enemy.hp = Math.max(0, enemy.hp - damage);
   if (damage > 0 && enemy.phase === 'return' && !state.inCamp && distance(enemy, state.player) <= 9) {
@@ -395,7 +395,7 @@ function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff', weaponSty
     enemy.phase = 'chase';
   }
   effect(state, 'hit', enemy.x, enemy.z, 0.22, enemy.radius, { team: 'player' });
-  event(state, 'hit', enemy.x, enemy.z, { damage, targetId: enemy.id, source, ...(weaponStyle ? { weaponStyle } : {}) });
+  event(state, 'hit', enemy.x, enemy.z, { damage, targetId: enemy.id, source, ...(weaponStyle ? { weaponStyle } : {}), ...(volleyId !== undefined ? { volleyId } : {}) });
   if (enemy.hp === 0) {
     enemy.phase = 'dead';
     const p = state.progress, data = MONSTER_STATS[enemy.type];
@@ -730,7 +730,7 @@ function updateProjectiles(state, dt) {
     const targets = bolt.team === 'player' ? state.enemies : [state.player];
     const hits = [];
     for (const target of targets) {
-      if (target.hp <= 0 || bolt.hitIds.includes(target.id)) continue;
+      if (target.hp <= 0 || bolt.hitIds.includes(target.id) || bolt.volleyHitIds?.includes(target.id)) continue;
       const t = segmentHit(bolt.x, bolt.z, endX, endZ, target, target.radius + bolt.radius);
       if (t !== null) hits.push({ target, t });
     }
@@ -748,7 +748,12 @@ function updateProjectiles(state, dt) {
     }
     for (const { target } of hits) {
       bolt.hitIds.push(target.id);
-      if (bolt.team === 'player') hurtEnemy(state, target, bolt.damage * (target.trait === 'airborne' ? bolt.airborneBonus || 1 : 1), 0, bolt.source || 'staff', bolt.weaponStyle);
+      if (bolt.team === 'player') {
+        if (!bolt.volleyHitIds || !bolt.volleyHitIds.includes(target.id)) {
+          if (bolt.volleyHitIds) bolt.volleyHitIds.push(target.id);
+          hurtEnemy(state, target, bolt.damage * (target.trait === 'airborne' ? bolt.airborneBonus || 1 : 1), 0, bolt.source || 'staff', bolt.weaponStyle, bolt.volleyId);
+        }
+      }
       else hurtPlayer(state, bolt.damage, bolt.x, bolt.z);
       if (bolt.pierce <= 0) { consumed = true; break; }
       bolt.pierce--;
@@ -897,7 +902,8 @@ function playerAttack(state, target) {
   if (profile.id === 'druid') {
     if (profile.weaponStyle === 'spread') {
       let fired = 0;
-      for (const angle of profile.spreadAngles) if (launchStaffShot(state, profile, target, angle, false)) fired++;
+      const volley = { id: state.nextId++, hitIds: [] };
+      for (const angle of profile.spreadAngles) if (launchStaffShot(state, profile, target, angle, false, volley)) fired++;
       if (!fired) return false;
       event(state, 'shoot', player.x, player.z, { aimX: aim.x, aimZ: aim.z, targetId: target.id, weaponStyle: profile.weaponStyle, weaponId: profile.weaponId });
     } else {
@@ -921,11 +927,12 @@ function playerAttack(state, target) {
   return true;
 }
 
-function launchStaffShot(state, profile, target, offset = 0, emit = true) {
+function launchStaffShot(state, profile, target, offset = 0, emit = true, volley = null) {
   const player = state.player, aim = direction(target.x - player.x, target.z - player.z);
   const angle = Math.atan2(aim.x, aim.z) + offset, dx = Math.sin(angle), dz = Math.cos(angle);
   const bolt = projectile(state, player.x, player.z, dx, dz, 'player', profile.damage, profile.projectileSpeed,
-    { source: 'staff', life: profile.projectileLife, weaponStyle: profile.weaponStyle, weaponId: profile.weaponId, blastRadius: profile.blastRadius });
+    { source: 'staff', life: profile.projectileLife, weaponStyle: profile.weaponStyle, weaponId: profile.weaponId, blastRadius: profile.blastRadius, pierce: profile.pierce ?? 0,
+      ...(volley ? { volleyId: volley.id, volleyHitIds: volley.hitIds } : {}) });
   if (bolt && emit) {
     if (player.movingX === 0 && player.movingZ === 0) { player.facingX = dx; player.facingZ = dz; }
     event(state, 'shoot', player.x, player.z, { aimX: dx, aimZ: dz, targetId: target.id, weaponStyle: profile.weaponStyle, weaponId: profile.weaponId });
@@ -956,7 +963,7 @@ function updatePendingStaffShots(state, dt) {
 function automaticSkills(state) {
   if (state.inCamp || state.player.form !== 'druid') return;
   const player = state.player;
-  let target, nearest = RULES.attackRange + 0.5;
+  let target, nearest = RULES.skillTargetRange;
   for (const enemy of state.enemies) {
     if (enemy.hp <= 0) continue;
     const dist = distance(enemy, player);

@@ -214,8 +214,9 @@ function renderEquipment() {
     row.details.textContent = offer.owned ? `${offer.attackLabel} · ${offer.tierName} · +${offer.level} · 보유 ${offer.copies}` : `${offer.attackLabel} · 기본형 무료`;
     const attack = getStaffAttack(definition.id, { attackDamage: state.player.attackDamage - state.player.gearDamage + offer.damage, damageMult: state.player.damageMult });
     const shots = attack.burstCount * attack.spreadAngles.length;
-    row.effect.textContent = `피해 ${Math.round(attack.damage)}${shots > 1 ? `×${shots}` : ''} · ${attack.interval}초 · ${attack.blastRadius ? `폭발 ${attack.blastRadius}m` : `${attack.range}m`}`;
-    row.next.textContent = `${definition.attackDescription}\n${offer.maxed ? `최대 · 피해 +${offer.damage} · 생명 +${offer.health}` : `보너스 피해 +${offer.damage}→+${offer.nextDamage} · 생명 +${offer.health}→+${offer.nextHealth}`}`;
+    const damageLabel = attack.volleyHitLimit ? `${Math.round(attack.damage)} · ${shots}방향${attack.pierce ? ' 관통' : ''}` : `${Math.round(attack.damage)}${shots > 1 ? `×${shots}` : ''}`;
+    row.effect.textContent = `피해 ${damageLabel} · ${attack.interval}초 · ${attack.blastRadius ? `폭발 ${attack.blastRadius}m` : `${attack.range}m`}`;
+    row.next.textContent = `${definition.targetLabel} · ${definition.tradeoff}\n${offer.maxed ? `최대 · 피해 +${offer.damage} · 생명 +${offer.health}` : `보너스 피해 +${offer.damage}→+${offer.nextDamage} · 생명 +${offer.health}→+${offer.nextHealth}`}`;
     const { equip, enhance, promote } = row.buttons;
     equip.label.textContent = !offer.owned ? '무료 받기' : offer.equipped ? '장착 중' : '장착'; equip.cost.textContent = '';
     equip.button.dataset.equipmentAction = offer.owned ? 'equip' : 'unlock';

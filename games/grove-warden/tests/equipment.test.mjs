@@ -15,10 +15,13 @@ test('each staff has a distinct bounded attack profile computed from actual play
   const player = { attackDamage: 40, damageMult: 1.5 }, before = snapshot(player);
   const single = getStaffAttack('sprout', player), burst = getStaffAttack('thorn', player);
   const spread = getStaffAttack('moon', player), blast = getStaffAttack('ember', player);
-  assert.deepEqual([single.damage, burst.damage, spread.damage, blast.damage], [60, 30, 25.2, 78]);
+  const expected = [60, 40.8, 72, 48];
+  [single.damage, burst.damage, spread.damage, blast.damage].forEach((value, index) => assert.ok(Math.abs(value - expected[index]) < 1e-9));
   assert.deepEqual([single.weaponStyle, burst.weaponStyle, spread.weaponStyle, blast.weaponStyle], ['single', 'burst', 'spread', 'explosive']);
-  assert.equal(burst.burstCount, 3); assert.equal(burst.burstSpacing, .1);
+  assert.equal(burst.burstCount, 3); assert.equal(burst.burstSpacing, .12);
   assert.equal(spread.spreadAngles.length, 5); assert.equal(spread.spreadAngles[2], 0);
+  assert.equal(spread.volleyHitLimit, 1); assert.equal(spread.pierce, 1);
+  assert.deepEqual([single.range, burst.range, spread.range, blast.range], [5.4, 3.8, 3.2, 4.2]);
   assert.ok(spread.range < single.range); assert.ok(spread.projectileLife < single.projectileLife);
   assert.equal(blast.blastRadius, 2); assert.ok(blast.interval > single.interval);
   assert.ok(Object.isFrozen(spread.spreadAngles)); assert.deepEqual(player, before);

@@ -1,15 +1,15 @@
 export const EQUIPMENT = Object.freeze([
-  Object.freeze({ id: 'sprout', name: '새싹 지팡이', color: 0x8fea6b, description: '공격과 생명이 고르게 자라는 지팡이', attackStyle: 'single', attackLabel: '단발', attackDescription: '빠르고 정확한 한 발' }),
-  Object.freeze({ id: 'thorn', name: '가시 지팡이', color: 0xef987b, description: '공격 성장에 집중하는 지팡이', attackStyle: 'burst', attackLabel: '연발', attackDescription: '짧은 간격으로 세 발 발사' }),
-  Object.freeze({ id: 'moon', name: '달빛 지팡이', color: 0xaaa4ff, description: '생명을 높이는 든든한 지팡이', attackStyle: 'spread', attackLabel: '방사', attackDescription: '짧고 넓은 부채꼴 다섯 발' }),
-  Object.freeze({ id: 'ember', name: '불씨 지팡이', color: 0xff934f, description: '한곳에 모인 적을 터뜨리는 지팡이', attackStyle: 'explosive', attackLabel: '폭발', attackDescription: '맞은 곳에서 주변 적까지 폭발' }),
+  Object.freeze({ id: 'sprout', name: '새싹 지팡이', color: 0x8fea6b, description: '공격과 생명이 고르게 자라는 지팡이', attackStyle: 'single', attackLabel: '단발', attackDescription: '먼 거리에서 꾸준히 한 발', targetLabel: '보스 · 긴 사거리', tradeoff: '무리를 한 번에 때리기 어려워요' }),
+  Object.freeze({ id: 'thorn', name: '가시 지팡이', color: 0xef987b, description: '공격 성장에 집중하는 지팡이', attackStyle: 'burst', attackLabel: '연발', attackDescription: '한 대상에게 3연발 집중', targetLabel: '보스 · 집중 화력', tradeoff: '가까이서 세 발을 이어 쏴야 해요' }),
+  Object.freeze({ id: 'moon', name: '달빛 지팡이', color: 0xaaa4ff, description: '생명을 높이는 든든한 지팡이', attackStyle: 'spread', attackLabel: '방사', attackDescription: '5방향 · 1회 관통 · 대상마다 1타', targetLabel: '가까운 밀집 무리', tradeoff: '짧은 사거리 · 한 대상에는 1발만' }),
+  Object.freeze({ id: 'ember', name: '불씨 지팡이', color: 0xff934f, description: '한곳에 모인 적을 터뜨리는 지팡이', attackStyle: 'explosive', attackLabel: '폭발', attackDescription: '맞은 곳의 2m 주변을 폭발', targetLabel: '뭉친 무리', tradeoff: '한 마리만 맞히면 화력이 낮아요' }),
 ]);
 export const TIERS = Object.freeze(['일반', '고급', '희귀', '영웅']);
 const STAFF_ATTACKS = Object.freeze({
-  single: Object.freeze({ range: 4.4, interval: .58, damageScale: 1, projectileSpeed: 13, projectileLife: .55, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([0]), blastRadius: 0 }),
-  burst: Object.freeze({ range: 4.4, interval: .9, damageScale: .5, projectileSpeed: 13, projectileLife: .55, burstCount: 3, burstSpacing: .1, spreadAngles: Object.freeze([0]), blastRadius: 0 }),
-  spread: Object.freeze({ range: 3.6, interval: 1.05, damageScale: .42, projectileSpeed: 11, projectileLife: .36, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([-.4, -.2, 0, .2, .4]), blastRadius: 0 }),
-  explosive: Object.freeze({ range: 4.4, interval: 1.05, damageScale: 1.3, projectileSpeed: 11, projectileLife: .65, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([0]), blastRadius: 2 }),
+  single: Object.freeze({ range: 5.4, interval: .62, damageScale: 1, projectileSpeed: 13, projectileLife: .55, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([0]), blastRadius: 0 }),
+  burst: Object.freeze({ range: 3.8, interval: 1, damageScale: .68, projectileSpeed: 13, projectileLife: .45, burstCount: 3, burstSpacing: .12, spreadAngles: Object.freeze([0]), blastRadius: 0 }),
+  spread: Object.freeze({ range: 3.2, interval: 1.05, damageScale: 1.2, projectileSpeed: 11, projectileLife: .36, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([-.6, -.3, 0, .3, .6]), blastRadius: 0, volleyHitLimit: 1, pierce: 1 }),
+  explosive: Object.freeze({ range: 4.2, interval: 1.12, damageScale: .8, projectileSpeed: 11, projectileLife: .65, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([0]), blastRadius: 2 }),
 });
 
 const empty = Object.freeze({});

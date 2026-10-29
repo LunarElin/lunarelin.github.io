@@ -24,7 +24,14 @@
         </button>
       </div>
       <div class="progress-row"><span id="zone-value">숲의 거점</span><div class="xp-track" aria-label="경험치"><div id="xp-fill"></div><span id="xp-value">0 / 30</span></div></div>
-      <div class="quest-row"><span id="quest-title">숲의 첫 사냥</span><strong id="quest-count">0 / 5</strong><button id="claim-btn" type="button" hidden>보상</button></div>
+      <div class="quest-row" role="group" aria-label="현재 의뢰">
+        <span id="quest-title">숲의 첫 사냥</span>
+        <strong id="quest-count">0 / 5</strong>
+        <span class="quest-claim-slot">
+          <button id="claim-btn" type="button" hidden>보상</button>
+          <span class="quest-claim-placeholder" aria-hidden="true">보상</span>
+        </span>
+      </div>
       <div id="boss-track" class="boss-track" role="progressbar" aria-label="수문장 생명" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden><div id="boss-fill"></div></div>
       <p id="save-warning" class="save-warning" role="status" hidden>저장할 수 없어요. 이 창에서는 계속 플레이할 수 있어요.</p>
     </header>
@@ -99,7 +106,7 @@
           <div id="stats-pages" class="stats-pages" role="group" aria-label="능력치와 장비" hidden><button type="button" data-stats-page="stats" aria-pressed="true">능력치</button><button type="button" data-stats-page="equipment" aria-pressed="false">장비</button></div>
           <p id="growth-summary" class="growth-summary">성장한 힘은 계속 유지돼요.</p>
           <div id="growth-list" class="growth-list"></div>
-          <div id="equipment-panel" hidden><div class="equipment-wallet">강화 두루마리 <strong id="equipment-scrolls">0</strong>장</div><div id="equipment-list" class="equipment-list"></div><p class="equipment-guide">네 기본형은 거점에서 무료로 받아요.<br>단발·연발·방사·폭발은 드루이드 공격에 적용돼요.<br>같은 지팡이 3개 중 2개로 승급해요.</p></div>
+          <div id="equipment-panel" hidden><div class="equipment-wallet">강화 두루마리 <strong id="equipment-scrolls">0</strong>장</div><div id="equipment-list" class="equipment-list"></div><p class="equipment-guide">네 기본형은 거점에서 무료로 받아요.<br>보스는 단발·연발, 무리는 방사·폭발이 유리해요.<br>지팡이 패턴은 드루이드 공격에 적용돼요.<br>같은 지팡이 3개 중 2개로 승급해요.</p></div>
         </div>
       </div>
     </section>
@@ -124,7 +131,7 @@
           <div><dt>이동</dt><dd>화면을 누른 채 끌어 움직여요. 직접 이동이 자동 추적보다 우선해요. PC는 WASD·방향키를 사용해요.</dd></div>
           <div><dt>사냥</dt><dd>가까운 적은 원 밖에서도 공격해요. 군락 주변에서 손을 떼면 같은 종류를 추적하고 사거리에서 멈춰요.</dd></div>
           <div><dt>변신</dt><dd>고속 몹은 늑대, 작은 군체는 곰의 광역 내려찍기, 공중 몹은 용의 화염으로 상대해요. Lv.4·8·12에 자동 해금되고 상황에 맞춰 변신해요.</dd></div>
-          <div><dt>지팡이</dt><dd>거점의 능력치 → 장비에서 네 기본형을 무료로 받아요. 새싹은 단발, 가시는 3연발, 달빛은 부채꼴 5발, 불씨는 폭발 공격이에요.</dd></div>
+          <div><dt>지팡이</dt><dd>거점의 능력치 → 장비에서 네 기본형을 무료로 받아요. 새싹의 단발은 긴 사거리, 가시의 3연발은 집중 화력이 강점이에요. 달빛은 가까운 적 여럿에게 부채꼴로 발사해 1회 관통하며 같은 적에게 중첩되지 않아요. 불씨는 한곳에 모인 적을 함께 폭발시켜요.</dd></div>
           <div><dt>성장</dt><dd>능력치 탭의 장비에서 지팡이를 장착·강화·승급해요. 각 변신 탭에서 다음 단계를 성장시켜요. 부엉이·덩굴은 드루이드 모습일 때 자동 사용해요.</dd></div>
           <div><dt>돌발</dt><dd>보물과 축복은 직접 다가가 얻어요. 붉은 바닥 전조는 터지기 전에 벗어나세요. 수문장은 잠시 뒤 다시 나타나요.</dd></div>
           <div><dt>가방</dt><dd>금화는 직접 다가가서 주워요. 가방이 차면 게이지가 붉게 바뀌어요. 거점으로 운반해 보관 골드로 바꾸세요.</dd></div>

@@ -905,9 +905,9 @@ test('an in-range foreign category stops local pursuit while basic attacks keep 
   advance(state, 0.2);
   assert.equal(foreign.hp, 84); assert.equal(local.hp, 100);
   assert.equal(state.player.x, 6);
-  foreign.hp = 0; local.x = 10.8;
+  foreign.hp = 0; state.player.x = 5; local.x = 10.8;
   advance(state, 0.3);
-  assert.ok(state.player.x > 6);
+  assert.ok(state.player.x > 5);
   assert.ok(Math.hypot(local.x - state.player.x, local.z - state.player.z) <= RULES.attackRange);
   const x = state.player.x;
   advance(state, 0.5);
@@ -1341,14 +1341,25 @@ test('fight target reflects actual staff range after kills and is never persiste
   assert.equal(state.enemies.length, 0);
   assert.equal(state.fightTargetId, null);
   assert.equal('fightTargetId' in exportProgress(state), false);
-  const far = enemy(state, 9.5, 10);
+  const far = enemy(state, state.player.x - RULES.attackRange - 0.1, 10);
   stepGame(state, { manual: true }); assert.equal(state.fightTargetId, null);
-  far.x = 9.7;
+  far.x = state.player.x - RULES.attackRange + 0.1;
   stepGame(state, { manual: true }); assert.equal(state.fightTargetId, far.id);
   state.player.x = 0; state.player.z = 16;
   far.x = 1; far.z = 16;
   stepGame(state, { manual: true }); assert.equal(state.fightTargetId, null);
   assert.equal(state.projectiles.length, 0);
+});
+
+test('the longer single-staff range does not extend automatic roots targeting', () => {
+  const state = playing(); state.player.x = 0; state.player.z = 10;
+  const target = enemy(state, 5.1, 10);
+  stepGame(state, { manual: true });
+  assert.equal(state.fightTargetId, target.id);
+  assert.equal(state.pendingSkills.length, 0); assert.equal(state.player.skillCd, 0);
+  target.x = 4.8;
+  stepGame(state, { manual: true });
+  assert.equal(state.pendingSkills.length, 1); assert.equal(state.player.skillCd, state.player.skillCooldown);
 });
 
 function owlField(rank = 1) {
