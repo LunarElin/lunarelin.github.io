@@ -53,7 +53,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 0.981651,
+              "renderScale": 0.990741,
               "frames": [
                 {
                   "x": 0,
@@ -102,7 +102,7 @@
             "attack": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.07,
+              "renderScale": 0.990741,
               "frames": [
                 {
                   "x": 0,
@@ -161,7 +161,7 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 1.009434,
+          "renderScale": 1.028846,
           "animations": {
             "idle": {
               "fps": 5,
@@ -201,7 +201,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 0.990654,
+              "renderScale": 0.954128,
               "frames": [
                 {
                   "x": 0,
@@ -250,7 +250,7 @@
             "attack": {
               "fps": 10,
               "loop": false,
-              "renderScale": 0.972477,
+              "renderScale": 0.945455,
               "frames": [
                 {
                   "x": 0,
@@ -309,7 +309,7 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 1.059406,
+          "renderScale": 0.981651,
           "animations": {
             "idle": {
               "fps": 5,
@@ -349,7 +349,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.01,
+              "renderScale": 1.028302,
               "frames": [
                 {
                   "x": 0,
@@ -398,7 +398,7 @@
             "attack": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.074468,
+              "renderScale": 1.058252,
               "frames": [
                 {
                   "x": 0,
@@ -497,7 +497,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.172043,
+              "renderScale": 1.058252,
               "frames": [
                 {
                   "x": 0,
@@ -546,7 +546,7 @@
             "attack": {
               "fps": 10,
               "loop": false,
-              "renderScale": 0.990909,
+              "renderScale": 1.038095,
               "frames": [
                 {
                   "x": 0,
@@ -649,7 +649,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 0.990826,
+              "renderScale": 0.972477,
               "frames": [
                 {
                   "x": 0,
@@ -757,7 +757,7 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 1.0,
+          "renderScale": 0.972477,
           "animations": {
             "idle": {
               "fps": 5,
@@ -797,7 +797,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 0.981818,
+              "renderScale": 1.018692,
               "frames": [
                 {
                   "x": 0,
@@ -846,7 +846,7 @@
             "harvest": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.028571,
+              "renderScale": 1.028302,
               "frames": [
                 {
                   "x": 0,
@@ -905,7 +905,7 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 0.981818,
+          "renderScale": 0.963636,
           "animations": {
             "idle": {
               "fps": 5,
@@ -945,7 +945,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.0,
+              "renderScale": 1.009174,
               "frames": [
                 {
                   "x": 0,
@@ -1053,7 +1053,7 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 0.981818,
+          "renderScale": 0.972477,
           "animations": {
             "idle": {
               "fps": 5,
@@ -1093,7 +1093,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.009174,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -1142,7 +1142,7 @@
             "harvest": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.057692,
+              "renderScale": 1.038095,
               "frames": [
                 {
                   "x": 0,
@@ -1288,7 +1288,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.0
+              "renderScale": 1.009346
             },
             "harvest": {
               "fps": 10,
@@ -1339,158 +1339,10 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 0.990909
+              "renderScale": 0.981818
             }
           },
           "renderScale": 1.0
-        },
-        "back": {
-          "image": "fox-back.webp",
-          "cellSize": 128,
-          "anchor": {
-            "x": 0.5,
-            "y": 0.9296875
-          },
-          "generated": true,
-          "mirrored": false,
-          "animations": {
-            "idle": {
-              "fps": 5,
-              "loop": true,
-              "frames": [
-                {
-                  "x": 0,
-                  "y": 0,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 200.0
-                },
-                {
-                  "x": 128,
-                  "y": 0,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 200.0
-                },
-                {
-                  "x": 256,
-                  "y": 0,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 200.0
-                },
-                {
-                  "x": 384,
-                  "y": 0,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 200.0
-                }
-              ],
-              "renderScale": 1.0
-            },
-            "run": {
-              "fps": 10,
-              "loop": true,
-              "frames": [
-                {
-                  "x": 0,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 128,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 256,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 384,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 512,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 640,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                }
-              ],
-              "renderScale": 0.963303
-            },
-            "harvest": {
-              "fps": 10,
-              "loop": false,
-              "frames": [
-                {
-                  "x": 0,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 128,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 256,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 384,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 512,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 640,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                }
-              ],
-              "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 0.954545
-            }
-          },
-          "renderScale": 1.038095
         },
         "right": {
           "image": "fox-right.webp",
@@ -1584,7 +1436,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.190476
+              "renderScale": 1.018692
             },
             "harvest": {
               "fps": 10,
@@ -1635,10 +1487,10 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 1.136364
+              "renderScale": 1.058252
             }
           },
-          "renderScale": 1.09
+          "renderScale": 0.990826
         },
         "left": {
           "image": "fox-left.webp",
@@ -1732,7 +1584,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.073684
+              "renderScale": 1.009174
             },
             "harvest": {
               "fps": 10,
@@ -1783,10 +1635,158 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 0.990291
+              "renderScale": 1.0
             }
           },
-          "renderScale": 1.068627
+          "renderScale": 0.981818
+        },
+        "back": {
+          "image": "fox-back.webp",
+          "cellSize": 128,
+          "anchor": {
+            "x": 0.5,
+            "y": 0.9296875
+          },
+          "generated": true,
+          "mirrored": false,
+          "animations": {
+            "idle": {
+              "fps": 5,
+              "loop": true,
+              "frames": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 200.0
+                },
+                {
+                  "x": 128,
+                  "y": 0,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 200.0
+                },
+                {
+                  "x": 256,
+                  "y": 0,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 200.0
+                },
+                {
+                  "x": 384,
+                  "y": 0,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 200.0
+                }
+              ],
+              "renderScale": 1.0
+            },
+            "run": {
+              "fps": 10,
+              "loop": true,
+              "frames": [
+                {
+                  "x": 0,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 128,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 256,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 384,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 512,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 640,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                }
+              ],
+              "renderScale": 1.028571
+            },
+            "harvest": {
+              "fps": 10,
+              "loop": false,
+              "frames": [
+                {
+                  "x": 0,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 128,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 256,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 384,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 512,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 640,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                }
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "renderScale": 1.0
+            }
+          },
+          "renderScale": 1.0
         }
       }
     },
@@ -1884,7 +1884,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 0.963303
+              "renderScale": 0.972477
             },
             "harvest": {
               "fps": 10,
@@ -1935,7 +1935,7 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 0.972222
+              "renderScale": 0.963636
             }
           },
           "renderScale": 1.0
@@ -2032,7 +2032,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 0.87963
+              "renderScale": 0.981818
             },
             "harvest": {
               "fps": 10,
@@ -2083,10 +2083,10 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 1.091954
+              "renderScale": 1.038462
             }
           },
-          "renderScale": 1.105263
+          "renderScale": 0.981481
         },
         "right": {
           "image": "redpanda-right.webp",
@@ -2180,7 +2180,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 0.98913
+              "renderScale": 0.990909
             },
             "harvest": {
               "fps": 10,
@@ -2231,10 +2231,10 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 1.045977
+              "renderScale": 1.135417
             }
           },
-          "renderScale": 1.153846
+          "renderScale": 0.972477
         },
         "left": {
           "image": "redpanda-left.webp",
@@ -2328,7 +2328,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 0.910112
+              "renderScale": 1.018519
             },
             "harvest": {
               "fps": 10,
@@ -2379,10 +2379,10 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 1.038462
+              "renderScale": 1.122449
             }
           },
-          "renderScale": 1.296296
+          "renderScale": 0.963636
         }
       }
     },
@@ -2397,6 +2397,7 @@
           },
           "generated": true,
           "mirrored": false,
+          "renderScale": 1.0,
           "animations": {
             "idle": {
               "fps": 5,
@@ -2466,7 +2467,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.0092
+              "renderScale": 1.018519
             },
             "harvest": {
               "fps": 10,
@@ -2515,12 +2516,11 @@
                   "duration_ms": 100.0
                 }
               ],
+              "renderScale": 1.0,
               "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 1.0185
+              "contactMs": 330
             }
-          },
-          "renderScale": 1.0
+          }
         },
         "back": {
           "image": "sparrow-back.webp",
@@ -2531,6 +2531,7 @@
           },
           "generated": true,
           "mirrored": false,
+          "renderScale": 1.0,
           "animations": {
             "idle": {
               "fps": 5,
@@ -2600,7 +2601,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.0185
+              "renderScale": 1.009174
             },
             "harvest": {
               "fps": 10,
@@ -2649,12 +2650,11 @@
                   "duration_ms": 100.0
                 }
               ],
+              "renderScale": 1.0,
               "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 1.0377
+              "contactMs": 330
             }
-          },
-          "renderScale": 1.0
+          }
         },
         "right": {
           "image": "sparrow-right.webp",
@@ -2665,6 +2665,7 @@
           },
           "generated": true,
           "mirrored": false,
+          "renderScale": 1.0,
           "animations": {
             "idle": {
               "fps": 5,
@@ -2734,7 +2735,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 0.9904
+              "renderScale": 1.0
             },
             "harvest": {
               "fps": 10,
@@ -2783,12 +2784,11 @@
                   "duration_ms": 100.0
                 }
               ],
+              "renderScale": 1.028037,
               "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 1.1573
+              "contactMs": 330
             }
-          },
-          "renderScale": 1.068
+          }
         },
         "left": {
           "image": "sparrow-left.webp",
@@ -2799,6 +2799,7 @@
           },
           "generated": true,
           "mirrored": false,
+          "renderScale": 1.0,
           "animations": {
             "idle": {
               "fps": 5,
@@ -2868,7 +2869,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 0.97
+              "renderScale": 1.009174
             },
             "harvest": {
               "fps": 10,
@@ -2917,12 +2918,11 @@
                   "duration_ms": 100.0
                 }
               ],
+              "renderScale": 1.057692,
               "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 0.9898
+              "contactMs": 330
             }
-          },
-          "renderScale": 1.134
+          }
         }
       }
     }
@@ -3025,5 +3025,19 @@
       "width": 192,
       "height": 192
     }
+  },
+  "artRevision": "pastel-20261030-v2",
+  "artDirection": {
+    "id": "pastel-3d-forest-fairies",
+    "medium": "AI-generated raster sprites with soft 3D-toy shading",
+    "palette": [
+      "apricot",
+      "ivory",
+      "mint",
+      "lilac",
+      "pearl-pink"
+    ],
+    "light": "soft upper-left",
+    "commonAccessory": "mint scarf and golden star brooch"
   }
 }

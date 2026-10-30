@@ -1,8 +1,22 @@
 {
-  "version": 4,
-  "generator": "sprite-gen 3.7.0 / GPT image rows",
+  "version": 5,
+  "artRevision": "pastel-20261030-v2",
+  "generator": "sprite-gen 3.7.0 / codex GPT image generation and GPT image rows",
   "runtimeGenerationRequired": false,
   "runtimeManifestVersion": 2,
+  "artDirection": {
+    "id": "pastel-3d-forest-fairies",
+    "medium": "AI-generated raster sprites with soft 3D-toy shading",
+    "palette": [
+      "apricot",
+      "ivory",
+      "mint",
+      "lilac",
+      "pearl-pink"
+    ],
+    "light": "soft upper-left",
+    "commonAccessory": "mint scarf and golden star brooch"
+  },
   "characters": {
     "squirrel": {
       "viewCount": 4,
@@ -16,8 +30,8 @@
             768,
             384
           ],
-          "bytes": 244370,
-          "sha256": "275647b3c886b032e77d5ccd7cdc972bf0627afbd3ba89e58ff197951619a4e6",
+          "bytes": 208402,
+          "sha256": "390ddd49b99660ca24436f01a9081815c1ae154508efff88fd66b18de57317da",
           "generated": true,
           "mirrored": false,
           "fixedViewScale": 1.0,
@@ -29,27 +43,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  28,
+                  16,
                   12,
-                  118,
+                  114,
                   119
                 ],
                 [
-                  28,
+                  16,
                   9,
-                  118,
+                  117,
                   119
                 ],
                 [
-                  28,
+                  16,
                   12,
-                  118,
+                  114,
                   119
                 ],
                 [
-                  28,
-                  12,
-                  116,
+                  18,
+                  11,
+                  112,
                   119
                 ]
               ]
@@ -58,42 +72,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.981651,
+              "fixedStateScale": 0.990741,
               "alphaBounds": [
                 [
-                  29,
+                  24,
+                  11,
+                  111,
+                  119
+                ],
+                [
+                  23,
                   10,
-                  113,
+                  109,
                   119
                 ],
                 [
-                  31,
+                  23,
+                  15,
+                  108,
+                  119
+                ],
+                [
+                  23,
+                  11,
+                  111,
+                  119
+                ],
+                [
+                  23,
                   9,
-                  115,
+                  110,
                   119
                 ],
                 [
-                  31,
-                  19,
-                  113,
-                  119
-                ],
-                [
-                  33,
-                  10,
-                  117,
-                  119
-                ],
-                [
-                  29,
-                  9,
-                  112,
-                  119
-                ],
-                [
-                  31,
-                  18,
-                  112,
+                  23,
+                  15,
+                  109,
                   119
                 ]
               ]
@@ -102,42 +116,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.07,
+              "fixedStateScale": 0.990741,
               "alphaBounds": [
                 [
-                  24,
-                  19,
-                  115,
+                  18,
+                  11,
+                  111,
                   119
                 ],
                 [
-                  21,
-                  21,
-                  112,
-                  119
-                ],
-                [
-                  21,
                   17,
+                  10,
+                  110,
+                  119
+                ],
+                [
+                  16,
+                  12,
+                  114,
+                  119
+                ],
+                [
+                  24,
+                  9,
+                  118,
+                  119
+                ],
+                [
+                  22,
+                  10,
                   112,
                   119
                 ],
                 [
-                  29,
-                  19,
-                  119,
-                  119
-                ],
-                [
-                  27,
-                  19,
-                  116,
-                  119
-                ],
-                [
-                  27,
-                  19,
-                  112,
+                  18,
+                  9,
+                  108,
                   119
                 ]
               ],
@@ -145,8 +159,7 @@
               "contactMs": 330,
               "durationMs": 600
             }
-          },
-          "canonicalWarnings": []
+          }
         },
         "back": {
           "image": "squirrel-back.webp",
@@ -154,11 +167,11 @@
             768,
             384
           ],
-          "bytes": 214160,
-          "sha256": "fb66c2a661c6224ffa0c3f025f222e16b52621c8618dbb1d5f316f8c47a021ed",
+          "bytes": 156720,
+          "sha256": "a5d2f9efd12ef18cc5448f8dbb4af373e1d7df529713258b035b0c54c8013f51",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.009434,
+          "fixedViewScale": 1.028846,
           "states": {
             "idle": {
               "frameCount": 4,
@@ -167,27 +180,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  10,
-                  13,
-                  103,
-                  119
-                ],
-                [
-                  10,
-                  9,
-                  103,
-                  119
-                ],
-                [
-                  10,
                   15,
-                  103,
+                  15,
+                  107,
                   119
                 ],
                 [
                   11,
-                  13,
-                  103,
+                  9,
+                  107,
+                  119
+                ],
+                [
+                  12,
+                  20,
+                  110,
+                  119
+                ],
+                [
+                  14,
+                  14,
+                  108,
                   119
                 ]
               ]
@@ -196,42 +209,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.990654,
+              "fixedStateScale": 0.954128,
               "alphaBounds": [
                 [
-                  19,
-                  12,
-                  104,
+                  14,
+                  10,
+                  102,
                   119
                 ],
                 [
-                  19,
-                  11,
-                  106,
-                  119
-                ],
-                [
-                  16,
+                  15,
                   9,
                   103,
                   119
                 ],
                 [
-                  18,
-                  11,
-                  105,
+                  15,
+                  9,
+                  103,
                   119
                 ],
                 [
-                  13,
-                  11,
-                  100,
+                  15,
+                  10,
+                  103,
+                  119
+                ],
+                [
+                  15,
+                  10,
+                  103,
                   119
                 ],
                 [
                   14,
                   9,
-                  101,
+                  102,
                   119
                 ]
               ]
@@ -240,41 +253,41 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.972477,
+              "fixedStateScale": 0.945455,
               "alphaBounds": [
                 [
-                  10,
-                  10,
-                  104,
-                  119
-                ],
-                [
+                  16,
                   9,
-                  10,
-                  109,
+                  106,
                   119
                 ],
                 [
-                  13,
-                  13,
-                  112,
+                  11,
+                  9,
+                  103,
                   119
                 ],
                 [
                   16,
-                  11,
-                  116,
+                  18,
+                  105,
                   119
                 ],
                 [
                   15,
-                  10,
-                  116,
+                  12,
+                  114,
                   119
                 ],
                 [
+                  19,
+                  13,
+                  113,
+                  119
+                ],
+                [
+                  17,
                   9,
-                  10,
                   104,
                   119
                 ]
@@ -283,8 +296,7 @@
               "contactMs": 330,
               "durationMs": 600
             }
-          },
-          "canonicalWarnings": []
+          }
         },
         "right": {
           "image": "squirrel-right.webp",
@@ -292,146 +304,8 @@
             768,
             384
           ],
-          "bytes": 215806,
-          "sha256": "5b556a84b2e5b1d48ea9e2d05c79fe66c3f7c25c00fe7eb78d845ea6eae4e64d",
-          "generated": true,
-          "mirrored": false,
-          "fixedViewScale": 1.059406,
-          "states": {
-            "idle": {
-              "frameCount": 4,
-              "distinctFrames": 4,
-              "fps": 5,
-              "fixedStateScale": 1.0,
-              "alphaBounds": [
-                [
-                  10,
-                  18,
-                  98,
-                  119
-                ],
-                [
-                  9,
-                  17,
-                  98,
-                  119
-                ],
-                [
-                  10,
-                  18,
-                  98,
-                  119
-                ],
-                [
-                  10,
-                  18,
-                  98,
-                  119
-                ]
-              ]
-            },
-            "run": {
-              "frameCount": 6,
-              "distinctFrames": 6,
-              "fps": 10,
-              "fixedStateScale": 1.01,
-              "alphaBounds": [
-                [
-                  10,
-                  19,
-                  101,
-                  119
-                ],
-                [
-                  10,
-                  18,
-                  101,
-                  119
-                ],
-                [
-                  10,
-                  26,
-                  100,
-                  119
-                ],
-                [
-                  15,
-                  18,
-                  107,
-                  119
-                ],
-                [
-                  9,
-                  18,
-                  100,
-                  119
-                ],
-                [
-                  10,
-                  25,
-                  100,
-                  119
-                ]
-              ]
-            },
-            "attack": {
-              "frameCount": 6,
-              "distinctFrames": 6,
-              "fps": 10,
-              "fixedStateScale": 1.074468,
-              "alphaBounds": [
-                [
-                  12,
-                  25,
-                  96,
-                  119
-                ],
-                [
-                  9,
-                  29,
-                  97,
-                  119
-                ],
-                [
-                  12,
-                  29,
-                  100,
-                  119
-                ],
-                [
-                  17,
-                  28,
-                  115,
-                  119
-                ],
-                [
-                  13,
-                  26,
-                  110,
-                  119
-                ],
-                [
-                  12,
-                  26,
-                  96,
-                  119
-                ]
-              ],
-              "impactFrame": 3,
-              "contactMs": 330,
-              "durationMs": 600
-            }
-          },
-          "canonicalWarnings": []
-        },
-        "left": {
-          "image": "squirrel-left.webp",
-          "dimensions": [
-            768,
-            384
-          ],
-          "bytes": 231808,
-          "sha256": "3f50fb93850a90e550ad0abc70ea4cf70ba8629a209a6e6e34b70fe2200cbef2",
+          "bytes": 177596,
+          "sha256": "85d92b4b5e4e5ffc1149c6cb92f5a929a6fcbf8d53eb0f6b2262192f888b334b",
           "generated": true,
           "mirrored": false,
           "fixedViewScale": 0.981651,
@@ -443,27 +317,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  28,
+                  12,
                   10,
-                  119,
+                  109,
                   119
                 ],
                 [
-                  29,
+                  13,
                   9,
-                  118,
+                  110,
                   119
                 ],
                 [
-                  28,
-                  11,
-                  119,
+                  12,
+                  14,
+                  108,
                   119
                 ],
                 [
-                  29,
-                  9,
-                  118,
+                  12,
+                  10,
+                  109,
                   119
                 ]
               ]
@@ -472,42 +346,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.172043,
+              "fixedStateScale": 1.028302,
               "alphaBounds": [
                 [
-                  29,
-                  26,
-                  117,
-                  119
-                ],
-                [
-                  28,
-                  27,
-                  114,
-                  119
-                ],
-                [
-                  28,
-                  34,
-                  114,
-                  119
-                ],
-                [
-                  32,
-                  27,
-                  120,
-                  119
-                ],
-                [
-                  28,
-                  26,
-                  115,
-                  119
-                ],
-                [
-                  27,
-                  34,
+                  15,
+                  13,
                   110,
+                  119
+                ],
+                [
+                  9,
+                  14,
+                  104,
+                  119
+                ],
+                [
+                  11,
+                  18,
+                  106,
+                  119
+                ],
+                [
+                  12,
+                  17,
+                  108,
+                  119
+                ],
+                [
+                  9,
+                  15,
+                  106,
+                  119
+                ],
+                [
+                  10,
+                  18,
+                  106,
                   119
                 ]
               ]
@@ -516,42 +390,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.990909,
+              "fixedStateScale": 1.058252,
               "alphaBounds": [
                 [
+                  14,
+                  16,
+                  109,
+                  119
+                ],
+                [
+                  13,
+                  16,
+                  110,
+                  119
+                ],
+                [
                   17,
-                  9,
+                  17,
+                  115,
+                  119
+                ],
+                [
+                  15,
+                  15,
                   119,
                   119
                 ],
                 [
-                  19,
-                  10,
-                  117,
-                  119
-                ],
-                [
-                  12,
                   14,
-                  114,
+                  15,
+                  115,
                   119
                 ],
                 [
-                  10,
-                  13,
-                  118,
-                  119
-                ],
-                [
-                  13,
-                  12,
-                  114,
-                  119
-                ],
-                [
-                  27,
-                  9,
-                  116,
+                  15,
+                  16,
+                  107,
                   119
                 ]
               ],
@@ -559,8 +433,144 @@
               "contactMs": 330,
               "durationMs": 600
             }
-          },
-          "canonicalWarnings": []
+          }
+        },
+        "left": {
+          "image": "squirrel-left.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 179358,
+          "sha256": "0570304613397aa9a7167d1f14e7e341945f4770a3babfa9bf540afb664e8919",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 0.981651,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  18,
+                  10,
+                  118,
+                  119
+                ],
+                [
+                  19,
+                  10,
+                  119,
+                  119
+                ],
+                [
+                  19,
+                  12,
+                  118,
+                  119
+                ],
+                [
+                  19,
+                  10,
+                  117,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.058252,
+              "alphaBounds": [
+                [
+                  22,
+                  16,
+                  119,
+                  119
+                ],
+                [
+                  23,
+                  16,
+                  117,
+                  119
+                ],
+                [
+                  21,
+                  22,
+                  112,
+                  119
+                ],
+                [
+                  23,
+                  17,
+                  116,
+                  119
+                ],
+                [
+                  24,
+                  17,
+                  116,
+                  119
+                ],
+                [
+                  20,
+                  21,
+                  111,
+                  119
+                ]
+              ]
+            },
+            "attack": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.038095,
+              "alphaBounds": [
+                [
+                  22,
+                  14,
+                  116,
+                  119
+                ],
+                [
+                  19,
+                  14,
+                  116,
+                  119
+                ],
+                [
+                  13,
+                  16,
+                  113,
+                  119
+                ],
+                [
+                  9,
+                  17,
+                  109,
+                  119
+                ],
+                [
+                  12,
+                  15,
+                  109,
+                  119
+                ],
+                [
+                  24,
+                  15,
+                  110,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          }
         }
       }
     },
@@ -576,8 +586,8 @@
             768,
             384
           ],
-          "bytes": 204094,
-          "sha256": "63dc4a27e8265a149891c32253c2329d34979aa3aa448006979c2a8876e483e2",
+          "bytes": 175278,
+          "sha256": "a77b9b5201d5121b30e7158a07628c3df923007c6ff100c139bed06a58d861b9",
           "generated": true,
           "mirrored": false,
           "fixedViewScale": 1.0,
@@ -589,27 +599,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  24,
-                  11,
-                  96,
+                  23,
+                  13,
+                  105,
                   119
                 ],
                 [
                   23,
                   9,
-                  98,
+                  105,
                   119
                 ],
                 [
-                  24,
-                  13,
-                  97,
+                  23,
+                  12,
+                  105,
                   119
                 ],
                 [
-                  25,
-                  11,
-                  96,
+                  23,
+                  12,
+                  104,
                   119
                 ]
               ]
@@ -618,42 +628,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.990826,
+              "fixedStateScale": 0.972477,
               "alphaBounds": [
                 [
-                  18,
+                  25,
                   10,
-                  97,
+                  107,
                   119
                 ],
                 [
-                  19,
+                  25,
                   9,
-                  98,
+                  107,
                   119
                 ],
                 [
-                  18,
-                  10,
-                  93,
+                  24,
+                  12,
+                  105,
                   119
                 ],
                 [
                   26,
                   10,
-                  105,
+                  107,
                   119
                 ],
                 [
-                  19,
-                  9,
-                  98,
+                  23,
+                  11,
+                  104,
                   119
                 ],
                 [
-                  19,
+                  24,
                   12,
-                  93,
+                  105,
                   119
                 ]
               ]
@@ -665,39 +675,39 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  23,
-                  11,
-                  100,
+                  27,
+                  13,
+                  102,
                   119
                 ],
                 [
-                  22,
                   28,
-                  106,
+                  26,
+                  103,
                   119
                 ],
                 [
-                  19,
+                  23,
                   9,
-                  111,
+                  104,
                   119
                 ],
                 [
-                  20,
+                  27,
+                  27,
+                  102,
+                  119
+                ],
+                [
                   28,
-                  108,
+                  26,
+                  103,
                   119
                 ],
                 [
-                  22,
-                  28,
-                  105,
-                  119
-                ],
-                [
-                  23,
-                  11,
-                  100,
+                  27,
+                  13,
+                  102,
                   119
                 ]
               ],
@@ -705,8 +715,7 @@
               "contactMs": 330,
               "durationMs": 600
             }
-          },
-          "canonicalWarnings": []
+          }
         },
         "back": {
           "image": "bear-back.webp",
@@ -714,11 +723,11 @@
             768,
             384
           ],
-          "bytes": 156862,
-          "sha256": "4faa82837dacb306cca77c100379e2f63d2f3c424b4412c2f53f0fe9fa558625",
+          "bytes": 140206,
+          "sha256": "a31edf9756726c3e5c370b385bd5ba501e6b5cb4f252752cbe47a9a5eb6de86f",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.0,
+          "fixedViewScale": 0.972477,
           "states": {
             "idle": {
               "frameCount": 4,
@@ -727,165 +736,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  32,
-                  11,
+                  22,
+                  10,
                   105,
                   119
                 ],
                 [
-                  31,
+                  23,
                   9,
-                  106,
-                  119
-                ],
-                [
-                  32,
-                  11,
-                  105,
-                  119
-                ],
-                [
-                  32,
-                  11,
-                  104,
-                  119
-                ]
-              ]
-            },
-            "run": {
-              "frameCount": 6,
-              "distinctFrames": 6,
-              "fps": 10,
-              "fixedStateScale": 0.981818,
-              "alphaBounds": [
-                [
-                  25,
-                  9,
-                  100,
-                  119
-                ],
-                [
-                  33,
-                  9,
-                  108,
-                  119
-                ],
-                [
-                  28,
-                  13,
-                  102,
-                  119
-                ],
-                [
-                  33,
-                  9,
-                  108,
-                  119
-                ],
-                [
-                  25,
-                  9,
-                  100,
-                  119
-                ],
-                [
-                  30,
-                  12,
-                  105,
-                  119
-                ]
-              ]
-            },
-            "harvest": {
-              "frameCount": 6,
-              "distinctFrames": 6,
-              "fps": 10,
-              "fixedStateScale": 1.028571,
-              "alphaBounds": [
-                [
-                  31,
-                  14,
-                  104,
-                  119
-                ],
-                [
-                  27,
-                  26,
                   106,
                   119
                 ],
                 [
                   22,
-                  9,
-                  108,
-                  119
-                ],
-                [
-                  26,
-                  42,
+                  11,
                   106,
                   119
                 ],
                 [
-                  29,
-                  38,
-                  107,
-                  119
-                ],
-                [
-                  31,
-                  14,
-                  104,
-                  119
-                ]
-              ],
-              "impactFrame": 3,
-              "contactMs": 330,
-              "durationMs": 600
-            }
-          },
-          "canonicalWarnings": []
-        },
-        "right": {
-          "image": "bear-right.webp",
-          "dimensions": [
-            768,
-            384
-          ],
-          "bytes": 170394,
-          "sha256": "5cbe14d80d39037be6092223d93100174e512630ca455ba95e32fe814b4b7bea",
-          "generated": true,
-          "mirrored": false,
-          "fixedViewScale": 0.981818,
-          "states": {
-            "idle": {
-              "frameCount": 4,
-              "distinctFrames": 4,
-              "fps": 5,
-              "fixedStateScale": 1.0,
-              "alphaBounds": [
-                [
-                  29,
-                  9,
-                  95,
-                  119
-                ],
-                [
-                  28,
-                  9,
-                  95,
-                  119
-                ],
-                [
-                  29,
-                  9,
-                  95,
-                  119
-                ],
-                [
-                  28,
-                  9,
-                  95,
+                  23,
+                  10,
+                  106,
                   119
                 ]
               ]
@@ -894,42 +765,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.0,
+              "fixedStateScale": 1.018692,
               "alphaBounds": [
                 [
-                  29,
-                  9,
-                  103,
+                  27,
+                  12,
+                  99,
                   119
                 ],
                 [
-                  33,
+                  25,
                   9,
-                  107,
+                  99,
                   119
                 ],
                 [
                   28,
-                  13,
-                  104,
+                  15,
+                  103,
                   119
                 ],
                 [
-                  30,
-                  11,
-                  106,
+                  28,
+                  12,
+                  101,
                   119
                 ],
                 [
-                  35,
-                  11,
-                  111,
+                  29,
+                  12,
+                  102,
                   119
                 ],
                 [
                   28,
                   14,
-                  103,
+                  101,
                   119
                 ]
               ]
@@ -938,41 +809,41 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.028037,
+              "fixedStateScale": 1.028302,
               "alphaBounds": [
                 [
-                  29,
-                  12,
-                  100,
+                  28,
+                  13,
+                  99,
+                  119
+                ],
+                [
+                  30,
+                  24,
+                  99,
+                  119
+                ],
+                [
+                  27,
+                  9,
+                  102,
+                  119
+                ],
+                [
+                  32,
+                  23,
+                  103,
                   119
                 ],
                 [
                   31,
-                  27,
-                  110,
+                  28,
+                  100,
                   119
                 ],
                 [
                   28,
-                  9,
-                  93,
-                  119
-                ],
-                [
-                  34,
-                  24,
-                  108,
-                  119
-                ],
-                [
-                  33,
-                  29,
-                  106,
-                  119
-                ],
-                [
-                  29,
-                  10,
+                  13,
                   99,
                   119
                 ]
@@ -981,22 +852,19 @@
               "contactMs": 330,
               "durationMs": 600
             }
-          },
-          "canonicalWarnings": [
-            "idle: motion presence is too low (0.0097 < 0.0100)"
-          ]
+          }
         },
-        "left": {
-          "image": "bear-left.webp",
+        "right": {
+          "image": "bear-right.webp",
           "dimensions": [
             768,
             384
           ],
-          "bytes": 168218,
-          "sha256": "29c6137718411d3b8026bc39df8feace7027dbcc1545d290902aca8a17ad1de9",
+          "bytes": 142580,
+          "sha256": "13db8fa5d813775cfdd553895d5a94b50c6053d21552bf1f509a2d1c9e5f2615",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 0.981818,
+          "fixedViewScale": 0.963636,
           "states": {
             "idle": {
               "frameCount": 4,
@@ -1005,27 +873,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  34,
+                  32,
                   9,
-                  97,
+                  103,
                   119
                 ],
                 [
-                  33,
+                  31,
                   9,
-                  97,
+                  101,
                   119
                 ],
                 [
-                  33,
+                  32,
+                  14,
+                  104,
+                  119
+                ],
+                [
+                  32,
                   10,
-                  97,
-                  119
-                ],
-                [
-                  34,
-                  9,
-                  97,
+                  102,
                   119
                 ]
               ]
@@ -1037,39 +905,39 @@
               "fixedStateScale": 1.009174,
               "alphaBounds": [
                 [
-                  24,
+                  37,
                   10,
-                  103,
+                  112,
                   119
                 ],
                 [
-                  23,
+                  37,
+                  10,
+                  109,
+                  119
+                ],
+                [
+                  36,
+                  15,
+                  110,
+                  119
+                ],
+                [
+                  38,
+                  10,
+                  111,
+                  119
+                ],
+                [
+                  35,
                   9,
-                  99,
+                  110,
                   119
                 ],
                 [
-                  20,
-                  19,
-                  103,
-                  119
-                ],
-                [
-                  25,
-                  10,
-                  102,
-                  119
-                ],
-                [
-                  23,
-                  11,
-                  99,
-                  119
-                ],
-                [
-                  23,
-                  16,
-                  101,
+                  36,
+                  13,
+                  111,
                   119
                 ]
               ]
@@ -1078,42 +946,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.057692,
+              "fixedStateScale": 1.028037,
               "alphaBounds": [
                 [
                   32,
-                  15,
-                  97,
+                  12,
+                  99,
                   119
                 ],
                 [
-                  14,
-                  30,
-                  97,
+                  35,
+                  23,
+                  112,
                   119
                 ],
                 [
-                  31,
+                  25,
                   9,
                   92,
                   119
                 ],
                 [
-                  15,
-                  30,
-                  98,
+                  36,
+                  19,
+                  112,
                   119
                 ],
                 [
-                  13,
-                  34,
-                  98,
+                  35,
+                  25,
+                  109,
                   119
                 ],
                 [
-                  31,
-                  15,
-                  96,
+                  32,
+                  12,
+                  98,
                   119
                 ]
               ],
@@ -1121,8 +989,144 @@
               "contactMs": 330,
               "durationMs": 600
             }
-          },
-          "canonicalWarnings": []
+          }
+        },
+        "left": {
+          "image": "bear-left.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 140710,
+          "sha256": "d2a23cd12069d79c9396e7fe817ac6136d7c7e47ebd196d68cfa6c3bf42735a9",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 0.972477,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  25,
+                  10,
+                  101,
+                  119
+                ],
+                [
+                  26,
+                  9,
+                  102,
+                  119
+                ],
+                [
+                  25,
+                  10,
+                  101,
+                  119
+                ],
+                [
+                  25,
+                  10,
+                  101,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  19,
+                  10,
+                  92,
+                  119
+                ],
+                [
+                  15,
+                  9,
+                  92,
+                  119
+                ],
+                [
+                  17,
+                  12,
+                  94,
+                  119
+                ],
+                [
+                  16,
+                  9,
+                  93,
+                  119
+                ],
+                [
+                  15,
+                  9,
+                  92,
+                  119
+                ],
+                [
+                  17,
+                  14,
+                  94,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.038095,
+              "alphaBounds": [
+                [
+                  28,
+                  14,
+                  95,
+                  119
+                ],
+                [
+                  19,
+                  25,
+                  91,
+                  119
+                ],
+                [
+                  25,
+                  9,
+                  93,
+                  119
+                ],
+                [
+                  9,
+                  24,
+                  89,
+                  119
+                ],
+                [
+                  14,
+                  24,
+                  92,
+                  119
+                ],
+                [
+                  28,
+                  13,
+                  95,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600
+            }
+          }
         }
       }
     },
@@ -1138,8 +1142,8 @@
             768,
             384
           ],
-          "bytes": 206986,
-          "sha256": "242f84782145c2bb837922ae26c51c737ce77a01589f09a250b8572275cb07af",
+          "bytes": 207304,
+          "sha256": "2e628a4af762d4029933705c1c7ecdc6d9ac730a406949f9568039b9c98a3420",
           "generated": true,
           "mirrored": false,
           "fixedViewScale": 1.0,
@@ -1151,165 +1155,28 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  31,
-                  10,
-                  99,
-                  119
-                ],
-                [
-                  31,
-                  9,
-                  100,
-                  119
-                ],
-                [
-                  31,
-                  10,
-                  100,
-                  119
-                ],
-                [
-                  31,
-                  9,
-                  100,
-                  119
-                ]
-              ]
-            },
-            "run": {
-              "frameCount": 6,
-              "distinctFrames": 6,
-              "fps": 10,
-              "fixedStateScale": 1.0,
-              "alphaBounds": [
-                [
-                  33,
-                  10,
-                  102,
-                  119
-                ],
-                [
-                  31,
-                  10,
-                  100,
-                  119
-                ],
-                [
-                  32,
-                  20,
-                  101,
-                  119
-                ],
-                [
-                  30,
+                  15,
                   11,
-                  99,
+                  107,
                   119
                 ],
                 [
-                  32,
+                  14,
                   9,
-                  101,
+                  107,
                   119
                 ],
                 [
-                  32,
-                  20,
-                  101,
-                  119
-                ]
-              ]
-            },
-            "harvest": {
-              "frameCount": 6,
-              "distinctFrames": 6,
-              "fps": 10,
-              "fixedStateScale": 0.990909,
-              "alphaBounds": [
-                [
-                  27,
-                  9,
-                  104,
+                  14,
+                  12,
+                  107,
                   119
                 ],
                 [
-                  27,
-                  9,
-                  106,
-                  119
-                ],
-                [
-                  25,
                   19,
+                  11,
                   103,
                   119
-                ],
-                [
-                  25,
-                  27,
-                  104,
-                  119
-                ],
-                [
-                  28,
-                  9,
-                  104,
-                  119
-                ],
-                [
-                  28,
-                  9,
-                  104,
-                  119
-                ]
-              ],
-              "impactFrame": 3,
-              "contactMs": 330,
-              "durationMs": 600.0
-            }
-          }
-        },
-        "back": {
-          "image": "fox-back.webp",
-          "dimensions": [
-            768,
-            384
-          ],
-          "bytes": 187588,
-          "sha256": "1318d1134c9f075d1ce46528b02f1b6875bc3fd2be98a6672404cee68095d66e",
-          "generated": true,
-          "mirrored": false,
-          "fixedViewScale": 1.038095,
-          "states": {
-            "idle": {
-              "frameCount": 4,
-              "distinctFrames": 4,
-              "fps": 5,
-              "fixedStateScale": 1.0,
-              "alphaBounds": [
-                [
-                  16,
-                  14,
-                  101,
-                  119
-                ],
-                [
-                  16,
-                  9,
-                  101,
-                  119
-                ],
-                [
-                  16,
-                  11,
-                  100,
-                  119
-                ],
-                [
-                  17,
-                  13,
-                  100,
-                  119
                 ]
               ]
             },
@@ -1317,42 +1184,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.963303,
+              "fixedStateScale": 1.009346,
               "alphaBounds": [
                 [
+                  23,
+                  12,
+                  107,
+                  119
+                ],
+                [
                   21,
-                  10,
-                  97,
+                  9,
+                  100,
                   119
                 ],
                 [
                   19,
-                  9,
-                  95,
-                  119
-                ],
-                [
-                  20,
-                  9,
-                  89,
+                  13,
+                  103,
                   119
                 ],
                 [
                   23,
                   10,
-                  98,
+                  109,
                   119
                 ],
                 [
-                  19,
-                  10,
-                  95,
+                  22,
+                  9,
+                  105,
                   119
                 ],
                 [
-                  21,
-                  11,
-                  90,
+                  20,
+                  14,
+                  101,
                   119
                 ]
               ]
@@ -1361,42 +1228,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.954545,
+              "fixedStateScale": 0.981818,
               "alphaBounds": [
                 [
-                  18,
+                  21,
                   9,
-                  100,
-                  119
-                ],
-                [
-                  12,
-                  15,
-                  99,
-                  119
-                ],
-                [
-                  9,
-                  20,
-                  103,
-                  119
-                ],
-                [
-                  12,
-                  24,
                   106,
                   119
                 ],
                 [
+                  21,
                   12,
-                  12,
-                  99,
+                  104,
                   119
                 ],
                 [
-                  19,
+                  21,
+                  17,
+                  104,
+                  119
+                ],
+                [
+                  26,
+                  22,
+                  107,
+                  119
+                ],
+                [
+                  21,
                   9,
-                  97,
+                  106,
+                  119
+                ],
+                [
+                  22,
+                  9,
+                  104,
                   119
                 ]
               ],
@@ -1412,11 +1279,11 @@
             768,
             384
           ],
-          "bytes": 170106,
-          "sha256": "cf6f63626f2cb7cc080d26e0f40081a3a7d33c7dd566dd0b08d29cc2cd5944a0",
+          "bytes": 172304,
+          "sha256": "b200944c771092e4cbccf65bfb3be883add8a8eb42f48a6d25948963b1e03f1e",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.09,
+          "fixedViewScale": 0.990826,
           "states": {
             "idle": {
               "frameCount": 4,
@@ -1425,27 +1292,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  14,
-                  19,
-                  118,
+                  17,
+                  10,
+                  103,
                   119
                 ],
                 [
-                  15,
-                  18,
-                  119,
+                  17,
+                  9,
+                  106,
                   119
                 ],
                 [
-                  14,
-                  19,
-                  118,
+                  16,
+                  9,
+                  102,
                   119
                 ],
                 [
-                  14,
-                  19,
-                  118,
+                  16,
+                  11,
+                  102,
                   119
                 ]
               ]
@@ -1454,42 +1321,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.190476,
+              "fixedStateScale": 1.018692,
               "alphaBounds": [
                 [
-                  17,
-                  35,
-                  110,
+                  13,
+                  12,
+                  103,
                   119
                 ],
                 [
-                  23,
-                  35,
-                  111,
+                  15,
+                  11,
+                  104,
                   119
                 ],
                 [
+                  15,
+                  16,
+                  103,
+                  119
+                ],
+                [
+                  14,
+                  12,
+                  105,
+                  119
+                ],
+                [
+                  16,
                   9,
-                  39,
-                  99,
+                  105,
                   119
                 ],
                 [
-                  18,
-                  35,
-                  111,
-                  119
-                ],
-                [
-                  26,
-                  35,
-                  117,
-                  119
-                ],
-                [
+                  14,
                   10,
-                  40,
-                  101,
+                  104,
                   119
                 ]
               ]
@@ -1498,42 +1365,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.136364,
+              "fixedStateScale": 1.058252,
               "alphaBounds": [
                 [
-                  26,
-                  31,
-                  116,
-                  119
-                ],
-                [
-                  28,
-                  34,
-                  117,
-                  119
-                ],
-                [
-                  19,
-                  43,
-                  119,
-                  119
-                ],
-                [
-                  19,
-                  51,
-                  118,
-                  119
-                ],
-                [
-                  29,
-                  32,
-                  117,
+                  25,
+                  16,
+                  107,
                   119
                 ],
                 [
                   25,
-                  30,
-                  113,
+                  17,
+                  114,
+                  119
+                ],
+                [
+                  18,
+                  25,
+                  115,
+                  119
+                ],
+                [
+                  21,
+                  31,
+                  119,
+                  119
+                ],
+                [
+                  23,
+                  16,
+                  107,
+                  119
+                ],
+                [
+                  23,
+                  16,
+                  108,
                   119
                 ]
               ],
@@ -1549,11 +1416,11 @@
             768,
             384
           ],
-          "bytes": 207570,
-          "sha256": "8ae7e2cee1698fe0a3098aa246ea10d4d053a23c11c9a7623628eda68e645e38",
+          "bytes": 181334,
+          "sha256": "c4cf21b49ba0dd371ddc7dc624d4b6028eb929c24f7b6be262b5e37e22155e90",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.068627,
+          "fixedViewScale": 0.981818,
           "states": {
             "idle": {
               "frameCount": 4,
@@ -1562,26 +1429,26 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  13,
-                  17,
-                  114,
+                  25,
+                  9,
+                  113,
                   119
                 ],
                 [
+                  23,
                   9,
-                  14,
                   111,
                   119
                 ],
                 [
-                  12,
-                  17,
-                  114,
+                  24,
+                  10,
+                  112,
                   119
                 ],
                 [
-                  11,
-                  16,
+                  24,
+                  10,
                   112,
                   119
                 ]
@@ -1591,42 +1458,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.073684,
+              "fixedStateScale": 1.009174,
               "alphaBounds": [
                 [
-                  21,
-                  24,
-                  116,
-                  119
-                ],
-                [
-                  21,
-                  24,
-                  114,
-                  119
-                ],
-                [
-                  20,
-                  31,
+                  28,
+                  10,
                   115,
                   119
                 ],
                 [
-                  20,
-                  23,
-                  118,
+                  26,
+                  9,
+                  115,
                   119
                 ],
                 [
-                  14,
                   23,
-                  119,
+                  16,
+                  114,
+                  119
+                ],
+                [
+                  25,
+                  10,
+                  114,
                   119
                 ],
                 [
                   27,
-                  28,
-                  99,
+                  10,
+                  118,
+                  119
+                ],
+                [
+                  23,
+                  10,
+                  109,
                   119
                 ]
               ]
@@ -1635,42 +1502,179 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.990291,
+              "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
+                  22,
+                  9,
+                  111,
+                  119
+                ],
+                [
+                  18,
+                  10,
+                  109,
+                  119
+                ],
+                [
                   15,
-                  16,
-                  108,
+                  22,
+                  112,
                   119
                 ],
                 [
-                  9,
-                  19,
-                  107,
-                  119
-                ],
-                [
-                  11,
+                  13,
                   28,
-                  114,
-                  119
-                ],
-                [
-                  9,
-                  41,
                   118,
                   119
                 ],
                 [
-                  15,
-                  18,
+                  20,
+                  10,
+                  108,
+                  119
+                ],
+                [
+                  24,
+                  10,
+                  109,
+                  119
+                ]
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "durationMs": 600.0
+            }
+          }
+        },
+        "back": {
+          "image": "fox-back.webp",
+          "dimensions": [
+            768,
+            384
+          ],
+          "bytes": 150628,
+          "sha256": "c9cc98f3fbc561e60558e8cb2c46d78e337fab5bb5911934c2b96e2b908edfd6",
+          "generated": true,
+          "mirrored": false,
+          "fixedViewScale": 1.0,
+          "states": {
+            "idle": {
+              "frameCount": 4,
+              "distinctFrames": 4,
+              "fps": 5,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  28,
+                  11,
                   107,
                   119
                 ],
                 [
-                  19,
-                  16,
-                  104,
+                  28,
+                  9,
+                  109,
+                  119
+                ],
+                [
+                  28,
+                  10,
+                  110,
+                  119
+                ],
+                [
+                  28,
+                  11,
+                  108,
+                  119
+                ]
+              ]
+            },
+            "run": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.028571,
+              "alphaBounds": [
+                [
+                  32,
+                  14,
+                  101,
+                  119
+                ],
+                [
+                  34,
+                  14,
+                  101,
+                  119
+                ],
+                [
+                  31,
+                  11,
+                  98,
+                  119
+                ],
+                [
+                  31,
+                  12,
+                  100,
+                  119
+                ],
+                [
+                  33,
+                  9,
+                  99,
+                  119
+                ],
+                [
+                  34,
+                  14,
+                  101,
+                  119
+                ]
+              ]
+            },
+            "harvest": {
+              "frameCount": 6,
+              "distinctFrames": 6,
+              "fps": 10,
+              "fixedStateScale": 1.0,
+              "alphaBounds": [
+                [
+                  29,
+                  11,
+                  107,
+                  119
+                ],
+                [
+                  28,
+                  13,
+                  112,
+                  119
+                ],
+                [
+                  23,
+                  14,
+                  114,
+                  119
+                ],
+                [
+                  21,
+                  21,
+                  112,
+                  119
+                ],
+                [
+                  26,
+                  9,
+                  107,
+                  119
+                ],
+                [
+                  29,
+                  10,
+                  107,
                   119
                 ]
               ],
@@ -1694,8 +1698,8 @@
             768,
             384
           ],
-          "bytes": 274448,
-          "sha256": "71b43c5840127bcb474612d964d394e5de7e2a1e661e93e098118a599707cc1a",
+          "bytes": 238246,
+          "sha256": "ff69e218d0d5d5e28b0bfcd1f4e38c51c7cda35c85c5dfae2d0f1a8335cb045f",
           "generated": true,
           "mirrored": false,
           "fixedViewScale": 1.0,
@@ -1708,26 +1712,26 @@
               "alphaBounds": [
                 [
                   9,
-                  14,
-                  114,
+                  13,
+                  109,
                   119
                 ],
                 [
-                  9,
+                  10,
+                  13,
+                  109,
+                  119
+                ],
+                [
+                  10,
+                  13,
+                  109,
+                  119
+                ],
+                [
                   11,
-                  115,
-                  119
-                ],
-                [
-                  9,
-                  15,
-                  114,
-                  119
-                ],
-                [
-                  9,
-                  15,
-                  115,
+                  13,
+                  106,
                   119
                 ]
               ]
@@ -1736,42 +1740,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.963303,
+              "fixedStateScale": 0.972477,
               "alphaBounds": [
                 [
-                  14,
+                  20,
                   10,
-                  111,
+                  109,
                   119
                 ],
                 [
+                  18,
                   9,
+                  106,
+                  119
+                ],
+                [
+                  17,
+                  12,
+                  108,
+                  119
+                ],
+                [
+                  21,
                   10,
+                  109,
+                  119
+                ],
+                [
+                  17,
+                  9,
                   107,
                   119
                 ],
                 [
-                  13,
-                  14,
-                  112,
-                  119
-                ],
-                [
-                  15,
+                  21,
                   10,
-                  112,
-                  119
-                ],
-                [
-                  14,
-                  9,
-                  113,
-                  119
-                ],
-                [
-                  14,
-                  16,
-                  113,
+                  105,
                   119
                 ]
               ]
@@ -1780,42 +1784,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.972222,
+              "fixedStateScale": 0.963636,
               "alphaBounds": [
                 [
+                  15,
                   9,
-                  11,
-                  113,
+                  109,
                   119
                 ],
                 [
-                  11,
-                  14,
-                  112,
+                  13,
+                  15,
+                  111,
                   119
                 ],
                 [
-                  12,
-                  28,
-                  113,
-                  119
-                ],
-                [
-                  12,
-                  30,
-                  113,
-                  119
-                ],
-                [
-                  12,
-                  14,
-                  113,
-                  119
-                ],
-                [
+                  13,
                   9,
-                  11,
-                  113,
+                  109,
+                  119
+                ],
+                [
+                  16,
+                  15,
+                  116,
+                  119
+                ],
+                [
+                  13,
+                  10,
+                  111,
+                  119
+                ],
+                [
+                  15,
+                  9,
+                  109,
                   119
                 ]
               ],
@@ -1831,11 +1835,11 @@
             768,
             384
           ],
-          "bytes": 211464,
-          "sha256": "dedbeea62f56f94033c717e0fdee429e624c1edaaac0c7a0ccef73a439f5bba2",
+          "bytes": 175916,
+          "sha256": "4e85112348694a822bef2da81193a6561dfcd8b611cb79611e109517da5833a8",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.105263,
+          "fixedViewScale": 0.981481,
           "states": {
             "idle": {
               "frameCount": 4,
@@ -1844,27 +1848,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  14,
-                  24,
-                  118,
+                  11,
+                  11,
+                  107,
                   119
                 ],
                 [
-                  13,
-                  21,
-                  119,
+                  11,
+                  11,
+                  107,
                   119
                 ],
                 [
-                  13,
-                  21,
-                  118,
+                  12,
+                  9,
+                  108,
                   119
                 ],
                 [
-                  15,
-                  25,
-                  118,
+                  12,
+                  11,
+                  108,
                   119
                 ]
               ]
@@ -1873,42 +1877,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.87963,
+              "fixedStateScale": 0.981818,
               "alphaBounds": [
                 [
+                  21,
                   9,
-                  11,
-                  116,
+                  95,
                   119
                 ],
                 [
+                  19,
                   9,
+                  96,
+                  119
+                ],
+                [
+                  18,
                   10,
-                  113,
+                  94,
                   119
                 ],
                 [
-                  13,
-                  9,
-                  115,
+                  20,
+                  12,
+                  95,
                   119
                 ],
                 [
+                  20,
                   11,
-                  14,
-                  116,
+                  95,
                   119
                 ],
                 [
-                  10,
-                  10,
-                  116,
-                  119
-                ],
-                [
-                  14,
+                  19,
                   11,
-                  113,
+                  93,
                   119
                 ]
               ]
@@ -1917,42 +1921,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.091954,
+              "fixedStateScale": 1.038462,
               "alphaBounds": [
                 [
+                  17,
+                  15,
+                  101,
+                  119
+                ],
+                [
                   12,
-                  32,
-                  107,
-                  119
-                ],
-                [
-                  15,
-                  30,
-                  107,
-                  119
-                ],
-                [
-                  15,
-                  29,
-                  117,
+                  13,
+                  104,
                   119
                 ],
                 [
                   9,
-                  43,
-                  109,
+                  13,
+                  103,
+                  119
+                ],
+                [
+                  15,
+                  21,
+                  105,
                   119
                 ],
                 [
                   13,
-                  31,
-                  102,
+                  15,
+                  103,
                   119
                 ],
                 [
-                  14,
-                  32,
-                  107,
+                  17,
+                  15,
+                  101,
                   119
                 ]
               ],
@@ -1968,11 +1972,11 @@
             768,
             384
           ],
-          "bytes": 204338,
-          "sha256": "885987b12b7e103e7c37649b8eb35236e639ea19fb78f07ebcaa59dbe10b40e3",
+          "bytes": 184104,
+          "sha256": "e86bae6b5a00df11d7da52c3b38b20e3cf0b59e9fd91f4f83a2b6f6c35a71fdc",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.153846,
+          "fixedViewScale": 0.972477,
           "states": {
             "idle": {
               "frameCount": 4,
@@ -1981,27 +1985,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  11,
-                  28,
-                  106,
+                  16,
+                  10,
+                  109,
                   119
                 ],
                 [
+                  16,
                   9,
-                  26,
-                  106,
+                  109,
                   119
                 ],
                 [
+                  16,
                   11,
-                  28,
-                  107,
+                  110,
                   119
                 ],
                 [
-                  11,
-                  28,
-                  106,
+                  15,
+                  10,
+                  108,
                   119
                 ]
               ]
@@ -2010,42 +2014,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.98913,
+              "fixedStateScale": 0.990909,
               "alphaBounds": [
                 [
+                  15,
                   9,
-                  27,
-                  106,
+                  109,
                   119
                 ],
                 [
+                  17,
+                  9,
+                  112,
+                  119
+                ],
+                [
+                  14,
                   13,
-                  27,
-                  107,
+                  109,
                   119
                 ],
                 [
+                  14,
+                  9,
+                  109,
+                  119
+                ],
+                [
+                  15,
+                  9,
+                  112,
+                  119
+                ],
+                [
+                  14,
                   12,
-                  32,
-                  107,
-                  119
-                ],
-                [
-                  13,
-                  28,
-                  108,
-                  119
-                ],
-                [
-                  11,
-                  27,
-                  107,
-                  119
-                ],
-                [
-                  12,
-                  31,
-                  107,
+                  110,
                   119
                 ]
               ]
@@ -2054,42 +2058,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.045977,
+              "fixedStateScale": 1.135417,
               "alphaBounds": [
                 [
-                  17,
-                  32,
+                  19,
+                  23,
                   101,
                   119
                 ],
                 [
-                  15,
-                  32,
-                  114,
+                  17,
+                  28,
+                  105,
                   119
                 ],
                 [
-                  22,
-                  38,
-                  119,
-                  119
-                ],
-                [
-                  19,
-                  45,
-                  107,
-                  119
-                ],
-                [
-                  14,
-                  29,
+                  18,
+                  25,
                   106,
                   119
                 ],
                 [
-                  13,
-                  32,
-                  102,
+                  9,
+                  33,
+                  113,
+                  119
+                ],
+                [
+                  27,
+                  26,
+                  103,
+                  119
+                ],
+                [
+                  21,
+                  23,
+                  100,
                   119
                 ]
               ],
@@ -2105,11 +2109,11 @@
             768,
             384
           ],
-          "bytes": 185976,
-          "sha256": "83ccd242f214ebbf1c8ee5c07876509b4c5c8b242f3109be3fc0a4a6b1211b5a",
+          "bytes": 195078,
+          "sha256": "40ceb36830f6daf90a5d3a9a5a84c0a6b9a5bbbc0916b83f17dc67772248c793",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.296296,
+          "fixedViewScale": 0.963636,
           "states": {
             "idle": {
               "frameCount": 4,
@@ -2118,27 +2122,27 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  23,
-                  38,
-                  118,
+                  18,
+                  9,
+                  113,
                   119
                 ],
                 [
-                  25,
-                  36,
-                  119,
+                  18,
+                  9,
+                  113,
                   119
                 ],
                 [
-                  24,
-                  38,
-                  118,
+                  18,
+                  9,
+                  113,
                   119
                 ],
                 [
-                  24,
-                  38,
-                  117,
+                  18,
+                  9,
+                  112,
                   119
                 ]
               ]
@@ -2147,42 +2151,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.910112,
+              "fixedStateScale": 1.018519,
               "alphaBounds": [
                 [
                   21,
-                  30,
-                  115,
-                  119
-                ],
-                [
-                  25,
-                  29,
+                  11,
                   117,
                   119
                 ],
                 [
-                  25,
-                  35,
+                  21,
+                  9,
+                  117,
+                  119
+                ],
+                [
+                  18,
+                  15,
                   114,
                   119
                 ],
                 [
-                  22,
-                  29,
-                  116,
+                  19,
+                  9,
+                  115,
                   119
                 ],
                 [
-                  25,
-                  28,
-                  119,
+                  19,
+                  9,
+                  115,
                   119
                 ],
                 [
-                  25,
-                  34,
-                  113,
+                  18,
+                  9,
+                  114,
                   119
                 ]
               ]
@@ -2191,42 +2195,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.038462,
+              "fixedStateScale": 1.122449,
               "alphaBounds": [
                 [
-                  29,
-                  41,
-                  108,
-                  119
-                ],
-                [
-                  15,
-                  41,
-                  105,
-                  119
-                ],
-                [
-                  9,
-                  49,
-                  102,
-                  119
-                ],
-                [
-                  16,
-                  56,
-                  108,
-                  119
-                ],
-                [
-                  27,
-                  41,
+                  19,
+                  21,
                   106,
                   119
                 ],
                 [
-                  29,
-                  41,
+                  17,
+                  22,
                   108,
+                  119
+                ],
+                [
+                  12,
+                  22,
+                  116,
+                  119
+                ],
+                [
+                  9,
+                  34,
+                  111,
+                  119
+                ],
+                [
+                  14,
+                  21,
+                  106,
+                  119
+                ],
+                [
+                  21,
+                  21,
+                  105,
                   119
                 ]
               ],
@@ -2250,8 +2254,8 @@
             768,
             384
           ],
-          "bytes": 195038,
-          "sha256": "0bb579d777b00cd6e4646e1496ea4331daee3419bb6c07547a83c36ad094118f",
+          "bytes": 158668,
+          "sha256": "b9fe3d2d3c8421989ba68f038539713d16a5d64bb952923e16a1f99c95db9796",
           "generated": true,
           "mirrored": false,
           "fixedViewScale": 1.0,
@@ -2263,15 +2267,15 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  25,
+                  21,
                   9,
                   104,
                   119
                 ],
                 [
-                  25,
-                  14,
-                  103,
+                  21,
+                  12,
+                  104,
                   119
                 ]
               ]
@@ -2280,42 +2284,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.0092,
+              "fixedStateScale": 1.018519,
               "alphaBounds": [
                 [
                   24,
-                  10,
-                  104,
+                  11,
+                  102,
                   119
                 ],
                 [
-                  23,
-                  10,
+                  24,
+                  11,
+                  102,
+                  119
+                ],
+                [
+                  25,
+                  11,
                   103,
                   119
                 ],
                 [
-                  22,
-                  15,
-                  105,
-                  119
-                ],
-                [
                   24,
                   10,
-                  104,
+                  102,
                   119
                 ],
                 [
                   23,
                   9,
-                  104,
+                  103,
                   119
                 ],
                 [
-                  23,
-                  16,
-                  105,
+                  24,
+                  10,
+                  102,
                   119
                 ]
               ]
@@ -2324,42 +2328,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.0185,
+              "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  24,
-                  11,
-                  109,
+                  22,
+                  9,
+                  105,
                   119
                 ],
                 [
+                  12,
                   20,
-                  13,
-                  111,
+                  105,
                   119
                 ],
                 [
-                  14,
-                  18,
-                  113,
+                  11,
+                  28,
+                  110,
                   119
                 ],
                 [
-                  13,
+                  11,
+                  39,
+                  119,
+                  119
+                ],
+                [
+                  19,
                   18,
-                  114,
+                  108,
                   119
                 ],
                 [
                   22,
                   9,
-                  113,
-                  119
-                ],
-                [
-                  24,
-                  11,
-                  109,
+                  106,
                   119
                 ]
               ],
@@ -2375,8 +2379,8 @@
             768,
             384
           ],
-          "bytes": 168800,
-          "sha256": "2b41b2b75669ad56d7edf92f99aa55c0775546a29016c781d5ad54339231dcf4",
+          "bytes": 128568,
+          "sha256": "abeb395969efb5367ec1bfda7fe10c684de1ad176c458407be0e653df4fdff73",
           "generated": true,
           "mirrored": false,
           "fixedViewScale": 1.0,
@@ -2388,15 +2392,15 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  26,
+                  23,
                   9,
                   104,
                   119
                 ],
                 [
-                  26,
-                  13,
-                  104,
+                  23,
+                  10,
+                  105,
                   119
                 ]
               ]
@@ -2405,29 +2409,29 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.0185,
+              "fixedStateScale": 1.009174,
               "alphaBounds": [
                 [
-                  26,
-                  11,
-                  102,
+                  24,
+                  10,
+                  103,
                   119
                 ],
                 [
                   24,
                   9,
+                  103,
+                  119
+                ],
+                [
+                  25,
+                  11,
                   102,
                   119
                 ],
                 [
                   24,
-                  14,
-                  102,
-                  119
-                ],
-                [
-                  26,
-                  11,
+                  10,
                   102,
                   119
                 ],
@@ -2439,7 +2443,7 @@
                 ],
                 [
                   24,
-                  15,
+                  10,
                   102,
                   119
                 ]
@@ -2449,42 +2453,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.0377,
+              "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  26,
-                  13,
-                  103,
-                  119
-                ],
-                [
-                  27,
-                  21,
-                  102,
-                  119
-                ],
-                [
-                  27,
-                  32,
-                  102,
-                  119
-                ],
-                [
-                  9,
-                  43,
-                  118,
-                  119
-                ],
-                [
-                  27,
                   23,
-                  101,
+                  9,
+                  104,
                   119
                 ],
                 [
-                  26,
-                  13,
-                  103,
+                  21,
+                  18,
+                  105,
+                  119
+                ],
+                [
+                  19,
+                  30,
+                  105,
+                  119
+                ],
+                [
+                  16,
+                  37,
+                  112,
+                  119
+                ],
+                [
+                  23,
+                  18,
+                  105,
+                  119
+                ],
+                [
+                  23,
+                  9,
+                  104,
                   119
                 ]
               ],
@@ -2500,11 +2504,11 @@
             768,
             384
           ],
-          "bytes": 178728,
-          "sha256": "3935160201553685b1039fb02aa542987f2dfa9b5fee9394b06d02f736914193",
+          "bytes": 138434,
+          "sha256": "44e2640f3eefbe1d04654b22035cab5cbbee51ffb8cddd24138d2a992f97180f",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.068,
+          "fixedViewScale": 1.0,
           "states": {
             "idle": {
               "frameCount": 2,
@@ -2513,15 +2517,15 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
+                  26,
                   9,
-                  16,
-                  108,
+                  102,
                   119
                 ],
                 [
-                  11,
-                  12,
-                  108,
+                  27,
+                  13,
+                  102,
                   119
                 ]
               ]
@@ -2530,42 +2534,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.9904,
+              "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
+                  21,
                   9,
+                  106,
+                  119
+                ],
+                [
+                  21,
+                  9,
+                  106,
+                  119
+                ],
+                [
+                  21,
+                  14,
+                  105,
+                  119
+                ],
+                [
+                  22,
+                  10,
+                  106,
+                  119
+                ],
+                [
+                  21,
+                  9,
+                  106,
+                  119
+                ],
+                [
+                  21,
                   15,
-                  109,
-                  119
-                ],
-                [
-                  10,
-                  16,
-                  110,
-                  119
-                ],
-                [
-                  13,
-                  19,
-                  109,
-                  119
-                ],
-                [
-                  10,
-                  16,
-                  110,
-                  119
-                ],
-                [
-                  10,
-                  15,
-                  110,
-                  119
-                ],
-                [
-                  12,
-                  19,
-                  109,
+                  105,
                   119
                 ]
               ]
@@ -2574,42 +2578,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 1.1573,
+              "fixedStateScale": 1.028037,
               "alphaBounds": [
                 [
-                  9,
-                  30,
-                  109,
+                  19,
+                  12,
+                  107,
                   119
                 ],
                 [
-                  12,
-                  44,
-                  109,
-                  119
-                ],
-                [
-                  12,
-                  50,
+                  13,
+                  22,
                   109,
                   119
                 ],
                 [
                   11,
-                  42,
+                  35,
                   111,
                   119
                 ],
                 [
-                  15,
+                  9,
                   44,
-                  106,
+                  113,
                   119
                 ],
                 [
-                  11,
-                  30,
-                  108,
+                  12,
+                  22,
+                  109,
+                  119
+                ],
+                [
+                  19,
+                  12,
+                  107,
                   119
                 ]
               ],
@@ -2625,11 +2629,11 @@
             768,
             384
           ],
-          "bytes": 188158,
-          "sha256": "bde8e75de1aa864cf7bf42432aacefd0a392220a8efc1cba341c9c0d09c40ae0",
+          "bytes": 137120,
+          "sha256": "20f1f2baddd3ba3e96a59a16a3986c6ca1de5e653caae2500c83a05f2ac60457",
           "generated": true,
           "mirrored": false,
-          "fixedViewScale": 1.134,
+          "fixedViewScale": 1.0,
           "states": {
             "idle": {
               "frameCount": 2,
@@ -2638,15 +2642,15 @@
               "fixedStateScale": 1.0,
               "alphaBounds": [
                 [
-                  21,
-                  22,
-                  118,
+                  26,
+                  9,
+                  103,
                   119
                 ],
                 [
-                  21,
-                  19,
-                  119,
+                  27,
+                  10,
+                  102,
                   119
                 ]
               ]
@@ -2655,42 +2659,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.97,
+              "fixedStateScale": 1.009174,
               "alphaBounds": [
                 [
-                  19,
-                  19,
-                  117,
+                  23,
+                  10,
+                  107,
                   119
                 ],
                 [
-                  18,
-                  17,
-                  119,
+                  22,
+                  11,
+                  107,
                   119
                 ],
                 [
-                  19,
-                  18,
-                  116,
+                  22,
+                  14,
+                  105,
                   119
                 ],
                 [
-                  18,
-                  19,
-                  118,
+                  22,
+                  10,
+                  108,
                   119
                 ],
                 [
-                  18,
-                  17,
-                  117,
-                  119
-                ],
-                [
-                  19,
                   21,
-                  116,
+                  9,
+                  107,
+                  119
+                ],
+                [
+                  22,
+                  13,
+                  106,
                   119
                 ]
               ]
@@ -2699,42 +2703,42 @@
               "frameCount": 6,
               "distinctFrames": 6,
               "fps": 10,
-              "fixedStateScale": 0.9898,
+              "fixedStateScale": 1.057692,
               "alphaBounds": [
                 [
-                  18,
-                  21,
-                  116,
+                  25,
+                  15,
+                  107,
                   119
                 ],
                 [
-                  14,
-                  39,
+                  23,
+                  23,
+                  111,
+                  119
+                ],
+                [
+                  20,
+                  38,
+                  114,
+                  119
+                ],
+                [
+                  16,
+                  46,
                   119,
                   119
                 ],
                 [
+                  23,
+                  20,
+                  116,
+                  119
+                ],
+                [
+                  25,
                   15,
-                  39,
-                  115,
-                  119
-                ],
-                [
-                  15,
-                  36,
-                  115,
-                  119
-                ],
-                [
-                  14,
-                  39,
-                  118,
-                  119
-                ],
-                [
-                  18,
-                  21,
-                  114,
+                  107,
                   119
                 ]
               ],
@@ -2747,148 +2751,186 @@
       }
     }
   },
-  "tree": {
-    "image": "oak.webp",
-    "dimensions": [
-      384,
-      576
-    ],
-    "bytes": 115128,
-    "alphaAndVisibleColorPreserved": true,
-    "canonicalExtractInspectPassed": true,
-    "warnings": [
-      "stump: motion presence is too low (0.0000 < 0.0100)"
-    ],
-    "states": {
-      "idle": {
-        "frameCount": 2,
-        "distinctFrames": 2,
-        "fps": 2,
-        "alphaBounds": [
-          [
-            16,
-            23,
-            175,
-            180
-          ],
-          [
-            13,
-            23,
-            180,
-            180
-          ]
-        ]
-      },
-      "hit": {
-        "frameCount": 2,
-        "distinctFrames": 2,
-        "fps": 8,
-        "alphaBounds": [
-          [
-            12,
-            57,
-            143,
-            180
-          ],
-          [
-            40,
-            56,
-            172,
-            180
-          ]
-        ]
-      },
-      "stump": {
-        "frameCount": 1,
-        "distinctFrames": 1,
-        "fps": 1,
-        "alphaBounds": [
-          [
-            19,
-            74,
-            180,
-            180
-          ]
-        ]
-      }
-    }
-  },
-  "resources": {
-    "berry": {
-      "image": "berry.webp",
-      "dimensions": [
-        192,
-        192
-      ],
-      "bytes": 34708,
-      "realAlpha": true,
-      "matchesAlphaAwareNormalization": true,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.9375
-      }
-    },
-    "bamboo": {
-      "image": "bamboo.webp",
-      "dimensions": [
-        192,
-        192
-      ],
-      "bytes": 31946,
-      "realAlpha": true,
-      "matchesAlphaAwareNormalization": true,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.9375
-      }
-    },
-    "grain": {
-      "image": "grain.webp",
-      "dimensions": [
-        192,
-        192
-      ],
-      "bytes": 36620,
-      "realAlpha": true,
-      "matchesAlphaAwareNormalization": true,
-      "anchor": {
-        "x": 0.5,
-        "y": 0.9375
-      }
-    }
-  },
-  "ground": {
-    "image": "grass.webp",
-    "dimensions": [
-      512,
-      512
-    ],
-    "repeat": "xy",
-    "canonicalTileStatus": "needs-review",
-    "canonicalReviewReasons": [
-      "x: Internal quilt color difference exceeds source interior variation."
-    ],
-    "visualReview": "A2x2 repeat and live projected-ground scrolling showed no obvious seam at native game display scale.",
-    "edges": {
-      "x": {
-        "mean": 2.208984375,
-        "p95": 8.59999942779541,
-        "max": 30.0
-      },
-      "y": {
-        "mean": 1.1614583730697632,
-        "p95": 4.0,
-        "max": 16.33333396911621
-      }
-    }
-  },
   "totalAnimalFrames": 312,
-  "totalAnimalAtlasBytes": 3984912,
-  "motionReview": {
-    "views": "All five species have separately generated front, back, right and left art. Back views have no forward-facing eyes; anatomy and identity reviewed in contact sheets and the local browser.",
-    "contact": "All 20 six-frame actions use 600ms native cycles, with index3 contact at330ms. Rules and renderer share the timing contract; helpers finish recovery before moving.",
-    "scale": "Constant view and animation scales measured from ready body height; no per-frame resizing. Feet share the ground anchor.",
-    "limit": "Short six-frame cycles can show small shape changes. Exact same-foot contact across every transition, real mobile-device performance and human playtest enjoyment are unverified."
+  "totalAnimalAtlasBytes": 3388554,
+  "environment": {
+    "images": {
+      "berry": {
+        "image": "berry.webp",
+        "dimensions": [
+          192,
+          192
+        ],
+        "bytes": 29990,
+        "sha256": "1b5e32378c44c388d1e315ce8866af02fb51b52e765d30a4eef70debad1396f0",
+        "RGBAExactToNormalizedSource": true,
+        "alphaBounds": [
+          6,
+          17,
+          186,
+          180
+        ],
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        }
+      },
+      "bamboo": {
+        "image": "bamboo.webp",
+        "dimensions": [
+          192,
+          192
+        ],
+        "bytes": 23634,
+        "sha256": "45342092f56009613b9e62a04440f88ab68b581eb4c14a00c49dbd7d9f1942f7",
+        "RGBAExactToNormalizedSource": true,
+        "alphaBounds": [
+          17,
+          6,
+          174,
+          180
+        ],
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        },
+        "normalization": {
+          "method": "sprite-gen.util.resample.resize_cell contain",
+          "maxDimension": 174,
+          "cellSize": [
+            192,
+            192
+          ],
+          "rootBaseline": 180,
+          "minimumTopMargin": 6,
+          "solidPixelsHandEdited": false
+        }
+      },
+      "grain": {
+        "image": "grain.webp",
+        "dimensions": [
+          192,
+          192
+        ],
+        "bytes": 27346,
+        "sha256": "36bca93de514450cfa3c7bc082cc5afe1ea6b74a813e10010c21a3fe76d99765",
+        "RGBAExactToNormalizedSource": true,
+        "alphaBounds": [
+          7,
+          6,
+          185,
+          180
+        ],
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        }
+      },
+      "grass": {
+        "image": "grass.webp",
+        "dimensions": [
+          512,
+          512
+        ],
+        "bytes": 190830,
+        "sha256": "7429b634ff8609573e46e690945244c51a55141a8d3ee98686beb64d2e31ca4f",
+        "RGBAExactToNormalizedSource": true,
+        "alphaBounds": [
+          0,
+          0,
+          512,
+          512
+        ]
+      },
+      "oak": {
+        "image": "oak.webp",
+        "dimensions": [
+          384,
+          576
+        ],
+        "bytes": 91920,
+        "sha256": "e14f2450c2850ba65013bd3726197e950af862b1f7b4f6a2e53981f84090cc3c",
+        "RGBAExactToNormalizedSource": true,
+        "alphaBounds": [
+          12,
+          23,
+          372,
+          564
+        ]
+      }
+    },
+    "ground": {
+      "image": "grass.webp",
+      "size": [
+        512,
+        512
+      ],
+      "repeat": "xy",
+      "canonicalStatus": "needs-review",
+      "reviewReasons": [
+        "x: Internal quilt color difference exceeds source interior variation."
+      ],
+      "edgeColorDifference": {
+        "x": {
+          "mean": 0.748046875,
+          "p95": 1.6666666269302368,
+          "max": 4.333333492279053
+        },
+        "y": {
+          "mean": 0.609375,
+          "p95": 1.3333333730697632,
+          "max": 5.666666507720947
+        }
+      },
+      "overlap": 64,
+      "visualReview": "2x2 repeat checked. No sharp edge seam at game-scale; soft internal quilt color patches remain with canonical needs-review warning."
+    },
+    "treeInspect": {
+      "ok": true,
+      "warnings": [
+        "stump: motion presence is too low (0.0000 < 0.0100)"
+      ],
+      "states": {
+        "idle": {
+          "frameCount": 2,
+          "distinctPoseCount": 2,
+          "errors": [],
+          "warnings": []
+        },
+        "hit": {
+          "frameCount": 2,
+          "distinctPoseCount": 2,
+          "errors": [],
+          "warnings": []
+        },
+        "stump": {
+          "frameCount": 1,
+          "distinctPoseCount": 1,
+          "errors": [],
+          "warnings": [
+            "stump: motion presence is too low (0.0000 < 0.0100)"
+          ]
+        }
+      }
+    },
+    "totalEnvironmentBytes": 363720
   },
-  "totalRuntimeAssetBytes": 4718832
+  "pipelineNotes": [
+    "All family artwork newly generated from the accepted pastel squirrel style target; no color-only reuse of old animal artwork.",
+    "All four views separately generated through direction/state anchors and canonical extraction/composition.",
+    "Copied squirrel idle rows with a differing key were reconciled using canonical cutout, then canonical extract/compose.",
+    "Grain background haze was removed by canonical slice-sheet alpha-floor64, preserving solid/edge pixels.",
+    "Bamboo normalized by canonical resize_cell with6px top margin and180px foot baseline.",
+    "RGBA lossless exact export checked by asset owners; parent independently checked distinct frames, alpha margins, image dimensions and SHA256."
+  ],
+  "motionReview": {
+    "contact": "All20 six-frame work rows use600ms cycles, index3 contact at330ms. Runtime retains the same direction/timing rules.",
+    "scale": "Fixed view and state ready-body-height corrections; no per-frame image warps.",
+    "knownLimits": [
+      "Redpanda left harvest has a minor collar-star count change and a few low bamboo leaves; not a facing/anatomy failure.",
+      "Bear front/right eye highlights can read warmer than its other poses.",
+      "Short six-frame cycles can show minor shape changes; exact same-foot contact across all transitions and real mobile-device temporal performance remain unverified."
+    ]
+  },
+  "totalRuntimeAssetBytes": 4037873
 }
