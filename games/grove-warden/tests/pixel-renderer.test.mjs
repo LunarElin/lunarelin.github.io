@@ -218,6 +218,38 @@ test('the same foreground tree fades to reveal the player and becomes opaque whe
   } finally { f.close(); }
 });
 
+test('repeated high-refresh renders hold an enemy walk frame until a real stop without mutating the simulation', async () => {
+  const f = await fixture();
+  try {
+    const state = createGame(8022), actor = state.enemies.find(enemy => enemy.type === 'mushroom'), asset = buildPixelArt().sprites.mushroom;
+    state.phase = 'playing'; state.player.x = state.player.z = 0; state.spawners = []; state.enemies = [actor]; state.events = [];
+    actor.x = 2; actor.z = 1; actor.phase = 'chase';
+    const frame = dt => {
+      const before = structuredClone(state); drawSignature(f.view, state, dt, 10000); assert.deepEqual(state, before);
+      const viewport = f.module.computePixelViewport(f.bounds.width, f.bounds.height);
+      const p = f.module.projectPixel(actor.x, actor.z, 0, 0, viewport);
+      const call = f.view.canvas.context.calls.find(item => {
+        if (item[0] !== 'drawImage') return false;
+        const image = f.canvases[item[1]], x = item.length === 11 ? item[6] : item[2], y = item.length === 11 ? item[7] : item[3];
+        return image.width === asset.width && image.height === asset.height && x === p.x - asset.anchorX && y === p.y - asset.anchorY;
+      });
+      assert.ok(call); return call[1];
+    };
+    const idle = frame(0); let walking;
+    for (let step = 0; step < 3; step++) { actor.z += 0.1; walking = frame(0.05); }
+    assert.notEqual(walking, idle);
+    assert.equal(frame(0.007), walking);
+    state.phase = 'paused'; const clock = f.view.stats().clock;
+    for (let repeat = 0; repeat < 4; repeat++) assert.equal(frame(0.1), walking);
+    assert.equal(f.view.stats().clock, clock);
+    state.phase = 'playing';
+    for (let step = 0; step < 3; step++) walking = frame(0.05);
+    assert.equal(walking, idle);
+    // Continue beyond the next animated walk frame so an accidental phase-zero match cannot pass.
+    assert.equal(frame(0.05), idle); assert.equal(frame(0.05), idle);
+  } finally { f.close(); }
+});
+
 test('disposing disconnects resize observation removes the canvas and prevents further drawing', async () => {
   const f = await fixture();
   try {

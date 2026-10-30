@@ -151,9 +151,12 @@ export async function createRenderer(container) {
     for (const item of state.fieldEvents?.items || []) { const p = point(item.x, item.z); if (visible(p)) sorted.push({ id: item.kind === 'chest' ? 'chest' : 'blessing', x: item.x, z: item.z, p }); }
     const liveIds = new Set([player.id]);
     for (const e of state.enemies || []) {
-      if (e.hp <= 0) continue; liveIds.add(e.id); const p = point(e.x, e.z), prev = positions.get(e.id), dx = prev ? e.x - prev.x : 0, dz = prev ? e.z - prev.z : 1;
-      const moving = Math.abs(dx) + Math.abs(dz) > .00001, dir = moving ? direction(dx, dz) : prev?.dir || 'down';
-      if (running || !prev) positions.set(e.id, { x: e.x, z: e.z, dir, moving });
+      if (e.hp <= 0) continue; liveIds.add(e.id); const p = point(e.x, e.z), prev = positions.get(e.id), dx = prev ? e.x - prev.x : 0, dz = prev ? e.z - prev.z : 0;
+      const moved = Math.abs(dx) + Math.abs(dz) > .00001, lastMoved = moved ? clock : prev?.lastMoved ?? -1;
+      // Rendering can run faster than the fixed simulation. Hold the walk pose
+      // across repeated simulation frames instead of flashing back to idle.
+      const moving = moved || clock - lastMoved < .12, dir = moved ? direction(dx, dz) : prev?.dir || 'down';
+      if (running || !prev) positions.set(e.id, { x: e.x, z: e.z, dir, moving, lastMoved });
       if (visible(p)) sorted.push({ id: spriteId(e), x: e.x, z: e.z, p, actor: e, dir, moving: running ? moving : prev?.moving, key: e.id });
     }
     for (const id of positions.keys()) if (!liveIds.has(id)) positions.delete(id);
