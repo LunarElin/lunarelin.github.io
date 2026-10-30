@@ -1,3 +1,4 @@
+import { expandDining, setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
@@ -11,7 +12,7 @@ function shop(seed = 42) {
   const state = createGame(seed);
   state.sales = 16;
   state.unlocks.inn = true;
-  state.dining.tableCount = 4; state.dining.tables.forEach((table) => { table.status = 'clean'; }); // Explicit fully expanded fixture.
+  expandDining(state); // Explicit fully expanded fixture.
   state.dining.food = 4; // Deliberate stocked dining fixture, not automatic service.
   state.raid.timer = state.raid.triggerSales = 1e6;
   state.timers.customer = 1000;
@@ -19,14 +20,14 @@ function shop(seed = 42) {
   return state;
 }
 
-function addGuest(state, id = 'guest', phase = 'food-queue', tableId = null) {
+function addGuest(state, id = 'guest', phase = 'food-queue', tableId = null, seatId = 0) {
   const stats = CLASS_STATS.warrior;
   state.patrons.push({ id, kind: 'warrior', purchases: 1, totalSpent: 50, loyalty: 1, hp: 20, maxHp: stats.hp, equipmentLevel: 1 });
   const layout = getDiningLayout(state);
-  const position = phase === 'eating' ? layout.tables[tableId].seat : layout.queue[0];
-  const customer = { id, ...position, kind: 'warrior', product: 'gear', phase, hp: stats.hp, purchased: true, patronId: id, timer: 0, patience: 0, tableId, meal: phase === 'to-table', foodJoinedAt: state.time };
+  const position = phase === 'eating' ? layout.tables[tableId].seats[seatId].seatPoint : layout.queue[0];
+  const customer = { id, ...position, kind: 'warrior', product: 'gear', phase, hp: stats.hp, purchased: true, patronId: id, timer: 0, patience: 0, tableId, seatId, meal: phase === 'to-table', foodJoinedAt: state.time };
   state.customers.push(customer);
-  if (phase === 'eating' || phase === 'to-table') state.dining.tables[tableId] = { status: phase === 'eating' ? 'eating' : 'reserved', customerId: id, cleanProgress: 0 };
+  if (phase === 'eating' || phase === 'to-table') setSeatState(state, tableId, seatId, phase === 'eating' ? 'eating' : 'reserved', { customerId: id });
   return customer;
 }
 
@@ -104,7 +105,7 @@ test('a paid guest takes one meal, reserves a unique seat, eats, and pays once l
 
 test('dirty or occupied seats block meal pickup until cleaning creates a clean seat', () => {
   const state = shop();
-  state.dining.tables.forEach((table) => { table.status = 'dirty'; });
+  state.dining.tables.forEach((table, id) => table.seats.forEach((seat, seatId) => setSeatState(state, id, seatId, 'dirty')));
   const guest = addGuest(state);
   run(state, 2);
   assert.equal(guest.phase, 'food-queue');
@@ -119,13 +120,13 @@ test('dirty or occupied seats block meal pickup until cleaning creates a clean s
   assert.equal(guest.phase, 'to-table');
   assert.equal(guest.tableId, 0);
   assert.equal(state.dining.food, 3);
-  assert.equal(state.dining.tables[0].status, 'reserved');
-  assert.equal(state.dining.tables.filter(({ status }) => status === 'dirty').length, 3);
+  assert.equal(state.dining.tables[0].seats[0].status, 'reserved');
+  assert.equal(state.dining.tables.filter(({ status }) => status === 'dirty').length, 4);
 });
 
 test('a dirty table requires a stationary nearby player, and movement resets partial cleaning', () => {
   const state = shop();
-  state.dining.tables[0].status = 'dirty';
+  setSeatState(state, 0, 0, 'dirty');
   const target = getDiningLayout(state).tables[0].cleanPoint;
   run(state, 3);
   assert.equal(state.dining.cleaned, 0, 'distant player does not clean');
@@ -144,13 +145,15 @@ test('a dirty table requires a stationary nearby player, and movement resets par
   assert.equal(state.moneyPiles.inn, 0, 'cleaning is work, without a second sale');
 });
 
-test('four food guests reserve different tables and a fifth purchaser cannot exceed dining occupancy', () => {
+test('four food guests reserve distinct seats, and a full food waiting line rejects further guests', () => {
   const state = shop();
   for (let index = 0; index < 4; index++) addGuest(state, `guest-${index}`);
   run(state, 2.5);
   const held = state.customers.filter((guest) => ['to-table', 'eating'].includes(guest.phase));
   assert.equal(held.length, 4);
-  assert.equal(new Set(held.map(({ tableId }) => tableId)).size, 4);
+  assert.equal(new Set(held.map(({ tableId, seatId }) => tableId + ':' + seatId)).size, 4);
+  assert.equal(new Set(held.map(({ tableId }) => tableId)).size, 2);
+  for (let index = 0; index < 4; index++) addGuest(state, 'waiting-' + index);
   const front = getCustomerQueueSlots(state)[0];
   state.stocks.gear = 1;
   state.customers.push({ id: 'buyer', ...front, kind: 'warrior', product: 'gear', phase: 'queue', purchased: false, hp: 90, timer: getFacilityStats(state, 'counter').seconds, patience: 0 });
@@ -184,9 +187,9 @@ test('dining v1 saves keep food and dirty tables, convert occupied seats safely,
   state.dining.kitchen = 6;
   state.dining.food = 2;
   state.dining.cleaned = 7;
-  state.dining.tables[0].status = 'dirty';
-  state.dining.tables[1].status = 'reserved';
-  state.dining.tables[2].status = 'eating';
+  setSeatState(state, 0, 0, 'dirty');
+  setSeatState(state, 1, 0, 'reserved');
+  setSeatState(state, 2, 0, 'eating');
   const saved = JSON.parse(serialize(state));
   const loaded = restore(saved);
   assert.equal(loaded.saveReset, false);

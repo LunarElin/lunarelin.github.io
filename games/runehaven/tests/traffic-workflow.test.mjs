@@ -1,6 +1,9 @@
+import { BALANCE } from '../balance.mjs';
+import { BATTLE_BOUNDS } from '../battlefield.mjs';
+import { getShopObstacles, projectShopTarget, SHOP_RADIUS, shopLineClear } from '../shop-navigation.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { act, createGame, getMoneyPiles, getStationApproach, getStations, step } from '../rules.mjs';
+import { act, createGame, getMoneyPiles, getStationApproach, getStations, restore, serialize, step } from '../rules.mjs';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
@@ -32,7 +35,7 @@ test('cash remains on the central side of both counters, including mirrored regi
   }
 });
 
-test('all regional work and cash targets are reached on one straight line without detours', () => {
+test('all regional work and cash targets remain reachable, using direct lines only where furniture is clear', () => {
   let trips = 0;
   for (let stage = 1; stage <= 10; stage++) {
     const state = controlledShop(stage);
@@ -42,22 +45,24 @@ test('all regional work and cash targets are reached on one straight line withou
       .concat(getMoneyPiles(state));
     for (const from of points) for (const target of points) {
       if (from === target) continue;
-      Object.assign(state.player, { x: from.x, z: from.z, target: null });
-      let frames = 0, previousDistance = distance(from, target);
-      while (distance(state.player, target) > .1 && frames < 250) {
+      const start = projectShopTarget(state, from), goal = projectShopTarget(state, target);
+      Object.assign(state.player, { ...start, target: null });
+      const direct = shopLineClear(state, start, goal);
+      let frames = 0;
+      while (distance(state.player, goal) > .1 && frames < 400) {
+        const before = { x: state.player.x, z: state.player.z };
         step(state, .05, { target });
-        assertOnLine(state.player, from, target);
-        const remaining = distance(state.player, target);
-        assert.ok(remaining < previousDistance, `region ${stage}: every frame advances toward the destination`);
-        previousDistance = remaining;
+        if (direct) assertOnLine(state.player, start, goal);
+        assert.ok(shopLineClear(state, before, state.player), 'each segment clears static furniture');
+        assert.ok(distance(before, state.player) > 0, 'the route never stalls at a furniture corner');
         frames++;
       }
-      assert.ok(frames < 250, `region ${stage}: destination is reached promptly`);
-      assert.ok(distance(state.player, target) <= .1);
+      assert.ok(frames < 400, 'regional destination is reached promptly');
+      assert.ok(distance(state.player, goal) <= .1);
       trips++;
     }
   }
-  assert.equal(trips, 1320, 'all five work points, three legacy piles, and four table piles are reachable directly');
+  assert.equal(trips, 1320, 'all five work points, three legacy piles, and four table piles are reachable without crossing furniture');
 });
 
 test('a full waiting line does not block a straight floor tap through its shoppers', () => {
@@ -118,4 +123,42 @@ test('three workers sustain paid commerce with natural production while overlaps
     assert.ok(state.sales > 30, `region ${stage}: direct transport sustains purchases`);
     assert.ok(state.patrons.length > 0);
   }
+});
+
+function insideFurniture(state, point) {
+  return getShopObstacles(state).some(r => point.x > r.minX - SHOP_RADIUS + 1e-6 && point.x < r.maxX + SHOP_RADIUS - 1e-6
+    && point.z > r.minZ - SHOP_RADIUS + 1e-6 && point.z < r.maxZ + SHOP_RADIUS - 1e-6);
+}
+
+test('joystick stops at furniture while taps normalize a solid destination and finish safely', () => {
+  const state = controlledShop(1), forge = getShopObstacles(state).find(r => r.id === 'forge'); state.timers.customer = 1e6;
+  Object.assign(state.player, { x: forge.minX - SHOP_RADIUS - .3, z: (forge.minZ + forge.maxZ) / 2 });
+  for (let frame = 0; frame < 60; frame++) { step(state, .05, { x: 1 }); assert.equal(insideFurniture(state, state.player), false); }
+  assert.ok(state.player.x <= forge.minX - SHOP_RADIUS + 1e-6, 'direct input cannot walk through a solid forge');
+  const target = getStations(state).forge, goal = projectShopTarget(state, target);
+  for (let frame = 0; frame < 200 && distance(state.player, goal) > .1; frame++) { step(state, .05, { target }); assert.equal(insideFurniture(state, state.player), false); }
+  assert.ok(distance(state.player, goal) <= .1);
+  for (let frame = 0; frame < 20 && state.player.target; frame++) step(state, .05);
+  assert.equal(state.player.target, null);
+});
+
+test('blink and restore keep shop characters out of solid furniture without extending the source blink range', () => {
+  for (let stage = 1; stage <= 10; stage++) {
+    const state = controlledShop(stage), target = getStations(state).forge; state.player.speedLevel = 21;
+    for (const offset of [-3.5, -2, 2, 3.5]) {
+      const origin = projectShopTarget(state, { x: target.x + offset, z: target.z + 1.5 });
+      Object.assign(state.player, { ...origin, blinkCooldown: 0 }); act(state, 'blink', { target });
+      assert.equal(insideFurniture(state, state.player), false); assert.ok(distance(origin, state.player) <= BALANCE.magic.range + .000001);
+    }
+  }
+  const state = createGame(42); Object.assign(state.player, getStations(state).forge); const loaded = restore(serialize(state));
+  assert.equal(loaded.saveReset, false); assert.equal(insideFurniture(loaded, loaded.player), false);
+});
+
+test('outdoor blink uses the outdoor boundary instead of the shop boundary', () => {
+  const state = createGame(42); state.player.speedLevel = 21; state.raid.location = 'outside';
+  const start = { x: BATTLE_BOUNDS.maxX - .2, z: BATTLE_BOUNDS.maxZ - .2 }; Object.assign(state.player, start);
+  assert.equal(act(state, 'blink', { target: { x: start.x + 10, z: start.z + 10 } }).ok, true);
+  assert.equal(state.player.x, BATTLE_BOUNDS.maxX); assert.equal(state.player.z, BATTLE_BOUNDS.maxZ);
+  assert.ok(distance(start, state.player) <= BALANCE.magic.range);
 });

@@ -1,3 +1,4 @@
+import { setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE, TABLE_UNLOCK_COSTS } from '../balance.mjs';
@@ -13,13 +14,13 @@ function inn() {
   Object.assign(state.player, { x: 5.8, z: 5.8 });
   return state;
 }
-function guest(state, id, phase = 'food-queue') {
+function guest(state, id, phase = 'food-queue', seatId = 0) {
   state.patrons.push({ id, kind: 'warrior', purchases: 1, totalSpent: 50, loyalty: 1, hp: 90, maxHp: 90, equipmentLevel: 1 });
   const place = getDiningLayout(state);
-  const customer = { id, ...(phase === 'eating' ? place.tables[0].seat : place.queue[0]), kind: 'warrior', product: 'gear', phase,
-    hp: 90, purchased: true, patronId: id, timer: 0, patience: 0, tableId: phase === 'eating' ? 0 : null, foodJoinedAt: state.time };
+  const customer = { id, ...(phase === 'eating' ? place.tables[0].seats[seatId].seatPoint : place.queue[0]), kind: 'warrior', product: 'gear', phase,
+    hp: 90, purchased: true, patronId: id, timer: 0, patience: 0, tableId: phase === 'eating' ? 0 : null, seatId, foodJoinedAt: state.time };
   state.customers.push(customer);
-  if (phase === 'eating') Object.assign(state.dining.tables[0], { status: 'eating', customerId: id });
+  if (phase === 'eating') setSeatState(state, 0, seatId, 'eating', { customerId: id });
   return customer;
 }
 
@@ -51,9 +52,9 @@ test('opening the inn buys one table, then the three actual opening prices unloc
   assert.equal(act(state, 'unlock-table').ok, false);
 });
 
-test('one occupied or dirty table keeps the next guest waiting without using locked seats or spending a meal', () => {
+test('two occupied or dirty seats keep the next guest waiting without using locked seats or spending a meal', () => {
   const state = inn(); state.dining.food = 4;
-  guest(state, 'eater', 'eating'); const waiting = guest(state, 'waiting');
+  guest(state, 'eater', 'eating'); guest(state, 'eater-2', 'eating', 1); const waiting = guest(state, 'waiting');
   run(state, .5);
   assert.equal(waiting.phase, 'food-queue');
   assert.equal(state.dining.food, 4);
@@ -100,7 +101,7 @@ test('each meal leaves its bill beside its table, and proximity collects only th
 
 test('v1 saves retain partial table expansion and separate bills while older open inns retain all four seats and legacy money', () => {
   const state = inn(); state.gold = 1000;
-  act(state, 'unlock-table'); state.dining.tables[0].status = 'dirty'; state.dining.tables[0].cash = 240; state.moneyPiles.inn = 51;
+  act(state, 'unlock-table'); setSeatState(state, 0, 0, 'dirty'); state.dining.tables[0].cash = 240; state.moneyPiles.inn = 51;
   const saved = JSON.parse(serialize(state)), loaded = restore(saved);
   assert.equal(loaded.saveReset, false);
   assert.equal(loaded.dining.tableCount, 2);

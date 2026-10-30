@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { THREE } from '../asset-loader.mjs';
-import { DINING_RULES, createDiningState, getDiningLayout } from '../dining.mjs';
+import { DINING_RULES, createDiningState, getDiningLayout, updateDiningTable } from '../dining.mjs';
+import { CARRY_SPACING } from '../product-visuals.mjs';
 import { createDiningVisuals } from '../dining-visuals.mjs';
 
 async function fixture(t) {
@@ -18,6 +19,10 @@ async function fixture(t) {
   const group = scene.getObjectByName('inn-dining');
   return { scene, loads, geometry, materials, visuals, state, group };
 }
+function setSeats(state, tableId, statuses) {
+  statuses.forEach((status, seatId) => { state.dining.tables[tableId].seats[seatId].status = status; });
+  return updateDiningTable(state.dining.tables[tableId]);
+}
 
 test('simple dining furniture needs no model loads and reuses pooled food and table dishes across service cycles', async (t) => {
   const { loads, visuals, state, group } = await fixture(t);
@@ -29,12 +34,13 @@ test('simple dining furniture needs no model loads and reuses pooled food and ta
   const meshCount = [], food = prepared.geometry;
   for (let cycle = 0; cycle < 20; cycle++) {
     for (const status of ['clean', 'reserved', 'eating', 'dirty']) {
-      state.dining.tables[0].status = status; state.dining.food = cycle % 9; visuals.update(state);
+      setSeats(state, 0, [status, status]); state.dining.food = cycle % 9; visuals.update(state);
       assert.equal(prepared.count, cycle % 9);
       assert.equal(dish.visible, status === 'eating' || status === 'dirty');
       assert.equal(dish.geometry === food, status !== 'dirty');
       assert.equal(top.material.color.getHex() === cleanColor, status !== 'dirty', 'used tables must be visibly different without detailed decals');
       assert.equal(group.getObjectByName('dining-table-0').getObjectByName('dining-table-dish'), dish);
+      assert.equal(table.getObjectByName('dining-table-dish-1').visible, dish.visible);
       let count = 0; group.traverse((node) => { if (node.isMesh) count++; }); meshCount.push(count);
     }
   }
@@ -53,9 +59,21 @@ test('region updates place all furniture at the rules layout and locked inn hide
     assert.equal(group.visible, true); assert.equal(counter.position.x, layout.counter.x); assert.equal(counter.position.z, layout.counter.z);
     assert.equal(kitchen.position.x, layout.kitchen.x); assert.equal(kitchen.position.z, layout.kitchen.z);
     for (const table of layout.tables) {
-      const furniture = group.getObjectByName(`dining-table-${table.id}`), chair = group.getObjectByName(`dining-chair-${table.id}`);
+      const furniture = group.getObjectByName(`dining-table-${table.id}`);
       assert.equal(furniture.position.x, table.x); assert.equal(furniture.position.z, table.z);
-      assert.equal(chair.position.x, table.seat.x); assert.equal(chair.position.z, table.seat.z); assert.equal(chair.rotation.y, Math.PI);
+      group.updateMatrixWorld(true);
+      for (const seat of table.seats) {
+        const chair = group.getObjectByName(`dining-chair-${table.id}${seat.id ? '-1' : ''}`);
+        const dish = furniture.getObjectByName(`dining-table-dish${seat.id ? '-1' : ''}`), point = dish.getWorldPosition(new THREE.Vector3());
+        assert.equal(chair.position.x, seat.seatPoint.x); assert.equal(chair.position.z, seat.seatPoint.z); assert.equal(chair.rotation.y, seat.yaw);
+        for (const key of ['x', 'y', 'z']) assert.ok(Math.abs(point[key] - seat.dishPoint[key]) < .000001);
+        const bounds = new THREE.Box3().setFromObject(chair);
+        for (const waiting of layout.queue) {
+          const dx = Math.max(0, bounds.min.x - waiting.x - .25, waiting.x - .25 - bounds.max.x);
+          const dz = Math.max(0, bounds.min.z - waiting.z - .25, waiting.z - .25 - bounds.max.z);
+          assert.ok(Math.hypot(dx, dz) >= .6, 'both opposite chairs retain the food-line clearance');
+        }
+      }
     }
   }
 });
@@ -67,21 +85,43 @@ test('unbought tables and chairs stay hidden, then appear without replacing thei
   const chair = group.getObjectByName('dining-chair-1');
   const geometry = next.getObjectByName('dining-table-top').geometry;
   assert.equal(first.visible, true); assert.equal(next.visible, false); assert.equal(chair.visible, false);
-  state.dining.tableCount = 2; state.dining.tables[1].status = 'clean'; visuals.update(state);
+  state.dining.tableCount = 2; setSeats(state, 1, ['clean', 'clean']); visuals.update(state);
   assert.equal(next.visible, true); assert.equal(chair.visible, true);
   assert.equal(next.getObjectByName('dining-table-top').geometry, geometry);
   assert.equal(group.getObjectByName('dining-table-2').visible, false);
+  assert.equal(group.getObjectByName('dining-chair-1-1').visible, true);
+  assert.equal(group.getObjectByName('dining-chair-2-1').visible, false);
+});
+
+test('two opposite seats display independent meals and cleaning without changing shared furniture buffers', async (t) => {
+  const { visuals, state, group } = await fixture(t);
+  const table = group.getObjectByName('dining-table-0'), top = table.getObjectByName('dining-table-top');
+  const eating = table.getObjectByName('dining-table-dish'), dirty = table.getObjectByName('dining-table-dish-1');
+  const geometry = top.geometry, cleanMaterial = top.material;
+  setSeats(state, 0, ['eating', 'dirty']); state.dining.tables[0].seats[1].cleanProgress = DINING_RULES.cleanSeconds / 2;
+  visuals.update(state);
+  assert.equal(eating.visible, true); assert.equal(dirty.visible, true); assert.notEqual(eating.geometry, dirty.geometry);
+  assert.equal(eating.scale.x, 1); assert.ok(Math.abs(dirty.scale.x - .725) < .000001);
+  assert.equal(top.material, cleanMaterial, 'one dirty seat does not discolor the diner at the other seat');
+  setSeats(state, 0, ['dirty', 'dirty']); visuals.update(state); assert.notEqual(top.material, cleanMaterial);
+  setSeats(state, 0, ['eating', 'clean']); visuals.update(state);
+  assert.equal(dirty.visible, false); assert.equal(eating.visible, true); assert.equal(top.geometry, geometry);
+  const first = group.getObjectByName('dining-chair-0'), second = group.getObjectByName('dining-chair-0-1');
+  assert.equal(first.geometry, second.geometry); assert.equal(first.material, second.material);
+  assert.equal(first.rotation.y, Math.PI); assert.equal(second.rotation.y, 0);
 });
 
 test('carried meals reuse the same one-mesh dish and share buffers without touching existing cargo', async (t) => {
   const { visuals, group } = await fixture(t);
-  const actor = { carry: new THREE.Group() }, cargo = new THREE.Group(); actor.carry.add(cargo);
+  const actor = { root: new THREE.Group(), carry: new THREE.Group() }, cargo = new THREE.Group(); actor.root.add(actor.carry); actor.carry.add(cargo);
   visuals.setGuestMeal(actor, false); assert.equal(actor.carry.children.length, 1);
   visuals.setGuestMeal(actor, true);
-  const meal = actor.carry.getObjectByName('dining-carried-meal'), prepared = group.getObjectByName('dining-prepared-food');
+  const meal = actor.root.getObjectByName('dining-carried-meal'), prepared = group.getObjectByName('dining-prepared-food');
   assert.equal(meal.geometry, prepared.geometry); assert.equal(meal.material, prepared.material); assert.equal(meal.material.userData.diningShared, true);
   for (let i = 0; i < 30; i++) { visuals.setGuestMeal(actor, i % 2 === 0); assert.equal(meal.visible, i % 2 === 0); }
-  assert.equal(actor.carry.children.length, 2); assert.equal(actor.carry.children[0], cargo);
+  visuals.setGuestMeal(actor, 3); assert.equal(meal.count, 3); assert.equal(meal.parent, actor.root);
+  assert.equal(meal.position.y, .65); assert.equal(meal.position.z, .35);
+  assert.equal(actor.carry.children.length, 1); assert.equal(actor.carry.children[0], cargo);
 });
 
 test('kitchen stock and served stock stay independent and reuse uploaded matrices through transport', async (t) => {
@@ -116,16 +156,36 @@ test('multiple food stacks reuse shared dishes and change counts without uploadi
   }
   const matrix = new THREE.Matrix4(), position = new THREE.Vector3();
   stacks[0].getMatrixAt(21, matrix); position.setFromMatrixPosition(matrix);
-  assert.ok(Math.abs(position.y - 21 * .22) < .00001);
+  assert.ok(Math.abs(position.y - 21 * CARRY_SPACING.food) < .00001);
   visuals.setFoodStack(parents[0], 100, 2, .25);
   assert.equal(stacks[0].count, 60); stacks[0].getMatrixAt(3, matrix); position.setFromMatrixPosition(matrix);
   assert.ok(Math.abs(position.x - .25) < .00001); assert.ok(Math.abs(position.y - .25) < .00001);
   assert.ok(stacks[0].boundingBox && Number.isFinite(stacks[0].boundingSphere.radius));
 });
 
+test('packed carried meals animate through the shared bounded stack motion while kitchen and service stock stay still', async (t) => {
+  const { visuals, group } = await fixture(t), parent = new THREE.Group(); parent.position.y = .7;
+  const stack = visuals.setFoodStack(parent, 7), matrix = new THREE.Matrix4(), point = new THREE.Vector3();
+  const matrixBuffer = stack.instanceMatrix, staticStock = group.getObjectByName('dining-prepared-food');
+  const staticVersion = staticStock.instanceMatrix.version, firstVersion = stack.instanceMatrix.version;
+  stack.geometry.computeBoundingBox();
+  assert.ok(stack.geometry.boundingBox.max.y - stack.geometry.boundingBox.min.y <= CARRY_SPACING.food);
+  for (let frame = 1; frame <= 20; frame++) visuals.animateFoodStack(parent, { time: frame / 60, moving: true, dt: 1 / 60 });
+  assert.equal(stack.instanceMatrix, matrixBuffer); assert.ok(stack.instanceMatrix.version > firstVersion);
+  assert.equal(staticStock.instanceMatrix.version, staticVersion); assert.equal(parent.position.y, .7);
+  stack.getMatrixAt(6, matrix); point.setFromMatrixPosition(matrix); assert.ok(Math.hypot(point.x, point.z) > .001 && Math.hypot(point.x, point.z) < .04);
+  visuals.setFoodStack(parent, 8); visuals.animateFoodStack(parent, { time: .4, moving: false, dt: .05 });
+  const scale = new THREE.Vector3(); stack.getMatrixAt(7, matrix); matrix.decompose(point, new THREE.Quaternion(), scale);
+  assert.ok(scale.x > 1 && scale.x < 1.036);
+  for (let frame = 1; frame <= 60; frame++) visuals.animateFoodStack(parent, { time: .4 + frame / 60, moving: false, dt: 1 / 60 });
+  stack.getMatrixAt(7, matrix); point.setFromMatrixPosition(matrix);
+  assert.ok(Math.abs(point.x) < .000001 && Math.abs(point.z) < .000001);
+  assert.ok(Math.abs(point.y - 7 * CARRY_SPACING.food) < .000001);
+});
+
 test('disposal releases shared procedural furniture once and never frees external library geometry', async (t) => {
   const { visuals, state, group, geometry } = await fixture(t);
-  state.dining.tables[0].status = 'dirty'; visuals.update(state);
+  setSeats(state, 0, ['dirty', 'dirty']); visuals.update(state);
   const prepared = group.getObjectByName('dining-prepared-food'), dirty = group.getObjectByName('dining-table-0').getObjectByName('dining-table-dish');
   const materials = new Set(), furnitureGeometry = new Set();
   group.traverse((node) => {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { THREE } from '../asset-loader.mjs';
-import { createProductVisuals } from '../product-visuals.mjs';
+import { CARRY_SPACING, createProductVisuals } from '../product-visuals.mjs';
 
 function fixture(t) {
   const materials = new Map();
@@ -97,15 +97,65 @@ test('gear rows and potion bottles retain their base and detail placement', (t) 
   near(position(gear.detail, 0), { x: -.61, y: .18, z: .08 });
   near(position(gear.base, 5), { x: .61, y: .26, z: 0 });
   near(position(gear.detail, 5), { x: .61, y: .35, z: .08 });
-  const potion = visuals.set(parent(), 8, 'potion', 1, .31);
-  near(position(potion.base, 0), { x: 0, y: .09, z: 0 });
-  near(position(potion.detail, 0), { x: 0, y: .28, z: 0 });
-  near(position(potion.base, 7), { x: 0, y: 7 * .31 + .09, z: 0 });
-  near(position(potion.detail, 7), { x: 0, y: 7 * .31 + .28, z: 0 });
+  const potion = visuals.set(parent(), 8, 'potion');
+  near(position(potion.base, 0), { x: 0, y: .125, z: 0 });
+  near(position(potion.detail, 0), { x: 0, y: .2675, z: 0 });
+  near(position(potion.base, 7), { x: 0, y: 7 * CARRY_SPACING.potion + .125, z: 0 });
+  near(position(potion.detail, 7), { x: 0, y: 7 * CARRY_SPACING.potion + .2675, z: 0 });
   assert.equal(gear.base.castShadow, true);
   assert.equal(potion.base.castShadow, true);
   assert.equal(gear.detail.castShadow, false);
   assert.equal(potion.detail.castShadow, false);
+});
+
+test('compact potion rows have a nonnegative base and no silhouette penetration at the shared carry pitch', (t) => {
+  const { visuals, parent } = fixture(t), stack = visuals.set(parent(), 2, 'potion');
+  const matrix = new THREE.Matrix4();
+  function bounds(index) {
+    const result = new THREE.Box3();
+    for (const mesh of [stack.base, stack.detail]) {
+      mesh.geometry.computeBoundingBox(); mesh.getMatrixAt(index, matrix);
+      result.union(mesh.geometry.boundingBox.clone().applyMatrix4(matrix));
+    }
+    return result;
+  }
+  const first = bounds(0), next = bounds(1);
+  assert.ok(first.min.y >= -.000001);
+  assert.ok(first.max.y - first.min.y <= .30 + .000001, 'compact bottle stays at most 0.30 units tall');
+  assert.ok(first.max.y - first.min.y <= CARRY_SPACING.potion);
+  assert.ok(next.min.y >= first.max.y, 'bottle and cap remain clear of the next bottle');
+  assert.equal(CARRY_SPACING.potion, .31);
+  assert.equal(CARRY_SPACING.food, .16); assert.equal(CARRY_SPACING.gear, .17);
+});
+
+test('only carried stacks sway by layer, pop their new top briefly, and settle into the same matrices and buffers', (t) => {
+  const { visuals, parent } = fixture(t), carried = parent(), shelf = parent();
+  const stack = visuals.set(carried, 22, 'gear'), still = visuals.set(shelf, 22, 'gear');
+  const baseline = stack.base.instanceMatrix.array.slice(), detailBaseline = stack.detail.instanceMatrix.array.slice();
+  const matrixBuffer = stack.base.instanceMatrix, version = still.base.instanceMatrix.version;
+  for (let frame = 1; frame <= 30; frame++) visuals.animate(carried, { time: frame / 60, moving: true, dt: 1 / 60 });
+  assert.equal(stack.base.instanceMatrix, matrixBuffer); assert.equal(still.base.instanceMatrix.version, version);
+  assert.ok(Math.abs(position(stack.base, 21).x) > .001); assert.equal(position(stack.base, 0).x, 0);
+  visuals.set(carried, 21, 'gear'); visuals.animate(carried, { time: .55, moving: false, dt: .05 });
+  const original = new THREE.Matrix4(), current = new THREE.Matrix4(), a = new THREE.Vector3(), b = new THREE.Vector3();
+  const scale = new THREE.Vector3(), rotation = new THREE.Quaternion();
+  stack.base.getMatrixAt(20, current); current.decompose(a, rotation, scale);
+  assert.ok(scale.x > 1 && scale.x <= 1.035001, 'only a small 180 ms top-item pop is added');
+  for (const [mesh, matrices] of [[stack.base, baseline], [stack.detail, detailBaseline]]) {
+    for (let i = 0; i < mesh.count; i++) {
+      original.fromArray(matrices, i * 16); mesh.getMatrixAt(i, current);
+      for (let vertex = 0; vertex < mesh.geometry.attributes.position.count; vertex++) {
+        a.fromBufferAttribute(mesh.geometry.attributes.position, vertex).applyMatrix4(original);
+        b.fromBufferAttribute(mesh.geometry.attributes.position, vertex).applyMatrix4(current);
+        assert.ok(a.distanceTo(b) < .04, 'sway and pop preserve a bounded silhouette');
+      }
+    }
+  }
+  for (let frame = 1; frame <= 60; frame++) visuals.animate(carried, { time: .55 + frame / 60, moving: false, dt: 1 / 60 });
+  near(position(stack.base, 20), { x: 0, y: 20 * CARRY_SPACING.gear + .09, z: 0 });
+  stack.base.getMatrixAt(20, current); current.decompose(a, rotation, scale); near(scale, { x: 1, y: 1, z: 1 });
+  const settledVersion = stack.base.instanceMatrix.version;
+  visuals.animate(carried, { time: 2, moving: false, dt: 1 / 60 }); assert.equal(stack.base.instanceMatrix.version, settledVersion);
 });
 
 test('a parent cleared by the caller receives fresh instance meshes while retaining shared geometry', (t) => {

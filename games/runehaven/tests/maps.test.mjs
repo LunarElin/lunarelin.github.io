@@ -128,6 +128,7 @@ test('actual fixture geometry leaves at least 0.6 units between every facility a
       ...dining.tables.map((table) => [`table-${table.id}`, envelope([
         footprint(diningGroup.getObjectByName(`dining-table-${table.id}`)),
         footprint(diningGroup.getObjectByName(`dining-chair-${table.id}`)),
+        footprint(diningGroup.getObjectByName(`dining-chair-${table.id}-1`)),
       ])]),
     ];
     for (let left = 0; left < pieces.length; left++) for (let right = left + 1; right < pieces.length; right++) {
@@ -146,7 +147,11 @@ test('the food waiting line crosses the service area without entering any actual
   for (let stage = 1; stage <= 10; stage++) {
     const dining = place(stage);
     for (const point of dining.queue) for (const table of dining.tables) {
-      const tableBox = footprint(diningGroup.getObjectByName(`dining-table-${table.id}`));
+      const tableBox = envelope([
+        footprint(diningGroup.getObjectByName(`dining-table-${table.id}`)),
+        footprint(diningGroup.getObjectByName(`dining-chair-${table.id}`)),
+        footprint(diningGroup.getObjectByName(`dining-chair-${table.id}-1`)),
+      ]);
       assert.ok(gap(rectangle(point.x, point.z, -.25, .25, -.25, .25), tableBox) >= .6);
     }
   }

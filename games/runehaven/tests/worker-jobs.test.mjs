@@ -1,3 +1,5 @@
+import { shopLineClear } from '../shop-navigation.mjs';
+import { expandDining, setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
@@ -11,7 +13,7 @@ function run(state, seconds, input = {}, inspect = () => {}) {
 function shop(seed = 42) {
   const state = createGame(seed);
   state.sales = 20; state.unlocks.inn = state.unlocks.alchemy = true; state.gold = 100000;
-  state.dining.tableCount = 4; state.dining.tables.forEach((table) => { table.status = 'clean'; }); // Explicit fully expanded fixture.
+  expandDining(state); // Explicit fully expanded fixture.
 
   state.raid.timer = state.raid.triggerSales = 1e6; state.timers.customer = 1000;
   Object.assign(state.player, { x: 5.8, z: 5.8 });
@@ -94,17 +96,19 @@ test('food workers collect real kitchen stock and walk directly before their fir
   const initialPosition = { x: helper.x, z: helper.z };
   assert.ok(distance(helper, layout.kitchenPoint) > .1, 'job assignment does not teleport workers');
   const cooked = new Set();
-  let collected = false, walkingWithFood = false, delivered = false;
+  let collected = false, walkingWithFood = false, delivered = false, preparing = false;
   for (let frame = 0; frame < 1000 && !delivered; frame++) {
     const before = { x: helper.x, z: helper.z }, wasHauling = helper.phase === 'haul';
     step(state, .05);
     for (const event of state.events) if (event.type === 'cook') cooked.add(event.id);
     if (helper.bag.food > 0) collected = true;
+    if (helper.workKind === 'collect' && helper.bag.food === 0 && helper.workProgress > 0 && helper.workProgress < 1) preparing = true;
     if (wasHauling && helper.bag.food > 0 && distance(before, layout.counterPoint) > helper.speed * .05) {
       walkingWithFood = true;
       const dx = layout.counterPoint.x - before.x, dz = layout.counterPoint.z - before.z;
-      assert.ok(Math.abs((helper.x - before.x) * dz - (helper.z - before.z) * dx) < .000001);
-      assert.ok(Math.abs(distance(before, helper) - helper.speed * .05) < .000001);
+      if (shopLineClear(state, before, layout.counterPoint)) assert.ok(Math.abs((helper.x - before.x) * dz - (helper.z - before.z) * dx) < .000001);
+      assert.ok(distance(before, helper) <= helper.speed * .05 + .000001);
+      assert.ok(shopLineClear(state, before, helper), 'movement segment clears static furniture');
     }
     delivered = state.dining.food > 0;
     assert.ok(count(helper.bag) <= helper.capacity);
@@ -112,6 +116,7 @@ test('food workers collect real kitchen stock and walk directly before their fir
       'only cooking, pickup and physical deposit change the meal inventory');
   }
   assert.ok(collected && walkingWithFood && delivered);
+  assert.ok(preparing, 'the helper exposes work progress before the transfer event');
   assert.ok(distance(initialPosition, layout.kitchenPoint) > 0);
   const source = BALANCE.staffs.find((row) => row.id === helper.sourceId);
   assert.equal(helper.speed, source.speed);
@@ -123,7 +128,7 @@ test('job changes deliver all old products first, including after saving while t
   for (let level = 0; level < 4; level++) act(state, 'upgrade-worker', { kind: 'capacity' });
   helper.bag = { gear: 1, potion: 1, food: 1 };
   assert.ok(helper.capacity >= count(helper.bag));
-  state.dining.tables[0].status = 'dirty';
+  setSeatState(state, 0, 0, 'dirty');
   assert.equal(act(state, 'assign-worker', { id: helper.id, job: 'clean' }).ok, true);
   state = restore(serialize(state)); helper = state.staff[0];
   assert.equal(state.saveReset, false); assert.equal(helper.job, 'clean');
@@ -144,7 +149,7 @@ test('job changes deliver all old products first, including after saving while t
 test('a reassigned cleaner carrying food can reopen dirty tables before unloading into a full counter', () => {
   const state = shop(), helper = hire(state, 'food'), layout = getDiningLayout(state);
   state.dining.food = 8; helper.bag.food = 1;
-  state.dining.tables.forEach((table) => { table.status = 'dirty'; });
+  state.dining.tables.forEach((table, id) => table.seats.forEach((seat, seatId) => setSeatState(state, id, seatId, 'dirty')));
   Object.assign(helper, layout.tables[0].cleanPoint);
   state.patrons.push({ id: 'diner', kind: 'warrior', purchases: 1, totalSpent: 50, loyalty: 1, hp: 90, maxHp: 90, equipmentLevel: 1 });
   state.customers.push({ id: 'diner', ...layout.queue[0], kind: 'warrior', product: 'gear', phase: 'food-queue', hp: 90, purchased: true, patronId: 'diner', timer: 0, patience: 0, foodJoinedAt: 0 });
@@ -164,7 +169,7 @@ test('a reassigned cleaner carrying food can reopen dirty tables before unloadin
 test('two cleaners choose separate nearest dirty tables while player movement does not reset their work', () => {
   const state = shop(), layout = getDiningLayout(state);
   const helpers = [hire(state, 'clean'), hire(state, 'clean')];
-  state.dining.tables[0].status = state.dining.tables[1].status = 'dirty';
+  setSeatState(state, 0, 0, 'dirty'); setSeatState(state, 1, 0, 'dirty');
   helpers.forEach((helper) => Object.assign(helper, layout.tables[0].cleanPoint));
   step(state, .05);
   assert.equal(helpers[0].cleanTableId, 0); assert.equal(helpers[1].cleanTableId, 1);
@@ -183,7 +188,7 @@ test('two cleaners choose separate nearest dirty tables while player movement do
 test('player and multiple cleaners cannot multiply speed or finish the same table more than once', () => {
   const state = shop(), target = getDiningLayout(state).tables[0].cleanPoint;
   const helpers = [hire(state, 'clean'), hire(state, 'clean')];
-  state.dining.tables[0].status = 'dirty';
+  setSeatState(state, 0, 0, 'dirty');
   helpers.forEach((helper) => Object.assign(helper, target));
   Object.assign(state.player, target);
   run(state, 1.15);
@@ -199,7 +204,7 @@ test('player and multiple cleaners cannot multiply speed or finish the same tabl
 test('changing a cleaning job releases its transient claim for a replacement worker', () => {
   const state = shop(), target = getDiningLayout(state).tables[0].cleanPoint;
   const first = hire(state, 'clean'), second = hire(state, 'clean');
-  state.dining.tables[0].status = 'dirty';
+  setSeatState(state, 0, 0, 'dirty');
   Object.assign(first, target); Object.assign(second, target);
   run(state, .6);
   assert.equal(state.dining.tables[0].cleanerId, first.id);
@@ -244,8 +249,7 @@ test('pausing, combat and region changes preserve food cargo and clear cleaning 
   const paused = serialize(state); run(state, 1);
   assert.equal(serialize(state), paused);
   state.status = 'playing';
-  state.dining.tables[0].status = 'dirty'; state.dining.tables[0].cleanerId = helper.id;
-  state.dining.tables[0].cleanProgress = .5; helper.cleanTableId = 0;
+  setSeatState(state, 0, 0, 'dirty', { cleanerId: helper.id, cleanProgress: .5 }); helper.cleanTableId = 0; helper.cleanSeatId = 0;
   state.raid.phase = 'warning'; state.raid.timer = .01;
   step(state, .05);
   assert.equal(state.raid.phase, 'departure');
@@ -272,7 +276,7 @@ test('food transport and cleaning workers repeat the complete dining cycle beyon
   const state = shop();
   state.timers.customer = 1; state.stocks.gear = state.stocks.potion = 60;
   hire(state, 'food'); hire(state, 'clean');
-  run(state, 120, {}, () => {
+  run(state, 240, {}, () => {
     assert.ok(state.dining.food >= 0 && state.dining.food <= 8);
     assert.ok(state.dining.kitchen >= 0 && state.dining.kitchen <= 8);
     assert.ok(state.staff.every((helper) => count(helper.bag) <= helper.capacity));

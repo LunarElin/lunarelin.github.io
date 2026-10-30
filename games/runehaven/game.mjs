@@ -6,6 +6,8 @@ import { createMapScenery } from './map-scene.mjs';
 import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, CAMERA_Y, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera, followBattleCamera } from './camera.mjs';
 import { createBattleCameraTransition } from './camera-transition.mjs';
 import { createProductVisuals } from './product-visuals.mjs';
+import { CARRY_BASE, CARRY_SPACING } from './cargo-layout.mjs';
+import { projectShopTarget, getShopObstacles, SHOP_RADIUS } from './shop-navigation.mjs';
 import { createActorMarkers } from './actor-markers.mjs';
 import { getActorPalette } from './actor-appearance.mjs';
 import { DINING_RULES, getDiningLayout } from './dining.mjs';
@@ -20,7 +22,7 @@ const $ = (id) => document.getElementById(id);
 const SAVE_KEY = 'runehaven:v1';
 const query = new URLSearchParams(location.search);
 const qaEnabled = query.has('qa');
-const qaScenario = qaEnabled && ['late', 'late-defense', 'defense', 'defeat', 'queues', 'dining'].includes(query.get('scenario')) ? query.get('scenario') : null;
+const qaScenario = qaEnabled && ['late', 'late-defense', 'defense', 'defeat', 'queues', 'dining', 'dining-pairs'].includes(query.get('scenario')) ? query.get('scenario') : null;
 const previewRegion = qaEnabled && query.has('previewRegion') ? Math.max(1, Math.min(10, Math.trunc(Number(query.get('previewRegion'))) || 1)) : null;
 const previewCargo = qaEnabled && ['gear', 'potion', 'food', 'mixed'].includes(query.get('previewCargo')) ? query.get('previewCargo') : null;
 const controller = new AbortController();
@@ -43,7 +45,7 @@ state ||= createGame(Math.floor(Math.random() * 0x7fffffff));
 if (previewRegion) {
   // Only a visual map fixture, including the optional populated late-shop view.
   state.stage = previewRegion;
-  if (!['queues', 'dining'].includes(qaScenario)) Object.assign(state.player, getRegion(state).spawn);
+  if (!['queues', 'dining', 'dining-pairs'].includes(qaScenario)) Object.assign(state.player, getRegion(state).spawn);
 }
 if (previewCargo) {
   // Visual capacity fixture, never a normal save or earned progression claim.
@@ -77,8 +79,8 @@ let voices = 0;
 
 function clearDestination() { target = null; }
 function setDestination(point) {
-  target = { x: point.x, z: point.z };
-  destination.position.set(point.x, .035, point.z);
+  target = projectShopTarget(state, point);
+  destination.position.set(target.x, .035, target.z);
 }
 
 function toast(text) {
@@ -227,6 +229,8 @@ const stockVisuals = { forge: new THREE.Group(), gear: new THREE.Group(), alchem
 for (const g of Object.values(stockVisuals)) shopScene.add(g);
 const stationLabels = new Map();
 const cashVisuals = new Map();
+const serviceLayer = document.createElement('div'); serviceLayer.id = 'service-overlays'; $('world').append(serviceLayer);
+const orderBubbles = new Map(), workGauges = new Map();
 const labelConfig = [
   ['forge', '대장간', -4, -2, 1.6], ['counter', '무기 진열', -3, 2, 1.3],
   ['alchemy', '연금 공방', 3, -2, 1.6], ['potionCounter', '물약 진열', 3, 2, 1.3], ['inn', '별빛 여관', 0, -4, 1.8],
@@ -243,7 +247,11 @@ function stationDestination(key) {
   const station = labelStation(key);
   if (key === 'kitchen') return getDiningLayout(state).kitchenPoint;
   if (key === 'meal') return getDiningLayout(state).counterPoint;
-  if (key.startsWith('table-')) return station.cleanPoint;
+  if (key.startsWith('table-')) {
+    const data = state.dining.tables[station.id];
+    return station.seats.filter(seat => data.seats[seat.id].status === 'dirty')
+      .sort((a, b) => Math.hypot(state.player.x - a.cleanPoint.x, state.player.z - a.cleanPoint.z) - Math.hypot(state.player.x - b.cleanPoint.x, state.player.z - b.cleanPoint.z))[0]?.cleanPoint || station.cleanPoint;
+  }
   return getStationApproach(state, key);
 }
 const stationIcons = {
@@ -293,10 +301,11 @@ function createActor(id, kind, role = '') {
   const combat = id.startsWith('d-') || id.startsWith('e-');
   const { body, gear, rig } = createSimpleActor(kind, appearance, { role, combat });
   root.add(body, gear);
-  const carry = new THREE.Group(); carry.position.set(0, 1.4, .14); root.add(carry);
+  const carry = new THREE.Group(); carry.position.set(0, CARRY_BASE.y, CARRY_BASE.z); root.add(carry);
   const marker = { visible: true, x: 0, z: 0, scale: 1, healthVisible: false, healthRatio: 1, enemy: id.startsWith('e-'), ringVisible: false, ringRadius: role === 'elite' ? .46 : .32, ringColor: role === 'elite' ? '#e87c9c' : appearance.body };
   const upper = new THREE.Group(), food = new THREE.Group(); carry.add(upper, food);
-  const actor = { id, kind, appearance, root, body, gear, simpleRig: rig, carry, upper, food, marker, animationClock: 0, x: 0, z: 0, angle: 0, currentAnimation: 'idle', count: -1, ready: true };
+  const goods = new THREE.Group(); goods.position.set(0, .65, .35); goods.scale.setScalar(.72); root.add(goods);
+  const actor = { id, kind, appearance, root, body, gear, simpleRig: rig, carry, upper, food, goods, marker, animationClock: 0, x: 0, z: 0, angle: 0, currentAnimation: 'idle', count: -1, ready: true };
   actors.set(id, actor);
   if (combat) createCombatRig(actor, kind, role, appearance);
   return actor;
@@ -321,9 +330,9 @@ function drawCarry(actor, bag) {
   if (actor.count === key) return;
   actor.count = key;
   productInstances(actor.carry, gear, 'gear');
-  actor.upper.position.y = gear * .17;
-  productInstances(actor.upper, potion, 'potion', 1, .31);
-  actor.food.position.y = gear * .17 + potion * .31;
+  actor.upper.position.y = gear * CARRY_SPACING.gear;
+  productInstances(actor.upper, potion, 'potion', 1, CARRY_SPACING.potion);
+  actor.food.position.y = gear * CARRY_SPACING.gear + potion * CARRY_SPACING.potion;
   diningVisuals?.setFoodStack(actor.food, food);
 }
 function updateActor(data, id, kind, dt, battle = false) {
@@ -336,7 +345,7 @@ function updateActor(data, id, kind, dt, battle = false) {
   const dx = x - actor.x, dz = z - actor.z;
   const moving = dx * dx + dz * dz > .00002;
   const eating = customer && data.phase === 'eating';
-  if (eating) actor.angle = Math.PI;
+  if (eating) actor.angle = data.seatYaw ?? Math.PI;
   else if (moving) actor.angle = Math.atan2(dx, dz);
   actor.root.position.set(x, 0, z); actor.root.rotation.y = actor.angle;
   actor.x = x; actor.z = z;
@@ -348,7 +357,7 @@ function updateActor(data, id, kind, dt, battle = false) {
   actor.currentAnimation = combatMotion?.clip || (eating ? 'sit' : moving ? 'walk' : data.workKind ? 'interact-right' : 'idle');
   actor.animationClock += dt;
   if (actor.root.visible && (kind === 'player' || actor.animationClock >= (mobileRender ? 1 / (customer ? 15 : 30) : 1 / 60))) {
-    updateSimpleActor(actor.simpleRig, { time: state.time, moving, eating, carrying: Boolean(data.bag && Object.values(data.bag).some(Boolean)), working: Boolean(data.workKind), combatMotion, attackAt: data.attackAt });
+    updateSimpleActor(actor.simpleRig, { time: state.time, moving, eating, carrying: Boolean(data.bag && Object.values(data.bag).some(Boolean)) || Boolean(customer && (data.mealCount || data.order?.served)), working: Boolean(data.workKind), combatMotion, attackAt: data.attackAt });
     actor.animationClock = 0; animationUpdates++;
   }
   const marker = actor.marker;
@@ -358,8 +367,18 @@ function updateActor(data, id, kind, dt, battle = false) {
   marker.ringVisible = battle || kind === 'player' || kind === 'staff';
   const bag = data.bag;
   actor.carry.visible = state.raid.location !== 'outside';
-  if (bag) { drawCarry(actor, bag); actor.carry.rotation.z = moving ? Math.sin(state.time * 7) * .045 : Math.sin(state.time * 2) * .012; }
-  diningVisuals?.setGuestMeal(actor, customer && Boolean(data.meal) && !eating);
+  const motion = { time: state.time, moving, dt };
+  if (bag) {
+    const shown = { ...bag };
+    for (const product of ['gear', 'potion', 'food']) shown[product] = Math.max(0, (shown[product] || 0) - incomingCarry(id, product));
+    drawCarry(actor, shown); actor.carry.rotation.z = 0;
+    products.animate(actor.carry, motion); products.animate(actor.upper, motion); diningVisuals?.animateFoodStack(actor.food, motion);
+  }
+  const heldMeal = customer && !eating ? Math.max(0, (data.phase === 'food-queue' ? data.order?.served || 0 : data.phase === 'to-table' ? data.mealCount || 0 : 0) - incomingOrder(data.id)) : 0;
+  diningVisuals?.setGuestMeal(actor, heldMeal, motion);
+  const heldGoods = customer && !eating && data.order?.product !== 'food' ? Math.max(0, (data.order?.served || 0) - incomingOrder(data.id)) : 0;
+  actor.goods.visible = heldGoods > 0;
+  if (heldGoods) { productInstances(actor.goods, heldGoods, data.product, 1, CARRY_SPACING[data.product]); products.animate(actor.goods, motion); }
   return actor;
 }
 
@@ -399,6 +418,7 @@ function positionLabels() {
   const placed = [...cashVisuals.values()].filter(({ el }) => !el.hidden).map(({ el }) => ({
     x: Number.parseFloat(el.style.left), y: Number.parseFloat(el.style.top) - 22, w: 44, h: 44,
   }));
+  for (const { el, x, top } of orderBubbles.values()) if (!el.hidden) placed.push({ x, y: top, w: 70, h: 58 });
   const head = projectXYZ(state.player.x, carryHeight(state.player.bag), state.player.z);
   const feet = projectXYZ(state.player.x, .1, state.player.z);
   for (const label of labels.sort((a, b) => Number(b.avoidActor) - Number(a.avoidActor) || a.y - b.y)) {
@@ -524,7 +544,7 @@ function setStockVisual(group, amount, x, z, potion) {
   if (group.userData.count === count) return;
   group.userData.count = count;
   const columns = group === stockVisuals.gear || group === stockVisuals.potion ? 4 : 3;
-  productInstances(group, count, potion ? 'potion' : 'gear', columns, potion ? .31 : .17);
+  productInstances(group, count, potion ? 'potion' : 'gear', columns, potion ? CARRY_SPACING.potion : CARRY_SPACING.gear);
 }
 
 function syncRegion() {
@@ -592,6 +612,118 @@ function updateCashVisuals() {
 }
 
 const flights = [];
+function incomingCarry(visualId, product) {
+  const actorId = visualId.replace(/^s-/, '');
+  let count = 0;
+  for (const flight of flights) if (flight.carryId === actorId && flight.product === product) count++;
+  for (const effect of state.effects) if (effect.type === 'collect' && effect.actorId === actorId && effect.product === product && !seenEffects.has(effect.id)) count++;
+  return count;
+}
+function incomingOrder(customerId) {
+  let count = 0;
+  for (const flight of flights) if (flight.orderId === customerId) count++;
+  for (const effect of state.effects) if (effect.type === 'order-transfer' && effect.customerId === customerId && !seenEffects.has(effect.id)) count++;
+  return count;
+}
+function incomingStock(product) {
+  let count = 0;
+  for (const flight of flights) if (flight.stockProduct === product) count++;
+  for (const effect of state.effects) if (effect.type === 'deposit' && effect.product === product && !seenEffects.has(effect.id)) count++;
+  return count;
+}
+function carryPoint(data, product, count = data.bag?.[product] || 0) {
+  const bag = data.bag || {}, visualId = data === state.player ? 'player' : `s-${data.id}`;
+  const actor = actors.get(visualId), scale = data === state.player ? 1 : .92;
+  const angle = actor?.angle ?? Math.atan2(data.facingX || 0, data.facingZ || 1);
+  const prefix = (product !== 'gear' ? (bag.gear || 0) * CARRY_SPACING.gear : 0) + (product === 'food' ? (bag.potion || 0) * CARRY_SPACING.potion : 0);
+  return { x: data.x + Math.sin(angle) * CARRY_BASE.z * scale, y: (CARRY_BASE.y + prefix + Math.max(0, count - 1) * CARRY_SPACING[product]) * scale, z: data.z + Math.cos(angle) * CARRY_BASE.z * scale };
+}
+function handPoint(customer, product, count) {
+  const scale = .72, itemScale = product === 'food' ? 1 : .72;
+  const angle = actors.get(`c-${customer.id}`)?.angle || 0;
+  return { x: customer.x + Math.sin(angle) * .35 * scale, y: (.65 + Math.max(0, count - 1) * CARRY_SPACING[product] * itemScale) * scale, z: customer.z + Math.cos(angle) * .35 * scale };
+}
+function stationItemPoint(effect, supply) {
+  const product = effect.product, stations = getStations(state), dining = getDiningLayout(state);
+  const amount = effect.stockCount ?? (product === 'food' ? state.dining[supply ? 'kitchen' : 'food'] : state.stocks[supply ? product === 'gear' ? 'forge' : 'alchemy' : product]);
+  const index = Math.max(0, amount - (supply || effect.type === 'order-transfer' ? 0 : 1));
+  if (product === 'food') {
+    const station = supply ? dining.kitchen : dining.counter;
+    return supply ? { x: station.x + .08 + index % 2 * .48, y: .71 + Math.floor(index / 4) * .22, z: station.z + (Math.floor(index / 2) % 2 - .5) * .48 }
+      : { x: station.x + (index % 4 - 1.5) * .45, y: .71, z: station.z + (Math.floor(index / 4) - .5) * .47 };
+  }
+  const station = stations[supply ? product === 'gear' ? 'forge' : 'alchemy' : product === 'gear' ? 'counter' : 'potionCounter'];
+  const columns = supply ? 3 : 4;
+  return { x: station.x + (supply && product === 'gear' ? .8 : 0) + (index % columns - (columns - 1) / 2) * .61,
+    y: .88 + Math.floor(index / columns) * CARRY_SPACING[product], z: station.z + (supply && product === 'gear' ? .6 : 0) };
+}
+function updateServicePresentation() {
+  const hidden = state.raid.location === 'outside' || state.raid.phase === 'departure';
+  serviceLayer.hidden = hidden;
+  if (hidden) return;
+  const head = projectXYZ(state.player.x, carryHeight(state.player.bag), state.player.z), feet = projectXYZ(state.player.x, 0, state.player.z);
+  const protectedBoxes = [{ left: head.x - 28, right: head.x + 28, top: head.y - 8, bottom: feet.y + 8 }];
+  for (const c of state.customers) if (c.phase === 'eating' || c.phase === 'to-table') {
+    const h = projectXYZ(c.x, 1.5 * .72, c.z), f = projectXYZ(c.x, 0, c.z);
+    protectedBoxes.push({ left: h.x - 17, right: h.x + 17, top: h.y - 5, bottom: f.y + 4 });
+  }
+  const occupied = [];
+  for (const [product, symbol] of [['gear', 'counter'], ['potion', 'potionCounter'], ['food', 'meal']]) {
+    let entry = orderBubbles.get(product);
+    if (!entry) {
+      const el = document.createElement('div'); el.className = 'order-bubble'; el.hidden = true;
+      el.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${stationIcons[symbol]}</svg><strong></strong><small></small><i><b></b></i>`;
+      el.setAttribute('role', 'status'); serviceLayer.append(el);
+      entry = { el }; orderBubbles.set(product, entry);
+    }
+    const customer = product === 'food' ? state.customers.filter(c => c.phase === 'food-queue').sort((a, b) => a.foodJoinedAt - b.foodJoinedAt)[0]
+      : state.customers.find(c => c.product === product && ['branch', 'queue'].includes(c.phase));
+    const order = customer?.order;
+    if (!order || !['queue', 'food-queue'].includes(customer.phase)) { entry.el.hidden = true; continue; }
+    const p = projectXYZ(customer.x, 1.65 * .72, customer.z);
+    entry.el.hidden = p.x < 28 || p.x > viewport.width - 28 || p.y < 60 || p.y > viewport.height - 134;
+    if (entry.el.hidden) continue;
+    const candidates = [[0, 0], [-74, 0], [74, 0], [0, -64], [-74, -64], [74, -64], [0, -112], [-112, 0], [112, 0]].map(([dx, dy]) => ({ x: Math.max(39, Math.min(viewport.width - 39, p.x + dx)), top: Math.max(8, Math.min(viewport.height - 192, p.y - 64 + dy)) }));
+    const chosen = candidates.find(({ x, top }) => [...protectedBoxes, ...occupied].every(b => x + 35 < b.left || x - 35 > b.right || top > b.bottom || top + 58 < b.top)) || candidates[0];
+    entry.x = chosen.x; entry.top = chosen.top;
+    occupied.push({ left: entry.x - 39, right: entry.x + 39, top: entry.top - 4, bottom: entry.top + 62 });
+    entry.el.style.transform = `translate(${entry.x - 35}px,${entry.top}px)`;
+    entry.el.style.setProperty('--tail-x', `${Math.max(6, Math.min(58, p.x - entry.x + 31))}px`);
+    const wait = { seats: '자리 대기', food: '음식 대기', stock: '재고 대기', line: '줄 대기' }[customer.waitReason] || '받는 중';
+    const text = `${order.served}/${order.total}`, label = `${product === 'food' ? '음식' : product === 'potion' ? '물약' : '무기'} 주문 ${text} · ${wait}`;
+    if (entry.label !== label) {
+      entry.label = label; entry.el.querySelector('strong').textContent = text; entry.el.querySelector('small').textContent = wait;
+      entry.el.setAttribute('aria-label', label); entry.el.dataset.customer = customer.id;
+    }
+    const seconds = order.served ? BALANCE.web.transferInterval : getFacilityUpgradeInfo(state, 'counter').value.seconds;
+    const progress = customer.waitReason === 'seats' || customer.waitReason === 'line' ? 0 : Math.max(0, Math.min(1, customer.timer / (seconds || 1)));
+    entry.el.querySelector('b').style.transform = `scaleX(${progress})`;
+    entry.el.classList.toggle('waiting', ['seats', 'food', 'stock'].includes(customer.waitReason));
+  }
+  const working = new Set();
+  for (const actor of [state.player, ...state.staff]) {
+    const id = actor === state.player ? 'player' : actor.id; working.add(id);
+    let gauge = workGauges.get(id);
+    if (!gauge) {
+      const el = document.createElement('div'); el.className = 'actor-work-gauge'; el.hidden = true; el.innerHTML = '<i></i>';
+      el.setAttribute('role', 'progressbar'); el.setAttribute('aria-valuemin', '0'); el.setAttribute('aria-valuemax', '100'); serviceLayer.append(el);
+      gauge = { el }; workGauges.set(id, gauge);
+    }
+    const p = projectXYZ(actor.x, .03, actor.z), kind = actor.workKind;
+    gauge.el.hidden = !kind || p.x < 10 || p.x > viewport.width - 10 || p.y < 20 || p.y > viewport.height - 126;
+    if (gauge.el.hidden) continue;
+    let progress = actor.workProgress || 0;
+    if (actor === state.player && kind !== 'clean') progress = actor.dwell < BALANCE.web.stationDwell ? actor.dwell / BALANCE.web.stationDwell : 1 - actor.transferClock / BALANCE.web.transferInterval;
+    const percent = Math.round(Math.max(0, Math.min(1, progress)) * 100);
+    gauge.el.style.transform = `translate(${p.x - 25}px,${p.y - 14}px) scaleY(.56)`;
+    if (gauge.percent !== percent || gauge.kind !== kind) {
+      gauge.percent = percent; gauge.kind = kind;
+      gauge.el.style.setProperty('--progress', `${percent}%`); gauge.el.dataset.work = kind;
+      gauge.el.setAttribute('aria-valuenow', percent); gauge.el.setAttribute('aria-label', `${actor === state.player ? '주인공' : '조수'} ${kind === 'clean' ? '정리' : kind === 'deposit' ? '내려놓기' : '쌓기'} ${percent}%`);
+    }
+  }
+  for (const [id, gauge] of workGauges) if (!working.has(id)) { gauge.el.remove(); workGauges.delete(id); }
+}
 function flyAttack(effect) {
   if (!effect.from || !effect.to || flights.length > 35) return;
   const node = new THREE.Group();
@@ -607,14 +739,25 @@ function flyProduct(effect) {
   if (effect.type === 'cash-collect') cylinder(.14, .14, .08, '#ffe18c', 0, 0, 0, node, 8);
   else if (effect.product === 'food') diningVisuals?.setFoodStack(node, 1);
   else productInstances(node, 1, effect.product || 'gear');
-  const actor = effect.actorId === 'player' || !effect.actorId ? state.player : state.staff.find((h) => h.id === effect.actorId);
-  const head = { x: actor?.x ?? state.player.x, y: (carryHeight(actor?.bag || state.player.bag) - .2) * (effect.actorId && effect.actorId !== 'player' ? .92 : 1), z: actor?.z ?? state.player.z };
-  const station = { x: effect.x, y: 1.02, z: effect.z };
-  const from = effect.type === 'collect' || effect.type === 'cash-collect' ? { ...station, ...(effect.from || {}) } : head;
-  const to = effect.type === 'deposit' ? { ...station, ...(effect.to || {}) } : head;
-  if (effect.type === 'cash-collect') from.y = .2;
+  const actor = effect.actorId === 'player' || !effect.actorId ? state.player : state.staff.find(h => h.id === effect.actorId);
+  const customer = effect.customerId ? state.customers.find(c => c.id === effect.customerId) : null;
+  if (!actor && !customer) { releaseOwnedGeometry(node); return; }
+  const product = effect.product || 'gear';
+  const count = effect.carriedCount ?? actor?.bag[product] ?? 0;
+  let from, to, carryId, orderId, stockProduct, endScale = 1;
+  if (customer) {
+    from = stationItemPoint(effect, false); to = handPoint(customer, product, effect.servedCount ?? customer.order?.served ?? 1);
+    orderId = customer.id; endScale = product === 'food' ? .72 : .72 * .72;
+  } else if (effect.type === 'cash-collect') {
+    from = { x: effect.x, y: .2, z: effect.z }; to = { x: actor.x, y: .6, z: actor.z };
+  } else if (effect.type === 'collect') {
+    from = stationItemPoint(effect, true); to = carryPoint(actor, product, count);
+    carryId = effect.actorId; endScale = actor === state.player ? 1 : .92;
+  } else {
+    from = carryPoint(actor, product, count + 1); to = stationItemPoint(effect, false); stockProduct = product;
+  }
   node.position.set(from.x, from.y, from.z); scene.add(node);
-  flights.push({ node, from, to, age: 0, duration: .32 });
+  flights.push({ node, from, to, age: 0, duration: .18, arc: .35, carryId, orderId, stockProduct, product, count, endScale, servedCount: effect.servedCount });
 }
 function burst(x, z, color = '#ffdb8a', count = 8) {
   if (temporary.length > 75) return;
@@ -672,11 +815,11 @@ function visuals(dt) {
   actorMarkers.update(markerEntries);
   alchemyGroup.visible = Boolean(state.unlocks.alchemy); innGroup.visible = Boolean(state.unlocks.inn); potionGroup.visible = Boolean(state.unlocks.alchemy);
   alchemyRing.visible = state.unlocks.alchemy;
-  diningVisuals?.update(state);
+  diningVisuals?.update({ ...state, dining: { ...state.dining, food: Math.max(0, state.dining.food - incomingStock('food')) } });
   setStockVisual(stockVisuals.forge, state.stocks.forge, stations.forge.x + .8, stations.forge.z + .6, false);
-  setStockVisual(stockVisuals.gear, state.stocks.gear, stations.counter.x, stations.counter.z, false);
+  setStockVisual(stockVisuals.gear, Math.max(0, state.stocks.gear - incomingStock('gear')), stations.counter.x, stations.counter.z, false);
   setStockVisual(stockVisuals.alchemy, state.unlocks.alchemy ? state.stocks.alchemy : 0, stations.alchemy.x, stations.alchemy.z, true);
-  setStockVisual(stockVisuals.potion, state.unlocks.alchemy ? state.stocks.potion : 0, stations.potionCounter.x, stations.potionCounter.z, true);
+  setStockVisual(stockVisuals.potion, state.unlocks.alchemy ? Math.max(0, state.stocks.potion - incomingStock('potion')) : 0, stations.potionCounter.x, stations.potionCounter.z, true);
   updateCashVisuals();
   destination.visible = Boolean(target) || blinkAim;
   if (target) destination.position.set(target.x, .035, target.z);
@@ -684,8 +827,16 @@ function visuals(dt) {
   supplyRing.scale.setScalar(1 + Math.sin(state.time * 2) * .025);
   for (let i = flights.length - 1; i >= 0; i--) {
     const flight = flights[i]; flight.age += dt;
+    if (flight.carryId) {
+      const actor = flight.carryId === 'player' ? state.player : state.staff.find(h => h.id === flight.carryId);
+      if (actor) flight.to = carryPoint(actor, flight.product, flight.count);
+    } else if (flight.orderId) {
+      const customer = state.customers.find(c => c.id === flight.orderId);
+      if (customer) flight.to = handPoint(customer, flight.product, flight.servedCount ?? 1);
+    }
     const t = Math.min(1, flight.age / flight.duration), curve = Math.sin(t * Math.PI) * (flight.arc ?? .7);
     flight.node.position.set(THREE.MathUtils.lerp(flight.from.x, flight.to.x, t), THREE.MathUtils.lerp(flight.from.y, flight.to.y, t) + curve, THREE.MathUtils.lerp(flight.from.z, flight.to.z, t));
+    if (flight.endScale) flight.node.scale.setScalar(1 + (flight.endScale - 1) * t);
     if (t === 1) { scene.remove(flight.node); releaseOwnedGeometry(flight.node); flights.splice(i, 1); }
   }
   for (let i = temporary.length - 1; i >= 0; i--) {
@@ -697,10 +848,10 @@ function visuals(dt) {
   for (const effect of state.effects || []) {
     if (seenEffects.has(effect.id)) continue; seenEffects.add(effect.id);
     if (seenEffects.size > 250) seenEffects.delete(seenEffects.values().next().value);
-    if (effect.type === 'collect' || effect.type === 'deposit') flyProduct(effect);
+    if (effect.type === 'collect' || effect.type === 'deposit' || effect.type === 'order-transfer') flyProduct(effect);
     else if (effect.type === 'cash-collect') {
       flyProduct(effect); floatText(`+${compact(effect.amount || 0)} 골드`, state.player.x, state.player.z); tone('sale');
-      $('gold').animate([{ transform: 'scale(1.16)', color: '#ffffff' }, { transform: 'scale(1)', color: '#ffdc7a' }], { duration: 320 });
+      $('gold').animate([{ transform: 'scale(1.16)' }, { transform: 'scale(1)' }], { duration: 320 });
     } else if (effect.type === 'table-clean') {
       burst(effect.x, effect.z, '#cfb2eb', 5); tone();
     } else if (effect.type === 'sale' || effect.type === 'income' || effect.type === 'inn') {
@@ -716,7 +867,7 @@ function visuals(dt) {
     const p = projectXYZ(text.x, 1.5, text.z);
     text.el.style.left = `${p.x}px`; text.el.style.top = `${p.y}px`;
   }
-  positionLabels();
+  updateServicePresentation(); positionLabels();
   shadowClock += dt;
   if (shadowClock >= (mobileRender ? 1 / 30 : 1 / 60)) { renderer.shadowMap.needsUpdate = true; shadowClock = 0; }
   renderer.render(scene, camera);
@@ -738,7 +889,7 @@ function updateHud() {
     canvas.dataset.qaFrame = String(renderedFrames);
     canvas.dataset.cameraTransition = JSON.stringify(cameraPresentation);
     canvas.dataset.customers = String(state.customers.length);
-    canvas.dataset.customerTraffic = JSON.stringify(state.customers.map(({ id, product, phase, x, z, queueCursor, routeIndex }) => ({ id, product, phase, x, z, queueCursor, routeIndex })));
+    canvas.dataset.customerTraffic = JSON.stringify(state.customers.map(({ id, product, phase, x, z, queueCursor, routeIndex, order, tableId, seatId, mealCount, waitReason }) => ({ id, product, phase, x, z, queueCursor, routeIndex, order, tableId, seatId, mealCount, waitReason })));
     canvas.dataset.raidDetails = JSON.stringify({ total: state.raid.totalEnemies, threat: state.raid.threatLabel, plan: state.raid.plan, summary: state.raid.summary });
     canvas.dataset.actorSizes = JSON.stringify([...actors.values()].map((actor) => ({
       id: actor.id, kind: actor.kind, palette: actor.appearance.key, scale: actor.root.scale.x, ready: actor.ready, visible: actor.root.visible,
@@ -761,18 +912,21 @@ function updateHud() {
     const feet = projectXYZ(state.player.x, 0, state.player.z), head = projectXYZ(state.player.x, carryHeight(state.player.bag), state.player.z);
     const body = projectXYZ(state.player.x, 1.75, state.player.z);
     const samples = renderSamples.length || 1;
-    inspection.textContent = JSON.stringify({ state: JSON.parse(serialize(state)), visualFixture: previewRegion, cargoFixture: previewCargo, region: getRegion(state).theme, battle: { defenders: state.raid.defenders, enemies: state.raid.enemies }, paused, started, target, dining: { ...state.dining, layout: getDiningLayout(state), guests: state.customers.filter((c) => ["food-queue", "to-table", "eating"].includes(c.phase)) }, cameraSafety, cameraPresentation, camera: { ...cameraFrame, width: viewport.width, height: viewport.height, feet, head, bodyPixels: feet.y - body.y }, quality: { mobile: mobileRender, pixelRatio: renderer.getPixelRatio(), shadowSize: sunlight.shadow.mapSize.x }, average: { calls: renderSamples.reduce((n, s) => n + s.calls, 0) / samples, triangles: renderSamples.reduce((n, s) => n + s.triangles, 0) / samples, animations: renderSamples.reduce((n, s) => n + s.animations, 0) / samples }, calls: renderedCalls, triangles: renderedTriangles, renderedFrames, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, visibleActors: [...actors.values()].filter((a) => a.root.visible).length });
+    const service = { player: { ...state.player }, staff: state.staff.map(s => ({ id: s.id, workKind: s.workKind, workProgress: s.workProgress, workTarget: s.workTarget, timer: s.timer })), solids: getShopObstacles(state), radius: SHOP_RADIUS, transfers: flights.map(f => ({ product: f.product, from: f.from, to: f.to, progress: f.age / f.duration, carryId: f.carryId, orderId: f.orderId, stockProduct: f.stockProduct })), stacks: [...actors.values()].filter(a => a.carry.visible && a.count !== -1).map(a => ({ id: a.id, shown: a.count, x: a.x, z: a.z })) };
+    inspection.textContent = JSON.stringify({ service, state: JSON.parse(serialize(state)), visualFixture: previewRegion, cargoFixture: previewCargo, region: getRegion(state).theme, battle: { defenders: state.raid.defenders, enemies: state.raid.enemies }, paused, started, target, dining: { ...state.dining, layout: getDiningLayout(state), guests: state.customers.filter((c) => ["food-queue", "to-table", "eating"].includes(c.phase)) }, cameraSafety, cameraPresentation, camera: { ...cameraFrame, width: viewport.width, height: viewport.height, feet, head, bodyPixels: feet.y - body.y }, quality: { mobile: mobileRender, pixelRatio: renderer.getPixelRatio(), shadowSize: sunlight.shadow.mapSize.x }, average: { calls: renderSamples.reduce((n, s) => n + s.calls, 0) / samples, triangles: renderSamples.reduce((n, s) => n + s.triangles, 0) / samples, animations: renderSamples.reduce((n, s) => n + s.animations, 0) / samples }, calls: renderedCalls, triangles: renderedTriangles, renderedFrames, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, visibleActors: [...actors.values()].filter((a) => a.root.visible).length });
   }
   $('gold').textContent = compact(state.gold);
   $('patrons').textContent = number(state.patrons?.length || 0);
   const capacity = getUpgradeInfo(state, 'capacity').value || 2;
   const gear = state.player.bag.gear || 0, potion = state.player.bag.potion || 0, food = state.player.bag.food || 0;
   $('carry').textContent = `${gear + potion + food} / ${capacity}`;
+  $('carry-fill').style.transform = `scaleX(${Math.min(1, (gear + potion + food) / capacity)})`;
+  $('carry-meter').setAttribute('aria-valuemax', capacity); $('carry-meter').setAttribute('aria-valuenow', gear + potion + food);
   const workKind = state.player.workKind;
-  $('carry-kind').textContent = workKind === 'clean' ? '식탁 정리 중' : workKind ? (state.player.dwell < .4 ? '잠깐 멈춰요' : workKind === 'deposit' ? '내려놓는 중' : '쌓는 중') : food ? (gear || potion ? '물건 · 음식' : '배식대로 운반') : potion ? (gear ? '무기 · 물약' : '물약') : gear ? '진열대로 운반' : '빈 가방';
-  const cleanProgress = Math.max(0, ...(state.dining?.tables || []).filter((table) => table.cleanerId === 'player').map((table) => table.cleanProgress || 0));
-  $('work-progress').style.width = `${workKind === 'clean' ? cleanProgress / DINING_RULES.cleanSeconds * 100 : workKind ? Math.min(1, state.player.dwell / .4) * 100 : 0}%`;
-  const uncollected = Object.values(state.moneyPiles).reduce((total, value) => total + value, 0);
+  $('carry-kind').textContent = workKind === 'clean' ? '자리 정리 중' : workKind ? (state.player.dwell < .4 ? '잠깐 멈춰요' : workKind === 'deposit' ? '내려놓는 중' : '쌓는 중') : gear + potion + food >= capacity ? '가득 · 내려놓아요' : food ? (gear || potion ? '물건 · 음식' : '배식대로 운반') : potion ? (gear ? '무기 · 물약' : '물약') : gear ? '진열대로 운반' : '빈 가방';
+  const progress = workKind === 'clean' ? state.player.workProgress : workKind ? state.player.dwell < BALANCE.web.stationDwell ? state.player.dwell / BALANCE.web.stationDwell : 1 - state.player.transferClock / BALANCE.web.transferInterval : 0;
+  $('work-track').hidden = !workKind; $('work-progress').style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
+  const uncollected = getMoneyPiles(state).reduce((total, pile) => total + pile.amount, 0);
   const raid = state.raid;
   const inRaid = ['warning', 'departure', 'battle'].includes(raid.phase);
   const outside = raid.location === 'outside', travelling = raid.phase === 'departure';
@@ -804,9 +958,9 @@ function updateHud() {
     $('quest-title').textContent = '연금 공방을 열 수 있어요'; $('quest-detail').textContent = '시설 → 공방을 열고 궁수를 맞이하세요'; $('quest-symbol').textContent = '✦';
   } else if (state.unlocks.innAvailable && !state.unlocks.inn) {
     $('quest-title').textContent = '여관 식당을 열어보세요'; $('quest-detail').textContent = '시설 → 별빛 여관 · 배식과 식탁'; $('quest-symbol').textContent = '✦';
-  } else if (state.unlocks.inn && state.dining.tables.some((table) => table.status === 'dirty')) {
-    const dirty = state.dining.tables.filter((table) => table.status === 'dirty').length;
-    $('quest-title').textContent = '식탁을 정리해요'; $('quest-detail').textContent = `정리 ${dirty}곳 · 식탁 옆에서 멈춰요`; $('quest-symbol').textContent = '✦';
+  } else if (state.unlocks.inn && state.dining.tables.some(table => table.seats.some(seat => seat.status === 'dirty'))) {
+    const dirty = state.dining.tables.flatMap(table => table.seats).filter(seat => seat.status === 'dirty').length;
+    $('quest-title').textContent = '식탁을 정리해요'; $('quest-detail').textContent = `정리 ${dirty}자리 · 식탁 옆에서 멈춰요`; $('quest-symbol').textContent = '✦';
   } else if (state.unlocks.inn && (food > 0 || state.dining.food === 0)) {
     $('quest-title').textContent = food ? '배식대에 음식을 놓아요' : '주방에서 음식을 받아요';
     $('quest-detail').textContent = food ? '배식대 뒤에서 멈추면 내려놓아요' : `주방 ${state.dining.kitchen}개 · 음식을 머리 위로 운반`; $('quest-symbol').textContent = '✦';
@@ -827,7 +981,7 @@ function updateHud() {
   $('build').classList.toggle('notification', Boolean((state.unlocks.alchemyAvailable && !state.unlocks.alchemy) || (state.unlocks.innAvailable && !state.unlocks.inn) || tableInfo.canBuy));
   // One nearby cleanup prompt keeps four identical buttons from covering the
   // small phone view. Every table can also be approached with a floor tap.
-  const nearestDirty = getDiningLayout(state).tables.filter(({ id }) => state.dining.tables[id].status === 'dirty')
+  const nearestDirty = getDiningLayout(state).tables.flatMap(table => table.seats.filter(seat => state.dining.tables[table.id].seats[seat.id].status === 'dirty').map(seat => ({ id: table.id, cleanPoint: seat.cleanPoint })))
     .sort((a, b) => Math.hypot(state.player.x - a.cleanPoint.x, state.player.z - a.cleanPoint.z) - Math.hypot(state.player.x - b.cleanPoint.x, state.player.z - b.cleanPoint.z))[0]?.id;
   for (const [key, entry] of stationLabels) {
     let detail = '', locked = false;
@@ -969,7 +1123,7 @@ function openMenu() {
 function cancelReset() { if (resetReturn === 'intro') openIntro(); else openMenu(); }
 function dismissSheet() { if (activeSheet === 'confirm') cancelReset(); else closeSheet(); }
 function openHelp() {
-  openSheet('놀이 방법', `<ol class="help-list"><li>조이스틱을 움직이거나 작업장 표식·바닥을 누르세요. 대장간 앞에서 멈추면 무기가 머리 위에 하나씩 쌓여요.</li><li>진열대 앞에서 멈추면 물건을 하나씩 내려놓아요. 이동 중에는 상하차하지 않아요.</li><li>손님이 낸 돈은 바닥에 쌓여요. 금화 더미나 금액을 눌러 직접 다가가 주워야 내 골드가 돼요.</li><li>시설에서 제작·결제·식사를 강화하고 고용에서 모든 조수를 훈련하세요. 판매가 늘면 공방과 여관이 열려요.</li><li>여관 주방에서 음식을 머리 위에 쌓고 배식대 뒤에서 내려놓으세요. 손님이 먹고 떠난 식탁 옆에서 멈추면 정리해요. 시설에서 식탁을 하나씩 늘려요. 식사 대금은 각 식탁 옆에서 주워요. 고용에서 최대 5명 조수에게 음식 운반·식탁 정리를 맡길 수 있어요.</li><li>물건을 산 검사·궁수·마법사가 습격 때 돌아와요. 방어에 성공하면 배치와 풍경이 다른 다음 지역으로 옮겨요.</li><li>이동 수련 21단계! 순간이동을 누른 뒤 가까운 바닥을 선택하세요. 재사용 4초.</li></ol><p class="muted">화면을 벗어나면 시간이 멈춥니다.<br>${saveFailed ? '현재 브라우저 저장을 사용할 수 없습니다.' : '진행은 이 브라우저에 자동으로 저장됩니다.'}</p><button class="gold-button full" data-command="resume">알겠어요</button>`, 'help');
+  openSheet('놀이 방법', `<ol class="help-list"><li>조이스틱을 움직이거나 작업장 표식·바닥을 누르세요. 대장간 앞에서 멈추면 무기가 머리 위에 하나씩 쌓여요.</li><li>진열대 앞에서 멈추면 물건을 하나씩 내려놓아요. 이동 중에는 상하차하지 않아요.</li><li>손님이 낸 돈은 바닥에 쌓여요. 금화 더미나 금액을 눌러 직접 다가가 주워야 내 골드가 돼요.</li><li>시설에서 제작·결제·식사를 강화하고 고용에서 모든 조수를 훈련하세요. 판매가 늘면 공방과 여관이 열려요.</li><li>여관 주방에서 음식을 머리 위에 쌓고 배식대 뒤에서 내려놓으세요. 손님이 먹고 떠난 식탁 옆에서 멈추면 정리해요. 식탁마다 두 명이 앉아요. 주문 말풍선의 수량을 모두 받아야 식사해요. 시설에서 식탁을 늘리고, 식사 대금은 각 식탁 옆에서 주워요. 고용에서 최대 5명 조수에게 음식 운반·식탁 정리를 맡길 수 있어요.</li><li>물건을 산 검사·궁수·마법사가 습격 때 돌아와요. 방어에 성공하면 배치와 풍경이 다른 다음 지역으로 옮겨요.</li><li>이동 수련 21단계! 순간이동을 누른 뒤 가까운 바닥을 선택하세요. 재사용 4초.</li></ol><p class="muted">화면을 벗어나면 시간이 멈춥니다.<br>${saveFailed ? '현재 브라우저 저장을 사용할 수 없습니다.' : '진행은 이 브라우저에 자동으로 저장됩니다.'}</p><button class="gold-button full" data-command="resume">알겠어요</button>`, 'help');
 }
 function openLedger() {
   const count = (kind) => state.patrons.filter((p) => p.kind === kind).length;

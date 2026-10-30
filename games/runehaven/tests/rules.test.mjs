@@ -1,3 +1,4 @@
+import { setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
@@ -197,7 +198,7 @@ test('inn customers pay for a completed meal, heal and gain loyalty', () => {
   const state = createGame(10);
   state.sales = 16; state.unlocks.inn = true;
   state.patrons.push({ ...patron('lodger'), hp: 20 });
-  state.dining.tables[0] = { status: 'eating', customerId: 'lodger', cleanProgress: 0 };
+  setSeatState(state, 0, 0, 'eating', { customerId: 'lodger' });
   state.customers.push({ id: 'lodger', x: -1.25, z: -.75, tableId: 0, kind: 'warrior', product: 'gear', phase: 'eating', purchased: true, patronId: 'lodger', timer: 0, patience: 0 });
   const before = state.gold;
   run(state, 5.5);
@@ -277,7 +278,7 @@ test('an unmodified new game reaches its first defense milestone through normal 
 
 test('walking through a station never transfers stock; standing dwells then transfers one object per interval', () => {
   const state = createGame(101);
-  Object.assign(state.player, { x: STATIONS.forge.x - 1.2, z: STATIONS.forge.z });
+  Object.assign(state.player, { x: STATIONS.forge.x - .6, z: STATIONS.forge.z + .8 });
   run(state, 0.4, { x: 1 });
   assert.equal(state.player.bag.gear, 0);
   assert.equal(state.player.moving, true);
@@ -291,7 +292,7 @@ test('walking through a station never transfers stock; standing dwells then tran
   assert.equal(state.player.bag.gear, 1);
   run(state, 0.2);
   assert.equal(state.player.bag.gear, 2);
-  Object.assign(state.player, { x: STATIONS.counter.x - 1.2, z: STATIONS.counter.z });
+  Object.assign(state.player, { x: STATIONS.counter.x - .6, z: STATIONS.counter.z - .85 });
   run(state, 0.4, { x: 1 });
   assert.equal(state.player.bag.gear, 2);
   assert.equal(state.stocks.gear, 0);
@@ -360,7 +361,7 @@ test('the original inn delay and percent ability change eating time and meal pil
   assert.equal(getFacilityStats(state, 'inn').seconds, 3.7);
   assert.equal(getFacilityStats(state, 'inn').bonusPercent, 5);
   state.patrons.push(patron('guest'));
-  state.dining.tables[0] = { status: 'eating', customerId: 'guest', cleanProgress: 0 };
+  setSeatState(state, 0, 0, 'eating', { customerId: 'guest' });
   state.customers.push({ id: 'guest', x: -1.25, z: -.75, tableId: 0, kind: 'warrior', product: 'gear', phase: 'eating', purchased: true, patronId: 'guest', timer: 0, patience: 0 });
   const before = state.gold;
   run(state, 3.8);

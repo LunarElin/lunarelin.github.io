@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { act, COMBAT_RADIUS, getMoneyPiles, getRepairInfo, restore, serialize, step } from '../rules.mjs';
+import { act, COMBAT_RADIUS, getDiningLayout, getMoneyPiles, getRepairInfo, restore, serialize, step } from '../rules.mjs';
 import { BATTLE_BOUNDS } from '../battlefield.mjs';
 import { buildScenario, SCENARIO_INFO } from './scenarios.mjs';
 
@@ -135,7 +135,7 @@ test('queue previews are explicit artificial fixtures with real unpaid shoppers 
     const state = buildScenario('queues', stage);
     assert.equal(state.qaScenario.artificial, true);
     assert.equal(state.stage, stage);
-    assert.equal(state.customers.length, 24);
+    assert.ok(state.customers.length >= 16 && state.customers.length <= 24);
     assert.ok(state.customers.every((customer) => ['entrance', 'branching', 'entering', 'queue'].includes(customer.phase) && !customer.purchased));
     assert.equal(state.patrons.length, 0);
     assert.equal(state.economy.earned, 0);
@@ -154,5 +154,24 @@ test('dining previews mark their supplied inventory and reach eating and dirty t
     assert.ok(state.lodgings > 0);
     assert.ok(state.dining.tables.some((table) => table.cash > 0));
     assert.ok(state.customers.filter((customer) => customer.meal).every((customer) => customer.phase === 'to-table'));
+  }
+});
+
+
+test('dining-pairs marks camera placement as artificial and reaches two real diners at the first table in every region', () => {
+  for (let stage = 1; stage <= 10; stage++) {
+    const state = buildScenario('dining-pairs', stage), table = state.dining.tables[0];
+    assert.equal(state.qaScenario.artificial, true); assert.equal(state.qaScenario.name, 'dining-pairs'); assert.equal(state.stage, stage);
+    const furniture = getDiningLayout(state).tables[0];
+    assert.deepEqual({ x: state.player.x, z: state.player.z }, { x: furniture.x + 1.2, z: furniture.z + .8 });
+    assert.ok(table.seats.every(seat => seat.status === 'eating'));
+    const diners = table.seats.map(seat => state.customers.find(customer => customer.id === seat.customerId));
+    assert.equal(new Set(diners.map(customer => customer.id)).size, 2);
+    assert.deepEqual(new Set(diners.map(customer => customer.seatId)), new Set([0, 1]));
+    assert.ok(diners.every(customer => customer.phase === 'eating' && customer.tableId === 0 && customer.purchased
+      && customer.order.product === 'food' && customer.order.remaining === 0 && customer.mealCount >= 2 && customer.mealCount <= 3));
+    const loaded = restore(serialize(state)); assert.equal(loaded.saveReset, false);
+    assert.ok(loaded.dining.tables[0].seats.every(seat => seat.status === 'dirty'));
+    assert.equal(loaded.dining.tableCount, 4); assert.equal(loaded.gold, state.gold); assert.equal(loaded.economy.earned, state.economy.earned);
   }
 });

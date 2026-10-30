@@ -90,3 +90,70 @@ IL2CPP 메타데이터의 `BurgerPlease.Order`에는 주문 품목·수량을 �
 여관 비용 5에는 첫 식탁이 포함되고 추가 식탁은 50·150·200으로 열린다. 깨끗한 빈자리가 없거나 정리할 식탁만 남으면 배식 줄이 기다리고, 청소 또는 식탁 추가 뒤 다시 배식한다. 이는 영상의 안내와 APK 구조를 참고한 웹 구현이며, 실제 원작의 고객별 대기 시간·메시지 표시 조건까지 동일하게 복원한 것은 아니다.
 
 손님당 구매 수량 1개, 식탁당 1좌석, 웹 진열 상한 60, 판타지 전투·마법 성장과 지역 동선은 웹게임의 선택으로 유지한다. 런타임은 웹게임 코드와 직접 제작하거나 출처를 따로 확인한 그래픽을 사용하며, APK의 원문 코드·이미지·모델·음원은 복사하지 않는다. 저장 호환과 실제 화면 검증 결과는 게임 README에서 별도로 보고한다.
+
+## 추가 정적 검토: 주문 수량·시설 충돌·운반 표현
+
+같은 날 앞선 적용 이후, IL2CPP 메서드의 ARM64 명령과 Unity의 기본 컴포넌트를 추가로 읽었다. 위의 **손님당 1개·식탁당 1좌석은 앞선 구현 단계의 기록**이다. 아래 근거는 다중 주문·2좌석 개선을 위한 추가 조사이며, 이후 웹게임의 최종 적용값과 검증 결과는 README를 기준으로 한다. APK를 설치하거나 실행하지 않았고, 네이티브 라이브러리는 분석 입력 바이트로만 사용했다. 원문 메서드 본문과 상용 그래픽은 저장소에 반입하지 않는다.
+
+### 추가 입력의 식별자
+
+아래 경로는 별도 분석 산출물 루트 기준이다. `source`와 `path_id`는 해당 Unity 직렬화 파일 내부 식별자이며, 기본 엔진 컴포넌트는 MonoBehaviour JSONL에 없으므로 `objects.csv`의 줄 번호를 대신 적는다.
+
+| 입력 | SHA-256 |
+| --- | --- |
+| `raw/arm64/lib/arm64-v8a/libil2cpp.so` | `f884a3729fdf23bf36dedb9592dcd54d439d61219427dbe7b621893aacd8340d` |
+| `game-data/il2cpp-dump/dump.cs` | `5c5be9ae66b22cf48a4aca12965746b1ee52285dfe2e03b800eb605fa21be36a` |
+| `raw/base/assets/bin/Data/f60e1eeecaf54344ebfcb50bfcda2221` | `e147e3b077588d02d39bae12492f7e14393f95095279745fc3817ecb0ac1e8b7` |
+| `raw/base/assets/bin/Data/sharedassets1.assets` — `.split0`부터 `.split22`까지 숫자순으로 읽은 스트림 | `65abc054aa50c59736482aeb65591d15ce484165f9860d63e8905fda55b9e622` |
+| `unity-resources/objects.csv` | `584d4da2ad012d6ccd9660ca587fdec20845f8dfe2eb6746b86f6ba0eb4dd53d` |
+| `unity-resources/gameobjects.jsonl` | `2e7cd09de833895299c2fd03094cfa272689bdd646016f776417e341170cf8d3` |
+| `unity-resources/TagManager/TagManager__9e1450df__3.json` | `2f0e53259b025c0eb2f97ea6713f9d01e8ef6ac6b6f8c9889ad3acd6ea2d141c` |
+| `unity-resources/PhysicsManager/PhysicsManager__9e1450df__10.json` | `f93fdebef28e72c983df314e44c518d5d3aa90c6f224d47f67d2d197a3202ef3` |
+
+### 일반 손님의 다중 주문
+
+단순히 필드 이름을 해석한 것이 아니라 다음 메서드의 필드 읽기·정수 산술·호출을 대조했다. 주소는 위 arm64 라이브러리의 RVA이며, `dump.cs`는 메서드 이름과 필드 오프셋을 대조하는 데 사용했다.
+
+| 직접 확인한 위치 | 확인 내용 |
+| --- | --- |
+| `Stage.InitData`, RVA `0x182D660–0x182D688`, `0x182D864–0x182D890` | 지역별 `_customerCoffeeOrder`의 `StageItem.minCount = 1`, `maxCount = 2`를 설정한다. `StageItem` 필드는 dump.cs 19865줄부터 확인했다. |
+| `Customer` 생성자, RVA `0x1B08120–0x1B08124` | 일반 손님 기본 `_orderCustomerType`은 **4**다. enum의 이름은 `Total`이며, 전화 주문의 `TableCustomer = 1`과 다르다. |
+| `CounterCustomer.PlaceOrder`, RVA `0x19E9ACC–0x19E9AD8` | 손님의 `_orderCustomerType`, `_type`, `_zone`을 `Order.PlaceOrder`에 전달한다. |
+| `Order.FoodOrderSet`, RVA `0x19AD174–0x19AD1C4` | `_zoneActiveTableCount[zone]`가 `orderCountPerTableCount` 이상이면 정수 나눗셈 뒤 `orderCountPerTable`을 곱한다. 첫 지역의 추가량은 **floor(활성 식탁 수 / 4) × 1**이다. |
+| 같은 메서드, RVA `0x19AD1EC–0x19AD210`, `0x19AD26C` | 활성 식탁이 2개 미만이면 후보 수량은 **1**이다. 그 외에는 `minCount + 추가량`부터 `maxCount + 추가량`까지 양끝을 포함하는 정수 난수를 사용한다. |
+| `Order.OrderMenu`, RVA `0x19AE518–0x19AE588` | 첫 지역이며 후보 수량이 3 이상이고 **GuideManager._currentGuideIndex ≤ 11**이면 다시 **1~2개**로 제한하는 튜토리얼 보정이 있다. `Singletons._guideManager`의 정적 오프셋 `0x40`과 GuideManager의 인스턴스 오프셋 `0x30`을 대조했다. |
+| `OrderBalloonForm.Refresh`, RVA `0x1869014–0x186904C`, `0x1869098–0x18690F0` | 받은 수량과 최초 주문 수량을 텍스트로 갱신하고, 받은 수량이 최초 수량 이상이면 완료 표시를 켠다. 선언은 dump.cs **42133줄**부터다. |
+
+따라서 **일반 손님 주문 후보**는 식탁 1개에서 1개, 2~3개에서 1~2개, 4~7개에서 2~3개로 증가하는 구조를 확인했다. 다만 마지막 수량은 튜토리얼 보정과 품목 분배를 통과한다. `OrderMenus`는 활성 생산 품목과 다중 메뉴 분기를 함께 다루며, VIP·전화·포장 주문에는 추가 분기도 있다. 그러므로 위 후보 범위를 모든 고객·모든 시점의 최종 주문 수량이라고 표시하지 않는다. 웹게임에서 같은 품목의 주문량을 순차 전달하는 작은 규칙으로 적용하는 것은 가능한 재해석이며, 원작의 전체 주문 분배·실험군까지 복원한 것은 아니다.
+
+앞선 다중 주문의 “정확한 산식을 확정하지 못함”은 이 추가 조사로 **일반 주문 후보 범위까지 일부 해소**했다. 첫 지역 scene의 비어 있는 `_customerCoffeeOrder` 배열만으로 주문 수량이 없다고 판단하면 안 된다. 런타임 초기화에서 위 값이 채워진다.
+
+### 손님 통과와 고정 시설의 몸체 구분
+
+TagManager의 레이어는 Player **6**, Area **8**, Customer **13**, Door **14**, Worker **15**다. PhysicsManager의 행렬에서는 **Player↔Customer와 Customer↔Customer 접촉이 꺼져 있고**, Player↔Area와 Player↔Worker는 켜져 있다. 이 행렬만으로 시설이 물리적으로 막힌다고 결론 내리지 않고, 실제 Collider와 NavMeshObstacle을 따로 확인했다.
+
+다음 표의 공통 `source`는 첫 지역 `f60e1eeecaf54344ebfcb50bfcda2221`이다. 크기와 extents는 원문의 로컬 좌표 값이며 웹 픽셀 치수로 직접 환산하지 않는다.
+
+| 대상 | 기본 컴포넌트 `path_id` / objects.csv 줄 | 직접 확인한 값 |
+| --- | --- | --- |
+| 첫 식탁 GO 125 | BoxCollider **9924 / 130348** | `m_IsTrigger = true`, `m_Size = (3.25, 1, 3.25)` |
+| 첫 식탁 GO 125 | NavMeshObstacle **10638 / 131062** | `m_Carve = true`, `m_Extents = (0.3, 0.5, 0.3)`, `m_Center = (0, 0.5, 0)` |
+| Counter GO 1324 | BoxCollider **9970 / 130394** | `m_IsTrigger = true`, `m_Size = (4, 1, 3)` |
+| Counter GO 1324 | NavMeshObstacle **10602 / 131026** | `m_Carve = true`, `m_Extents = (1.9, 0.5, 0.45)`, `m_Center = (0, 0.5, -0.2)` |
+| Coffee1Machine GO 84 | NavMeshObstacle **10590 / 131014** | `m_Carve = true`, `m_Extents = (0.8, 1, 0.8)`, `m_Center = (0, 1, 0.2)` |
+| Player GO 2307 | CapsuleCollider **10303 / 130727** | `m_IsTrigger = true`, `m_Radius = 0.25`, `m_Height = 2` |
+| Player GO 2307 | NavMeshAgent **10446 / 130870** | `m_Radius = 0.25`, `m_ObstacleAvoidanceType = 0`, 직렬화된 `m_Enabled = 0` |
+
+Counter와 첫 식탁 자신의 Transform 로컬 스케일은 `(1,1,1)`이다. 위 Collider는 상호작용 감지용 Trigger이며, 같은 시설의 NavMeshObstacle에는 별도의 작은 몸체 범위가 있다. 따라서 **넓은 상하차 영역과 좁은 고정 시설 장애물을 분리**하는 것이 확인된 원작 구조에 가깝다. 작은 고정 장애물만 피하고 손님 줄을 통과하는 웹 규칙에 근거로 사용할 수 있다. 실제 NavMesh 결과·부모 Transform 전체·시설 활성화 시점과 런타임 수정까지 재현했다는 의미는 아니다.
+
+일반 손님은 `sharedassets1.assets`의 GO **3082**, CustomerNormal MonoBehaviour **5578 / JSONL 21796줄**, NavMeshAgent **4266 / objects.csv 169886줄**, CapsuleCollider **4241 / objects.csv 169861줄**이다. GO는 Customer 레이어 13이고, CapsuleCollider는 Trigger이며 radius 0.25다. NavMeshAgent도 radius 0.25, avoidance 값 0을 사용한다. Unity에서 회피 비활성의 의미는 [공식 NoObstacleAvoidance 문서](https://docs.unity3d.com/kr/current/ScriptReference/AI.ObstacleAvoidanceType.NoObstacleAvoidance.html)로 확인했다. 직렬화 상태에서 Agent가 꺼져 있으므로 런타임 전체에 걸쳐 이동이 꺼진다는 뜻으로 읽지 않는다.
+
+### 개별 물건·층 쌓기·진행 표시의 확인 범위
+
+첫 지역 Player는 `path_id = 12656`, JSONL **13176줄**에서 `_itemParent`와 6개의 `_foodParent`를 참조하고 `_itemRootDistance = 2`를 사용한다. Item 예시는 `path_id = 12252`, JSONL **12772줄**에서 `itemSizeX/Z = 0.45`, `itemSizeY = 0.35`다. 숫자는 특정 버거 Item의 직렬화 치수이므로 모든 웹 상품을 같은 높이로 바꿔야 한다는 지침은 아니다.
+
+`Item` 선언은 dump.cs **18819줄**부터이며 위치·목표·포물선 진행 필드와 `Parabola`, `ParabolaLocal`, `TickParabola`가 있다. Counter의 보관 코루틴에서 RVA **0x19E719C**, 판매 코루틴에서 **0x191A290**, 식탁 청소 코루틴에서 **0x18403CC**가 실제 `Item.Parabola`를 호출하는 것도 확인했다. 이는 보관 숫자만 순간 변경하는 흐름보다 **개별 물건이 출발점에서 운반자·시설로 날아가는 표현**을 뒷받침한다. 그 호출들의 높이 인자에는 1.5가 있지만, 웹의 화면 단위·상하차 시간을 그대로 결정하는 값으로 사용하지 않는다.
+
+`PlayerMove` 선언은 dump.cs **32833줄**부터이고, `GetItemsMove`, `GetItemsMoveStop`, 최대 굽힘 각도 3과 복원 시간 0.5 등의 상수가 있다. 이는 이동 중 쌓인 물건의 흔들림·복원 표현에 대한 정적 근거다. 원작 영상의 정확한 물건 표시 개수·머리 위 위치·가속도 곡선·상하차 간격은 이 상수만으로 확정하지 않는다.
+
+시간 게이지와 주문 수량 표시는 구분한다. `ObjectGauge` 선언은 dump.cs **42006줄**부터이고 시간·시작 비율·채움 방향·완료 콜백으로 변하는 API가 있다. 그러나 해당 클래스는 손님 전화·졸음 문제, 광고, 진열 리필 등 여러 용도에서 참조된다. 이 클래스가 존재한다는 이유만으로 **모든 운반·결제·청소에 동일한 원형 게이지가 사용된다**고 단정하지 않는다. 직접 확인한 일반 주문의 수량 완료 표시는 위 `OrderBalloonForm`이며, 새 웹 작업 게이지의 표시 조건과 시간은 별도 설계·영상 관찰로 검증해야 한다. APK 실행에 따른 새 시간 계측은 이번에도 수행하지 않았다.

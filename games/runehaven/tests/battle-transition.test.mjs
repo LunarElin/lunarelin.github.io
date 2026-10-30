@@ -1,3 +1,4 @@
+import { expandDining, setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { act, BOUNDS, CLASS_STATS, createGame, getRegion, restore, serialize, step } from '../rules.mjs';
@@ -7,7 +8,7 @@ import { BATTLE_BOUNDS, getBattleLayout } from '../battlefield.mjs';
 function shop(count = 8, equipmentLevel = 1, loyalty = 1) {
   const state = createGame(42);
   state.sales = Math.max(16, count); state.unlocks.inn = true;
-  state.dining.tableCount = 4; state.dining.tables.forEach((table) => { table.status = 'clean'; }); // Explicit fully expanded fixture.
+  expandDining(state); // Explicit fully expanded fixture.
 
   state.patrons = Array.from({ length: count }, (_, index) => ({
     id: `buyer-${index}`, kind: 'warrior', purchases: 1, totalSpent: 50, loyalty,
@@ -88,8 +89,8 @@ test('ten warning seconds precede a damage-free 2.2-second departure with outdoo
 test('departure cancels meal claims immediately and preserves source-derived equipment and health values', () => {
   const state = shop(8, 7, 2);
   state.patrons[0].hp = 20;
-  state.dining.tables[0] = { status: 'eating', customerId: 'buyer-0', cleanProgress: 0 };
-  state.dining.tables[1] = { status: 'reserved', customerId: 'buyer-1', cleanProgress: 0 };
+  setSeatState(state, 0, 0, 'eating', { customerId: 'buyer-0' });
+  setSeatState(state, 1, 0, 'reserved', { customerId: 'buyer-1' });
   state.customers = [0, 1].map((index) => ({ id: `buyer-${index}`, x: -2, z: -2, kind: 'warrior', product: 'gear',
     phase: index ? 'to-table' : 'eating', hp: 90, purchased: true, patronId: `buyer-${index}`, tableId: index, meal: Boolean(index), timer: 0, patience: 0 }));
   const meals = state.lodgings, cash = state.moneyPiles.inn;

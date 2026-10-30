@@ -1,3 +1,4 @@
+import { CARRY_SPACING } from './cargo-layout.mjs';
 // Camera framing is expressed in CSS pixels, independent of render resolution.
 export const CAMERA_OFFSET = Object.freeze({ x: 4, y: 18.5, z: 20 });
 const groundLength = Math.hypot(CAMERA_OFFSET.x, CAMERA_OFFSET.z);
@@ -6,7 +7,7 @@ export const CAMERA_RIGHT = Object.freeze({ x: CAMERA_OFFSET.z / groundLength, z
 export const CAMERA_DOWN = Object.freeze({ x: CAMERA_OFFSET.x / groundLength, z: CAMERA_OFFSET.z / groundLength });
 
 export function carryHeight(bag = {}) {
-  return 2.1 + (bag.gear || 0) * .17 + (bag.potion || 0) * .31 + (bag.food || 0) * .22;
+  return 2.1 + (bag.gear || 0) * CARRY_SPACING.gear + (bag.potion || 0) * CARRY_SPACING.potion + (bag.food || 0) * CARRY_SPACING.food;
 }
 
 export function cameraFraming(width, height, bag) {
