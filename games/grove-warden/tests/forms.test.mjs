@@ -10,9 +10,11 @@ function enemy(id, trait, x, z = 0) { return { id, trait, x, z, hp: 100 }; }
 
 test('form catalogs are bounded and old saves receive no extra paid growth', () => {
   assert.equal(Object.isFrozen(FORMS), true); assert.ok(FORMS.every(Object.isFrozen));
-  assert.deepEqual(FORMS.map(form => [form.id, form.firstLevel, form.maxLevel, form.baseCost]), [['wolf', 4, 3, 45], ['bear', 8, 3, 70], ['dragon', 12, 3, 100]]);
+  assert.deepEqual(FORMS.map(form => [form.id, form.firstLevel, form.maxLevel, form.baseCost]), [['wolf', 4, 100, 45], ['bear', 8, 100, 70], ['dragon', 12, 100, 100]]);
   assert.deepEqual(normalizeForms(), { wolf: 0, bear: 0, dragon: 0 });
-  assert.deepEqual(normalizeForms({ wolf: 100, bear: -2, dragon: '1', other: 9 }), { wolf: 2, bear: 0, dragon: 0 });
+  assert.deepEqual(normalizeForms({ wolf: 100, bear: -2, dragon: '1', other: 9 }), { wolf: 99, bear: 0, dragon: 0 });
+  assert.deepEqual(normalizeForms({ wolf: 1, bear: 2, dragon: 0 }), { wolf: 1, bear: 2, dragon: 0 });
+  assert.deepEqual(normalizeForms({ wolf: 98.9, bear: Infinity, dragon: 999999 }), { wolf: 98, bear: 0, dragon: 99 });
   assert.deepEqual(normalizeForms(Object.create({ wolf: 2 })), { wolf: 0, bear: 0, dragon: 0 });
   const source = { wolf: 1, bear: 2, dragon: 0 }, result = normalizeForms(source); result.wolf = 2;
   assert.equal(source.wolf, 1);
@@ -27,14 +29,15 @@ test('each matching character level grants its first form rank for free', () => 
     assert.equal(preview.requiredLevel, definition.firstLevel); assert.ok(preview.nextDamage > 0);
     assert.equal(formRank(unlocked.progress, definition.id), 1);
     assert.equal(unlocked.progress.gold, 1000); assert.equal(unlocked.progress.forms[definition.id], 0);
-    assert.equal(applyFormUpgrade(unlocked.progress, definition.id), false);
+    assert.equal(getFormOffer(unlocked, definition.id).requiredLevel, definition.firstLevel);
+    assert.equal(getFormOffer(unlocked, definition.id).locked, false);
   }
 });
 
-test('purchase offers use camp phase funds and the next rank level consistently', () => {
-  const current = state(7);
+test('purchase offers use camp phase funds and only the first unlock level consistently', () => {
+  const current = state(4);
   let offer = getFormOffer(current, 'wolf');
-  assert.equal(offer.rank, 1); assert.equal(offer.level, 0); assert.equal(offer.requiredLevel, 7); assert.equal(offer.cost, 45); assert.equal(offer.locked, false);
+  assert.equal(offer.rank, 1); assert.equal(offer.level, 0); assert.equal(offer.requiredLevel, 4); assert.equal(offer.cost, 45); assert.equal(offer.locked, false);
   assert.equal(offer.canBuy, false);
   current.inCamp = true; assert.equal(getFormOffer(current, 'wolf').canBuy, true);
   current.phase = 'paused'; assert.equal(getFormOffer(current, 'wolf').canBuy, true);
@@ -45,17 +48,28 @@ test('purchase offers use camp phase funds and the next rank level consistently'
   assert.equal(getFormOffer(current, 'unknown'), null);
 });
 
-test('two paid upgrades change only form purchases and gold and stop at rank three', () => {
+test('each form can buy all 99 paid ranks immediately after unlock and rejects rank 101 without charging', () => {
   for (const definition of FORMS) {
-    const current = state(definition.firstLevel + 6), progress = current.progress;
+    const current = state(definition.firstLevel), progress = current.progress;
+    current.inCamp = true; progress.gold = 1_000_000;
     progress.extra = { untouched: true };
     const otherForms = { ...progress.forms }, gold = progress.gold;
-    assert.equal(applyFormUpgrade(progress, definition.id), true);
-    assert.equal(formRank(progress, definition.id), 2);
-    assert.equal(progress.gold, gold - definition.baseCost);
-    assert.equal(applyFormUpgrade(progress, definition.id), true);
-    assert.equal(formRank(progress, definition.id), 3);
-    assert.equal(progress.gold, gold - definition.baseCost - Math.round(definition.baseCost * 1.8));
+    let charged = 0;
+    for (let rank = 1; rank < 100; rank++) {
+      const offer = getFormOffer(current, definition.id);
+      assert.equal(offer.rank, rank); assert.equal(offer.requiredLevel, definition.firstLevel);
+      assert.equal(offer.locked, false); assert.equal(offer.canBuy, true);
+      assert.ok(Number.isFinite(offer.currentDamage) && Number.isFinite(offer.nextDamage));
+      assert.ok(offer.nextDamage > offer.currentDamage);
+      if (rank === 1) assert.equal(offer.cost, definition.baseCost);
+      if (rank === 2) assert.equal(offer.cost, Math.round(definition.baseCost * 1.8));
+      charged += offer.cost;
+      assert.equal(applyFormUpgrade(progress, definition.id), true);
+      assert.equal(formRank(progress, definition.id), rank + 1);
+      assert.equal(progress.gold, gold - charged);
+      assert.equal(progress.level, definition.firstLevel);
+    }
+    assert.equal(progress.forms[definition.id], 99);
     for (const other of FORMS.filter(form => form.id !== definition.id)) assert.equal(progress.forms[other.id], otherForms[other.id]);
     const capped = structuredClone(progress), offer = getFormOffer(current, definition.id);
     assert.equal(offer.maxed, true); assert.equal(offer.canBuy, false);
@@ -66,7 +80,7 @@ test('two paid upgrades change only form purchases and gold and stop at rank thr
 });
 
 test('invalid or underleveled purchases never mutate any saved state', () => {
-  for (const [level, gold, id] of [[3, 100, 'wolf'], [4, 100, 'wolf'], [7, 44, 'wolf'], [20, 100, 'other']]) {
+  for (const [level, gold, id] of [[3, 100, 'wolf'], [7, 100, 'bear'], [11, 100, 'dragon'], [4, 44, 'wolf'], [20, 100, 'other']]) {
     const progress = state(level).progress; progress.gold = gold; const before = structuredClone(progress);
     assert.equal(applyFormUpgrade(progress, id), false); assert.deepEqual(progress, before);
   }
@@ -88,6 +102,12 @@ test('attack profiles include staff gear once, retain precision, and expose thei
   const offer = getFormOffer(current, 'wolf');
   assert.equal(offer.currentDamage, Math.round(getFormDefinition('wolf', 2, player).damage));
   assert.equal(offer.nextDamage, Math.round(getFormDefinition('wolf', 3, player).damage));
+  for (const definition of FORMS) {
+    const first = getFormDefinition(definition.id, 1, player), maximum = getFormDefinition(definition.id, 100, player);
+    assert.ok(Number.isFinite(maximum.damage));
+    assert.ok(Math.abs(maximum.damage - first.damage * 22.78) < 1e-9);
+    assert.equal(maximum.range, first.range); assert.equal(maximum.interval, first.interval);
+  }
 });
 
 test('airborne fast and clustered swarm select their matching unlocked forms with stable priority', () => {

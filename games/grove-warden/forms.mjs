@@ -1,11 +1,11 @@
 export const FORMS = Object.freeze([
-  Object.freeze({ id: 'wolf', name: '늑대', firstLevel: 4, maxLevel: 3, baseCost: 45,
+  Object.freeze({ id: 'wolf', name: '늑대', firstLevel: 4, maxLevel: 100, baseCost: 45,
     description: '고속 적에게 빠른 근접 공격', counterLabel: '고속 적 대응',
     damageScale: 1.05, range: 2.2, interval: 0.32, attackKind: 'melee', groundOnly: false, airborneBonus: 1, homing: false }),
-  Object.freeze({ id: 'bear', name: '곰', firstLevel: 8, maxLevel: 3, baseCost: 70,
+  Object.freeze({ id: 'bear', name: '곰', firstLevel: 8, maxLevel: 100, baseCost: 70,
     description: '모여 있는 지면의 적에게 넓은 강타', counterLabel: '군체 대응',
     damageScale: 1.9, range: 3.3, interval: 1.15, attackKind: 'slam', groundOnly: true, airborneBonus: 1, homing: false }),
-  Object.freeze({ id: 'dragon', name: '용', firstLevel: 12, maxLevel: 3, baseCost: 100,
+  Object.freeze({ id: 'dragon', name: '용', firstLevel: 12, maxLevel: 100, baseCost: 100,
     description: '유도 화염으로 공중의 적에게 추가 피해', counterLabel: '공중 적 대응',
     damageScale: 1.2, range: 6.2, interval: 0.72, attackKind: 'projectile', groundOnly: false, airborneBonus: 1.6, homing: true }),
 ]);
@@ -41,7 +41,7 @@ function offerFor(progress, player, id) {
   if (!definition) return null;
   const level = integer(own(progress?.forms, id), definition.maxLevel - 1);
   const rank = formRank(progress, id), unlocked = rank > 0, maxed = rank === definition.maxLevel;
-  const requiredLevel = unlocked ? definition.firstLevel + Math.min(level + 1, definition.maxLevel - 1) * 3 : definition.firstLevel;
+  const requiredLevel = definition.firstLevel;
   const cost = !unlocked || maxed ? 0 : Math.round(definition.baseCost * (1 + level * 0.8));
   const current = getFormDefinition(id, rank, player), next = maxed ? null : getFormDefinition(id, Math.max(1, rank + 1), player);
   const locked = levelOf(progress) < requiredLevel;

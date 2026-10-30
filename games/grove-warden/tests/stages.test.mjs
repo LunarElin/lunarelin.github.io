@@ -25,13 +25,13 @@ function kill(state, type, stageId, options = {}) {
   return enemy;
 }
 
-test('v5 completion extends naturally into new quests while all owned progress is preserved in v7', () => {
+test('v5 completion extends naturally into new quests while all owned progress is preserved in v8', () => {
   const old = { version: 5, gold: 247, cargo: 17, xp: 560, questIndex: 6,
     upgrades: { attack: 2, health: 1, bag: 1 }, skills: { owl: 2, roots: 1 },
     gear: { equipped: 'moon', scrolls: 12, items: { sprout: { copies: 1, level: 2, tier: 1 }, moon: { copies: 2, level: 3, tier: 1 } } },
     totals: { kills: 90, mushrooms: 50, deepKills: 20, banked: 160 }, bosses: ['meadow-guardian', 'deep-guardian'] };
   const progress = normalizeProgress(old), state = createGame(7092, old);
-  assert.equal(progress.version, 7); assert.equal(progress.checkpoint, 'meadow');
+  assert.equal(progress.version, 8); assert.equal(progress.checkpoint, 'meadow');
   assert.deepEqual(progress.forms, { wolf: 0, bear: 0, dragon: 0 });
   for (const key of ['gold', 'cargo', 'xp', 'questIndex', 'upgrades', 'skills', 'bosses']) assert.deepEqual(progress[key], old[key]);
   for (const [key, value] of Object.entries(old.totals)) assert.equal(progress.totals[key], value);
@@ -113,7 +113,7 @@ test('physically entering any unlocked camp banks cargo and saves that camp for 
 
 test('checkpoint validation rejects locked regions and saved transient form data', () => {
   const locked = normalizeProgress({ xp: 560, questIndex: 6, checkpoint: 'sky', forms: { wolf: 99, bear: -2, dragon: '2', phoenix: 3 }, player: { form: 'dragon' } });
-  assert.equal(locked.checkpoint, 'meadow'); assert.deepEqual(locked.forms, { wolf: 2, bear: 0, dragon: 0 });
+  assert.equal(locked.checkpoint, 'meadow'); assert.deepEqual(locked.forms, { wolf: 99, bear: 0, dragon: 0 });
   const valid = createGame(7097, { xp: 560, questIndex: 6, checkpoint: 'ancient', forms: { wolf: 1 } });
   assert.equal(getStage(valid).id, 'ancient'); assert.equal(valid.player.form, 'druid'); assert.equal(valid.player.formRank, 0);
   assert.equal(valid.player.z, -44); assert.equal(exportProgress(valid).checkpoint, 'ancient');
@@ -255,7 +255,7 @@ test('the meadow variant uses its eight-second active respawn and retains level 
   assert.notEqual(state.enemies[0].id, target.id);
   assert.deepEqual([state.enemies[0].hp, state.enemies[0].damage, state.enemies[0].xp, state.enemies[0].loot], [90, 4, 4, 6]);
   const saved = exportProgress(state), restored = createGame(7103, saved);
-  assert.equal(saved.version, 7); assert.deepEqual(exportProgress(restored), saved);
+  assert.equal(saved.version, 8); assert.deepEqual(exportProgress(restored), saved);
   assert.equal(restored.enemies.filter(enemy => enemy.zoneId === 'meadow-runners').length, 4);
   assert.equal(restored.progress.questIndex, 0); assert.equal(getUnlockedMinZ(restored.progress), -14);
 });

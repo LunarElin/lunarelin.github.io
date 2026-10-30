@@ -12,6 +12,9 @@ Downloaded: 2026-10-30.
 Local modifications:
 The two WOFF2 files are subsets containing printable ASCII and the supported
 characters present in the game's top-level HTML, CSS, SVG and MJS sources.
+Coverage is refreshed when those sources change, including the compact-number
+units used by the growth interface. Source-supported characters are checked
+against each subset's cmap before delivery.
 No glyph outline, advance width, glyph hinting or global hint table was changed.
 Internal family names were changed to Grove Pixel 9 and Grove Pixel 11.
 The CSS @font-face aliases remain Galmuri9 and Galmuri11.

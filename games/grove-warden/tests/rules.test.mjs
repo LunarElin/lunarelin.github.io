@@ -259,7 +259,7 @@ test('progress normalization whitelists fields, validates values, and derives le
   assert.equal(p.gold, 0);
   assert.equal(p.cargo, 40);
   assert.equal(p.level, 3);
-  assert.equal(p.upgrades.attack, 8);
+  assert.equal(p.upgrades.attack, 100);
   assert.equal(p.upgrades.health, 0);
   assert.equal(p.totals.kills, 5);
   assert.equal(p.totals.banked, 0);
@@ -501,7 +501,7 @@ test('saved first boss kill records never suppress a new field boss or unlock a 
   const unlocked = createGame(403, { version: 4, questIndex: 4, bosses: records });
   for (const id of records) assert.equal(unlocked.enemies.filter(actor => actor.bossId === id).length, 1);
   assert.deepEqual(exportProgress(unlocked).bosses, records);
-  assert.equal(exportProgress(unlocked).version, 7);
+  assert.equal(exportProgress(unlocked).version, 8);
   const locked = createGame(403, { version: 4, questIndex: 3, bosses: records });
   assert.equal(locked.enemies.filter(actor => actor.bossId === records[0]).length, 1);
   assert.equal(locked.enemies.filter(actor => actor.bossId === records[1]).length, 0);
@@ -511,7 +511,7 @@ test('v4 progression gains a zero-bonus starter item without losing any existing
   const old = { version: 4, gold: 75, cargo: 33, xp: 720, upgrades: { attack: 2, health: 1, bag: 2 },
     skills: { owl: 2, roots: 1 }, questIndex: 4, totals: { kills: 30, mushrooms: 20, deepKills: 1, banked: 63 }, bosses: ['meadow-guardian'] };
   const progress = normalizeProgress(old), state = createGame(404, old);
-  assert.equal(progress.version, 7);
+  assert.equal(progress.version, 8);
   for (const key of ['gold', 'cargo', 'xp', 'upgrades', 'skills', 'questIndex', 'bosses']) assert.deepEqual(progress[key], old[key]);
   for (const [key, value] of Object.entries(old.totals)) assert.equal(progress.totals[key], value);
   assert.deepEqual(gearBonuses(progress.gear), { damage: 0, health: 0 });
@@ -799,7 +799,7 @@ test('v2 progression migrates to v7 with no lost gold, cargo, ranks, quests or b
   const old = { version: 2, gold: 215, cargo: 33, xp: 150, upgrades: { attack: 2, health: 1, bag: 2 }, questIndex: 4,
     totals: { kills: 19, mushrooms: 12, deepKills: 3, banked: 70 }, bosses: ['meadow-guardian'], unlockedDeep: true };
   const migrated = normalizeProgress(old);
-  assert.equal(migrated.version, 7);
+  assert.equal(migrated.version, 8);
   for (const key of ['gold', 'cargo', 'xp', 'questIndex', 'unlockedDeep']) assert.equal(migrated[key], old[key]);
   for (const key of ['upgrades', 'bosses']) assert.deepEqual(migrated[key], old[key]);
   for (const [key, value] of Object.entries(old.totals)) assert.equal(migrated.totals[key], value);
@@ -808,28 +808,28 @@ test('v2 progression migrates to v7 with no lost gold, cargo, ranks, quests or b
   assert.deepEqual(exportProgress(restored), migrated);
 });
 
-test('stat ranks and learned druid skills require their displayed level and cost', () => {
+test('stat ranks and learned druid skills require funds and camp access without a player-level gate', () => {
   const novice = createGame(1, { gold: 200 }); novice.phase = 'playing';
-  assert.equal(getSkillOffer(novice, 'owl').requiredLevel, 2);
-  assert.equal(getSkillOffer(novice, 'owl').locked, true);
-  assert.equal(learnSkill(novice, 'owl'), false);
+  assert.equal(getSkillOffer(novice, 'owl').requiredLevel, 1);
+  assert.equal(getSkillOffer(novice, 'owl').locked, false);
+  assert.equal(learnSkill(novice, 'owl'), true);
   assert.equal(buyUpgrade(novice, 'attack'), true);
-  assert.equal(getUpgradeOffer(novice, 'attack').requiredLevel, 3);
-  assert.equal(getUpgradeOffer(novice, 'attack').locked, true);
-  assert.equal(buyUpgrade(novice, 'attack'), false);
+  assert.equal(getUpgradeOffer(novice, 'attack').requiredLevel, 1);
+  assert.equal(getUpgradeOffer(novice, 'attack').locked, false);
+  assert.equal(buyUpgrade(novice, 'attack'), true);
   const apprentice = createGame(2, { xp: 20, gold: 100 }); apprentice.phase = 'playing';
   assert.equal(learnSkill(apprentice, 'owl'), true);
   assert.equal(apprentice.progress.gold, 80);
   assert.equal(apprentice.progress.skills.owl, 1);
   assert.equal(getSkillOffer(apprentice, 'owl').currentInterval, 1.6);
   assert.equal(getSkillOffer(apprentice, 'owl').nextInterval, 1.4);
-  assert.equal(getSkillOffer(apprentice, 'owl').requiredLevel, 5);
-  assert.equal(learnSkill(apprentice, 'roots'), false);
+  assert.equal(getSkillOffer(apprentice, 'owl').requiredLevel, 1);
+  assert.equal(learnSkill(apprentice, 'roots'), true);
   const druid = createGame(3, { xp: 60, gold: 100 }); druid.phase = 'playing';
   assert.equal(learnSkill(druid, 'roots'), true);
   assert.equal(druid.progress.gold, 65);
   assert.equal(getSkillOffer(druid, 'roots').currentInterval, 8);
-  assert.equal(getSkillOffer(druid, 'roots').requiredLevel, 6);
+  assert.equal(getSkillOffer(druid, 'roots').requiredLevel, 1);
   assert.equal(getSkillOffer(druid, 'roots').nextInterval, 7.2);
 });
 
@@ -1064,7 +1064,7 @@ test('stat offers show actual current and purchased values and no fictional next
     assert.ok(after.currentValue > offer.currentValue);
     assert.ok(offer.unit.length > 0);
   }
-  const capped = createGame(10, { xp: 10000, upgrades: { attack: 8, health: 6, bag: 6 } });
+  const capped = createGame(10, { xp: 10000, upgrades: { attack: 100, health: 100, bag: 100 } });
   for (const id of ['attack', 'health', 'bag']) {
     assert.equal(getUpgradeOffer(capped, id).maxed, true);
     assert.equal(getUpgradeOffer(capped, id).nextValue, null);
@@ -1376,7 +1376,7 @@ test('v3 learned movement ranks become an owl without losing purchases or existi
     const old = { version: 3, gold: 73, cargo: 33, xp: 720, upgrades: { attack: 2, health: 1, bag: 2 },
       skills: { dodge: rank, roots: 2 }, questIndex: 4, totals: { kills: 31, mushrooms: 20, deepKills: 2, banked: 89 }, bosses: ['meadow-guardian'] };
     const migrated = normalizeProgress(old);
-    assert.equal(migrated.version, 7);
+    assert.equal(migrated.version, 8);
     assert.deepEqual(migrated.skills, { owl: rank, roots: 2 });
     for (const key of ['gold', 'cargo', 'xp', 'questIndex']) assert.equal(migrated[key], old[key]);
     for (const key of ['upgrades', 'bosses']) assert.deepEqual(migrated[key], old[key]);
@@ -1388,8 +1388,8 @@ test('v3 learned movement ranks become an owl without losing purchases or existi
   assert.equal(normalizeProgress({ skills: { owl: 1, dodge: 3 } }).skills.owl, 1);
 });
 
-test('owl ranks retain their level gates and purchase prices and expose rounded damage offers', () => {
-  for (const [rank, xp, cost, requiredLevel, interval] of [[0, 20, 20, 2, 1.6], [1, 200, 37, 5, 1.4], [2, 560, 54, 8, 1.2]]) {
+test('owl ranks retain purchase prices and rounded damage offers while removing level gates', () => {
+  for (const [rank, xp, cost, requiredLevel, interval] of [[0, 20, 20, 1, 1.6], [1, 200, 37, 1, 1.4], [2, 560, 54, 1, 1.2]]) {
     const state = createGame(1, { xp, gold: 100, upgrades: { attack: 1 }, skills: { owl: rank } }); state.phase = 'playing';
     const before = getSkillOffer(state, 'owl');
     assert.equal(before.name, '숲의 부엉이');
@@ -1399,7 +1399,7 @@ test('owl ranks retain their level gates and purchase prices and expose rounded 
     const after = getSkillOffer(state, 'owl');
     assert.equal(after.currentInterval, interval);
     assert.equal(after.currentDamage, Math.round(state.owl.damage));
-    if (rank === 2) { assert.equal(after.nextInterval, null); assert.equal(after.nextDamage, null); }
+    if (rank === 2) { assert.ok(after.nextInterval > 0 && after.nextInterval < interval); assert.ok(after.nextDamage > after.currentDamage); }
   }
 });
 

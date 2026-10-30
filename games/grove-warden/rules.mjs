@@ -17,13 +17,13 @@ export const RULES = Object.freeze({
   skillAimRange: 4.8,
 });
 export const UPGRADES = Object.freeze([
-  Object.freeze({ id: 'attack', name: '지팡이 강화', description: '공격 피해 +18%', baseCost: 30, maxLevel: 8, icon: '✦' }),
-  Object.freeze({ id: 'health', name: '생명 강화', description: '최대 생명 +20', baseCost: 35, maxLevel: 6, icon: '♥' }),
-  Object.freeze({ id: 'bag', name: '가방 확장', description: '운반 한도 +16', baseCost: 25, maxLevel: 6, icon: '▣' }),
+  Object.freeze({ id: 'attack', name: '지팡이 강화', description: '공격 피해 +18%', baseCost: 30, maxLevel: 100, icon: '✦' }),
+  Object.freeze({ id: 'health', name: '생명 강화', description: '최대 생명 +20', baseCost: 35, maxLevel: 100, icon: '♥' }),
+  Object.freeze({ id: 'bag', name: '가방 확장', description: '운반 한도 +16', baseCost: 25, maxLevel: 100, icon: '▣' }),
 ]);
 export const SKILLS = Object.freeze([
-  Object.freeze({ id: 'owl', name: '숲의 부엉이', description: '곁에서 자동으로 유도탄 발사', baseCost: 20, firstLevel: 2, maxLevel: 3 }),
-  Object.freeze({ id: 'roots', name: '휘감는 덩굴', description: '전투 중 주기적으로 자동 범위 공격', baseCost: 35, firstLevel: 3, maxLevel: 3 }),
+  Object.freeze({ id: 'owl', name: '숲의 부엉이', description: '곁에서 자동으로 유도탄 발사', baseCost: 20, firstLevel: 1, maxLevel: 100 }),
+  Object.freeze({ id: 'roots', name: '휘감는 덩굴', description: '전투 중 주기적으로 자동 범위 공격', baseCost: 35, firstLevel: 1, maxLevel: 100 }),
 ]);
 // 웹 전투용 수치. 시전 시간과 피해 판정은 전투 규칙에서 별도로 처리한다.
 export const MONSTER_STATS = Object.freeze({
@@ -111,7 +111,13 @@ function event(state, type, x, z, extra = {}) {
 }
 
 const integer = (value, max = 1000000000) => Number.isFinite(value) ? clamp(Math.floor(value), 0, max) : 0;
-const skillInterval = (id, rank) => id === 'roots' ? (80 - (Math.max(1, rank) - 1) * 8) / 10 : (16 - (Math.max(1, rank) - 1) * 2) / 10;
+function skillInterval(id, rank) {
+  const effective = Math.max(1, integer(rank, 100)), early = Math.min(3, effective);
+  const base = id === 'roots' ? (80 - (early - 1) * 8) / 10 : (16 - (early - 1) * 2) / 10;
+  // Keep the original first three ranks, then improve every rank without
+  // reaching a zero/negative timer or producing unbounded projectile bursts.
+  return base / (1 + Math.max(0, effective - 3) * (id === 'roots' ? .025 : .02));
+}
 const owlDamage = (state, rank) => (10 + state.player.level - 1 + 4 * (Math.max(1, rank) - 1) + (state.player.gearDamage || 0)) * state.player.damageMult;
 const xpThreshold = level => 10 * (level - 1) * level;
 function levelFromXp(xp) { return Math.min(50, Math.floor((1 + Math.sqrt(1 + xp * 0.4)) / 2)); }
@@ -163,7 +169,7 @@ export function normalizeProgress(raw) {
   for (const key of ['kills', 'mushrooms', 'deepKills', 'banked', 'ancientRunners', 'swarms', 'flyers', 'ancientKills', 'skyKills']) totals[key] = integer(source.totals?.[key]);
   const questIndex = integer(source.questIndex, QUESTS.length);
   const progress = {
-    version: 7, gold: integer(source.gold), cargo: integer(source.cargo, 24 + upgrades.bag * 16),
+    version: 8, gold: integer(source.gold), cargo: integer(source.cargo, 24 + upgrades.bag * 16),
     xp, level: levelFromXp(xp), upgrades, skills, gear: normalizeGear(source.gear), forms: normalizeForms(source.forms), questIndex, totals,
     bosses: BOSS_IDS.filter(id => Array.isArray(source.bosses) && source.bosses.includes(id)),
     unlockedDeep: questIndex >= 4, checkpoint: 'meadow',
@@ -231,14 +237,14 @@ export function getUpgradeOffer(state, id) {
   const definition = UPGRADES.find(item => item.id === id);
   if (!definition) return null;
   const level = state.progress.upgrades[id];
-  const requiredLevel = 1 + level * 2;
+  const requiredLevel = 1;
   const maxed = level >= definition.maxLevel;
   const currentValue = id === 'attack' ? Math.round(state.player.attackDamage * state.player.damageMult)
     : id === 'health' ? state.player.maxHp : state.player.capacity;
   const nextValue = maxed ? null : id === 'attack' ? Math.round(state.player.attackDamage * (1 + (level + 1) * 0.18))
     : currentValue + (id === 'health' ? 20 : 16);
   const unit = id === 'attack' ? '피해' : id === 'health' ? '생명' : '칸';
-  return { ...definition, level, requiredLevel, locked: state.progress.level < requiredLevel,
+  return { ...definition, level, requiredLevel, locked: false,
     cost: Math.round(definition.baseCost * (1 + level * 0.8)), maxed, currentValue, nextValue, unit };
 }
 
@@ -256,8 +262,8 @@ export function buyUpgrade(state, id) {
 export function getSkillOffer(state, id) {
   const definition = SKILLS.find(item => item.id === id);
   if (!definition) return null;
-  const level = state.progress.skills[id], requiredLevel = definition.firstLevel + level * 3;
-  return { ...definition, level, requiredLevel, locked: state.progress.level < requiredLevel,
+  const level = state.progress.skills[id], requiredLevel = 1;
+  return { ...definition, level, requiredLevel, locked: false,
     cost: Math.round(definition.baseCost * (1 + level * 0.85)), maxed: level >= definition.maxLevel,
     currentInterval: level > 0 ? skillInterval(id, level) : null,
     nextInterval: level < definition.maxLevel ? skillInterval(id, level + 1) : null,

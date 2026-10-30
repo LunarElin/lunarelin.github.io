@@ -147,23 +147,68 @@ test('already fired druid bolts and committed roots finish during transformation
   }
 });
 
-test('form growth wrapper guards camp and phase, charges once, saves and strengthens the actual attack', () => {
-  const state = createGame(1742, { xp: 3800, questIndex: 11, gold: 500 }), before = exportProgress(state);
+test('the level-four wolf buys 100 ranks with gold alone and preserves its actual maximum attack after reload', () => {
+  const state = createGame(1742, { xp: 120, questIndex: 0, gold: 500_000 }), before = exportProgress(state);
   assert.equal(buyFormUpgrade(state, 'wolf'), false); assert.deepEqual(exportProgress(state), before);
   state.phase = 'playing'; state.inCamp = false;
   assert.equal(buyFormUpgrade(state, 'wolf'), false); assert.deepEqual(exportProgress(state), before);
-  state.inCamp = true; setPaused(state, true); const offer = getFormOffer(state, 'wolf'), revision = state.revision;
-  assert.equal(buyFormUpgrade(state, 'wolf'), true);
-  assert.equal(state.progress.gold, before.gold - offer.cost); assert.equal(state.progress.forms.wolf, 1); assert.equal(state.revision, revision + 1);
-  assert.equal(state.queuedEvents.at(-1).type, 'upgrade'); assert.equal(state.queuedEvents.at(-1).id, 'wolf');
-  const restored = createGame(1743, exportProgress(state)); assert.equal(getFormOffer(restored, 'wolf').rank, 2);
-  assert.equal(restored.player.form, 'druid'); assert.equal(restored.progress.forms.wolf, 1);
-  assert.equal(buyFormUpgrade(state, 'wolf'), true); const capped = exportProgress(state);
+  state.inCamp = true; setPaused(state, true); const revision = state.revision;
+  let paid = 0;
+  for (let rank = 1; rank < 100; rank++) {
+    const offer = getFormOffer(state, 'wolf');
+    assert.equal(offer.rank, rank); assert.equal(offer.requiredLevel, 4); assert.equal(offer.canBuy, true);
+    paid += offer.cost;
+    assert.equal(buyFormUpgrade(state, 'wolf'), true);
+    assert.equal(state.progress.gold, before.gold - paid);
+    assert.equal(state.progress.forms.wolf, rank); assert.equal(state.revision, revision + rank);
+  }
+  assert.equal(state.player.level, 4);
+  assert.equal(state.queuedEvents.filter(event => event.type === 'upgrade' && event.id === 'wolf').length, 99);
+  const restored = createGame(1743, exportProgress(state)); assert.equal(getFormOffer(restored, 'wolf').rank, 100);
+  assert.equal(restored.player.form, 'druid'); assert.equal(restored.progress.forms.wolf, 99);
+  const capped = exportProgress(state), cappedRevision = state.revision, cappedEvents = state.queuedEvents.length;
   assert.equal(buyFormUpgrade(state, 'wolf'), false); assert.deepEqual(exportProgress(state), capped);
-  setPaused(state, false); state.player.x = 0; state.player.z = -55; state.enemies = []; state.spawners = []; state.inCamp = false;
+  assert.equal(state.revision, cappedRevision); assert.equal(state.queuedEvents.length, cappedEvents);
+  setPaused(state, false); state.player.x = 7; state.player.z = 7; state.enemies = []; state.spawners = []; state.inCamp = false;
   state.fieldEvents.nextDiscovery = state.fieldEvents.nextHazard = 1e9; state.player.attackCd = 0;
-  const target = enemy(state, 'fast', 2), damage = getFormDefinition('wolf', 3, state.player).damage;
-  tick(state, 1); assert.equal(state.player.formRank, 3); close(target.hp, target.maxHp - damage);
+  const target = enemy(state, 'fast', 2), damage = getFormDefinition('wolf', 100, state.player).damage;
+  const events = tick(state, 1); assert.equal(state.player.formRank, 100); close(target.hp, target.maxHp - damage);
+  const hit = events.find(event => event.type === 'hit' && event.source === 'wolf');
+  assert.equal(hit.targetId, target.id); close(hit.damage, damage);
+});
+
+test('v7 paid forms migrate to v8 and all three maximum ranks survive save death and recovery without extra charges', () => {
+  const legacy = { version: 7, xp: 1320, questIndex: 11, gold: 1_000_000, cargo: 17,
+    forms: { wolf: 2, bear: 1, dragon: 0 }, skills: { owl: 2, roots: 3 }, upgrades: { attack: 2, health: 1, bag: 1 } };
+  const state = createGame(1745, legacy);
+  assert.equal(state.progress.version, 8);
+  assert.deepEqual(state.progress.forms, legacy.forms);
+  assert.deepEqual(state.progress.skills, legacy.skills);
+  assert.deepEqual(state.progress.upgrades, legacy.upgrades);
+  assert.equal(state.progress.gold, legacy.gold); assert.equal(state.cargo, legacy.cargo);
+  state.phase = 'playing'; state.inCamp = true;
+  let paid = 0;
+  for (const id of ['wolf', 'bear', 'dragon']) {
+    while (!getFormOffer(state, id).maxed) {
+      paid += getFormOffer(state, id).cost;
+      assert.equal(buyFormUpgrade(state, id), true);
+    }
+    const offer = getFormOffer(state, id);
+    assert.equal(offer.rank, 100); assert.ok(Number.isFinite(offer.currentDamage));
+    assert.equal(offer.canBuy, false); assert.equal(buyFormUpgrade(state, id), false);
+  }
+  assert.equal(state.progress.gold, legacy.gold - paid);
+  const saved = exportProgress(state);
+  assert.equal(saved.version, 8); assert.deepEqual(saved.forms, { wolf: 99, bear: 99, dragon: 99 });
+  const restored = createGame(1746, saved);
+  assert.deepEqual(exportProgress(restored), saved);
+  for (const id of ['wolf', 'bear', 'dragon']) assert.equal(getFormOffer(restored, id).rank, 100);
+  restored.phase = 'playing'; restored.player.x = 0; restored.player.z = 0; restored.inCamp = false;
+  restored.enemies = []; restored.spawners = []; restored.player.hp = 1; restored.player.invuln = 0;
+  restored.fieldEvents.nextDiscovery = restored.fieldEvents.nextHazard = 1e9;
+  restored.projectiles.push({ id: restored.nextId++, x: 0, z: 0, dx: 0, dz: 0, team: 'enemy', damage: 2, life: 1, radius: 0.2, hitIds: [], pierce: 0 });
+  tick(restored, 1); assert.equal(restored.phase, 'down'); assert.deepEqual(exportProgress(restored), saved);
+  assert.equal(respawnAtCamp(restored), true); assert.deepEqual(exportProgress(restored), saved);
 });
 
 test('an unlearned low-level druid can damage all new traits without transformation or forced movement', () => {

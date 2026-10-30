@@ -1,16 +1,16 @@
 import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, STAGES, FORMS, getStage, getCamp, isStageUnlocked, isZoneUnlocked, getFormOffer, buyFormUpgrade, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, getSkillOffer, learnSkill, respawnAtCamp, equipmentAction } from './rules.mjs';
 import { createRenderer } from './renderer.mjs';
 import { createGameAudio } from './audio.mjs';
-import { EQUIPMENT, getEquipmentOffer, getStaffAttack } from './equipment.mjs';
+import { EQUIPMENT, TIERS, EQUIPMENT_MAX_LEVEL, EQUIPMENT_MAX_TIER, getEquipmentOffer, getStaffAttack } from './equipment.mjs';
 
 const $ = id => document.getElementById(id);
 const lifetime = new AbortController();
 const listen = (element, type, handler, options = {}) => element.addEventListener(type, handler, { ...options, signal: lifetime.signal });
-const SAVE_KEY = 'grove-warden:v7';
+const SAVE_KEY = 'grove-warden:v8';
 let settings = { sound: true }, savedProgress = normalizeProgress(), storageFailed = false;
 try {
   let saved;
-  for (const key of [SAVE_KEY, 'grove-warden:v6', 'grove-warden:v5', 'grove-warden:v4', 'grove-warden:v3', 'grove-warden:v2']) {
+  for (const key of [SAVE_KEY, 'grove-warden:v7', 'grove-warden:v6', 'grove-warden:v5', 'grove-warden:v4', 'grove-warden:v3', 'grove-warden:v2']) {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {
@@ -182,8 +182,19 @@ const growthButtons = [...document.querySelectorAll('[data-growth]')];
 const formPreviews = Object.fromEntries(FORMS.map(form => [form.id, form]));
 const growthRows = new Map();
 const equipmentRows = new Map();
+function formatAmount(value) {
+  if (value < 10000) return String(value);
+  const divisor = value >= 100000000 ? 100000000 : 10000, amount = value / divisor;
+  const rounded = Number(amount.toFixed(amount >= 100 ? 0 : amount >= 10 ? 1 : 2));
+  return divisor === 10000 && rounded >= 10000 ? '1억' : `${rounded}${divisor === 10000 ? '만' : '억'}`;
+}
+const formatSeconds = value => Number(value.toFixed(value < 1 ? 3 : 2));
+function showAmount(id, value, label) {
+  const element = $(id);
+  element.textContent = formatAmount(value); element.setAttribute('aria-label', `${label} ${value}`); element.title = String(value);
+}
 function renderEquipment() {
-  $('equipment-scrolls').textContent = state.progress.gear.scrolls;
+  showAmount('equipment-scrolls', state.progress.gear.scrolls, '강화 두루마리');
   for (const definition of EQUIPMENT) {
     let row = equipmentRows.get(definition.id);
     if (!row) {
@@ -211,19 +222,20 @@ function renderEquipment() {
     const offer = getEquipmentOffer(state.progress, definition.id);
     row.card.classList.toggle('equipped', offer.equipped); row.card.classList.toggle('undiscovered', !offer.owned);
     row.name.textContent = offer.name;
-    row.details.textContent = offer.owned ? `${offer.attackLabel} · ${offer.tierName} · +${offer.level} · 보유 ${offer.copies}` : `${offer.attackLabel} · 기본형 무료`;
+    row.details.textContent = offer.owned ? `${offer.attackLabel} · ${TIERS[Math.min(3, offer.tier)]}\n강화 ${offer.level}/${EQUIPMENT_MAX_LEVEL}\n승급 ${offer.tier}/${EQUIPMENT_MAX_TIER}\n보유 ${offer.copies}개` : `${offer.attackLabel} · 기본형 무료`;
     const attack = getStaffAttack(definition.id, { attackDamage: state.player.attackDamage - state.player.gearDamage + offer.damage, damageMult: state.player.damageMult });
     const shots = attack.burstCount * attack.spreadAngles.length;
-    const damageLabel = attack.volleyHitLimit ? `${Math.round(attack.damage)} · ${shots}방향${attack.pierce ? ' 관통' : ''}` : `${Math.round(attack.damage)}${shots > 1 ? `×${shots}` : ''}`;
+    const damageLabel = attack.volleyHitLimit ? `${formatAmount(Math.round(attack.damage))} · ${shots}방향${attack.pierce ? ' 관통' : ''}` : `${formatAmount(Math.round(attack.damage))}${shots > 1 ? `×${shots}` : ''}`;
     row.effect.textContent = `피해 ${damageLabel} · ${attack.interval}초 · ${attack.blastRadius ? `폭발 ${attack.blastRadius}m` : `${attack.range}m`}`;
-    row.next.textContent = `${definition.targetLabel} · ${definition.tradeoff}\n${offer.maxed ? `최대 · 피해 +${offer.damage} · 생명 +${offer.health}` : `보너스 피해 +${offer.damage}→+${offer.nextDamage} · 생명 +${offer.health}→+${offer.nextHealth}`}`;
+    row.effect.setAttribute('aria-label', `피해 ${Math.round(attack.damage)}, ${shots}발, ${attack.interval}초, 거리 ${attack.range}m`);
+    row.next.textContent = `${definition.targetLabel} · ${definition.tradeoff}\n${offer.maxed ? `최대 · 피해 +${offer.damage} · 생명 +${offer.health}` : `보너스 피해 +${offer.damage}→+${offer.nextDamage}\n생명 +${offer.health}→+${offer.nextHealth}`}`;
     const { equip, enhance, promote } = row.buttons;
     equip.label.textContent = !offer.owned ? '무료 받기' : offer.equipped ? '장착 중' : '장착'; equip.cost.textContent = '';
     equip.button.dataset.equipmentAction = offer.owned ? 'equip' : 'unlock';
     enhance.label.textContent = offer.maxed ? '최대' : '강화';
-    enhance.cost.textContent = offer.maxed ? '' : `${offer.enhanceCost}G · ${offer.scrollCost}장`;
+    enhance.cost.textContent = offer.maxed ? '' : `${formatAmount(offer.enhanceCost)}G\n두루마리 ${offer.scrollCost}장`;
     promote.label.textContent = offer.promotionMaxed ? '최대' : '승급';
-    promote.cost.textContent = offer.promotionMaxed ? '' : `${offer.promoteCost}G · ${offer.promoteScrollCost}장`;
+    promote.cost.textContent = offer.promotionMaxed ? '' : `${formatAmount(offer.promoteCost)}G\n두루마리 ${offer.promoteScrollCost}장\n장비 ${offer.promoteCopies}개`;
     equip.button.disabled = !state.inCamp || offer.equipped;
     enhance.button.disabled = !state.inCamp || !offer.canEnhance;
     promote.button.disabled = !state.inCamp || !offer.canPromote;
@@ -231,7 +243,7 @@ function renderEquipment() {
     enhance.button.setAttribute('aria-label', offer.maxed ? `${offer.name} 최대 강화` : `${offer.name} 강화, ${offer.enhanceCost} 골드와 두루마리 ${offer.scrollCost}장`);
     promote.button.setAttribute('aria-label', offer.promotionMaxed ? `${offer.name} 최고 등급` : `${offer.name} 승급, ${offer.promoteCost} 골드와 두루마리 ${offer.promoteScrollCost}장, 같은 장비 2개`);
     const condition = !offer.owned ? definition.description
-      : `${offer.maxed ? '최대 강화' : `강화 Lv.${offer.requiredLevel}`} · ${offer.promotionMaxed ? '최고 등급' : `승급 Lv.${offer.promoteRequiredLevel} · ${offer.copies >= 3 ? '장비 수량 충족' : `같은 장비 ${3 - offer.copies}개 더 필요`}`}`;
+      : `${offer.maxed ? '최대 강화' : `강화 ${offer.level}/${EQUIPMENT_MAX_LEVEL}`} · ${offer.promotionMaxed ? '최고 등급' : `승급 ${offer.tier}/${EQUIPMENT_MAX_TIER}`}\n${offer.promotionMaxed ? '' : offer.copies >= 3 ? '장비 수량 충족' : `같은 장비 ${3 - offer.copies}개 더 필요`}`;
     row.condition.textContent = state.inCamp ? condition : `거점에서 선택·성장\n${condition}`;
   }
 }
@@ -269,18 +281,12 @@ function buildGrowthRows() {
     copy.append(title, detail, condition); row.append(copy);
     const buy = document.createElement('button'); buy.className = 'upgrade-buy'; buy.type = 'button'; row.append(buy);
     buy.dataset.category = growthCategory; buy.dataset.id = definition.id;
-    let ranks;
     if (form) {
       row.classList.add('form-growth-row'); copy.classList.add('form-growth-copy');
       condition.className = 'form-growth-condition';
       const emblem = $(`growth-${form.id}-btn`).querySelector('svg').cloneNode(true); emblem.classList.add('form-emblem'); copy.prepend(emblem);
-      ranks = document.createElement('ol'); ranks.className = 'form-ranks';
-      for (let rank = 1; rank <= form.maxLevel; rank++) {
-        const item = document.createElement('li'); item.append(document.createElement('span'), document.createElement('strong')); ranks.append(item);
-      }
-      row.append(ranks);
     }
-    $('growth-list').append(row); growthRows.set(definition.id, { row, title, detail, condition, buy, definition, ranks });
+    $('growth-list').append(row); growthRows.set(definition.id, { row, title, detail, condition, buy, definition });
   }
   renderedGrowthCategory = growthCategory;
 }
@@ -296,10 +302,10 @@ function renderGrowth() {
   $('growth-summary').hidden = equipmentPage;
   for (const button of $('stats-pages').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.statsPage === statsPage));
   $('growth-title').textContent = growthCategory === 'stats' ? '능력치' : growthCategory === 'druid' ? '드루이드' : `${form.name} 성장`;
-  $('growth-bank-value').textContent = state.progress.gold; $('growth-level-value').textContent = `Lv.${state.player.level}`;
+  showAmount('growth-bank-value', state.progress.gold, '보관 골드'); $('growth-level-value').textContent = `Lv.${state.player.level}`;
   $('growth-summary').textContent = form
     ? `${form.description}\n${state.player.level >= form.firstLevel ? form.id === 'wolf' ? '초원의 질주 초원에서 바로 써보세요.' : '상황에 맞춰 자동으로 변신해요.' : `Lv.${form.firstLevel}에 무료로 자동 해금돼요.`}`
-    : `${state.inCamp ? '보관 골드로 영구 성장해요.' : '거점에서 성장할 수 있어요.'}${growthCategory === 'druid' ? ' 배운 기술은 전투 중 자동으로 사용해요.' : ' 필요한 레벨과 골드를 확인하세요.'}`;
+    : `${growthCategory === 'druid' ? '기술은 자동 사용' : state.inCamp ? '골드로 영구 성장' : '거점에서 영구 성장'}\n성장 한도 100단계`;
   if (equipmentPage) {
     $('growth-title').textContent = '장비';
     $('growth-summary').textContent = state.inCamp ? '하나를 장착해 피해와 생명을 높이세요.' : '장착과 성장은 거점에서 할 수 있어요.';
@@ -308,48 +314,46 @@ function renderGrowth() {
   for (const row of growthRows.values()) {
     if (form) {
       const offer = getFormOffer(state, form.id);
-      row.title.textContent = `${form.name} · ${offer.unlocked ? `${offer.rank}단계` : '미해금'}`;
+      row.title.textContent = `${form.name} · ${offer.unlocked ? `${offer.rank}/${form.maxLevel}` : `0/${form.maxLevel} · 미해금`}`;
       row.detail.className = 'form-combat-values';
       const damage = offer.unlocked ? offer.currentDamage : offer.nextDamage;
       const interval = offer.unlocked ? offer.currentInterval : offer.nextInterval;
       const range = offer.unlocked ? offer.currentRange : offer.nextRange;
-      row.detail.textContent = `피해 ${Math.round(damage)} · ${interval}초\n${form.id === 'bear' ? '광역 반경' : '공격 거리'} ${range}m`;
-      row.condition.textContent = !offer.unlocked ? `Lv.${form.firstLevel} 무료 해금` : offer.maxed ? '최대 단계 · 영구 유지' : `다음 Lv.${offer.requiredLevel} · ${offer.cost} 골드${state.inCamp ? '' : ' · 거점에서 성장'}`;
-      row.buy.textContent = !offer.unlocked ? `Lv.${form.firstLevel} 자동 해금` : offer.maxed ? '최대 단계' : `성장 ${offer.cost} G`;
+      row.detail.textContent = `피해 ${formatAmount(Math.round(damage))}${offer.unlocked && offer.nextDamage !== null ? ` → ${formatAmount(offer.nextDamage)}` : ''}\n${form.id === 'bear' ? '광역 반경' : '공격 거리'} ${range}m · ${formatSeconds(interval)}초`;
+      row.detail.setAttribute('aria-label', `피해 ${Math.round(damage)}${offer.unlocked && offer.nextDamage !== null ? `, 다음 ${offer.nextDamage}` : ''}, 거리 ${range}m, ${formatSeconds(interval)}초`);
+      row.condition.textContent = !offer.unlocked ? `Lv.${form.firstLevel} 무료 해금` : offer.maxed ? '최대 100단계 · 영구 유지' : `다음 ${offer.rank + 1}/${form.maxLevel} · ${formatAmount(offer.cost)} 골드${state.inCamp ? '' : '\n거점에서 성장'}`;
+      row.buy.textContent = !offer.unlocked ? `Lv.${form.firstLevel} 자동 해금` : offer.maxed ? '최대 단계' : `성장 ${formatAmount(offer.cost)} G`;
       row.buy.disabled = !offer.canBuy;
-      row.buy.setAttribute('aria-label', !offer.unlocked ? `${form.name}, 레벨 ${form.firstLevel} 자동 해금` : `${form.name} 성장, ${offer.maxed ? '최대 단계' : `필요 레벨 ${offer.requiredLevel}, ${offer.cost} 골드`}`);
+      row.buy.setAttribute('aria-label', !offer.unlocked ? `${form.name}, 레벨 ${form.firstLevel} 자동 해금` : `${form.name} 성장, ${offer.maxed ? '최대 100단계' : `다음 ${offer.rank + 1}단계, ${offer.cost} 골드`}`);
       row.row.classList.toggle('locked', !offer.unlocked);
-      [...row.ranks.children].forEach((item, index) => {
-        const rank = index + 1, required = form.firstLevel + index * 3;
-        item.children[0].textContent = `${rank}단계 · Lv.${required}`;
-        item.children[1].textContent = rank <= offer.rank ? '성장 완료' : rank === 1 ? '무료 해금' : '거점 성장';
-        item.classList.toggle('complete', rank <= offer.rank);
-      });
       continue;
     }
     const offer = growthCategory === 'stats' ? getUpgradeOffer(state, row.definition.id) : getSkillOffer(state, row.definition.id);
-    row.title.textContent = `${offer.name} · ${offer.level === 0 && growthCategory === 'druid' ? '미습득' : `${offer.level}단계`}`;
+    row.title.textContent = `${offer.name} · ${offer.level}/${row.definition.maxLevel}`;
     if (growthCategory === 'stats') {
       row.detail.className = 'stat-value';
-      row.detail.textContent = `${offer.currentValue}${offer.nextValue === null ? '' : ` → ${offer.nextValue}`}`;
+      row.detail.textContent = `${formatAmount(offer.currentValue)}${offer.nextValue === null ? '' : ` → ${formatAmount(offer.nextValue)}`}`;
       row.detail.setAttribute('aria-label', `${offer.unit} ${offer.currentValue}${offer.nextValue === null ? '' : `, 다음 ${offer.nextValue}`}`);
     }
     else if (offer.id === 'owl') {
       row.detail.textContent = offer.level === 0
-        ? `1마리 동행 · ${offer.nextInterval}초마다 유도탄`
-        : `1마리 동행 · 유도탄 ${offer.currentInterval}${offer.nextInterval === null ? '' : ` → ${offer.nextInterval}`}초`;
+        ? `1마리 동행 · ${formatSeconds(offer.nextInterval)}초마다 유도탄`
+        : `1마리 동행 · 유도탄 ${formatSeconds(offer.currentInterval)}${offer.nextInterval === null ? '' : ` → ${formatSeconds(offer.nextInterval)}`}초`;
       const damage = offer.level === 0 ? offer.nextDamage : offer.currentDamage;
-      if (Number.isFinite(damage)) row.detail.textContent += ` · 피해 ${damage}`;
+      if (Number.isFinite(damage)) row.detail.textContent += ` · 피해 ${formatAmount(damage)}`;
+      row.detail.setAttribute('aria-label', `부엉이 1마리 동행, 피해 ${damage}, ${formatSeconds(offer.currentInterval ?? offer.nextInterval)}초${offer.level && offer.nextInterval !== null ? `, 다음 ${formatSeconds(offer.nextInterval)}초` : ''}`);
     }
     else {
       row.detail.textContent = offer.level === 0
-        ? `습득 후 ${offer.nextInterval}초마다 자동 덩굴 공격`
-        : `${offer.currentInterval}초마다 자동 덩굴 공격${offer.nextInterval === null ? '' : ` · 다음 ${offer.nextInterval}초`}`;
+        ? `습득 후 ${formatSeconds(offer.nextInterval)}초마다 자동 덩굴 공격`
+        : `${formatSeconds(offer.currentInterval)}초마다 자동 덩굴 공격${offer.nextInterval === null ? '' : ` · 다음 ${formatSeconds(offer.nextInterval)}초`}`;
+      row.detail.setAttribute('aria-label', `${formatSeconds(offer.currentInterval ?? offer.nextInterval)}초마다 자동 덩굴 공격${offer.level && offer.nextInterval !== null ? `, 다음 ${formatSeconds(offer.nextInterval)}초` : ''}`);
     }
-    row.condition.textContent = offer.maxed ? '최대 단계 · 영구 유지' : `필요 Lv.${offer.requiredLevel} · ${offer.cost} 골드`;
+    row.condition.textContent = offer.maxed ? '최대 100단계 · 영구 유지' : `${formatAmount(offer.cost)} 골드${state.inCamp ? '' : ' · 거점에서 성장'}`;
+    row.condition.setAttribute('aria-label', offer.maxed ? '최대 100단계 · 영구 유지' : `${offer.cost} 골드${state.inCamp ? '' : ', 거점에서 성장'}`);
     row.buy.textContent = offer.maxed ? '최대' : growthCategory === 'druid' && offer.level === 0 ? '습득' : '강화';
     row.buy.disabled = !state.inCamp || offer.locked || offer.maxed || state.progress.gold < offer.cost;
-    row.buy.setAttribute('aria-label', `${offer.name}, ${offer.maxed ? '최대 단계' : `필요 레벨 ${offer.requiredLevel}, ${offer.cost} 골드`}`);
+    row.buy.setAttribute('aria-label', `${offer.name}, ${offer.maxed ? '최대 100단계' : `${offer.cost} 골드`}`);
     row.row.classList.toggle('locked', offer.locked);
   }
   lastGrowth = signature;
@@ -488,14 +492,14 @@ function updateUI() {
   const fieldWarning = state.fieldEvents?.hazards.some(hazard => hazard.phase === 'warning') ?? false;
   const snapshot = [ready, state.phase, pauseKind, growthCategory, Math.ceil(player.hp), player.maxHp, player.level, player.xp, player.xpToNext, progress.gold, progress.questIndex, quest.current, state.cargo, player.capacity, state.inCamp, stage.id, player.form, state.autoHunt, state.huntZoneId, fighting, input.manual, bossPercent, bossWait, boonSeconds, fieldWarning, settings.sound, state.revision].join(':');
   if (snapshot !== lastHud) {
-    $('hp-value').textContent = Math.ceil(player.hp); $('hp-fill').style.width = `${player.hp / player.maxHp * 100}%`;
-    $('level-value').textContent = `Lv.${player.level}`; $('gold-value').textContent = progress.gold;
+    showAmount('hp-value', Math.ceil(player.hp), '생명'); $('hp-fill').style.width = `${player.hp / player.maxHp * 100}%`;
+    $('level-value').textContent = `Lv.${player.level}`; showAmount('gold-value', progress.gold, '보관 골드');
     $('xp-value').textContent = `${Math.floor(player.xp)} / ${player.xpToNext}`; $('xp-fill').style.width = `${Math.min(100, player.xp / player.xpToNext * 100)}%`;
     $('zone-value').textContent = state.inCamp ? `${stage.name} 거점` : zone ? `${zone.name} Lv.${zone.level}` : stage.name;
     $('quest-title').textContent = quest.title; $('quest-count').textContent = quest.done ? '완료' : `${quest.current} / ${quest.target}`;
     $('claim-btn').hidden = !quest.complete || quest.done; $('claim-btn').disabled = state.phase !== 'playing';
     $('boss-track').hidden = !boss; $('boss-fill').style.width = `${bossPercent}%`; $('boss-track').setAttribute('aria-valuenow', String(bossPercent));
-    $('cargo-value').textContent = `가방 ${state.cargo} / ${player.capacity}`; $('cargo-fill').style.width = `${state.cargo / player.capacity * 100}%`;
+    $('cargo-value').textContent = `가방 ${formatAmount(state.cargo)} / ${formatAmount(player.capacity)}`; $('cargo-value').setAttribute('aria-label', `가방 ${state.cargo}, 한도 ${player.capacity}`); $('cargo-fill').style.width = `${state.cargo / player.capacity * 100}%`;
     $('cargo-value').parentElement.parentElement.classList.toggle('full', state.cargo >= player.capacity);
     const species = { mushroom: '버섯', boar: '멧돼지', caster: '석상', boss: '수문장', runner: '고속', swarm: '군체', flyer: '공중' };
     const lowHealth = !state.inCamp && player.hp < player.maxHp * .28;
@@ -526,7 +530,7 @@ function updateUI() {
     }
     if (state.phase === 'down') {
       clearInput(); saveProgress(true); $('down-menu').hidden = false;
-      $('down-stats').textContent = `레벨 ${player.level} · 보관 골드 ${progress.gold}\n가방 ${state.cargo}도 그대로 가져가요.`; $('recover-btn').focus({ preventScroll: true });
+      $('down-stats').textContent = `레벨 ${player.level} · 보관 골드 ${formatAmount(progress.gold)}\n가방 ${formatAmount(state.cargo)}도 그대로 가져가요.`; $('down-stats').setAttribute('aria-label', `레벨 ${player.level}, 보관 골드 ${progress.gold}, 가방 ${state.cargo} 유지`); $('recover-btn').focus({ preventScroll: true });
     }
     lastPhase = phaseKey;
   }

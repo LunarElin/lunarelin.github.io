@@ -158,13 +158,13 @@ test('local pursuit uses the selected staff range and stops without manual input
   }
 });
 
-test('camp selection unlocks ember once and version-seven saves preserve old gear and progression', () => {
+test('camp selection unlocks ember once and version-eight saves preserve old gear and progression', () => {
   const old = { version: 6, xp: 120, questIndex: 4, gold: 37, cargo: 10, checkpoint: 'deep', forms: { wolf: 1 },
     skills: { owl: 1, roots: 1 }, gear: { equipped: 'thorn', scrolls: 4, items: {
       sprout: { copies: 3, level: 2, tier: 1 }, thorn: { copies: 2, level: 3, tier: 1 }, moon: { copies: 5, level: 4, tier: 2 },
     } } };
   const state = createGame(2462, old), before = exportProgress(state);
-  assert.equal(before.version, 7); assert.equal(before.gear.items.ember.copies, 0);
+  assert.equal(before.version, 8); assert.equal(before.gear.items.ember.copies, 0);
   for (const id of ['sprout', 'thorn', 'moon']) assert.deepEqual(before.gear.items[id], old.gear.items[id]);
   assert.equal(before.gear.scrolls, old.gear.scrolls); assert.equal(before.forms.wolf, old.forms.wolf);
   assert.deepEqual(before.skills, old.skills); assert.equal(before.cargo, old.cargo); assert.equal(before.checkpoint, 'deep');

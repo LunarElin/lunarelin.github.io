@@ -5,6 +5,8 @@ export const EQUIPMENT = Object.freeze([
   Object.freeze({ id: 'ember', name: '불씨 지팡이', color: 0xff934f, description: '한곳에 모인 적을 터뜨리는 지팡이', attackStyle: 'explosive', attackLabel: '폭발', attackDescription: '맞은 곳의 2m 주변을 폭발', targetLabel: '뭉친 무리', tradeoff: '한 마리만 맞히면 화력이 낮아요' }),
 ]);
 export const TIERS = Object.freeze(['일반', '고급', '희귀', '영웅']);
+export const EQUIPMENT_MAX_LEVEL = 100;
+export const EQUIPMENT_MAX_TIER = 100;
 const STAFF_ATTACKS = Object.freeze({
   single: Object.freeze({ range: 5.4, interval: .62, damageScale: 1, projectileSpeed: 13, projectileLife: .55, burstCount: 1, burstSpacing: 0, spreadAngles: Object.freeze([0]), blastRadius: 0 }),
   burst: Object.freeze({ range: 3.8, interval: 1, damageScale: .68, projectileSpeed: 13, projectileLife: .45, burstCount: 3, burstSpacing: .12, spreadAngles: Object.freeze([0]), blastRadius: 0 }),
@@ -17,6 +19,11 @@ const record = value => value && typeof value === 'object' && !Array.isArray(val
 const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key) ? value[key] : undefined;
 const integer = (value, max) => Number.isFinite(value) ? Math.min(max, Math.max(0, Math.floor(value))) : 0;
 const definitionFor = id => EQUIPMENT.find(item => item.id === id);
+
+export function getTierName(tier) {
+  const value = integer(tier, EQUIPMENT_MAX_TIER);
+  return TIERS[value] ?? `영웅 ${value - 2}단계`;
+}
 
 export function getStaffAttack(id, player = {}) {
   const definition = definitionFor(id) ?? EQUIPMENT[0], profile = STAFF_ATTACKS[definition.attackStyle];
@@ -32,8 +39,8 @@ export function normalizeGear(raw) {
     const copies = Math.max(id === 'sprout' ? 1 : 0, integer(own(item, 'copies'), 999));
     items[id] = {
       copies,
-      level: copies ? integer(own(item, 'level'), 20) : 0,
-      tier: copies ? integer(own(item, 'tier'), 3) : 0,
+      level: copies ? integer(own(item, 'level'), EQUIPMENT_MAX_LEVEL) : 0,
+      tier: copies ? integer(own(item, 'tier'), EQUIPMENT_MAX_TIER) : 0,
     };
   }
   const selected = own(source, 'equipped');
@@ -59,20 +66,20 @@ export function getEquipmentOffer(progress, id) {
   const definition = definitionFor(id);
   if (!definition) return null;
   const source = record(progress), gear = normalizeGear(own(source, 'gear')), item = gear.items[id];
-  const gold = integer(own(source, 'gold'), 1000000000), playerLevel = Math.max(1, integer(own(source, 'level'), 50));
-  const owned = item.copies > 0, maxed = item.level >= 20, promotionMaxed = item.tier >= 3;
+  const gold = integer(own(source, 'gold'), 1000000000);
+  const owned = item.copies > 0, maxed = item.level >= EQUIPMENT_MAX_LEVEL, promotionMaxed = item.tier >= EQUIPMENT_MAX_TIER;
   const enhanceCost = 15 + item.level * 10 + item.tier * 10, scrollCost = 1 + Math.floor(item.level / 5);
-  const requiredLevel = 1 + Math.floor(item.level / 2);
-  const promoteCost = 30 * (item.tier + 1), promoteScrollCost = 3 * (item.tier + 1), promoteRequiredLevel = 3 + item.tier * 3;
+  const requiredLevel = 1;
+  const promoteCost = 30 * (item.tier + 1), promoteScrollCost = 3 * (item.tier + 1), promoteRequiredLevel = 1;
   const current = itemBonuses(id, item), next = maxed ? null : itemBonuses(id, { ...item, level: item.level + 1 });
   return {
     id, name: definition.name, attackStyle: definition.attackStyle, attackLabel: definition.attackLabel, owned, equipped: owned && gear.equipped === id, canUnlock: !owned,
-    copies: item.copies, level: item.level, tier: item.tier, tierName: TIERS[item.tier],
+    copies: item.copies, level: item.level, tier: item.tier, tierName: getTierName(item.tier),
     ...current, nextDamage: next?.damage ?? null, nextHealth: next?.health ?? null,
     enhanceCost, scrollCost, requiredLevel,
-    canEnhance: owned && !maxed && playerLevel >= requiredLevel && gold >= enhanceCost && gear.scrolls >= scrollCost,
+    canEnhance: owned && !maxed && gold >= enhanceCost && gear.scrolls >= scrollCost,
     promoteCost, promoteScrollCost, promoteCopies: 2, promoteRequiredLevel,
-    canPromote: owned && !promotionMaxed && item.copies >= 3 && playerLevel >= promoteRequiredLevel && gold >= promoteCost && gear.scrolls >= promoteScrollCost,
+    canPromote: owned && !promotionMaxed && item.copies >= 3 && gold >= promoteCost && gear.scrolls >= promoteScrollCost,
     maxed, promotionMaxed,
   };
 }

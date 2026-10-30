@@ -120,8 +120,8 @@ test('the long-range band grants actual damage only to the single staff without 
 
 test('the comparison preserves equal growth and valid body spacing and measures only actual staff damage', () => {
   const beforeMaximum = { level: 9, gold: 10000, gear: { scrolls: 1000, items: { moon: { copies: 1, level: 19, tier: 3 } } } };
-  assert.equal(getEquipmentOffer(beforeMaximum, 'moon').requiredLevel, 10);
-  assert.equal(getEquipmentOffer(beforeMaximum, 'moon').canEnhance, false);
+  assert.equal(getEquipmentOffer(beforeMaximum, 'moon').requiredLevel, 1);
+  assert.equal(getEquipmentOffer(beforeMaximum, 'moon').canEnhance, true);
   assert.equal(getEquipmentOffer({ ...beforeMaximum, level: 10 }, 'moon').canEnhance, true);
   for (const growth of GROWTH) for (const layout of Object.keys(LAYOUTS)) for (const id of WEAPONS) {
     const result = measure(growth, layout, id);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EQUIPMENT, TIERS, normalizeGear, gearBonuses, getEquipmentOffer, applyEquipmentAction, grantEquipment, getStaffAttack } from '../equipment.mjs';
+import { EQUIPMENT, TIERS, EQUIPMENT_MAX_LEVEL, EQUIPMENT_MAX_TIER, getTierName, normalizeGear, gearBonuses, getEquipmentOffer, applyEquipmentAction, grantEquipment, getStaffAttack } from '../equipment.mjs';
 
 const progress = (overrides = {}) => ({ gold: 1000, level: 20, gear: normalizeGear(), ...overrides });
 const snapshot = value => structuredClone(value);
@@ -65,6 +65,8 @@ test('the explosive staff uses the same enhancement and duplicate promotion econ
 test('the equipment and tier catalogs are bounded immutable data', () => {
   assert.deepEqual(EQUIPMENT.map(item => item.id), ['sprout', 'thorn', 'moon', 'ember']);
   assert.deepEqual(TIERS, ['일반', '고급', '희귀', '영웅']);
+  assert.equal(EQUIPMENT_MAX_LEVEL, 100); assert.equal(EQUIPMENT_MAX_TIER, 100);
+  assert.deepEqual([0, 1, 2, 3, 4, 100].map(getTierName), ['일반', '고급', '희귀', '영웅', '영웅 2단계', '영웅 98단계']);
   assert.ok(Object.isFrozen(EQUIPMENT) && Object.isFrozen(TIERS));
   for (const item of EQUIPMENT) {
     assert.ok(Object.isFrozen(item));
@@ -85,13 +87,13 @@ test('a new save owns one basic sprout and adds no combat stats', () => {
 
 test('normalization deeply whitelists saved data, rejects coercion and copies no references', () => {
   const raw = { equipped: 'thorn', scrolls: 100004.9, secret: 'discard', items: {
-    sprout: { copies: -1, level: 99, tier: 99, derivedDamage: 9999 },
+    sprout: { copies: -1, level: 101, tier: 101, derivedDamage: 9999 },
     thorn: { copies: 1008.7, level: 4.8, tier: 1.9 },
     moon: { copies: '9', level: NaN, tier: Infinity }, dragon: { copies: 20 },
   } };
   const before = snapshot(raw), gear = normalizeGear(raw);
   assert.deepEqual(gear, { equipped: 'thorn', scrolls: 99999, items: {
-    sprout: { copies: 1, level: 20, tier: 3 }, thorn: { copies: 999, level: 4, tier: 1 }, moon: { copies: 0, level: 0, tier: 0 }, ember: { copies: 0, level: 0, tier: 0 },
+    sprout: { copies: 1, level: 100, tier: 100 }, thorn: { copies: 999, level: 4, tier: 1 }, moon: { copies: 0, level: 0, tier: 0 }, ember: { copies: 0, level: 0, tier: 0 },
   } });
   assert.deepEqual(raw, before);
   gear.items.thorn.level++;
@@ -148,13 +150,13 @@ test('offers preview unowned items without granting them and do not mutate progr
   assert.deepEqual(state, before);
 });
 
-test('offer costs, level gates, tier bonuses and next values use current equipment progression', () => {
-  const state = progress({ gold: 85, level: 6 });
+test('offer costs, tier bonuses and next values use current gear with no character level gates', () => {
+  const state = progress({ gold: 85, level: 1 });
   state.gear.items.thorn = { copies: 3, level: 6, tier: 1 }; state.gear.scrolls = 6;
   const offer = getEquipmentOffer(state, 'thorn');
   assert.deepEqual([offer.damage, offer.health, offer.nextDamage, offer.nextHealth], [23, 10, 26, 10]);
-  assert.deepEqual([offer.enhanceCost, offer.scrollCost, offer.requiredLevel], [85, 2, 4]);
-  assert.deepEqual([offer.promoteCost, offer.promoteScrollCost, offer.promoteRequiredLevel, offer.promoteCopies], [60, 6, 6, 2]);
+  assert.deepEqual([offer.enhanceCost, offer.scrollCost, offer.requiredLevel], [85, 2, 1]);
+  assert.deepEqual([offer.promoteCost, offer.promoteScrollCost, offer.promoteRequiredLevel, offer.promoteCopies], [60, 6, 1, 2]);
   assert.equal(offer.canEnhance, true); assert.equal(offer.canPromote, true);
   assert.equal(offer.tierName, '고급');
 });
@@ -175,8 +177,6 @@ test('failed enhancement or invalid actions preserve the original object and eve
     const state = progress({ gold, level }); state.gear.scrolls = scrolls;
     unchangedAfterFailure(state, 'sprout', 'enhance');
   }
-  const locked = progress({ level: 1 }); locked.gear.items.sprout.level = 2; locked.gear.scrolls = 999;
-  unchangedAfterFailure(locked, 'sprout', 'enhance');
   const state = progress(); state.gear.scrolls = 999;
   for (const [id, action] of [['thorn', 'equip'], ['thorn', 'enhance'], ['thorn', 'promote'], ['unknown', 'equip'], ['sprout', 'delete'], ['sprout', 'equip']]) {
     unchangedAfterFailure(state, id, action);
@@ -202,34 +202,82 @@ test('promotion consumes two duplicate copies, preserves the owned item and reta
   assert.deepEqual(gearBonuses(state.gear), { damage: 11, health: 22 });
 });
 
-test('promotion independently requires duplicate copies, gold, scrolls and character level', () => {
-  for (const [copies, gold, scrolls, level] of [[2, 30, 3, 3], [3, 29, 3, 3], [3, 30, 2, 3], [3, 30, 3, 2]]) {
+test('promotion independently requires duplicate copies, gold and scrolls even at character level one', () => {
+  for (const [copies, gold, scrolls, level] of [[2, 30, 3, 1], [3, 29, 3, 1], [3, 30, 2, 1]]) {
     const state = progress({ gold, level }); state.gear.scrolls = scrolls; state.gear.items.sprout.copies = copies;
     unchangedAfterFailure(state, 'sprout', 'promote');
   }
 });
 
-test('three promotions stop at epic with exactly one copy remaining', () => {
-  const state = progress({ gold: 180, level: 9 }); state.gear.scrolls = 18; state.gear.items.sprout.copies = 7;
+test('the first three promotion names and costs remain compatible and progression continues beyond epic', () => {
+  const state = progress({ gold: 180, level: 1 }); state.gear.scrolls = 18; state.gear.items.sprout.copies = 7;
   for (let tier = 1; tier <= 3; tier++) {
     assert.equal(applyEquipmentAction(state, 'sprout', 'promote'), true);
     assert.equal(state.gear.items.sprout.tier, tier);
   }
   const offer = getEquipmentOffer(state, 'sprout');
   assert.equal(state.gold, 0); assert.equal(state.gear.scrolls, 0); assert.equal(offer.copies, 1);
-  assert.equal(offer.tierName, '영웅'); assert.equal(offer.promotionMaxed, true); assert.equal(offer.canPromote, false);
+  assert.equal(offer.tierName, '영웅'); assert.equal(offer.promotionMaxed, false); assert.equal(offer.canPromote, false);
   unchangedAfterFailure(state, 'sprout', 'promote');
+  state.gold = 120; grantEquipment(state.gear, 'sprout', 2, 12);
+  assert.equal(applyEquipmentAction(state, 'sprout', 'promote'), true);
+  assert.equal(getEquipmentOffer(state, 'sprout').tierName, '영웅 2단계');
+  assert.deepEqual(state.gear.items.sprout, { copies: 1, level: 0, tier: 4 });
+  assert.equal(state.gold, 0); assert.equal(state.gear.scrolls, 0);
 });
 
-test('level twenty is a hard enhancement cap and previews no nonexistent next level', () => {
-  const state = progress({ gold: 235, level: 10 }); state.gear.scrolls = 4; state.gear.items.sprout = { copies: 1, level: 19, tier: 3 };
+test('enhancement one hundred is the hard cap and previews no nonexistent next level', () => {
+  const state = progress({ gold: 2005, level: 1 }); state.gear.scrolls = 20; state.gear.items.sprout = { copies: 1, level: 99, tier: 100 };
   assert.equal(applyEquipmentAction(state, 'sprout', 'enhance'), true);
   const offer = getEquipmentOffer(state, 'sprout');
   assert.equal(state.gold, 0); assert.equal(state.gear.scrolls, 0);
-  assert.equal(offer.level, 20); assert.equal(offer.maxed, true); assert.equal(offer.canEnhance, false);
+  assert.equal(offer.level, 100); assert.equal(offer.maxed, true); assert.equal(offer.canEnhance, false);
   assert.equal(offer.nextDamage, null); assert.equal(offer.nextHealth, null);
-  assert.deepEqual(gearBonuses(state.gear), { damage: 49, health: 90 });
+  assert.deepEqual(gearBonuses(state.gear), { damage: 500, health: 1300 });
   unchangedAfterFailure(state, 'sprout', 'enhance');
+});
+
+test('all four staffs complete one hundred enhancements and promotions at level one with finite exact costs', () => {
+  for (const { id } of EQUIPMENT) {
+    const state = progress({ gold: 1000000000, level: 1 });
+    state.gear = normalizeGear({ equipped: id, scrolls: 99999, items: { [id]: { copies: 201, level: 0, tier: 0 } } });
+    for (let level = 1; level <= EQUIPMENT_MAX_LEVEL; level++) {
+      const offer = getEquipmentOffer(state, id);
+      assert.equal(offer.requiredLevel, 1); assert.equal(offer.canEnhance, true);
+      assert.equal(applyEquipmentAction(state, id, 'enhance'), true);
+      assert.equal(state.gear.items[id].level, level);
+    }
+    for (let tier = 1; tier <= EQUIPMENT_MAX_TIER; tier++) {
+      const offer = getEquipmentOffer(state, id);
+      assert.equal(offer.promoteRequiredLevel, 1); assert.equal(offer.canPromote, true);
+      assert.equal(applyEquipmentAction(state, id, 'promote'), true);
+      assert.equal(state.gear.items[id].tier, tier);
+      assert.equal(getEquipmentOffer(state, id).tierName, getTierName(tier));
+    }
+    const offer = getEquipmentOffer(state, id), bonuses = gearBonuses(state.gear);
+    assert.equal(state.gold, 999797500); assert.equal(state.gear.scrolls, 83799);
+    assert.deepEqual(state.gear.items[id], { copies: 1, level: 100, tier: 100 });
+    assert.ok(offer.maxed && offer.promotionMaxed); assert.equal(offer.nextDamage, null); assert.equal(offer.nextHealth, null);
+    assert.ok(Object.values(bonuses).every(Number.isFinite));
+    assert.ok(Number.isFinite(offer.enhanceCost) && Number.isFinite(offer.promoteCost));
+    state.gold = 1000000000; state.gear.scrolls = 99999; state.gear.items[id].copies = 999;
+    unchangedAfterFailure(state, id, 'enhance'); unchangedAfterFailure(state, id, 'promote');
+  }
+});
+
+test('old version seven gear retains earned growth and extended gear round trips without exceeding one hundred', () => {
+  const saved = { version: 7, gold: 81, level: 1, gear: { equipped: 'moon', scrolls: 17, items: {
+    sprout: { copies: 3, level: 20, tier: 3 }, moon: { copies: 5, level: 12, tier: 2 },
+    thorn: { copies: 1, level: 99, tier: 99 }, ember: { copies: 1, level: 100, tier: 100 },
+  } } }, before = snapshot(saved);
+  const restored = normalizeGear(JSON.parse(JSON.stringify(saved)).gear);
+  assert.deepEqual(restored, saved.gear); assert.deepEqual(saved, before);
+  assert.equal(getEquipmentOffer({ ...saved, gear: restored }, 'moon').maxed, false);
+  assert.deepEqual(normalizeGear(JSON.parse(JSON.stringify(restored))), restored);
+  for (const value of [100.9, 101, Number.MAX_VALUE]) {
+    const capped = normalizeGear({ items: { sprout: { copies: 1, level: value, tier: value } } });
+    assert.deepEqual(capped.items.sprout, { copies: 1, level: 100, tier: 100 });
+  }
 });
 
 test('grants report accepted copies and scrolls rather than quantities lost to storage caps', () => {
