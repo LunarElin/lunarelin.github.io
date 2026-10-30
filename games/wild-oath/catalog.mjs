@@ -1,5 +1,5 @@
 import { CARDS, FORMS, describeCard } from './rules.mjs?v=cartoon-4';
-import { cardArtClass } from './card-art.mjs?v=cartoon-4';
+import { cardArtClass } from './card-art.mjs?v=gem-9';
 import { icon, decorateMenus } from './menu-icons.mjs?v=quiet-5';
 import { cardSymbols } from './combat-ui.mjs?v=quiet-5';
 

@@ -1,0 +1,1112 @@
+{
+  "version": 5,
+  "date": "2026-10-30",
+  "family": "Wild Oath jewel magical mascots",
+  "visual_target": "Root selected the generated large-eyed, rounded magical forest mascot family; saturated jewel colors, glossy soft 3D forms, readable original silhouettes.",
+  "sources": {
+    "portraits": {
+      "kind": "generated",
+      "tool": "OpenAI built-in image_gen",
+      "model": "not exposed by tool",
+      "generation_id": "not exposed by tool",
+      "original": "exec-bda28004-be2e-4929-b2c6-9dd2c8f12cb9.png retained in generated-image archive; not shipped",
+      "source_sha256": "1c58250dc611633063ccbcebfd21efea3eceef8ebcdd5021c2c1174354a01240",
+      "size": [
+        1536,
+        1024
+      ],
+      "reference": "none; project character brief and requested broad animation style",
+      "prompt_record": "prompts/portraits.txt"
+    },
+    "cards": [
+      {
+        "kind": "generated",
+        "tool": "OpenAI built-in image_gen",
+        "model": "not exposed by tool",
+        "generation_id": "not exposed by tool",
+        "original": "exec-cb903ce3-0649-4e34-b4f4-02a365f1b331.png retained in generated-image archive; not shipped",
+        "source_sha256": "18ad2f47093d5ab90f5e61161666cc17a56cce4c88142dd95fcb61c4a75a8d76",
+        "size": [
+          1774,
+          887
+        ],
+        "sheet": "A",
+        "reference": "Selected original portrait exec-bda28004-be2e-4929-b2c6-9dd2c8f12cb9.png",
+        "grid": [
+          3,
+          3
+        ],
+        "cell_aspect": [
+          2,
+          1
+        ],
+        "grid_boundaries": {
+          "x": [
+            0,
+            592,
+            1183,
+            1774
+          ],
+          "y": [
+            0,
+            296,
+            574,
+            887
+          ]
+        },
+        "prompt_record": "prompts/cards-a.txt"
+      },
+      {
+        "kind": "generated",
+        "tool": "OpenAI built-in image_gen",
+        "model": "not exposed by tool",
+        "generation_id": "not exposed by tool",
+        "original": "exec-3c7b990a-2ae7-422f-88db-03f2c2c1af00.png retained in generated-image archive; not shipped",
+        "source_sha256": "a74c55d7f4823ddebf6b362eed14f355309fd8be313c6086dc48367e683091b3",
+        "size": [
+          1774,
+          887
+        ],
+        "sheet": "B",
+        "reference": "Selected original portrait exec-bda28004-be2e-4929-b2c6-9dd2c8f12cb9.png",
+        "grid": [
+          3,
+          3
+        ],
+        "cell_aspect": [
+          2,
+          1
+        ],
+        "grid_boundaries": {
+          "x": [
+            0,
+            592,
+            1183,
+            1774
+          ],
+          "y": [
+            0,
+            296,
+            583,
+            887
+          ]
+        },
+        "prompt_record": "prompts/cards-b.txt"
+      },
+      {
+        "kind": "generated",
+        "tool": "OpenAI built-in image_gen",
+        "model": "not exposed by tool",
+        "generation_id": "not exposed by tool",
+        "original": "exec-e63d9e5d-31d0-4dd0-b401-d5a0d8b98b33.png retained in generated-image archive; not shipped",
+        "source_sha256": "251a631dfdf006c5b50154652bce6dd8566a102a4b9fb2be85bc58fae943636b",
+        "size": [
+          1774,
+          887
+        ],
+        "sheet": "C",
+        "reference": "Selected original portrait exec-bda28004-be2e-4929-b2c6-9dd2c8f12cb9.png",
+        "grid": [
+          3,
+          3
+        ],
+        "cell_aspect": [
+          2,
+          1
+        ],
+        "grid_boundaries": {
+          "x": [
+            0,
+            592,
+            1183,
+            1774
+          ],
+          "y": [
+            0,
+            295,
+            590,
+            887
+          ]
+        },
+        "prompt_record": "prompts/cards-c.txt"
+      }
+    ],
+    "forms": {
+      "kind": "generated",
+      "tool": "OpenAI built-in image_gen",
+      "model": "not exposed by tool",
+      "generation_id": "not exposed by tool",
+      "original": "exec-9660f3fe-8ecc-41f9-aade-f142d15d4cf7.png retained in generated-image archive; not shipped",
+      "source_sha256": "4bb4274356854c4fa6215e198e9f5b827cdcc7639625c934b018117bf05f9934",
+      "size": [
+        1024,
+        1536
+      ],
+      "reference": "Selected original portrait exec-bda28004-be2e-4929-b2c6-9dd2c8f12cb9.png",
+      "grid": [
+        1,
+        3
+      ],
+      "cell_aspect": [
+        2,
+        1
+      ],
+      "grid_boundaries": {
+        "x": [
+          0,
+          1024
+        ],
+        "y": [
+          0,
+          510,
+          985,
+          1536
+        ]
+      },
+      "prompt_record": "prompts/forms.txt"
+    }
+  },
+  "normalization": {
+    "method": "Visually and pixel-edge verified full panels sliced at recorded unequal row boundaries; 2 source pixels excluded at internal seams; full-panel Lanczos resize, no center crop, repaint or recolor.",
+    "webp_method": 6,
+    "portrait_webp_quality": 80,
+    "card_webp_quality": 78,
+    "form_webp_quality": 76,
+    "card_output": [
+      320,
+      160
+    ],
+    "form_output": [
+      320,
+      160
+    ],
+    "unused_cells": "B and C bottom-right empty cells not shipped"
+  },
+  "portrait": {
+    "file": "portraits.webp",
+    "size": [
+      1152,
+      768
+    ],
+    "bytes": 187732,
+    "sha256": "9f1061ccb93d363c7a4916030e7884a8913da972a508d94069df4d461a8cc4d6",
+    "alpha": "opaque",
+    "color_space": "sRGB",
+    "filtering": "smooth",
+    "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+    "grid": [
+      3,
+      2
+    ],
+    "cell": [
+      384,
+      384
+    ],
+    "subjects": [
+      "wolf",
+      "bear",
+      "wyvern",
+      "druid",
+      "guardian",
+      "clearing"
+    ],
+    "webp_quality": 80
+  },
+  "assets": [
+    {
+      "id": "claw",
+      "file": "cards/claw.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12654,
+      "sha256": "833452c638316e4614921ea553f5fbc820d9613bd85cc4d884b80a255af01dad",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        0,
+        590,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "bite",
+      "file": "cards/bite.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13266,
+      "sha256": "0853c0d85f68c6b2dc18390fb5a2530e35bf28e1b2c63be96820e20c3919e0b8",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        1,
+        0
+      ],
+      "crop_box": [
+        594,
+        0,
+        1181,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "bark",
+      "file": "cards/bark.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13486,
+      "sha256": "93b3e73fc0016b1453879d9ce19ea9074562c0e865491ddb3b3deeca8b828664",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        2,
+        0
+      ],
+      "crop_box": [
+        1185,
+        0,
+        1774,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "mend",
+      "file": "cards/mend.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 10366,
+      "sha256": "fe93146ae79f0a061394ca5cf5de01701eae51cd4c889fcfa385d0a106aeef29",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        298,
+        590,
+        572
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "sap",
+      "file": "cards/sap.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 9002,
+      "sha256": "5e60744af981dbf251d73d950a038532119cec3b6deca04e8e9145cfb62c5d6b",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        1,
+        1
+      ],
+      "crop_box": [
+        594,
+        298,
+        1181,
+        572
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "venom",
+      "file": "cards/venom.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 9596,
+      "sha256": "20b503a0b046ba15f8046938c488dc2cb547d9b8e1fe4e574aea45d22816b102",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        2,
+        1
+      ],
+      "crop_box": [
+        1185,
+        298,
+        1774,
+        572
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "thorns",
+      "file": "cards/thorns.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14192,
+      "sha256": "bfa1bcd822911a95359c9e130195b16e3caa724d12850d28773d1aa0e9e65eb6",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        576,
+        590,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "storm",
+      "file": "cards/storm.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14350,
+      "sha256": "babdf8a69034ee980866c4b9825e14118b5967fb195707145c4ac6f8e62a8d16",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        1,
+        2
+      ],
+      "crop_box": [
+        594,
+        576,
+        1181,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "pounce",
+      "file": "cards/pounce.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14886,
+      "sha256": "09de92e01ebd9d4e97f8c8da203870d9726b0f98c0fa32e5112508603af46741",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "A",
+      "atlas_cell": [
+        2,
+        2
+      ],
+      "crop_box": [
+        1185,
+        576,
+        1774,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "ancient",
+      "file": "cards/ancient.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 17196,
+      "sha256": "dbb4e2296e7eedd0d01e6c369af47366df18eba79b530e13656828af320d255d",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "B",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        0,
+        590,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "moonwell",
+      "file": "cards/moonwell.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 15278,
+      "sha256": "fd21fe5b3cb33d5ac975b1c73c305be8a479c0ed12087e8d5b16854cdcf3f2a9",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "B",
+      "atlas_cell": [
+        1,
+        0
+      ],
+      "crop_box": [
+        594,
+        0,
+        1181,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "frost",
+      "file": "cards/frost.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 16380,
+      "sha256": "e5b20b2a697a24986c33102fd49ff408a8b9202c822db84a336c7f60aebddd38",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "B",
+      "atlas_cell": [
+        2,
+        0
+      ],
+      "crop_box": [
+        1185,
+        0,
+        1774,
+        294
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "wildheart",
+      "file": "cards/wildheart.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 17220,
+      "sha256": "826dfbd18fcaa1d57378a11533ea1574ee677f7b4f83877e261ccf417fe4f9c9",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "B",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        298,
+        590,
+        581
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "ember",
+      "file": "cards/ember.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13476,
+      "sha256": "ebd9e3007b1ded58906a2f06e77de668bea2efbe35f3926a189dc241476718e7",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "B",
+      "atlas_cell": [
+        1,
+        1
+      ],
+      "crop_box": [
+        594,
+        298,
+        1181,
+        581
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "nettle",
+      "file": "cards/nettle.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13010,
+      "sha256": "b49a9e03bb195bf53040e2502c31b7222337e99e8f47775b0f41820baa98b060",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "B",
+      "atlas_cell": [
+        2,
+        1
+      ],
+      "crop_box": [
+        1185,
+        298,
+        1774,
+        581
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "static",
+      "file": "cards/static.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13390,
+      "sha256": "65e18342dd0d85b8d96633e8c3bc1ee13eaee51f6b968e895d01357367f358bc",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "B",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        585,
+        590,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "harvest",
+      "file": "cards/harvest.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12882,
+      "sha256": "2705684cb50e88abb18961ace6fb7cbf1c2dcd0cfe1e00ee75738aa4d9c3c951",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "B",
+      "atlas_cell": [
+        1,
+        2
+      ],
+      "crop_box": [
+        594,
+        585,
+        1181,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "sprout",
+      "file": "cards/sprout.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 9386,
+      "sha256": "2e97f0fda964390fc86b5350776e0fa0796388579364a4247d3a450aea999e92",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "C",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        0,
+        590,
+        293
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "hide",
+      "file": "cards/hide.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 9688,
+      "sha256": "30161005db59e061c821e171b43369c1b0b84e7f2f162e2e517a9a50f3693919",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "C",
+      "atlas_cell": [
+        1,
+        0
+      ],
+      "crop_box": [
+        594,
+        0,
+        1181,
+        293
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "trample",
+      "file": "cards/trample.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12658,
+      "sha256": "8da597a0d246db5def87b3aecd4a57cded5ba6f0f80e02d64fb6231e98c9013e",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "C",
+      "atlas_cell": [
+        2,
+        0
+      ],
+      "crop_box": [
+        1185,
+        0,
+        1774,
+        293
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "talon",
+      "file": "cards/talon.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 11012,
+      "sha256": "b6fc3f0f1fcf8e0df88ca79f4f436e9372e6349873b13c50f3910dd84e81e970",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "C",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        297,
+        590,
+        588
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "renewal",
+      "file": "cards/renewal.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 13004,
+      "sha256": "17d65cc7d4436b5064673239f85605fef3b59f6ea86eae76fce3aa590bc41dde",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "C",
+      "atlas_cell": [
+        1,
+        1
+      ],
+      "crop_box": [
+        594,
+        297,
+        1181,
+        588
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "kindle",
+      "file": "cards/kindle.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 7946,
+      "sha256": "c7ef257a1b2c108a461a4bbca1f920529cd63e0c578a5804697bbc87131aa96b",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "C",
+      "atlas_cell": [
+        2,
+        1
+      ],
+      "crop_box": [
+        1185,
+        297,
+        1774,
+        588
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "rally",
+      "file": "cards/rally.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 11492,
+      "sha256": "6f80cbe6e331f804f6e1e7f0f3d12e4db30a2373ce67ab41af5b73e6a0d84049",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "C",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        592,
+        590,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    },
+    {
+      "id": "harry",
+      "file": "cards/harry.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 12036,
+      "sha256": "23a380b397ff6a1f9b53ac99657e1416880414f34709af13f6b0fd2f5e4c00c7",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "source_sheet": "C",
+      "atlas_cell": [
+        1,
+        2
+      ],
+      "crop_box": [
+        594,
+        592,
+        1181,
+        887
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; action illustration only",
+      "webp_quality": 78
+    }
+  ],
+  "forms": [
+    {
+      "id": "wolf",
+      "file": "forms/wolf.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14488,
+      "sha256": "7183423b99e12258769389d07e3a4860fad711c89c8af0faae16498d0db7a7a4",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "atlas_cell": [
+        0,
+        0
+      ],
+      "crop_box": [
+        0,
+        0,
+        1024,
+        508
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; transformation card illustration only",
+      "webp_quality": 76
+    },
+    {
+      "id": "bear",
+      "file": "forms/bear.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14364,
+      "sha256": "31c245478e7c7c3215bba1c92865d8a140d0dc67902fc67c4df13602484e6b22",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "atlas_cell": [
+        0,
+        1
+      ],
+      "crop_box": [
+        0,
+        512,
+        1024,
+        983
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; transformation card illustration only",
+      "webp_quality": 76
+    },
+    {
+      "id": "wyvern",
+      "file": "forms/wyvern.webp",
+      "size": [
+        320,
+        160
+      ],
+      "bytes": 14468,
+      "sha256": "ecd3be1e3884e518118704115e2b1b6d68e67e0af10ce4b716d2b957f3bc0a75",
+      "alpha": "opaque",
+      "color_space": "sRGB",
+      "filtering": "smooth",
+      "status": "Technical constraints and native-scale stationary contact-sheet review passed; representative runtime review is recorded in ../../GEM-ART-UPDATE.md",
+      "atlas_cell": [
+        0,
+        2
+      ],
+      "crop_box": [
+        0,
+        987,
+        1024,
+        1536
+      ],
+      "pivot": [
+        0.5,
+        0.5
+      ],
+      "collision_role": "none; transformation card illustration only",
+      "webp_quality": 76
+    }
+  ],
+  "board": {
+    "file": "board.svg",
+    "size": [
+      512,
+      512
+    ],
+    "bytes": 1591,
+    "sha256": "e30102e9a96e612a6b554dae91a22de2cda3d1674dbf756d81c89eb64f6c786b",
+    "kind": "original project-authored SVG",
+    "source": "board.svg editable vector source; no external image input",
+    "pivot": [
+      0.5,
+      0.5
+    ],
+    "collision_role": "none; repeating visual background only",
+    "status": "XML syntax checked; board viewed in PC and phone-sized in-app browser viewports; see ../../GEM-ART-UPDATE.md"
+  },
+  "portrait_bytes": 187732,
+  "card_bytes": 317852,
+  "form_bytes": 43320,
+  "total_bytes": 548904,
+  "budget": {
+    "preferred_total_bytes": 550000,
+    "preferred_card_bytes": 350000,
+    "hard_total_bytes": 650000,
+    "hard_card_bytes": 430000
+  },
+  "review_scope": "Source atlases selected by root; numerical seam, dimensions, hashes, opaque WebP and byte budget checked. Stationary contact sheet reviewed at 130px portraits and 160x80/80x40 card scale. Representative draft, camp, battle and catalogue runtime review is recorded in ../../GEM-ART-UPDATE.md; this does not cover physical mobile devices or measured performance."
+}

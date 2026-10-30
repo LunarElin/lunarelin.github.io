@@ -1,0 +1,20 @@
+{
+  "date":"2026-10-30",
+  "version":"gem-9",
+  "method":"Codex in-app browser, DOM and screenshots with normal UI clicks; no state injection",
+  "physical_devices_tested":false,
+  "art":{"webp_files":29,"total_bytes":548904,"portrait_bytes":187732,"card_bytes":317852,"form_bytes":43320,"board_bytes":1591,"tool":"OpenAI built-in image_gen"},
+  "viewports":[
+    {"width":1280,"height":720,"portrait":130,"card":[280,223],"footer_bottom":708,"horizontal_overflow":false},
+    {"width":390,"height":640,"portrait":96,"hp_font":30,"energy_font":28,"footer_bottom":632,"camp_card_name_font":19,"camp_card_cost_font":26,"launch":[112,60],"game_detail_font":17,"horizontal_overflow":false},
+    {"width":320,"height":640,"portrait":84,"footer_bottom":632,"attack_flight":{"actor":"player","target":"enemy"},"catalogue_name_font":19,"catalogue_filter_label_font":14,"catalogue_detail_font":16,"horizontal_overflow":false},
+    {"width":390,"height":580,"portrait":80,"footer_bottom":575,"horizontal_overflow":false},
+    {"width":844,"height":390,"portrait":88,"footer_bottom":383,"horizontal_overflow":false}
+  ],
+  "catalogue":{"all_cards":28,"form_filter_cards":3,"wide_forms":["wolf","bear","wyvern"],"detail_and_game_return":true},
+  "play":{"draft":["wyvern","nettle","bark","kindle","ember","mend","static","pounce"],"exploration":"spring","form_sticker":"top","reaction_hp":{"enemy_before":67,"enemy_after":57,"player":70},"reload_hp":[57,70],"effects_after_reload":0,"forbidden_trails_or_orbs":0,"result":{"stage":1,"outcome":"lost","turn":10,"enemy_hp":16,"player_hp":0,"victories":0,"shifts":1,"damage":76},"restart":{"draft_progress":"0 / 8","options":3,"residual_effects":0},"home_return_and_reentry":true},
+  "console_warnings_and_errors":[],
+  "automated":{"tests":94,"failures":0,"diff_check":true},
+  "score":{"core":24,"mobile":17,"ui":19,"feedback":14,"performance":8,"maintenance":9,"total":91,"provisional":true},
+  "unverified":["Physical iOS/Android devices and browser chrome","Measured FPS, memory, thermals and audio listening","New-version full campaign completion","Exhaustive effect/status combinations and speeds","OS reduced-motion and browser storage-failure reproduction"]
+}

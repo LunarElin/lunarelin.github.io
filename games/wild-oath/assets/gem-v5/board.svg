@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="velvet"><stop stop-color="#61448a"/><stop offset="1" stop-color="#33234f"/></radialGradient>
+    <linearGradient id="gem" x2="1" y2="1"><stop stop-color="#e5f6ff"/><stop offset=".42" stop-color="#bba0ee"/><stop offset="1" stop-color="#6949a3"/></linearGradient>
+    <g id="leaf" fill="none" stroke="#bbaaef" stroke-width="1.5"><path d="M0 0q-15-23 0-37Q15-23 0 0Z"/><path d="M0-3v-27"/></g>
+    <g id="star" fill="#ffebbc"><path d="m0-8 2 6 6 2-6 2-2 6-2-6-6-2 6-2Z"/></g>
+  </defs>
+  <path fill="url(#velvet)" d="M0 0h512v512H0z"/>
+  <g opacity=".12" fill="none" stroke="#d4b6f4" stroke-width="2">
+    <path d="M0 256C88 138 168 374 256 256S424 138 512 256M256 0C138 88 374 168 256 256S138 424 256 512"/>
+    <circle cx="256" cy="256" r="102"/><circle cx="256" cy="256" r="109" stroke-width="1"/>
+  </g>
+  <g opacity=".16"><use href="#leaf" transform="translate(139 194) rotate(-43)"/><use href="#leaf" transform="translate(373 318) rotate(137)"/><use href="#leaf" transform="translate(318 139) rotate(47)"/><use href="#leaf" transform="translate(194 373) rotate(-133)"/></g>
+  <g opacity=".24"><use href="#star" transform="translate(70 70)"/><use href="#star" transform="translate(442 442)"/><use href="#star" transform="translate(70 442) scale(.55)"/><use href="#star" transform="translate(442 70) scale(.55)"/></g>
+  <g opacity=".21" fill="url(#gem)" stroke="#f8e6bd" stroke-width="1"><path d="m256 242 12 14-12 18-12-18Z"/><path d="M250 256h12l-6-14Z"/></g>
+</svg>

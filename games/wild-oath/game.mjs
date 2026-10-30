@@ -1,7 +1,7 @@
 import { FORMS, CARDS, ENCOUNTERS, EVENTS, DECK_MIN, DECK_MAX, createRun, activeDeck, enemyDeck, describeCard, editDeck, buyCard, sellCard, upgradeCard, upgradeAll, setSticker, startBattle, stepBattle, chooseDraft, chooseEncounter, chooseReward, serialize, restoreRun } from './rules.mjs?v=cartoon-4';
 import { presentationTiming, impactBeats, impactTotals, cardPlayStatus, impactFeedback, targetImpactKind, TARGET_EFFECT_TEXTURES, targetEffectVisual, cardAttackTarget } from './combat-presentation.mjs?v=strike-8';
 import { analyzeDeck } from './deck-analysis.mjs?v=cartoon-4';
-import { cardArtClass } from './card-art.mjs?v=cartoon-4';
+import { cardArtClass } from './card-art.mjs?v=gem-9';
 import { icon, decorateMenus } from './menu-icons.mjs?v=quiet-5';
 import { cardSymbols, visibleCardActor } from './combat-ui.mjs?v=quiet-5';
 

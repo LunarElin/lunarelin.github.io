@@ -1,0 +1,188 @@
+/* Original jewel-and-candy fantasy theme. This layer changes materials, never layout. */
+:root{
+  color-scheme:dark;
+  --ink:#fff5ff;--muted:#d7c9ee;--cream:#fff8e6;--gold:#ffe39b;--edge:#c8a4eb;
+  --accent:#68dbff;--accent-rgb:104,219,255;
+  --paper-ink:#42284f;--paper-muted:#71567e;
+  --paper:linear-gradient(165deg,#fffef9 0%,#fff8fc 62%,#e6d8f4 100%);
+  --brass-rim:inset 0 3px #ffffff88,inset 0 -3px #2d1a634d;
+  --brass-button:linear-gradient(155deg,#b68ceb 0%,#7862c7 22%,#5b439f 76%,#493276 100%);
+  --gold-button:linear-gradient(155deg,#ffb5db 0%,#ed6cb8 24%,#be388e 78%,#9e2d7c 100%);
+  --gem-depth:#251343;--gem-rim:#fff0c7;--gem-paper-shadow:#8d66af;
+}
+body{background:#19112e;color:var(--ink)}
+.game-shell,.catalog-shell{
+  background-color:#392662;
+  background-image:radial-gradient(ellipse at 50% 5%,#9872df40,transparent 68%),url('assets/gem-v5/board.svg');
+  background-size:auto,640px 640px;background-position:center;
+  border-inline-color:#342052;
+  box-shadow:inset 4px 0 6px #cba5ff20,inset -4px 0 6px #120a2759,0 0 35px #0b061b99;
+}
+.game-shell[data-form=bear]{--accent:#ffc977;--accent-rgb:255,201,119}
+.game-shell[data-form=wyvern]{--accent:#7cf1cb;--accent-rgb:124,241,203}
+.game-shell:before{display:none}
+.topbar,.catalog-header,.camp-footer,.battle-footer{border-color:#d3b3ee66}
+.camp-footer,.battle-footer{background:linear-gradient(#50367be8,#2a1b49f5);box-shadow:inset 0 2px #d8baff35,0 -2px 7px #1b0e3333}
+.wordmark h1,.catalog-header h1{color:#fff3d6;text-shadow:0 2px #4b256b,0 0 9px #d587e84d}
+.camp-title h2,.journey-heading h2{color:#fff4e3;text-shadow:0 2px #41245f,0 3px 8px #190d3480}
+.camp-title>span,.camp-title p,.collection-heading,.next-enemy small,.journey-heading>span,.journey-heading p,.journey-note,.draft-owned,.draft-progress,.pool-note{color:#f1e5ff;text-shadow:0 1px #362046}
+.collection-heading #deck-limit,.draft-owned>span,.draft-preview:empty:before{color:#f6eaff}
+
+/* Convex candy controls: the pale upper lip and dark foot make the touch face clear. */
+.icon-button,.secondary-button,.deck-links,.analysis-close,.back-button,.home-button,.tier-control button,.close-button,.filter-row select,
+.collection-heading .deck-links,.collection-heading .catalog-link,
+.game-dialog .menu-grid .secondary-button,.game-dialog .menu-grid .dialog-home{
+  color:#fff8f5;border-color:#ecd0ff #9674c1 #49306f;border-radius:15px;
+  background:var(--brass-button);box-shadow:var(--brass-rim),0 4px #32204e,0 6px 9px #180c395e;
+  text-shadow:0 1px 1px #392050;
+}
+.primary-button,.bulk-upgrade,.done-button,.tier-control button[aria-pressed=true],.camp-tabs button[aria-selected=true]{
+  color:#fff9f4;border-color:#ffdbef #cb6cab #7f2f6c;border-radius:15px;
+  background:var(--gold-button);box-shadow:inset 0 3px #ffffff9c,inset 0 -3px #8a24593b,0 4px #6f255d,0 7px 10px #200d3f66;
+  text-shadow:0 2px #8d2e70;
+}
+.icon-button[aria-pressed=true]{color:#fff;border-color:#b8fbff #46a6d3 #2b527e;background:linear-gradient(145deg,#85ebf6,#299dc9 40%,#236eb4);box-shadow:inset 0 3px #e4ffff99,inset 0 -3px #1344794d,0 4px #223860}
+.primary-button:active:not(:disabled),.bulk-upgrade:active:not(:disabled),.done-button:active{box-shadow:inset 0 2px #ffffff80,0 1px #6f255d}
+.icon-button:active,.secondary-button:active:not(:disabled),.deck-links:active,.analysis-close:active,.back-button:active,.home-button:active,.close-button:active,.tier-control button:active{box-shadow:inset 0 2px #ffffff70,0 1px #32204e}
+.primary-button:disabled,.bulk-upgrade:disabled{color:#d3c5e4;background:linear-gradient(#89779f,#625177);border-color:#c1aed3 #867296 #4d3d62;box-shadow:inset 0 2px #e4d5f140,0 3px #362744;text-shadow:0 1px #4d3b60}
+.game-shell .bulk-upgrade span{color:#6b2168;border-radius:8px;background:#ffebf6;box-shadow:inset 0 1px #fff}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline-color:#99f4ff}
+.icon-only-control:focus-visible::after{color:#fff4ff;border-color:#e2bdff;background:#412660;box-shadow:0 3px 8px #1b0a399c}
+
+/* Pearl frames and gemstone route markers. */
+.journey .step{color:#e5d5f5;text-shadow:0 1px #312044}
+.journey .step:before{color:#f9eeff;background:linear-gradient(#9476bc,#513779);border-color:#e2c6f5 #8b68ad #483163;box-shadow:inset 0 2px #ffffff5e,0 3px #302046}
+.journey .step.current{color:#fff6c4}
+.journey .step.current:before{color:#713258;background:linear-gradient(145deg,#fff4b2,#ffc783 45%,#e89b72);border-color:#fff6d8 #dba77b #946045;box-shadow:inset 0 3px #ffffffb3,0 3px #754765,0 0 10px #ffcf7559;text-shadow:none}
+.journey .step.done:before{color:#fff;background:linear-gradient(#74d8cc,#369caa);border-color:#baffed #5ba5b7 #315e86}
+.journey .step:not(:last-child):after{background:#c8a5e45e;border-radius:8px;box-shadow:0 1px #24143b}
+.camp-portrait,.next-enemy>.art,.journey-mascot{border-color:#fff0cc #d7aadc #895caa;border-radius:30%;background-color:#8b72c1;box-shadow:inset 0 2px #fff9,0 4px #52316d,0 6px 8px #170b3259}
+.camp-currency>span,.explore-supplies>span{color:#efddff;border-color:#b593db #7a5aa9 #48316e;border-radius:15px;background:linear-gradient(#614786,#3b285c);box-shadow:inset 0 2px #f4d7ff59,0 3px #28183e;text-shadow:0 1px #2c1545}
+.camp-currency b,.explore-supplies b{color:#fff0ab}
+.camp-currency>span:first-child b{color:#ffb9da}
+.camp-currency .menu-icon{color:#ffe18f}.camp-currency>span:first-child .menu-icon{color:#ff9cc7}
+.camp-tabs button{color:#f7eaff;border-color:#cda8ed #8865b1 #493366;border-radius:15px;background:linear-gradient(#8662b1,#513575);box-shadow:inset 0 2px #ffffff66,0 3px #302044,0 5px 7px #16082759;text-shadow:0 1px #39204d}
+.collection{border-radius:16px;background:#24123b4d;box-shadow:inset 0 3px 8px #14082a66;scrollbar-color:#c5a2e3 #322043}
+.catalog-link{color:#fff0cf;text-shadow:0 1px #3b234e}
+.empty-collection{color:#eadbff;border-color:#c5a4e35e;border-radius:16px;background:#34204dcc;box-shadow:inset 0 3px 8px #15082566}
+.empty-collection small{color:#cebae5}.next-enemy strong{color:#fff1d7;text-shadow:0 2px #3d2251}.next-enemy .menu-icon{color:#f3c7ff}
+
+/* Cream enamel cards use coloured rims, with crisp dark plum labels. */
+.card,.draft-option,.catalog-card,.card[data-type],.draft-option[data-type],.catalog-card[data-type],.reward{
+  color:var(--paper-ink);border-color:#fff1ce #c5a1d9 #7b568f;border-radius:18px;background:var(--paper);
+  box-shadow:inset 0 3px #ffffffd9,inset 0 -3px #b291cc40,0 4px #65417c,0 7px 9px #1c0c3866;
+}
+.card:before,.draft-option:before,.catalog-card:before{border-color:#ffffffa3;border-radius:13px}
+.card[data-type=attack],.draft-option[data-type=attack],.catalog-card[data-type=attack]{border-color:#ffd1df #d98fae #945b81}
+.card[data-type=defense],.draft-option[data-type=defense],.catalog-card[data-type=defense]{border-color:#bfefff #78b3dd #4a79a8}
+.card[data-type=form],.draft-option[data-type=form],.catalog-card[data-type=form]{border-color:#e7c7ff #ba89d9 #7e51a4}
+.card[data-type=heal],.draft-option[data-type=heal],.catalog-card[data-type=heal]{border-color:#d5ffe1 #8fc7b0 #4f8c82}
+.card[data-type=energy],.draft-option[data-type=energy],.catalog-card[data-type=energy],.catalog-card[data-type=support]{border-color:#fff0b1 #dfb976 #a7804b}
+.card-art,.draft-option .card-art,.catalog-card .card-art{border-color:#ad8dcc;border-radius:12px;background-color:#c4afe5;box-shadow:inset 0 1px #fff9,0 1px #7e5e9b66}
+.card-cost,.active-card .card-cost,.draft-option .card-cost{color:#fff;border-color:#d0f5ff #689fd6 #37558e;border-radius:42%;background:linear-gradient(135deg,#a2efff 0%,#4ebde9 23%,#357cc2 72%,#3a5a9a 100%);box-shadow:inset 2px 2px #ffffffab,0 3px #394577,0 5px 6px #25194466;text-shadow:0 2px #25477b}
+.card-name,.reward strong,.catalog-card .card-name{color:#442750;text-shadow:0 1px #fff}
+.card-text,.card-effects,.card-bottom,.card-link-hint,.card-footer,.card-price,.card-tier,.card-stars,.form-identity{color:#6b4c7c;text-shadow:none}
+.card-price.unaffordable{color:#a53169}.card-sticker{color:#6b2e67;border-color:#fff2c9 #d5a8c3 #9b6f9b;border-radius:9px;background:linear-gradient(#fff3c9,#f0c6d4);box-shadow:inset 0 2px #fff,0 2px #80527a;text-shadow:none}
+.reward small,.reward small.reward-link,.reward>span:last-child{color:#77558a}
+.reward>.art,.opponent-card>.art{border-color:#cda9e7;border-radius:12px}
+.card-link,.card-link.form-link{color:#654175;border-color:#c49edc;border-radius:12px;background:linear-gradient(#fff7ff,#e2ceef);box-shadow:inset 0 2px #fff,0 2px #b795cd66}
+.card-link b,.card-link.form-link b,.card-footer>span:first-child,.catalog-card .card-link-symbol{color:#76518a}
+.card-footer>span:first-child{border-color:#c5a6d9;border-radius:8px;background:#f6eaff}
+.effect-token{color:#50345f;border-color:#c7abd7;border-radius:9px;background:#fffaff;box-shadow:inset 0 1px #fff}
+.effect-token.kind-attack{color:#8f325b;background:#ffe8ef;border-color:#e5b5c6}
+.effect-token.kind-defense,.effect-token.kind-counter{color:#285b99;background:#e0f4ff;border-color:#a1cce5}
+.effect-token.kind-heart{color:#9a326f;background:#ffe3f3;border-color:#e4a4cc}
+.effect-token.kind-energy,.effect-token.kind-charge{color:#79561c;background:#fff2bd;border-color:#dcc486}
+.effect-token.kind-drain{color:#7b4c79;background:#f9dff2;border-color:#d5add1}
+.effect-token.kind-poison{color:#36714f;background:#dcfae7;border-color:#9fceb3}
+.effect-token.kind-fire{color:#a74a30;background:#ffe6d0;border-color:#e3b491}
+.effect-token.kind-shock{color:#67419e;background:#eadeff;border-color:#bba0db}
+.effect-token.kind-focus,.effect-token.kind-combo{color:#2d687c;background:#def6fb;border-color:#a2ccd7}
+.effect-token.kind-form{color:#794b9a;background:#f3e3ff;border-color:#ccaddf}
+
+/* Choice plaques and small, fixed progress gems. */
+.draft-progress strong{color:#ffedb5}.draft-dots i{border-color:#c5a8e6 #8d6aaf #493067;background:#5c4082;box-shadow:inset 0 2px #e3c6ff66,0 2px #2a173f}
+.draft-dots i.done{border-color:#b7ffed #73bcae #438385;background:radial-gradient(circle at 30% 20%,#fff,#9df4df 24%,#4eb7b3);box-shadow:inset 0 1px #fff,0 2px #365d70,0 0 7px #90ffe44d}
+.draft-dots i.current{border-color:#fff5c5 #d9b47e #8e644c;background:radial-gradient(circle at 30% 20%,#fff,#ffdc99 30%,#edaa7f);box-shadow:inset 0 2px #fff8,0 2px #825674}
+.picked-card{color:#f3e6ff;border-color:#d9b7f4 #9875b8 #5d3d7d;border-radius:10px;background:linear-gradient(#8d68b8,#4d3272);box-shadow:inset 0 2px #ebd5ff66,0 2px #321b4d}
+.draft-preview{scrollbar-color:#c9a1e4 #3e2758}
+.encounter-option,.encounter-option[data-event]{color:var(--paper-ink);border-color:#fff1d0 #c49dd8 #795590;border-radius:21px;background:var(--paper);box-shadow:inset 0 3px #fff,inset 0 -3px #c3a2d54d,0 5px #613d79,0 8px 10px #190c3266}
+.encounter-option:before{border-color:#ffffffb3;border-radius:16px}
+.encounter-option[data-event=thicket]{border-color:#ffcfe6 #d08db0 #8e5d89}.encounter-option[data-event=merchant]{border-color:#fff0b8 #dab57f #a28154}.encounter-option[data-event=spring]{border-color:#c8fff1 #8dcabf #5d9999}
+.encounter-art{border-color:#bb9cdb;border-radius:20px;background-color:#ccb5e5;box-shadow:inset 0 2px #fff9,0 2px #9773b1}
+.encounter-copy>strong{color:#593363;text-shadow:0 1px #fff}.encounter-copy>.description,.encounter-reward{color:#725681}
+.encounter-cost,.encounter-option[data-event] .encounter-cost{color:#fff1ff;border-color:#d9b7ed;border-radius:10px;background:linear-gradient(#9065af,#63447f);box-shadow:inset 0 2px #eacfff66,0 2px #4b2d64}
+.draft-option:active,.encounter-option:active,.catalog-card:active{box-shadow:inset 0 2px #fff,0 1px #65417c,0 3px 5px #1c0c3866}
+
+/* Sapphire and rose chambers keep ownership visible through movement and hits. */
+.battle-heading,.battle-heading>span:last-child{color:#f5e6ff;text-shadow:0 1px #322048}
+.battle-lane{border-radius:23px;box-shadow:inset 0 3px #fff5,inset 0 -4px #160c3a66,0 4px #24113c,0 7px 10px #150a2b4d}
+.player-lane{border-color:#b1e9ff #6daed8 #3865a4;background:radial-gradient(ellipse at 50% 0,#84e8ff40,transparent 76%),linear-gradient(125deg,#284c88,#386da9 56%,#2d548d)}
+.enemy-lane{border-color:#ffc4e8 #c47aa9 #774274;background:radial-gradient(ellipse at 50% 0,#ffb4df3b,transparent 76%),linear-gradient(125deg,#75406f,#9c5287 56%,#6d3b71)}
+.battle-view .battle-lane[data-active=false]{border-color:#bfa9d7 #866aab #4c3a71;box-shadow:inset 0 2px #f5dcff33,inset 0 -3px #190e3966,0 4px #25143e}
+.battle-view .battle-lane[data-active=true],.battlefield[data-presentation=showcase] .battle-lane[data-active=true],.battlefield[data-presentation=cast] .battle-lane[data-active=true]{border-color:#fff4c8 #f0cdaa #b18ba9;outline-color:#ffe7a2;box-shadow:inset 0 3px #ffffff80,inset 0 -4px #2110394d,0 4px #362049,0 0 15px #ffde9b59}
+.lane-heading>strong{color:#d7f9ff;text-shadow:0 2px #26446e}.enemy-lane .lane-heading>strong{color:#ffe6f6;text-shadow:0 2px #69315d}
+.lane-turn{color:#62395b;border-radius:9px;background:linear-gradient(#fff8dd,#f4d0bd);box-shadow:inset 0 2px #fff,0 2px #71446c}
+.portrait-ring,.enemy .portrait-ring{border-color:#fff5d0 #dfb7d6 #986fa8;border-radius:32% 32% 24% 24%;background:linear-gradient(145deg,#fff6c7,#e9c5e6 38%,#a57cc1);box-shadow:inset 0 3px #fff,0 4px #51356f,0 6px 9px #170c3b59}
+.portrait,.enemy .portrait{border-radius:28% 28% 19% 19%;background-color:#9275b4}
+.combatant[data-active=true] .portrait-ring{outline-color:#fff0b2}
+.combatant h2,.enemy h2{color:#fff4ff;text-shadow:0 2px #3c2557}
+.healthbar{border-color:#ffe8dd #d59ab9 #87537f;border-radius:12px;background:linear-gradient(#55264d,#301c3d);box-shadow:inset 0 2px 4px #200c37b3,0 2px #34244f}
+.healthbar>div,.hero .healthbar>div{background:linear-gradient(#ffb5cf,#f56d9e 37%,#d23f84 80%,#ac2d75);box-shadow:inset 0 3px #fff5,inset 0 -2px #a42b654d}
+.healthbar span{color:#fffaff;text-shadow:0 2px #863268,1px 0 #863268,-1px 0 #863268}
+.combatant-status{color:#fff1ff;text-shadow:0 1px #38224f}.combatant-status .poison{color:#bcffe3}.combatant-status .burn{color:#ffd6ae}.combatant-status .shock{color:#f0caff}
+.resource-row{color:#f1e4ff}.energy{color:#bef7ff;text-shadow:0 2px #2a4376}
+.focus-tag{color:#ffe8ab;border-color:#ebd0a6 #bb9ba3 #7c627f;border-radius:8px;background:linear-gradient(#86638a,#573a6b);box-shadow:inset 0 1px #ffe7db70}
+.battle-view .combatant h2 .combo-tag{color:#fff2c2;border-color:#e1badc;border-radius:9px;background:#6e498f;box-shadow:0 2px #3a2351}
+.side-draw-pile,.enemy-lane .side-draw-pile,.side-draw-pile small,.enemy-lane .side-draw-pile small{color:#f3e6ff;text-shadow:0 1px #3c2452}
+.card-back{border-color:#fff0c6 #cba7d1 #875b9e;border-radius:12px;background:radial-gradient(ellipse at 45% 30%,#b9f5ff,#729cdd 40%,#475b9b 78%);box-shadow:inset 0 0 0 3px #465fa1,inset 0 0 0 5px #e4d2ef,3px 2px #ecd6ee,5px 4px #9273b6,7px 6px #493063,0 8px 10px #160a3c66}
+.enemy-lane .card-back{border-color:#fff0c6 #cba7d1 #875b9e;background:radial-gradient(ellipse at 45% 30%,#ffe0f3,#d68fbf 40%,#97538b 78%);box-shadow:inset 0 0 0 3px #9c5d99,inset 0 0 0 5px #efd3e7,3px 2px #f3d8e9,5px 4px #ac78a9,7px 6px #5c356e,0 8px 10px #260e3c66}
+.active-card:not(.is-playing) .card,.enemy-lane .active-card:not(.is-playing) .card,.active-card.is-playing .card,.battlefield[data-presentation=showcase] .active-card.is-playing .card,.battlefield[data-presentation=cast] .active-card.is-playing .card,.battle-view .attack-card-flight .card{border-color:#fff0cc #d2acd9 #9265ab;border-radius:16px;box-shadow:inset 0 3px #ffffffc9,0 5px #7d4f96,0 10px 15px #1a0a3859}
+.active-card.is-playing .card:after{border-color:#fff5c9;border-radius:18px}
+.battle-view .active-card .card-name,.battle-view .combat-card-name{color:#442750;text-shadow:0 1px #fff}
+.battle-view .active-card .battle-symbols .effect-token{color:#50345f}
+.charge-bubbles i{background:#c6b8df;border-color:#997bb6;box-shadow:inset 0 1px #fff9}.charge-bubbles i.full{background:linear-gradient(#d9ffff,#69cced);border-color:#e8ffff;box-shadow:inset 0 1px #fff,0 0 5px #7deeff80}
+.auto-badge{color:#f3e5ff;text-shadow:0 1px #342047}.auto-badge i{background:#97f0cc;border-color:#d6ffed;box-shadow:0 0 6px #74e9ca66}
+.damage-float,.damage-float.critical{color:#fff8f3;text-shadow:2px 2px #572b66,-2px -2px #572b66,2px -2px #572b66,-2px 2px #572b66}
+.damage-float.heal{color:#d5ffe9;text-shadow:2px 2px #2a6571,-2px -2px #2a6571,2px -2px #2a6571,-2px 2px #2a6571}
+.damage-float.block{color:#d9f6ff;text-shadow:1px 1px #3f4784,-1px -1px #3f4784,1px -1px #3f4784,-1px 1px #3f4784}
+.damage-float.synergy{color:#ffecb4;text-shadow:1px 2px #613174,-1px -1px #613174,1px -1px #613174,-1px 1px #613174}
+.effect-chip{--chip-bg:#503273;--chip-edge:#d2b0ed;border-radius:11px;color:#fff4ff;box-shadow:inset 0 2px #f4dfff59,0 3px #2e164d80}
+.effect-chip.kind-poison{--chip-bg:#345d66;--chip-edge:#a8eccc;color:#ddfff0}.effect-chip.kind-burn{--chip-bg:#98525f;--chip-edge:#ffd0ac;color:#fff0d8}.effect-chip.kind-shock{--chip-bg:#705299;--chip-edge:#dfbaff;color:#fff0ff}
+.effect-chip.kind-energy{--chip-bg:#8b5b7d;--chip-edge:#f5d5b8;color:#fff3ce}.effect-chip.kind-heal{--chip-bg:#3c6b77;--chip-edge:#b6efda;color:#e8fff2}.effect-chip.kind-shield{--chip-bg:#455e9a;--chip-edge:#b9e4ff;color:#ecf9ff}
+
+/* Shared jewel boxes for menus, analysis, rewards and the searchable card catalogue. */
+.game-dialog,.card-detail{color:#f6e8ff;border-color:#fff1ce #c79cd7 #78569f;border-radius:24px;background:radial-gradient(ellipse at 50% 0,#b482db33,transparent 65%),linear-gradient(#624389,#392754);box-shadow:inset 0 3px #ffe9ff9c,inset 0 -4px #21113799,0 6px #28133e,0 24px 60px #0d061cd1}
+.game-dialog::backdrop,.card-detail::backdrop{background:#160e2abd}
+.game-dialog h2,.detail-title h2{color:#fff2ca;text-shadow:0 2px #4d2864}
+.game-dialog p:not(.overline),.game-dialog .analysis-note,.detail-effects,.detail-effects li,.detail-link p,.detail-keywords p{color:#f2e3ff}
+.game-dialog .dialog-note,.game-dialog .detail-feedback{color:#f5d6f5!important}.game-dialog .overline,.detail-heading>span,.detail-note{color:#d8bde9}
+.dialog-home,.detail-tier{color:#ffdeb4}.detail-cost{color:#dfc6ef}.detail-cost b{color:#bdefff;text-shadow:0 2px #244b78}
+.game-dialog .welcome-art,.game-dialog .result-art{border-radius:22px;background-color:#6d5297}
+.welcome-forms>span,.opponent-card,.form-guide,.deck-summary>span,.deck-roles>span,.partner-card,.detail-form{color:#f2e4ff;border-color:#c8a7df #8f6bb1 #523672;border-radius:15px;background:linear-gradient(#8260a4,#513775);box-shadow:inset 0 2px #e7ceff66,0 3px #332046}
+.welcome-forms b,.detail-heading>span{color:#dfcaef}
+.instructions li:before{color:#8a3e74;border-color:#ebc8dc;background:linear-gradient(#ffecf5,#ec9bcb);box-shadow:inset 0 2px #fff,0 2px #71315f}
+.instructions b{color:#fff1d5}.instructions span{color:#eddcf7}
+.help-rules{border-color:#c8a5df66;border-radius:16px;background:#2c1b453b}.game-dialog .help-rules p{color:#f1ddfb}.help-rules b{color:#ffe4b4}
+.game-dialog .detail-card,.game-dialog .detail-card.card-illustration,.detail-art,.card-detail .detail-art.card-illustration{border-color:#e1c0ef #b391c9 #705088;border-radius:18px;box-shadow:inset 0 2px #fff8,0 4px #37204d;background-color:#a789c1}
+.sticker-row button{color:#f5e2ff;border-color:#cca6e3;border-radius:12px;background:linear-gradient(#8d66b3,#5a3c7e);box-shadow:inset 0 2px #f1d6ff66,0 3px #39234f}
+.detail-actions .sticker-row button[aria-pressed=true]{color:#74356b;border-color:#f7d9e9 #d2a0c9 #8d628c;background:linear-gradient(#fff0dd,#f5c6df);box-shadow:inset 0 2px #fff,0 2px #78506e}
+.detail-actions .action-note{color:#d7bce6}.order-current{outline-color:#f8d6ed}
+.opponent-card strong,.form-guide strong,.deck-summary b,.deck-summary>span:last-child b,.deck-roles b,.result-stats b{color:#fff0c8}
+.opponent-card strong small,.result-stats span{color:#dfc6ec}.opponent-card>span>span{color:#f1ddfa}.game-dialog .form-guide p{color:#eddef9}
+.deck-analysis{color:#f2e3ff}.analysis-title{background:#543778;border-color:#e3bfff59;border-radius:12px}.deck-analysis h3,.analysis-heading{color:#ffe3bd}
+.cost-curve i{border-color:#bc9cdb;border-radius:12px;background:#38234f;box-shadow:inset 0 3px 6px #180b2cb3}.cost-curve i:after{background:linear-gradient(#ffd8ed,#db8bc5);border-radius:9px 9px 0 0;box-shadow:inset 0 2px #fff9}.cost-curve b{color:#ffe2bb}
+.deck-marks,.deck-combo,.detail-link{color:#624375;border-color:#fff0ce #caa8db #9369aa;border-radius:16px;background:var(--paper);box-shadow:inset 0 3px #fff,0 3px #66437e}
+.game-dialog .deck-marks p,.game-dialog .deck-combo p,.game-dialog .detail-link>p,.card-detail .detail-link p{color:#6c4d7f}.deck-marks strong,.deck-combo>button,.detail-link>strong,.detail-link h3{color:#744a88}.detail-link>span{color:#80608f}
+.form-guide>.art{border-color:#dcbde9;border-radius:17px;background-color:#c2a8da;box-shadow:inset 0 2px #fff8,0 2px #54356e}
+.combo-partners>span{color:#7a558d;border-color:#c8a4d9;border-radius:10px;background:#f6e6ff}.combo-partners>span.in-deck{color:#fff2ff;border-color:#d1b4e3;background:#936bb7;box-shadow:inset 0 1px #e8ceff66}
+.toast{color:#fff4ff;border-color:#e1baf4 #a67cc5 #644185;border-radius:16px;background:linear-gradient(#936bb7,#5b3c7e);box-shadow:inset 0 2px #f4d8ff80,0 4px #352049,0 7px 15px #17092f80}
+.save-warning{color:#ffe9b3;background:#784573}
+.search-label input{color:#50345f;border-color:#ddbfeb #b492cc #7f5c9a;border-radius:15px;background:linear-gradient(#eadcf6,#fffaff);box-shadow:inset 0 2px 4px #9875b34d,0 2px #e8c5f033;color-scheme:light}
+.search-label input::placeholder{color:#856695}.search-label>.menu-icon{color:#866097}
+.filter-row label>span,.catalog-header p{color:#eedbff;text-shadow:0 1px #3c2455}.filter-row select option{color:#f5e8ff;background:#513575}
+.catalog-toolbar>span{color:#ffe7bb;text-shadow:0 1px #3d2351}.card-list{scrollbar-color:#caa6e8 #39244f}.empty-list{color:#ead4ff;text-shadow:0 1px #352046}
+
+@media(prefers-reduced-motion:reduce){
+  .active-card.is-playing .card,.battlefield[data-presentation] .active-card.is-playing .card{box-shadow:inset 0 3px #ffffffc9,0 4px #7d4f96,0 0 0 2px #f3d9f5}
+}
