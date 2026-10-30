@@ -1,0 +1,23 @@
+Galmuri pixel fonts for Grove Warden
+
+Original author: Lee Minseo (quiple)
+Official project: https://github.com/quiple/galmuri
+Official distribution:
+https://raw.githubusercontent.com/quiple/galmuri/main/dist/Galmuri9.woff2
+https://raw.githubusercontent.com/quiple/galmuri/main/dist/Galmuri11.woff2
+License: SIL Open Font License 1.1 (see Galmuri-LICENSE.txt).
+Copyright (c) 2019-2025 Lee Minseo (quiple@quiple.dev).
+Downloaded: 2026-10-30.
+
+Local modifications:
+The two WOFF2 files are subsets containing printable ASCII and the supported
+characters present in the game's top-level HTML, CSS, SVG and MJS sources.
+No glyph outline, advance width, glyph hinting or global hint table was changed.
+Internal family names were changed to Grove Pixel 9 and Grove Pixel 11.
+The CSS @font-face aliases remain Galmuri9 and Galmuri11.
+The original copyright and license metadata remain in the files.
+
+Native size and use:
+Galmuri9 uses a 10 CSS px cell; body text uses its 2x size (20px).
+Galmuri11 uses a 12 CSS px cell; major labels use 24px and numbers use 36px.
+Fonts are served locally. No runtime CDN or font-processing dependency is used.

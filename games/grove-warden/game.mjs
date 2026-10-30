@@ -119,7 +119,7 @@ function updateSkillHud() {
   if (skillHudCache.get('form') !== formSignature) {
     $('form-status').hidden = !ready || !form || state.phase === 'ready' || state.phase === 'down';
     $('form-name').textContent = form ? `${form.name} ${state.player.formRank}` : '';
-    $('form-counter').textContent = form ? form.counterLabel : '';
+    $('form-counter').textContent = form ? ({ wolf: '고속 대응', bear: '군체 대응', dragon: '공중 대응' }[form.id] ?? form.counterLabel) : '';
     $('form-status').dataset.form = form?.id ?? 'druid';
     skillHudCache.set('form', formSignature);
   }
@@ -190,7 +190,7 @@ function renderEquipment() {
       const card = document.createElement('article'); card.className = 'equipment-card';
       const heading = document.createElement('div'); heading.className = 'equipment-heading';
       const icon = document.createElement('span'); icon.className = 'equipment-icon';
-      icon.innerHTML = '<svg viewBox="0 0 40 48" aria-hidden="true"><path d="m12 44 13-32m-7 17-6-7m11-4 8 1" fill="none" stroke="#d4a15c" stroke-width="5" stroke-linecap="round"/><path d="m24 3 9 8-8 10-8-8Z" fill="currentColor" stroke="#fff2c0" stroke-width="2"/><path d="m24 6 2 5-5 2" fill="none" stroke="#fff" stroke-width="2"/></svg>';
+      icon.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges"><path d="M7 1h6v2h2v5h-2v2h-3v5H6v-4H4V9h3V7H5V3h2Z" fill="#292537"/><path d="M8 2h4v2h2v3h-2v2H8V7H6V4h2Z" fill="currentColor"/><path d="M8 10h2v4H8Z" fill="#b58b56"/><path d="M8 3h3v1H8ZM7 4h1v2H7Z" fill="#f2e7c5"/></svg>';
       icon.style.color = `#${definition.color.toString(16).padStart(6, '0')}`;
       const name = document.createElement('strong'), details = document.createElement('span');
       const title = document.createElement('div'); title.append(name, details); heading.append(icon, title);
@@ -347,7 +347,7 @@ function renderGrowth() {
         : `${offer.currentInterval}초마다 자동 덩굴 공격${offer.nextInterval === null ? '' : ` · 다음 ${offer.nextInterval}초`}`;
     }
     row.condition.textContent = offer.maxed ? '최대 단계 · 영구 유지' : `필요 Lv.${offer.requiredLevel} · ${offer.cost} 골드`;
-    row.buy.textContent = offer.maxed ? '최대' : `${offer.cost} G`;
+    row.buy.textContent = offer.maxed ? '최대' : growthCategory === 'druid' && offer.level === 0 ? '습득' : '강화';
     row.buy.disabled = !state.inCamp || offer.locked || offer.maxed || state.progress.gold < offer.cost;
     row.buy.setAttribute('aria-label', `${offer.name}, ${offer.maxed ? '최대 단계' : `필요 레벨 ${offer.requiredLevel}, ${offer.cost} 골드`}`);
     row.row.classList.toggle('locked', offer.locked);
@@ -407,13 +407,13 @@ function moveStick(e) {
   if (e.pointerId !== joystickPointer || !stickOrigin) return;
   const dx = e.clientX - stickOrigin.x, dz = e.clientY - stickOrigin.y, length = Math.hypot(dx, dz), magnitude = Math.min(1, length / 24);
   stick = length < 4 ? { x: 0, z: 0 } : { x: dx / length * magnitude, z: dz / length * magnitude };
-  knob.style.transform = `translate(${stick.x * 24}px,${stick.z * 24}px)`; refreshInput();
+  knob.style.transform = `translate(${Math.round(stick.x * 12) * 2}px,${Math.round(stick.z * 12) * 2}px)`; refreshInput();
 }
 listen(shell, 'pointerdown', e => {
   if (!ready || state.phase !== 'playing' || joystickPointer !== null || e.isPrimary === false || (e.pointerType === 'mouse' && e.button !== 0)) return;
   if (e.target instanceof Element && e.target.closest('button,a,input,select,textarea,.overlay,.growth-nav,[role="button"]')) return;
   e.preventDefault(); joystickPointer = e.pointerId; stickOrigin = { x: e.clientX, y: e.clientY };
-  const rect = shell.getBoundingClientRect(); joystick.style.left = `${e.clientX - rect.left}px`; joystick.style.top = `${e.clientY - rect.top}px`;
+  const rect = shell.getBoundingClientRect(); joystick.style.left = `${Math.round((e.clientX - rect.left) / 2) * 2}px`; joystick.style.top = `${Math.round((e.clientY - rect.top) / 2) * 2}px`;
   joystick.hidden = false; shell.setPointerCapture(e.pointerId); moveStick(e);
 });
 listen(shell, 'pointermove', moveStick);
@@ -497,7 +497,7 @@ function updateUI() {
     $('boss-track').hidden = !boss; $('boss-fill').style.width = `${bossPercent}%`; $('boss-track').setAttribute('aria-valuenow', String(bossPercent));
     $('cargo-value').textContent = `가방 ${state.cargo} / ${player.capacity}`; $('cargo-fill').style.width = `${state.cargo / player.capacity * 100}%`;
     $('cargo-value').parentElement.parentElement.classList.toggle('full', state.cargo >= player.capacity);
-    const species = { mushroom: '버섯', boar: '멧돼지', caster: '석상', boss: '수문장', runner: '고속 몹', swarm: '군체', flyer: '공중 몹' };
+    const species = { mushroom: '버섯', boar: '멧돼지', caster: '석상', boss: '수문장', runner: '고속', swarm: '군체', flyer: '공중' };
     const lowHealth = !state.inCamp && player.hp < player.maxHp * .28;
     let status = '직접 이동';
     if (state.inCamp) status = '거점에서 회복';
@@ -505,7 +505,7 @@ function updateUI() {
     else if (bossWait >= 0) status = bossWait > 0 ? `재등장 ${bossWait}초` : '재등장 준비';
     else if (state.cargo >= player.capacity) status = '가방 가득';
     else if (input.manual) status = fighting ? '자동 공격' : '직접 이동';
-    else if (state.autoHunt && zone) status = `${species[zone.type]} 추적 사냥`;
+    else if (state.autoHunt && zone) status = `${species[zone.type]} 사냥`;
     else if (fighting) status = '자동 공격';
     $('hunt-status').textContent = status;
     $('hunt-status').classList.toggle('danger', lowHealth); $('hp-fill').parentElement.classList.toggle('danger', lowHealth);
@@ -567,4 +567,4 @@ try {
     $('load-status').textContent = savedProgress.xp > 0 ? `레벨 ${state.player.level} · 저장된 모험을 계속해요` : '전리품을 모아 거점을 키워보세요';
     cancelAnimationFrame(frameId); lastTime = performance.now(); frameId = requestAnimationFrame(animate);
   }
-} catch (error) { console.error('숲을 준비하지 못했습니다.', error); $('load-status').textContent = '3D 화면을 열지 못했어요. 최신 브라우저에서 다시 열어주세요.'; }
+} catch (error) { console.error('숲을 준비하지 못했습니다.', error); $('load-status').textContent = '전투 화면을 열지 못했어요. 브라우저에서 다시 열어주세요.'; }
