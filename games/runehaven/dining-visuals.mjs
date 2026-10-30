@@ -38,10 +38,10 @@ export async function createDiningVisuals(scene) {
     const result = new THREE.Mesh(geometry, material(color));
     result.position.set(x, y, z); result.scale.set(sx, sy, sz); parent.add(result); return result;
   }
-  const cleanTable = material('#f6deab'), dirtyTable = material('#b49b80');
+  const cleanTable = material('#fff0cf'), dirtyTable = material('#b9a4b8');
   function table(name, height, width = 1.6, depth = 1.1, support = '#a9c5d0') {
     const result = new THREE.Group(); result.name = name;
-    const top = piece(result, boxGeometry, '#f6deab', 0, height - .07, 0, width, .14, depth); top.name = 'dining-table-top';
+    const top = piece(result, boxGeometry, '#fff0cf', 0, height - .07, 0, width, .14, depth); top.name = 'dining-table-top';
     piece(result, cylinderGeometry, support, 0, (height - .14) / 2, 0, .19, height - .14, .19);
     return { object: result, top };
   }
@@ -106,7 +106,8 @@ export async function createDiningVisuals(scene) {
     cooked.count = Math.max(0, Math.min(DINING_RULES.foodCapacity, Math.floor(state.dining?.kitchen || 0)));
     cooked.visible = cooked.count > 0;
     for (let i = 0; i < tables.length; i++) {
-      const data = state.dining?.tables[i], { dish, top } = tables[i];
+      const data = state.dining?.tables[i], { table, chair, dish, top } = tables[i];
+      table.visible = chair.visible = data?.status !== 'locked';
       dish.visible = data?.status === 'eating' || data?.status === 'dirty';
       dish.geometry = data?.status === 'dirty' ? dirtyGeometry : mealGeometry;
       top.material = data?.status === 'dirty' ? dirtyTable : cleanTable;

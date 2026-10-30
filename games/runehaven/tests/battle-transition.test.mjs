@@ -7,6 +7,8 @@ import { BATTLE_BOUNDS, getBattleLayout } from '../battlefield.mjs';
 function shop(count = 8, equipmentLevel = 1, loyalty = 1) {
   const state = createGame(42);
   state.sales = Math.max(16, count); state.unlocks.inn = true;
+  state.dining.tableCount = 4; state.dining.tables.forEach((table) => { table.status = 'clean'; }); // Explicit fully expanded fixture.
+
   state.patrons = Array.from({ length: count }, (_, index) => ({
     id: `buyer-${index}`, kind: 'warrior', purchases: 1, totalSpent: 50, loyalty,
     hp: CLASS_STATS.warrior.hp, maxHp: CLASS_STATS.warrior.hp, equipmentLevel,

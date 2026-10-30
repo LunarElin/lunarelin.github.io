@@ -27,7 +27,7 @@ function commerce(name) {
   act(state, 'hire');
   let carrying = false;
   let product = 'gear';
-  let cashKind = null;
+  let cashId = null;
   for (let index = 0; index < 12000; index++) {
     if (state.status !== 'playing') throw new Error(`QA ${name}: unexpected defeat`);
     if (state.unlocks.alchemyAvailable && !state.unlocks.alchemy && state.gold >= 230) act(state, 'unlock', { kind: 'alchemy' });
@@ -50,7 +50,7 @@ function commerce(name) {
       act(state, 'continue');
       if (name === 'late' && state.player.speedLevel === 21 && state.unlocks.alchemy && state.unlocks.inn && ['warrior', 'archer', 'mage'].every((kind) => state.patrons.some((patron) => patron.kind === kind))) {
         // Let a helper's real next sale leave visible cash for the floor-pile QA.
-        for (let wait = 0; wait < 500 && !Object.values(state.moneyPiles).some((amount) => amount > 0); wait++) step(state, 0.1, { target: getRegion(state).spawn });
+        for (let wait = 0; wait < 500 && !getMoneyPiles(state).some((pile) => pile.amount > 0); wait++) step(state, 0.1, { target: getRegion(state).spawn });
         if (!Object.values(state.moneyPiles).some((amount) => amount > 0)) throw new Error('QA late: no earned cash pile');
         return mark(state, name);
       }
@@ -59,9 +59,9 @@ function commerce(name) {
     if (bag >= getCapacity(state)) carrying = true;
     if (bag === 0) { carrying = false; product = state.unlocks.mage && state.stocks.potion < 3 ? 'potion' : 'gear'; }
     const piles = getMoneyPiles(state);
-    if (cashKind && !state.moneyPiles[cashKind]) cashKind = null;
-    if (!bag && !cashKind) cashKind = piles.filter((pile) => pile.amount > 0).sort((a, b) => b.amount - a.amount)[0]?.kind ?? null;
-    const target = cashKind ? piles.find((pile) => pile.kind === cashKind)
+    if (cashId && !piles.find((pile) => pile.id === cashId)?.amount) cashId = null;
+    if (!bag && !cashId) cashId = piles.filter((pile) => pile.amount > 0).sort((a, b) => b.amount - a.amount)[0]?.id ?? null;
+    const target = cashId ? piles.find((pile) => pile.id === cashId)
       : getStationApproach(state, carrying ? (state.player.bag.gear > 0 ? 'counter' : 'potionCounter') : (product === 'gear' ? 'forge' : 'alchemy'));
     step(state, 0.1, { target });
     if (name === 'defense' && state.raid.phase === 'warning' && state.raid.timer <= 8 && state.patrons.length >= 8) return mark(state, name);
@@ -120,6 +120,8 @@ export function buildScenario(name, stage = 1) {
     const state = createGame(42);
     state.stage = stage; state.sales = 20;
     state.unlocks.alchemy = state.unlocks.inn = true;
+  state.dining.tableCount = 4; state.dining.tables.forEach((table) => { table.status = 'clean'; }); // Explicit fully expanded fixture.
+
     state.facilityLevels = { forge: 3, counter: 3, alchemy: 3, inn: 3 };
     state.raid.timer = state.raid.triggerSales = 1e6;
     for (let frame = 0; frame < 900; frame++) step(state, .05, { target: { x: 0, z: 3.1 } });

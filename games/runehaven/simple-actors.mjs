@@ -2,14 +2,14 @@ import * as THREE from './vendor/three.module.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
 import { COMBAT_ATTACK_SECONDS } from './combat-motion.mjs';
 
-// One small, shared skinned mesh per actor. There are no model downloads,
-// texture maps, facial details, or per-character material clones.
+// A small, shared fairy-like body and face use vertex colors rather than
+// model downloads, texture maps, or per-character material clones.
 const bodies = new Map();
 let bodyMaterial, hatGeometry;
 const hats = new Map();
 
-function bodyGeometry(bodyColor, headColor) {
-  const key = `${bodyColor}:${headColor}`;
+function bodyGeometry(bodyColor, headColor, trimColor) {
+  const key = `${bodyColor}:${headColor}:${trimColor}`;
   if (bodies.has(key)) return bodies.get(key);
   const parts = [];
   function part(geometry, color, bone, x, y, z = 0) {
@@ -26,13 +26,31 @@ function bodyGeometry(bodyColor, headColor) {
     geometry.setAttribute('skinWeight', new THREE.BufferAttribute(weights, 4));
     parts.push(geometry);
   }
-  part(new THREE.CapsuleGeometry(.19, .24, 1, 8), bodyColor, 0, 0, .74);
-  part(new THREE.SphereGeometry(.2, 8, 6), headColor, 0, 0, 1.1);
+  part(new THREE.CapsuleGeometry(.18, .14, 1, 8), bodyColor, 0, 0, .65);
+  // The larger head ends at the same 1.3 world-unit height as the old body.
+  // Keeping that limit leaves overhead cargo and the existing camera intact.
+  part(new THREE.SphereGeometry(.31, 12, 8), headColor, 0, 0, .99);
+  for (const side of [-1, 1]) {
+    part(new THREE.SphereGeometry(.12, 8, 6), bodyColor, 0, side * .285, 1.15, -.035);
+  }
   for (const [side, thigh, knee, arm] of [[-1, 1, 3, 5], [1, 2, 4, 6]]) {
     part(new THREE.CapsuleGeometry(.07, .09, 1, 6), bodyColor, thigh, side * .105, .345);
     part(new THREE.CapsuleGeometry(.07, .09, 1, 6), bodyColor, knee, side * .105, .115);
     part(new THREE.CapsuleGeometry(.06, .24, 1, 6), bodyColor, arm, side * .26, .72);
   }
+  for (const side of [-1, 1]) {
+    part(new THREE.SphereGeometry(1, 8, 4).scale(.072, .096, .025), '#ffffff', 0, side * .105, 1.065, .282);
+    part(new THREE.SphereGeometry(1, 8, 4).scale(.051, .075, .018), '#493c70', 0, side * .105, 1.065, .304);
+    part(new THREE.SphereGeometry(.017, 4, 3), '#ffffff', 0, side * .105 - .016, 1.096, .319);
+    part(new THREE.SphereGeometry(.008, 4, 3), '#ffffff', 0, side * .105 + .018, 1.043, .321);
+    part(new THREE.SphereGeometry(1, 6, 3).scale(.045, .027, .013), '#f2a7bd', 0, side * .19, .99, .25);
+  }
+  part(new THREE.TorusGeometry(.063, .009, 3, 10, Math.PI).rotateZ(Math.PI), '#b76b91', 0, 0, .942, .306);
+  // One heart on the outfit and a small forehead gem supply the fairy motif.
+  part(new THREE.SphereGeometry(.043, 6, 3), trimColor, 0, -.032, .675, .18);
+  part(new THREE.SphereGeometry(.043, 6, 3), trimColor, 0, .032, .675, .18);
+  part(new THREE.BoxGeometry(.066, .066, .035).rotateZ(Math.PI / 4), trimColor, 0, 0, .646, .18);
+  part(new THREE.SphereGeometry(.055, 4, 2).scale(.7, 1, .45), bodyColor, 0, 0, 1.194, .245);
   const geometry = mergeGeometries(parts);
   for (const part of parts) part.dispose();
   bodies.set(key, geometry);
@@ -77,8 +95,8 @@ export function createSimpleActor(kind, appearance, { role = '', combat = false 
   // binding bone cancels that offset at the end of this short, straight arm.
   hand.position.set(.245, -.3, .085);
   root.add(leftLeg, rightLeg, leftArm, rightArm); leftLeg.add(leftKnee); rightLeg.add(rightKnee); rightArm.add(hand);
-  const headColor = appearance.key === 'player' ? '#fff4e5' : appearance.body;
-  const mesh = new THREE.SkinnedMesh(bodyGeometry(appearance.body, headColor), sharedBodyMaterial());
+  const headColor = appearance.key === 'enemy' ? '#efe1f2' : '#fff3e8';
+  const mesh = new THREE.SkinnedMesh(bodyGeometry(appearance.body, headColor, appearance.trim || '#fff4ce'), sharedBodyMaterial());
   mesh.name = 'simple-body'; mesh.castShadow = true; mesh.receiveShadow = false;
   mesh.frustumCulled = false; // The caller already culls the whole actor.
   const skeleton = new THREE.Skeleton([root, leftLeg, rightLeg, leftKnee, rightKnee, leftArm, rightArm, hand]);

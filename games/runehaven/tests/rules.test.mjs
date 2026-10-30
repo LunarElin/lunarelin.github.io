@@ -83,7 +83,7 @@ test('archer, alchemy, inn and mage unlocks require paid progression and facilit
   assert.equal(state.unlocks.mage, true);
 });
 
-test('hired helper physically carries source-stat stock and hiring caps at three', () => {
+test('hired helper physically carries source-stat stock and hiring caps at the original five', () => {
   const state = createGame(5);
   assert.equal(getHireInfo(state).cost, BALANCE.worker.employCosts[0]);
   assert.equal(act(state, 'hire').ok, true);
@@ -97,8 +97,8 @@ test('hired helper physically carries source-stat stock and hiring caps at three
   run(state, 12);
   assert.ok(state.sales > 0 || state.stocks.gear > 0);
   state.gold = 10000;
-  act(state, 'hire'); act(state, 'hire');
-  assert.equal(state.staff.length, 3);
+  for (let index = 1; index < BALANCE.worker.maxEmploy; index++) act(state, 'hire');
+  assert.equal(state.staff.length, BALANCE.worker.maxEmploy);
   assert.equal(act(state, 'hire').ok, false);
 });
 
@@ -203,7 +203,7 @@ test('inn customers pay for a completed meal, heal and gain loyalty', () => {
   run(state, 5.5);
   assert.equal(state.lodgings, 1);
   assert.equal(state.gold, before);
-  assert.equal(state.moneyPiles.inn, BALANCE.facilities.inn.salePrice * 10);
+  assert.equal(state.dining.tables[0].cash, BALANCE.facilities.inn.salePrice * 10);
   assert.equal(state.patrons[0].hp, state.patrons[0].maxHp);
   assert.equal(state.patrons[0].loyalty, 2);
 });
@@ -365,7 +365,7 @@ test('the original inn delay and percent ability change eating time and meal pil
   const before = state.gold;
   run(state, 3.8);
   assert.equal(state.lodgings, 1);
-  assert.equal(state.moneyPiles.inn, 252);
+  assert.equal(state.dining.tables[0].cash, 252);
   assert.equal(state.gold, before);
 });
 

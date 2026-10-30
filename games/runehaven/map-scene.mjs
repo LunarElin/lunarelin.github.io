@@ -5,10 +5,10 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
     const g = new THREE.Group(); g.name = 'regional-silhouette'; group.add(g);
     g.position.set(Math.sign(item.x) * 10, 0, item.z * 1.2);
     g.rotation.y = item.rotation || 0; g.scale.setScalar(item.scale || 1);
-    const color = item.color || region.accentColor;
+    const color = `#${new THREE.Color(item.color || region.accentColor).lerp(new THREE.Color('#d9c4e6'), .58).getHexString()}`;
     if (item.type === 'tree') {
-      cylinder(.12, .16, .8, '#a78262', 0, .35, 0, g);
-      const crown = mesh(new THREE.ConeGeometry(.72, 1.65, 6), color, g); crown.position.y = 1.4;
+      cylinder(.12, .16, .8, '#bf9bb5', 0, .35, 0, g);
+      const crown = orb(.72, color, 0, 1.35, 0, g); crown.scale.y = 1.1;
     } else if (item.type === 'crystal') {
       const crystal = mesh(new THREE.OctahedronGeometry(.5, 0), color, g);
       crystal.scale.y = 1.6; crystal.position.y = .65;
@@ -30,9 +30,10 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
   }
   function apply(region) {
     emptyGroup(group);
-    scene.background?.set(region.groundColor);
-    const floorColor = `#${new THREE.Color(region.floorColor).lerp(new THREE.Color('#fff0c0'), .3).getHexString()}`;
-    box(18, .3, 18, region.wallColor, 0, -.23, 0, group);
+    scene.background?.set(new THREE.Color(region.groundColor).lerp(new THREE.Color('#e6f3eb'), .68));
+    const floorColor = `#${new THREE.Color(region.floorColor).lerp(new THREE.Color('#efb6cf'), .72).getHexString()}`;
+    const wallColor = `#${new THREE.Color(region.wallColor).lerp(new THREE.Color('#e8cfe2'), .75).getHexString()}`;
+    box(18, .3, 18, wallColor, 0, -.23, 0, group);
     const floor = box(18, .12, 18, floorColor, 0, -.055, 0, group); floor.name = 'shop-solid-floor';
     const featureColor = (color) => `#${new THREE.Color(color || region.accentColor).lerp(new THREE.Color(floorColor), .65).getHexString()}`;
     for (const [index, feature] of (region.floorFeatures || []).slice(0, 2).entries()) {
@@ -45,16 +46,16 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
         patch.rotation.y = feature.rotation || 0;
       }
     }
-    box(18.2, .5, .2, region.wallColor, 0, .2, -8.9, group);
-    for (const side of [-1, 1]) box(.2, .2, 18, region.wallColor, side * 9.03, .05, 0, group);
-    const laneColor = '#ffffff';
+    box(18.2, .5, .2, wallColor, 0, .2, -8.9, group);
+    for (const side of [-1, 1]) box(.2, .2, 18, wallColor, side * 9.03, .05, 0, group);
+    const laneColor = '#d8b9d0';
     const stations = region.stations, fork = { x: stations.gate.x, z: stations.gate.z - 1.25 };
     for (const key of ['counter', 'potionCounter']) {
       const target = stations[key], dx = target.x - fork.x, dz = target.z + .95 - fork.z;
       const path = box(Math.hypot(dx, dz), .018, .12, laneColor, (fork.x + target.x) / 2, .05, (fork.z + target.z + .95) / 2, group);
       path.name = 'customer-branch-line'; path.rotation.y = -Math.atan2(dz, dx); path.castShadow = false;
     }
-    const rugColors = { forge: '#e6bd93', counter: '#edce8f', alchemy: '#a9d8c8', potionCounter: '#afe0db', inn: '#d5c3ea' };
+    const rugColors = { forge: '#f2d8e5', counter: '#f4e4c8', alchemy: '#d6eee2', potionCounter: '#d9eef0', inn: '#e8dbf3' };
     for (const [kind, p] of Object.entries(stations)) {
       if (kind === 'gate') continue;
       const w = kind === 'inn' ? 2.7 : kind === 'forge' || kind === 'alchemy' ? 2.8 : 2.6;

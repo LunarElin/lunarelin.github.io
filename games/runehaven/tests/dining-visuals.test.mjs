@@ -60,6 +60,19 @@ test('region updates place all furniture at the rules layout and locked inn hide
   }
 });
 
+test('unbought tables and chairs stay hidden, then appear without replacing their buffers', async (t) => {
+  const { visuals, state, group } = await fixture(t);
+  visuals.update(state);
+  const first = group.getObjectByName('dining-table-0'), next = group.getObjectByName('dining-table-1');
+  const chair = group.getObjectByName('dining-chair-1');
+  const geometry = next.getObjectByName('dining-table-top').geometry;
+  assert.equal(first.visible, true); assert.equal(next.visible, false); assert.equal(chair.visible, false);
+  state.dining.tableCount = 2; state.dining.tables[1].status = 'clean'; visuals.update(state);
+  assert.equal(next.visible, true); assert.equal(chair.visible, true);
+  assert.equal(next.getObjectByName('dining-table-top').geometry, geometry);
+  assert.equal(group.getObjectByName('dining-table-2').visible, false);
+});
+
 test('carried meals reuse the same one-mesh dish and share buffers without touching existing cargo', async (t) => {
   const { visuals, group } = await fixture(t);
   const actor = { carry: new THREE.Group() }, cargo = new THREE.Group(); actor.carry.add(cargo);

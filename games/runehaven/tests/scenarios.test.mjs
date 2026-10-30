@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { act, COMBAT_RADIUS, getRepairInfo, restore, serialize, step } from '../rules.mjs';
+import { act, COMBAT_RADIUS, getMoneyPiles, getRepairInfo, restore, serialize, step } from '../rules.mjs';
 import { BATTLE_BOUNDS } from '../battlefield.mjs';
 import { buildScenario, SCENARIO_INFO } from './scenarios.mjs';
 
 function assertEarnedProgress(state) {
   assert.equal(state.qaScenario.artificial, false);
   assert.equal(state.seed, 42);
-  assert.equal(state.gold + Object.values(state.moneyPiles).reduce((sum, amount) => sum + amount, 0), BALANCE.web.startingCoins + state.economy.earned - state.economy.spent);
+  assert.equal(state.gold + getMoneyPiles(state).reduce((sum, pile) => sum + pile.amount, 0), BALANCE.web.startingCoins + state.economy.earned - state.economy.spent);
   assert.equal(state.patrons.reduce((sum, patron) => sum + patron.purchases, 0), state.sales);
   assert.ok(state.patrons.every((patron) => patron.purchases > 0));
 }
@@ -23,7 +23,7 @@ test('late scenario reaches an earned late shop with blink, both businesses and 
   assert.equal(state.player.speedLevel, BALANCE.magic.teleportAtLevel);
   assert.equal(state.unlocks.alchemy, true);
   assert.equal(state.unlocks.inn, true);
-  assert.equal(state.staff.length, BALANCE.web.helperCap);
+  assert.equal(state.staff.length, 3, 'earned camera fixtures deliberately keep their existing three helpers');
   assert.ok(Object.values(state.moneyPiles).some((amount) => amount > 0));
   for (const kind of ['warrior', 'archer', 'mage']) assert.ok(state.patrons.some((patron) => patron.kind === kind));
   const before = { x: state.player.x, z: state.player.z };
@@ -152,7 +152,7 @@ test('dining previews mark their supplied inventory and reach eating and dirty t
     assert.ok(state.dining.tables.some((table) => table.status === 'eating'));
     assert.ok(state.customers.some((customer) => customer.phase === 'eating'));
     assert.ok(state.lodgings > 0);
-    assert.ok(state.moneyPiles.inn > 0);
+    assert.ok(state.dining.tables.some((table) => table.cash > 0));
     assert.ok(state.customers.filter((customer) => customer.meal).every((customer) => customer.phase === 'to-table'));
   }
 });

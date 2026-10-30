@@ -3,6 +3,10 @@ import { getRegion } from './maps.mjs';
 // Battles use their own courtyard coordinates, independent of shop expansion.
 export const BATTLE_BOUNDS = Object.freeze({ minX: -6, maxX: 6, minZ: -4.7, maxZ: 6 });
 const layouts = new Map();
+function pastel(source, target, amount = .75) {
+  return `#${[1, 3, 5].map(start => Math.round(parseInt(source.slice(start, start + 2), 16) * (1 - amount)
+    + parseInt(target.slice(start, start + 2), 16) * amount).toString(16).padStart(2, '0')).join('')}`;
+}
 
 export function getBattleLayout(state) {
   const region = getRegion(state);
@@ -16,11 +20,11 @@ export function getBattleLayout(state) {
     doorway: Object.freeze({ x: 0, z: -4.6 }),
     backdrop: Object.freeze({ x: 0, z: -5.7, top: 3.5 }),
     dimensions: Object.freeze({ width: 14.5, depth: 14.5 }),
-    background: region.groundColor,
+    background: pastel(region.groundColor, '#e3f0e7', .8),
     palette: Object.freeze({
-      grass: region.groundColor, dirt: '#b5946c', stone: '#b3b6a4', stoneDark: '#747e77',
-      plaster: region.wallColor, timber: '#785740', timberDark: '#49372e', roof: region.accentColor,
-      leaves: '#6c9263', leavesDark: '#4f7654', sign: '#5e476e', gold: '#e7c071', window: '#e4bc75',
+      grass: pastel(region.groundColor, '#d4e9dc'), dirt: '#f5d8df', stone: '#d4c6df', stoneDark: '#a69bb5',
+      plaster: pastel(region.wallColor, '#fff0e8', .8), timber: '#b68bb4', timberDark: '#846188', roof: pastel(region.accentColor, '#dba9d0'),
+      leaves: '#acd7be', leavesDark: '#83b99b', sign: '#a17cad', gold: '#f3dba1', window: '#b3dfe4',
     }),
   });
   layouts.set(region.id, layout);

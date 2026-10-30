@@ -1,6 +1,6 @@
 import { THREE } from './asset-loader.mjs';
 import { BALANCE } from './balance.mjs';
-import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getStationApproach } from './rules.mjs';
+import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getStationApproach, getTableUnlockInfo, getHireInfo } from './rules.mjs';
 import { REGIONS, getRegion, getStations } from './maps.mjs';
 import { createMapScenery } from './map-scene.mjs';
 import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, CAMERA_Y, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera, followBattleCamera } from './camera.mjs';
@@ -255,6 +255,7 @@ const stationIcons = {
   meal: '<path d="M3 11h18c-1 8-4 10-9 10S4 19 3 11z" fill="#bc8457"/><path d="M3 11h18M8 3c-3 3 3 3 0 6M15 2c-3 3 3 3 0 6" stroke="#d67a3e" stroke-width="2"/>',
   kitchen: '<path d="M4 10h16l-2 10H6z" fill="#6c7569"/><path d="M2 10h20M8 3c-3 2 3 3 0 5M15 2c-3 3 3 3 0 6" stroke="#e7b467" stroke-width="2"/>',
   table: '<path d="M5 20L16 4l4 3L9 23z" fill="#a77a4a"/><path d="M2 18l5-3 6 5-1 3H3z" fill="#e7d8b3"/><path d="M3 4h5M5 2v5" stroke="#bd84c5" stroke-width="2"/>',
+  tableOpen: '<path d="M3 9h18v5H3zM6 14v8M18 14v8" fill="#edb8d7"/><path d="M12 1v7M8.5 4.5h7" stroke="#9f5083" stroke-width="2.5"/>',
 };
 for (const [key, text, x, z, y] of labelConfig) {
   const el = document.createElement('button'); el.className = 'station-label';
@@ -263,6 +264,9 @@ for (const [key, text, x, z, y] of labelConfig) {
   el.setAttribute('aria-label', key.startsWith('table-') ? text : `${text}(으)로 이동`);
   listen(el, 'click', () => {
     if (paused || !started) return;
+    if (key.startsWith('table-') && state.dining.tables[Number(key.slice(6))]?.status === 'locked') {
+      action('unlock-table'); return;
+    }
     setDestination(stationDestination(key));
     blinkAim = false;
     toast(key.startsWith('table-') ? '식탁 옆에 멈추면 정리해요' : `${text} ${['counter', 'potionCounter', 'meal'].includes(key) ? '뒤로' : '앞으로'} 이동`);
@@ -270,18 +274,19 @@ for (const [key, text, x, z, y] of labelConfig) {
   stationLabels.set(key, { el, point: new THREE.Vector3(x, y, z), text, height: y });
 }
 
-for (const [kind, name] of [['gear', '무기 대금'], ['potion', '물약 대금'], ['inn', '식사 대금']]) {
+function createCashVisual(pile) {
+  const id = pile.id || pile.kind;
+  const name = pile.tableId != null ? `식탁 ${pile.tableId + 1} 대금` : { gear: '무기 대금', potion: '물약 대금', inn: '기존 식사 대금' }[pile.kind];
   const group = new THREE.Group(); shopScene.add(group);
   const el = document.createElement('button'); el.className = 'cash-label'; el.hidden = true;
   $('station-labels').append(el);
-  listen(el, 'click', () => { if (paused || !started) return; const pile = getMoneyPiles(state).find((p) => p.kind === kind); if (pile) { setDestination(pile); blinkAim = false; } });
-  cashVisuals.set(kind, { group, el, name, amount: -1 });
+  listen(el, 'click', () => { if (paused || !started) return; const current = getMoneyPiles(state).find((p) => (p.id || p.kind) === id); if (current) { setDestination(current); blinkAim = false; } });
+  const visual = { group, el, name, amount: -1 }; cashVisuals.set(id, visual); return visual;
 }
 
 const actors = new Map();
 const temporary = [];
 let diningVisuals;
-const actorPalette = { player: '#8354a7', warrior: '#389d7b', archer: '#389d7b', mage: '#389d7b', staff: '#daac58', orc: '#cf534f', soldier: '#cf534f' };
 function createActor(id, kind, role = '') {
   const root = new THREE.Group(); scene.add(root);
   const appearance = getActorPalette({ id, kind });
@@ -289,7 +294,7 @@ function createActor(id, kind, role = '') {
   const { body, gear, rig } = createSimpleActor(kind, appearance, { role, combat });
   root.add(body, gear);
   const carry = new THREE.Group(); carry.position.set(0, 1.4, .14); root.add(carry);
-  const marker = { visible: true, x: 0, z: 0, scale: 1, healthVisible: false, healthRatio: 1, enemy: id.startsWith('e-'), ringVisible: false, ringRadius: role === 'elite' ? .46 : .32, ringColor: role === 'elite' ? '#ff9969' : id.startsWith('e-') ? '#d97674' : actorPalette[kind] || '#90cf96' };
+  const marker = { visible: true, x: 0, z: 0, scale: 1, healthVisible: false, healthRatio: 1, enemy: id.startsWith('e-'), ringVisible: false, ringRadius: role === 'elite' ? .46 : .32, ringColor: role === 'elite' ? '#e87c9c' : appearance.body };
   const upper = new THREE.Group(), food = new THREE.Group(); carry.add(upper, food);
   const actor = { id, kind, appearance, root, body, gear, simpleRig: rig, carry, upper, food, marker, animationClock: 0, x: 0, z: 0, angle: 0, currentAnimation: 'idle', count: -1, ready: true };
   actors.set(id, actor);
@@ -555,8 +560,10 @@ function syncRegion() {
 }
 
 function updateCashVisuals() {
+  for (const visual of cashVisuals.values()) visual.used = false;
   for (const pile of getMoneyPiles(state)) {
-    const visual = cashVisuals.get(pile.kind); if (!visual) continue;
+    const visual = cashVisuals.get(pile.id || pile.kind) || createCashVisual(pile); visual.used = true;
+    visual.group.visible = pile.amount > 0;
     visual.group.position.set(pile.x, .08, pile.z);
     const count = pile.amount ? Math.min(30, Math.max(6, Math.ceil(pile.amount / 50))) : 0;
     if (visual.group.userData.count !== count) {
@@ -581,6 +588,7 @@ function updateCashVisuals() {
       visual.el.setAttribute('aria-label', `${visual.name} ${number(pile.amount)} 골드 줍기`);
     }
   }
+  for (const visual of cashVisuals.values()) if (!visual.used) { visual.group.visible = false; if (!visual.el.hidden) visual.el.hidden = true; }
 }
 
 const flights = [];
@@ -629,7 +637,7 @@ function visuals(dt) {
     sceneLocation = outside ? 'outside' : 'shop'; cameraSnap = true; shadowClock = 1;
     stopInput();
     for (const flight of flights.splice(0)) { scene.remove(flight.node); releaseOwnedGeometry(flight.node); }
-    scene.background.set(outside ? getBattleLayout(state).background : getRegion(state).groundColor);
+    scene.background.set(outside ? getBattleLayout(state).background : new THREE.Color(getRegion(state).groundColor).lerp(new THREE.Color('#f8ecf6'), .55));
   }
   shopScene.visible = !outside;
   battlefieldVisuals.update(state, outside);
@@ -813,9 +821,10 @@ function updateHud() {
   $('magic').querySelector('strong').textContent = canBlink ? '순간이동' : '마법';
   $('magic-level').textContent = canBlink ? (cooldown > 0 ? `${cooldown.toFixed(1)}초` : '누르고 바닥 선택') : `수련 ${speedLevel} / 21`;
   $('upgrade-hint').textContent = `수련 ${speedLevel}단계`;
-  $('worker-hint').textContent = `조수 ${state.staff.length} / 3`;
-  $('build-hint').textContent = state.unlocks.inn ? '시설 강화' : state.unlocks.alchemy ? '여관 · 강화' : '건설 · 강화';
-  $('build').classList.toggle('notification', Boolean((state.unlocks.alchemyAvailable && !state.unlocks.alchemy) || (state.unlocks.innAvailable && !state.unlocks.inn)));
+  const tableInfo = getTableUnlockInfo(state);
+  $('worker-hint').textContent = `조수 ${state.staff.length} / ${getHireInfo(state).maxWorkers}`;
+  $('build-hint').textContent = state.unlocks.inn && tableInfo.count < tableInfo.max ? `식탁 ${tableInfo.count} / ${tableInfo.max}` : state.unlocks.inn ? '시설 강화' : state.unlocks.alchemy ? '여관 · 강화' : '건설 · 강화';
+  $('build').classList.toggle('notification', Boolean((state.unlocks.alchemyAvailable && !state.unlocks.alchemy) || (state.unlocks.innAvailable && !state.unlocks.inn) || tableInfo.canBuy));
   // One nearby cleanup prompt keeps four identical buttons from covering the
   // small phone view. Every table can also be approached with a floor tap.
   const nearestDirty = getDiningLayout(state).tables.filter(({ id }) => state.dining.tables[id].status === 'dirty')
@@ -830,15 +839,25 @@ function updateHud() {
     if (key === 'meal') { locked = !state.unlocks.inn; detail = `음식 ${state.dining?.food || 0}개`; }
     if (key === 'kitchen') { locked = !state.unlocks.inn; detail = `완성 ${state.dining?.kitchen || 0}개`; }
     const table = key.startsWith('table-') ? state.dining?.tables[Number(key.slice(6))] : null;
-    if (table) detail = table.cleanProgress > 0 ? '정리 중' : '멈추면 정리';
+    const tableLocked = table?.status === 'locked';
+    if (table) {
+      locked = tableLocked;
+      detail = tableLocked ? `개방 · ${number(tableInfo.cost)} 골드` : table.cleanProgress > 0 ? '정리 중' : '멈추면 정리';
+      const icon = tableLocked ? 'tableOpen' : 'table';
+      if (entry.icon !== icon) { entry.el.querySelector('svg').innerHTML = stationIcons[icon]; entry.icon = icon; }
+      entry.el.querySelector('strong').textContent = tableLocked ? `식탁 ${Number(key.slice(6)) + 1} 개방` : '식탁 정리';
+      entry.el.setAttribute('aria-label', tableLocked ? `식탁 ${Number(key.slice(6)) + 1} 개방 ${number(tableInfo.cost)} 골드` : `식탁 ${Number(key.slice(6)) + 1} 정리`);
+      entry.el.disabled = tableLocked && !tableInfo.canBuy;
+      entry.el.classList.toggle('table-unlock', tableLocked);
+    }
     entry.el.classList.toggle('locked', locked); entry.el.querySelector('small').textContent = detail;
-    entry.el.dataset.count = table ? '정리' : locked ? '잠김' : key === 'inn' ? '휴식' : detail.match(/\d+/)?.[0] || '0';
+    entry.el.dataset.count = table ? tableLocked ? number(tableInfo.cost) : '정리' : locked ? '잠김' : key === 'inn' ? '휴식' : detail.match(/\d+/)?.[0] || '0';
     const station = labelStation(key);
     const future = locked && (key === 'alchemy' ? !state.unlocks.alchemyAvailable : key === 'inn' ? !state.unlocks.innAvailable : true);
     entry.unavailable = future || outside || travelling || (!locked && Math.hypot(state.player.x - station.x, state.player.z - station.z) < 1.5);
     if (key === 'inn' && state.unlocks.inn) entry.unavailable = true;
     if (key === 'meal' || key === 'kitchen') entry.unavailable = !state.unlocks.inn || raid.phase === 'battle';
-    if (key.startsWith('table-')) entry.unavailable = !state.unlocks.inn || raid.phase === 'battle' || table?.status !== 'dirty' || Number(key.slice(6)) !== nearestDirty;
+    if (table) entry.unavailable = !state.unlocks.inn || outside || travelling || (tableLocked ? Number(key.slice(6)) !== tableInfo.tableId : table.status !== 'dirty' || Number(key.slice(6)) !== nearestDirty);
     entry.el.hidden = entry.unavailable;
     if (!entry.unavailable) { entry.width = entry.el.offsetWidth; entry.heightPx = entry.el.offsetHeight; }
   }
@@ -891,10 +910,9 @@ function updateUpgradeButtons() {
 function openUpgrades() {
   openSheet('마법 공방', `<p class="sheet-description">물건을 팔아 수련하고, 더 큰 마법을 익히세요.</p><div class="gold-note">보유 <strong>${number(state.gold)}</strong> 골드</div>${upgradeCards()}<button class="secondary-button full" data-command="resume">상회로</button>`, 'upgrades'); updateUpgradeButtons();
 }
-function hireCost() { return BALANCE.worker?.employCosts?.[state.staff.length] ?? [0, 450, 700][state.staff.length] ?? 0; }
 const workerJobs = { gear: '무기 운반', potion: '물약 운반', food: '음식 운반', clean: '식탁 정리' };
 function openWorkers() {
-  const count = state.staff.length;
+  const hire = getHireInfo(state), count = hire.count;
   const roster = count ? state.staff.map((s) => {
     const job = s.job || s.product;
     const jobs = Object.entries(workerJobs).map(([kind, name]) => {
@@ -910,7 +928,7 @@ function openWorkers() {
     const next = info.nextValue == null ? '완성' : kind === 'speed' ? Number(info.nextValue).toFixed(1) + '배' : '+' + (info.nextValue - 1) + '개';
     return '<section class="upgrade-card"><div class="card-top"><h2>' + title + '</h2><span class="level-chip">' + info.currentLevel + ' / ' + info.maxLevel + '</span></div><div class="stat-line">' + value + '<span>→</span>' + next + '</div><p>' + (kind === 'speed' ? '모든 조수의 원래 이동 속도에 적용합니다.' : '모든 조수의 원래 운반량에 더합니다.') + '</p><button class="gold-button" data-command="upgrade-worker" data-kind="' + kind + '" ' + (!info.canBuy ? 'disabled' : '') + '>' + (info.currentLevel === info.maxLevel ? '최고 단계' : '훈련 · ' + number(info.cost) + ' 골드') + '</button></section>';
   }).join('');
-  openSheet('조수 길드', '<p class="sheet-description">조수마다 맡길 일을 선택하세요.<br>첫 조수는 무료예요.</p><div class="stat-line">' + count + '<span>/</span>3명</div>' + roster + '<p class="muted">담당 변경은 무료이며 들고 있던 짐은 사라지지 않아요.</p><button class="gold-button full" data-command="hire" ' + (count >= 3 || state.gold < hireCost() ? 'disabled' : '') + '>' + (count >= 3 ? '고용 완료' : '조수 고용 · ' + number(hireCost()) + ' 골드') + '</button><h2 class="section-title">함께 훈련</h2><p class="muted">현재 조수와 앞으로 고용할 조수 모두 성장합니다.</p>' + training + '<button class="secondary-button full" data-command="resume">상회로</button>', 'workers');
+  openSheet('조수 길드', '<p class="sheet-description">조수마다 맡길 일을 선택하세요.<br>첫 조수는 무료예요.</p><div class="stat-line">' + count + '<span>/</span>' + hire.maxWorkers + '명</div>' + roster + '<p class="muted">담당 변경은 무료이며 들고 있던 짐은 사라지지 않아요.</p><button class="gold-button full" data-command="hire" ' + (!hire.canBuy ? 'disabled' : '') + '>' + (count >= hire.maxWorkers ? '고용 완료' : '조수 고용 · ' + number(hire.cost) + ' 골드') + '</button><h2 class="section-title">함께 훈련</h2><p class="muted">현재 조수와 앞으로 고용할 조수 모두 성장합니다.</p>' + training + '<button class="secondary-button full" data-command="resume">상회로</button>', 'workers');
 }
 const facilityNames = { forge: '대장간', counter: '무기·물약 진열', alchemy: '연금 공방', inn: '별빛 여관' };
 function facilityStatText(kind, stats) {
@@ -928,7 +946,9 @@ function openBuild() {
     }
     return '<section class="build-card"><div class="card-top"><h2>' + facilityNames[kind] + '</h2><span class="level-chip">' + info.currentLevel + ' / ' + info.maxLevel + '</span></div><p class="facility-stat">' + facilityStatText(kind, info.value) + '</p><p class="facility-next">' + (info.nextValue ? '다음: ' + facilityStatText(kind, info.nextValue) : '최고 단계에 도달했어요') + '</p><button class="gold-button" data-command="upgrade-facility" data-kind="' + kind + '" ' + (!info.canBuy ? 'disabled' : '') + '>' + (info.currentLevel === info.maxLevel ? '최고 단계' : '시설 강화 · ' + number(info.cost) + ' 골드') + '</button></section>';
   }).join('');
-  openSheet('상회 시설', '<div class="gold-note">보유 ' + number(state.gold) + ' 골드</div>' + cards + '<button class="secondary-button full" data-command="resume">상회로</button>', 'build');
+  const table = getTableUnlockInfo(state);
+  const tables = !state.unlocks.inn ? '' : '<section class="build-card"><div class="card-top"><h2>여관 식탁</h2><span class="level-chip">' + table.count + ' / ' + table.max + '</span></div><p>식탁을 하나씩 늘려요. 식사 대금은 해당 식탁 옆에서 직접 주워요.</p><button class="gold-button" data-command="unlock-table" ' + (!table.canBuy ? 'disabled' : '') + '>' + (table.count >= table.max ? '모두 개방' : '식탁 ' + (table.tableId + 1) + ' 개방 · ' + number(table.cost) + ' 골드') + '</button></section>';
+  openSheet('상회 시설', '<div class="gold-note">보유 ' + number(state.gold) + ' 골드</div>' + cards + tables + '<button class="secondary-button full" data-command="resume">상회로</button>', 'build');
 }
 function openRegions() {
   const current = getRegion(state);
@@ -949,7 +969,7 @@ function openMenu() {
 function cancelReset() { if (resetReturn === 'intro') openIntro(); else openMenu(); }
 function dismissSheet() { if (activeSheet === 'confirm') cancelReset(); else closeSheet(); }
 function openHelp() {
-  openSheet('놀이 방법', `<ol class="help-list"><li>조이스틱을 움직이거나 작업장 표식·바닥을 누르세요. 대장간 앞에서 멈추면 무기가 머리 위에 하나씩 쌓여요.</li><li>진열대 앞에서 멈추면 물건을 하나씩 내려놓아요. 이동 중에는 상하차하지 않아요.</li><li>손님이 낸 돈은 바닥에 쌓여요. 금화 더미나 금액을 눌러 직접 다가가 주워야 내 골드가 돼요.</li><li>시설에서 제작·결제·식사를 강화하고 고용에서 모든 조수를 훈련하세요. 판매가 늘면 공방과 여관이 열려요.</li><li>여관 주방에서 음식을 머리 위에 쌓고 배식대 뒤에서 내려놓으세요. 손님이 먹고 떠난 식탁 옆에서 멈추면 정리해요. 고용에서 조수에게 음식 운반·식탁 정리를 맡길 수 있어요.</li><li>물건을 산 검사·궁수·마법사가 습격 때 돌아와요. 방어에 성공하면 배치와 풍경이 다른 다음 지역으로 옮겨요.</li><li>이동 수련 21단계! 순간이동을 누른 뒤 가까운 바닥을 선택하세요. 재사용 4초.</li></ol><p class="muted">화면을 벗어나면 시간이 멈춥니다.<br>${saveFailed ? '현재 브라우저 저장을 사용할 수 없습니다.' : '진행은 이 브라우저에 자동으로 저장됩니다.'}</p><button class="gold-button full" data-command="resume">알겠어요</button>`, 'help');
+  openSheet('놀이 방법', `<ol class="help-list"><li>조이스틱을 움직이거나 작업장 표식·바닥을 누르세요. 대장간 앞에서 멈추면 무기가 머리 위에 하나씩 쌓여요.</li><li>진열대 앞에서 멈추면 물건을 하나씩 내려놓아요. 이동 중에는 상하차하지 않아요.</li><li>손님이 낸 돈은 바닥에 쌓여요. 금화 더미나 금액을 눌러 직접 다가가 주워야 내 골드가 돼요.</li><li>시설에서 제작·결제·식사를 강화하고 고용에서 모든 조수를 훈련하세요. 판매가 늘면 공방과 여관이 열려요.</li><li>여관 주방에서 음식을 머리 위에 쌓고 배식대 뒤에서 내려놓으세요. 손님이 먹고 떠난 식탁 옆에서 멈추면 정리해요. 시설에서 식탁을 하나씩 늘려요. 식사 대금은 각 식탁 옆에서 주워요. 고용에서 최대 5명 조수에게 음식 운반·식탁 정리를 맡길 수 있어요.</li><li>물건을 산 검사·궁수·마법사가 습격 때 돌아와요. 방어에 성공하면 배치와 풍경이 다른 다음 지역으로 옮겨요.</li><li>이동 수련 21단계! 순간이동을 누른 뒤 가까운 바닥을 선택하세요. 재사용 4초.</li></ol><p class="muted">화면을 벗어나면 시간이 멈춥니다.<br>${saveFailed ? '현재 브라우저 저장을 사용할 수 없습니다.' : '진행은 이 브라우저에 자동으로 저장됩니다.'}</p><button class="gold-button full" data-command="resume">알겠어요</button>`, 'help');
 }
 function openLedger() {
   const count = (kind) => state.patrons.filter((p) => p.kind === kind).length;
@@ -980,6 +1000,7 @@ listen($('sheet-content'), 'click', (event) => {
   if (command === 'assign-worker') { action(command, { id: button.dataset.worker, job: button.dataset.job }); openWorkers(); return; }
   if (command === 'upgrade-facility') { action(command, { kind: button.dataset.kind }); openBuild(); return; }
   if (command === 'unlock') { action('unlock', { kind: button.dataset.kind }); openBuild(); return; }
+  if (command === 'unlock-table') { action(command); openBuild(); return; }
   if (command === 'help') { openHelp(); return; }
   if (command === 'ledger') { openLedger(); return; }
   if (command === 'sound') { sound = !sound; openMenu(); return; }

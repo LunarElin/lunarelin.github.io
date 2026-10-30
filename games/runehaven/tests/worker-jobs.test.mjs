@@ -11,6 +11,8 @@ function run(state, seconds, input = {}, inspect = () => {}) {
 function shop(seed = 42) {
   const state = createGame(seed);
   state.sales = 20; state.unlocks.inn = state.unlocks.alchemy = true; state.gold = 100000;
+  state.dining.tableCount = 4; state.dining.tables.forEach((table) => { table.status = 'clean'; }); // Explicit fully expanded fixture.
+
   state.raid.timer = state.raid.triggerSales = 1e6; state.timers.customer = 1000;
   Object.assign(state.player, { x: 5.8, z: 5.8 });
   return state;
@@ -277,5 +279,5 @@ test('food transport and cleaning workers repeat the complete dining cycle beyon
   });
   assert.ok(state.lodgings >= 8, `served ${state.lodgings} completed meals`);
   assert.ok(state.dining.cleaned >= 4);
-  assert.ok(state.moneyPiles.inn > 0);
+  assert.ok(state.dining.tables.some((table) => table.cash > 0));
 });

@@ -17,6 +17,7 @@ function grownShop(seed = 42, stage = 1) {
   state.sales = 20;
   state.unlocks.alchemy = true;
   state.unlocks.inn = true;
+  state.dining.tableCount = 4; state.dining.tables.forEach((table) => { table.status = 'clean'; }); // Explicit fully expanded fixture.
   state.dining.food = 8; // Explicit finite meal stock for the commerce fixture.
   // Isolate commerce from raid scheduling; prices and facility clocks stay real.
   state.raid.timer = state.raid.triggerSales = 1e6;
@@ -155,7 +156,7 @@ test('stocked commerce caps total visitors and dining guests without multiplying
   const lodgingPrice = Math.round(BALANCE.facilities.inn.salePrice * 10);
   const expected = gearSales * getSalePrice(state, 'gear') + potionSales * getSalePrice(state, 'potion') + state.lodgings * lodgingPrice;
   assert.equal(state.economy.earned, expected);
-  assert.equal(state.gold + Object.values(state.moneyPiles).reduce((sum, amount) => sum + amount, 0),
+  assert.equal(state.gold + Object.values(state.moneyPiles).reduce((sum, amount) => sum + amount, 0) + state.dining.tables.reduce((sum, table) => sum + (table.cash ?? 0), 0),
     BALANCE.web.startingCoins + expected);
   assert.ok(state.lodgings > 0);
 });

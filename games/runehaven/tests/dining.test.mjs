@@ -11,6 +11,7 @@ function shop(seed = 42) {
   const state = createGame(seed);
   state.sales = 16;
   state.unlocks.inn = true;
+  state.dining.tableCount = 4; state.dining.tables.forEach((table) => { table.status = 'clean'; }); // Explicit fully expanded fixture.
   state.dining.food = 4; // Deliberate stocked dining fixture, not automatic service.
   state.raid.timer = state.raid.triggerSales = 1e6;
   state.timers.customer = 1000;
@@ -90,14 +91,14 @@ test('a paid guest takes one meal, reserves a unique seat, eats, and pays once l
   run(state, .15);
   assert.equal(guest.phase, 'leaving');
   assert.equal(state.dining.tables[tableId].status, 'dirty');
-  assert.equal(state.moneyPiles.inn, mealPrice(state));
+  assert.equal(state.dining.tables[tableId].cash, mealPrice(state));
   assert.equal(state.lodgings, 1);
   assert.equal(state.patrons[0].loyalty, 2);
   assert.equal(state.patrons[0].hp, state.patrons[0].maxHp);
   assert.equal(state.gold, BALANCE.web.startingCoins, 'the meal bill waits in its money pile');
   run(state, 20);
   assert.equal(state.lodgings, 1);
-  assert.equal(state.moneyPiles.inn, mealPrice(state));
+  assert.equal(state.dining.tables[tableId].cash, mealPrice(state));
   assert.equal(state.patrons[0].loyalty, 2);
 });
 

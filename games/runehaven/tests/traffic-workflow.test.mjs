@@ -36,6 +36,7 @@ test('all regional work and cash targets are reached on one straight line withou
   let trips = 0;
   for (let stage = 1; stage <= 10; stage++) {
     const state = controlledShop(stage);
+    for (let index = 1; index < 4; index++) assert.equal(act(state, 'unlock-table').ok, true);
     state.timers.customer = 1e6;
     const points = ['forge', 'counter', 'alchemy', 'potionCounter', 'inn'].map((key) => getStationApproach(state, key))
       .concat(getMoneyPiles(state));
@@ -56,7 +57,7 @@ test('all regional work and cash targets are reached on one straight line withou
       trips++;
     }
   }
-  assert.equal(trips, 560);
+  assert.equal(trips, 1320, 'all five work points, three legacy piles, and four table piles are reachable directly');
 });
 
 test('a full waiting line does not block a straight floor tap through its shoppers', () => {

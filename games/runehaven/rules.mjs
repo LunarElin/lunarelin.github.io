@@ -1,4 +1,4 @@
-import { BALANCE } from './balance.mjs';
+import { BALANCE, TABLE_UNLOCK_COSTS } from './balance.mjs';
 import { BOUNDS, getRegion, getStations, STATIONS } from './maps.mjs';
 import { DINING_RULES, createDiningState, getDiningLayout } from './dining.mjs';
 import { BATTLE_BOUNDS, getBattleLayout } from './battlefield.mjs';
@@ -159,11 +159,21 @@ export function getMoneyPiles(state) {
     { id: 'gear', kind: 'gear', x: stations.counter.x - Math.sign(stations.counter.x) * 1.25, z: stations.counter.z - 0.4, amount: state.moneyPiles.gear },
     { id: 'potion', kind: 'potion', x: stations.potionCounter.x - Math.sign(stations.potionCounter.x) * 1.25, z: stations.potionCounter.z - 0.4, amount: state.moneyPiles.potion },
     { id: 'inn', kind: 'inn', x: stations.inn.x + 1.5, z: stations.inn.z + 0.45, amount: state.moneyPiles.inn },
+    ...(state.unlocks.inn ? getDiningLayout(state).tables.slice(0, state.dining.tableCount).map((table) => ({
+      id: `table-${table.id}`, kind: 'inn', tableId: table.id, x: table.x + .95, z: table.z - .15, amount: state.dining.tables[table.id].cash ?? 0,
+    })) : []),
   ];
 }
 
+export function getTableUnlockInfo(state) {
+  const count = state.dining.tableCount, max = DINING_RULES.tables;
+  const tableId = count < max ? count : null, cost = tableId === null ? 0 : TABLE_UNLOCK_COSTS[tableId];
+  return { count, max, tableId, cost, canBuy: state.unlocks.inn && tableId !== null && state.gold >= cost && state.status === 'playing'
+    && state.raid.location !== 'outside' && state.raid.phase !== 'departure' };
+}
+
 export function getHireInfo(state) {
-  const maxWorkers = Math.min(BALANCE.web.helperCap ?? 3, BALANCE.worker.maxEmploy);
+  const maxWorkers = Math.min(BALANCE.web.helperCap ?? BALANCE.worker.maxEmploy, BALANCE.worker.maxEmploy);
   const cost = BALANCE.worker.employCosts[state.staff.length] ?? Infinity;
   return { cost, count: state.staff.length, maxWorkers, canBuy: state.staff.length < maxWorkers && state.gold >= cost && state.status === 'playing' };
 }
@@ -271,7 +281,7 @@ export function act(state, action, payload = {}) {
   }
   if (action === 'hire') {
     const info = getHireInfo(state);
-    if (info.count >= info.maxWorkers) return result(state, false, '조수는 세 명까지 함께합니다');
+    if (info.count >= info.maxWorkers) return result(state, false, `조수는 ${info.maxWorkers}명까지 함께합니다`);
     if (!spend(state, info.cost)) return result(state, false, '골드가 부족합니다');
     const source = drawHelper(state);
     const product = state.unlocks.alchemy && state.staff.length % 2 === 1 ? 'potion' : 'gear';
@@ -293,6 +303,17 @@ export function act(state, action, payload = {}) {
     helper.phase = bagCount(helper.bag) > 0 ? 'haul' : 'collect'; helper.timer = 0; helper.workKind = null;
     emit(state, 'worker-job', '조수 직무 변경', helper, 0, { actorId: helper.id, job: payload.job });
     return result(state, true, '', { id: helper.id, job: payload.job, cost: 0 });
+  }
+  if (action === 'unlock-table') {
+    const info = getTableUnlockInfo(state);
+    if (!state.unlocks.inn) return result(state, false, '여관을 먼저 개방하세요');
+    if (info.tableId === null) return result(state, false, '식탁을 모두 개방했습니다');
+    if (payload.tableId !== undefined && payload.tableId !== info.tableId) return result(state, false, '식탁은 순서대로 개방해요');
+    if (state.raid.location === 'outside' || state.raid.phase === 'departure') return result(state, false, '상회로 돌아오면 확장해요');
+    if (!spend(state, info.cost)) return result(state, false, '골드가 부족합니다');
+    state.dining.tables[info.tableId].status = 'clean'; state.dining.tableCount++;
+    emit(state, 'unlock', `식탁 ${info.tableId + 1} 개방`, getDiningLayout(state).tables[info.tableId]);
+    return result(state, true, '', { tableId: info.tableId, cost: info.cost });
   }
   if (action === 'unlock') {
     const info = getUnlockInfo(state, payload.kind);
@@ -380,8 +401,9 @@ function updatePlayer(state, dt, input) {
   for (const pile of getMoneyPiles(state)) {
     if (pile.amount > 0 && distance(player, pile) <= BALANCE.web.moneyPickupRadius) {
       state.gold += pile.amount;
-      state.moneyPiles[pile.kind] = 0;
-      emit(state, 'cash-collect', `회수 +${pile.amount}`, pile, pile.amount, { actorId: 'player', pileKind: pile.kind });
+      if (Number.isInteger(pile.tableId)) state.dining.tables[pile.tableId].cash = 0;
+      else state.moneyPiles[pile.kind] = 0;
+      emit(state, 'cash-collect', `회수 +${pile.amount}`, pile, pile.amount, { actorId: 'player', pileKind: pile.kind, tableId: pile.tableId });
     }
   }
   if (player.moving || state.raid.phase === 'battle') {
@@ -424,7 +446,7 @@ function releaseCleaning(state, actorId, except = null) {
 
 function cleanTable(state, actor, tableId, dt, actorId = actor.id) {
   const table = state.dining.tables[tableId];
-  if (table.status !== 'dirty' || (table.cleanerId && table.cleanerId !== actorId)) return false;
+  if (tableId >= state.dining.tableCount || table.status !== 'dirty' || (table.cleanerId && table.cleanerId !== actorId)) return false;
   table.cleanerId = actorId; actor.workKind = 'clean';
   table.cleanProgress += dt;
   if (table.cleanProgress + .000001 >= DINING_RULES.cleanSeconds) {
@@ -439,7 +461,7 @@ function cleanTable(state, actor, tableId, dt, actorId = actor.id) {
 function updateTableCleaning(state, dt) {
   const player = state.player;
   if (!state.unlocks.inn || state.raid.phase === 'battle') { releaseCleaning(state, 'player'); return false; }
-  const target = getDiningLayout(state).tables.filter(({ id, cleanPoint }) => state.dining.tables[id].status === 'dirty'
+  const target = getDiningLayout(state).tables.filter(({ id, cleanPoint }) => id < state.dining.tableCount && state.dining.tables[id].status === 'dirty'
     && (!state.dining.tables[id].cleanerId || state.dining.tables[id].cleanerId === 'player')
     && distance(player, cleanPoint) <= DINING_RULES.cleanRadius)
     .sort((a, b) => distance(player, a.cleanPoint) - distance(player, b.cleanPoint))[0];
@@ -503,9 +525,9 @@ function getTransport(state, product) {
 function updateCleaningWorker(state, helper, dt) {
   const layout = getDiningLayout(state);
   let target = layout.tables[helper.cleanTableId];
-  if (!target || state.dining.tables[target.id].status !== 'dirty' || state.dining.tables[target.id].cleanerId !== helper.id) {
+  if (!target || target.id >= state.dining.tableCount || state.dining.tables[target.id].status !== 'dirty' || state.dining.tables[target.id].cleanerId !== helper.id) {
     releaseCleaning(state, helper.id);
-    target = layout.tables.filter(({ id }) => state.dining.tables[id].status === 'dirty' && !state.dining.tables[id].cleanerId)
+    target = layout.tables.filter(({ id }) => id < state.dining.tableCount && state.dining.tables[id].status === 'dirty' && !state.dining.tables[id].cleanerId)
       .sort((a, b) => distance(helper, a.cleanPoint) - distance(helper, b.cleanPoint))[0];
     if (!target) return;
     helper.cleanTableId = target.id; state.dining.tables[target.id].cleanerId = helper.id;
@@ -690,7 +712,7 @@ function updateCustomers(state, dt, allowPurchases = true) {
       const index = foodQueue.indexOf(customer);
       if (index < 0 || index >= DINING_RULES.tables) { customer.phase = 'leaving'; continue; }
       if (moveToward(customer, layout.queue[index], 1.8, dt, .025) && index === 0) {
-        const tableId = state.dining.tables.findIndex((table) => table.status === 'clean');
+        const tableId = state.dining.tables.slice(0, state.dining.tableCount).findIndex((table) => table.status === 'clean');
         if (tableId >= 0 && state.dining.food > 0) {
           state.dining.food--;
           Object.assign(state.dining.tables[tableId], { status: 'reserved', customerId: customer.id, cleanProgress: 0 });
@@ -714,7 +736,8 @@ function updateCustomers(state, dt, allowPurchases = true) {
           const amount = Math.round(BALANCE.facilities.inn.salePrice * getCoinMultiplier(state) * (1 + inn.bonusPercent / 100));
           const patron = state.patrons.find((item) => item.id === customer.patronId);
           if (patron) { patron.hp = patron.maxHp; patron.loyalty++; patron.totalSpent += amount; }
-          earn(state, amount, 'inn'); state.lodgings++; customer.phase = 'leaving';
+          table.cash = (table.cash ?? 0) + amount; state.economy.earned += amount;
+          state.lodgings++; customer.phase = 'leaving';
           Object.assign(table, { status: 'dirty', customerId: null, cleanProgress: 0 });
           emit(state, 'inn', `식사 매출 ${amount}`, place, amount, { pileKind: 'inn', tableId: customer.tableId });
           customer.tableId = null;
@@ -1056,7 +1079,7 @@ export function step(state, dt, input = {}) {
 
 export function serialize(state) {
   const shopPosition = state.raid.location === 'outside' && state.raid.returnPosition ? state.raid.returnPosition : state.player;
-  return JSON.stringify({ version: SAVE_VERSION, seed: state.seed, rng: state.rng, nextId: state.nextId, time: state.time, stage: state.stage, gold: state.gold, sales: state.sales, lodgings: state.lodgings, milestone: state.milestone, economy: state.economy, dining: { kitchen: state.dining.kitchen, food: state.dining.food, cleaned: state.dining.cleaned, tables: state.dining.tables.map(({ status }) => ({ status })) }, moneyPiles: { ...state.moneyPiles }, facilityLevels: { ...state.facilityLevels }, workerLevels: { ...state.workerLevels }, player: { x: shopPosition.x, z: shopPosition.z, bag: { ...state.player.bag }, speedLevel: state.player.speedLevel, capacityLevel: state.player.capacityLevel, priceLevel: state.player.priceLevel, blinkCooldown: state.player.blinkCooldown }, stocks: { ...state.stocks }, unlocks: { alchemy: state.unlocks.alchemy, inn: state.unlocks.inn }, patrons: state.patrons, staff: state.staff.map(({ cleanTableId, workKind, ...helper }) => helper), shopHp: state.shopHp, raid: { wins: state.raid.wins, wave: state.raid.wave, phase: state.raid.phase, timer: state.raid.timer, triggerSales: state.raid.triggerSales } });
+  return JSON.stringify({ version: SAVE_VERSION, seed: state.seed, rng: state.rng, nextId: state.nextId, time: state.time, stage: state.stage, gold: state.gold, sales: state.sales, lodgings: state.lodgings, milestone: state.milestone, economy: state.economy, dining: { kitchen: state.dining.kitchen, food: state.dining.food, cleaned: state.dining.cleaned, tableCount: state.dining.tableCount, tables: state.dining.tables.map(({ status, cash }) => ({ status, cash: cash ?? 0 })) }, moneyPiles: { ...state.moneyPiles }, facilityLevels: { ...state.facilityLevels }, workerLevels: { ...state.workerLevels }, player: { x: shopPosition.x, z: shopPosition.z, bag: { ...state.player.bag }, speedLevel: state.player.speedLevel, capacityLevel: state.player.capacityLevel, priceLevel: state.player.priceLevel, blinkCooldown: state.player.blinkCooldown }, stocks: { ...state.stocks }, unlocks: { alchemy: state.unlocks.alchemy, inn: state.unlocks.inn }, patrons: state.patrons, staff: state.staff.map(({ cleanTableId, workKind, ...helper }) => helper), shopHp: state.shopHp, raid: { wins: state.raid.wins, wave: state.raid.wave, phase: state.raid.phase, timer: state.raid.timer, triggerSales: state.raid.triggerSales } });
 }
 
 function badSave() {
@@ -1080,9 +1103,12 @@ export function restore(value) {
     if (!workerLevels || !['speed', 'capacity'].every((kind) => integer(workerLevels[kind], 1, 11))) return badSave();
     if (!moneyPiles || !['gear', 'potion', 'inn'].every((kind) => finite(moneyPiles[kind], 0, 1e12))) return badSave();
     const dining = saved.dining === undefined ? createDiningState() : saved.dining;
+    const tableCount = saved.dining?.tableCount === undefined ? (saved.unlocks?.inn ? DINING_RULES.tables : 1) : dining.tableCount;
     if (!dining || !integer(dining.kitchen === undefined ? 4 : dining.kitchen, 0, DINING_RULES.foodCapacity) || !integer(dining.food, 0, DINING_RULES.foodCapacity) || !integer(dining.cleaned, 0, 1e8)
       || !Array.isArray(dining.tables) || dining.tables.length !== DINING_RULES.tables
-      || !dining.tables.every((table) => table && ['clean', 'reserved', 'eating', 'dirty'].includes(table.status))) return badSave();
+      || !integer(tableCount, 1, DINING_RULES.tables)
+      || !dining.tables.every((table, id) => table && ['clean', 'reserved', 'eating', 'dirty', 'locked'].includes(table.status) && finite(table.cash ?? 0, 0, 1e12)
+        && (saved.dining?.tableCount === undefined || (id < tableCount ? table.status !== 'locked' : table.status === 'locked' && (table.cash ?? 0) === 0)))) return badSave();
     const player = saved.player;
     if (!player || !['speedLevel', 'capacityLevel', 'priceLevel'].every((kind) => integer(player[kind], 1, 21))) return badSave();
     if (!finite(player.x, BOUNDS.minX, BOUNDS.maxX) || !finite(player.z, BOUNDS.minZ, BOUNDS.maxZ) || !finite(player.blinkCooldown, 0, BALANCE.magic.cooldown)) return badSave();
@@ -1090,7 +1116,7 @@ export function restore(value) {
     if (!saved.stocks || !['forge', 'gear', 'alchemy', 'potion'].every((kind) => integer(saved.stocks[kind], 0, kind === 'forge' || kind === 'alchemy' ? facilityStats(kind, facilityLevels[kind]).capacity : 60))) return badSave();
     if ((player.bag.food ?? 0) > 0 && !saved.unlocks?.inn) return badSave();
     if (!saved.unlocks || typeof saved.unlocks.alchemy !== 'boolean' || typeof saved.unlocks.inn !== 'boolean' || (saved.unlocks.alchemy && saved.sales < 8) || (saved.unlocks.inn && saved.sales < 16)) return badSave();
-    if (!Array.isArray(saved.patrons) || saved.patrons.length > 200 || saved.patrons.length > saved.sales || !Array.isArray(saved.staff) || saved.staff.length > 3) return badSave();
+    if (!Array.isArray(saved.patrons) || saved.patrons.length > 200 || saved.patrons.length > saved.sales || !Array.isArray(saved.staff) || saved.staff.length > Math.min(BALANCE.web.helperCap ?? BALANCE.worker.maxEmploy, BALANCE.worker.maxEmploy)) return badSave();
     const patronIds = new Set();
     for (const patron of saved.patrons) {
       if (!patron || typeof patron.id !== 'string' || patron.id.length > 80 || patronIds.has(patron.id) || !CLASS_STATS[patron.kind] || !integer(patron.purchases, 1, 1000) || !finite(patron.totalSpent, 0, 1e12) || !integer(patron.loyalty, 1, 10000) || !integer(patron.equipmentLevel, 1, 21) || patron.maxHp !== CLASS_STATS[patron.kind].hp || !finite(patron.hp, 0, patron.maxHp)) return badSave();
@@ -1120,7 +1146,8 @@ export function restore(value) {
     state.milestone = saved.milestone === true;
     state.economy = { earned: saved.economy.earned, spent: saved.economy.spent };
     state.moneyPiles = { gear: moneyPiles.gear, potion: moneyPiles.potion, inn: moneyPiles.inn };
-    state.dining = { kitchen: dining.kitchen ?? 4, food: dining.food, cookClock: 0, cleaned: dining.cleaned, tables: dining.tables.map(({ status }) => ({ status: status === 'clean' ? 'clean' : 'dirty', customerId: null, cleanProgress: 0 })) };
+    state.dining = { kitchen: dining.kitchen ?? 4, food: dining.food, cookClock: 0, cleaned: dining.cleaned, tableCount,
+      tables: dining.tables.map(({ status, cash }, id) => ({ status: id >= tableCount ? 'locked' : status === 'clean' || status === 'locked' ? 'clean' : 'dirty', cash: id >= tableCount ? 0 : cash ?? 0, customerId: null, cleanProgress: 0 })) };
     state.facilityLevels = { forge: facilityLevels.forge, counter: facilityLevels.counter, alchemy: facilityLevels.alchemy, inn: facilityLevels.inn };
     state.workerLevels = { speed: workerLevels.speed, capacity: workerLevels.capacity };
     for (const key of ['x', 'z', 'speedLevel', 'capacityLevel', 'priceLevel', 'blinkCooldown']) state.player[key] = player[key];

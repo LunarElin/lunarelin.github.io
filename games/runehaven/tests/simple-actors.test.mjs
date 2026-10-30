@@ -21,7 +21,7 @@ after(() => {
   disposeSimpleActors(); disposeCombatMotion();
 });
 
-test('plain characters share one small textured-free body draw, preserve height, and use role colors over the head', () => {
+test('fairy characters share one texture-free body draw and retain a large readable head within the original height', () => {
   const customer = actor('warrior', ACTOR_PALETTES.customer, '', false);
   const second = actor('archer', ACTOR_PALETTES.customer, '', false);
   const player = actor('player', ACTOR_PALETTES.player, '', false);
@@ -32,15 +32,24 @@ test('plain characters share one small textured-free body draw, preserve height,
   assert.equal(body.material, player.rig.mesh.material);
   assert.equal(body.material.map, null);
   assert.equal(customer.gear.children.length, 0);
-  assert.ok(body.geometry.index.count / 3 <= 550, 'the entire rounded body stays below 550 triangles');
+  assert.ok(body.geometry.index.count / 3 <= 1250, 'body, face and two small hair puffs stay within a small shared mesh');
   let meshes = 0; customer.body.traverse(node => { if (node.isMesh) meshes++; });
   assert.equal(meshes, 1);
   const color = new THREE.Color(ACTOR_PALETTES.customer.body), vertexColor = new THREE.Color();
   const positions = body.geometry.attributes.position, colors = body.geometry.attributes.color;
+  let roleVertices = 0, headLeft = Infinity, headRight = -Infinity, darkEyes = 0, brightEyes = 0;
   for (let i = 0; i < positions.count; i++) {
     vertexColor.fromBufferAttribute(colors, i);
-    for (const channel of ['r', 'g', 'b']) assert.ok(Math.abs(vertexColor[channel] - color[channel]) < .00001);
+    if (['r', 'g', 'b'].every(channel => Math.abs(vertexColor[channel] - color[channel]) < .00001)) roleVertices++;
+    if (positions.getY(i) > .9) {
+      headLeft = Math.min(headLeft, positions.getX(i)); headRight = Math.max(headRight, positions.getX(i));
+      if (positions.getZ(i) > .3 && vertexColor.r < .2 && vertexColor.g < .2) darkEyes++;
+      if (positions.getZ(i) > .3 && vertexColor.r > .9 && vertexColor.g > .9) brightEyes++;
+    }
   }
+  assert.ok(roleVertices >= 100, 'the body and limbs preserve the role palette');
+  assert.ok(headRight - headLeft >= .8 && headRight - headLeft < .82, 'two colored hair puffs preserve a broad fairy silhouette inside the existing camera guard');
+  assert.ok(darkEyes > 0 && brightEyes > 0, 'dark eyes and highlights survive without image textures');
   const playerColors = player.rig.mesh.geometry.attributes.color;
   assert.ok(Array.from(playerColors.array).some((value, index) => Math.abs(value - colors.array[index]) > .1));
 });

@@ -5,7 +5,8 @@ import { BOUNDS, getRegion, getStations } from './maps.mjs';
 export const DINING_RULES = Object.freeze({ tables: 4, foodCapacity: 8, cookSeconds: 3, cleanSeconds: 1.2, cleanRadius: 1.1, guestChance: .6 });
 
 export function createDiningState() {
-  return { kitchen: 4, food: 0, cookClock: 0, cleaned: 0, tables: Array.from({ length: DINING_RULES.tables }, () => ({ status: 'clean', customerId: null, cleanProgress: 0 })) };
+  return { kitchen: 4, food: 0, cookClock: 0, cleaned: 0, tableCount: 1,
+    tables: Array.from({ length: DINING_RULES.tables }, (_, id) => ({ status: id === 0 ? 'clean' : 'locked', cash: 0, customerId: null, cleanProgress: 0 })) };
 }
 
 const layouts = new Map();

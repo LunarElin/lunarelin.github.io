@@ -1,9 +1,12 @@
 import { SOURCE_BALANCE } from './data/source-balance.mjs';
 
+// Stage 1 TableArea opening prices, ordered by the four individual tables.
+export const TABLE_UNLOCK_COSTS = Object.freeze([5, 50, 150, 200]);
+
 // Imported numbers stay unchanged. New fantasy rules live in this named section.
 export const WEB_RULES = Object.freeze({
   startingCoins: 80,
-  helperCap: 3,
+  helperCap: SOURCE_BALANCE.worker.maxEmploy,
   stationDwell: 0.4,
   transferInterval: 0.22,
   moneyPickupRadius: 0.9,
