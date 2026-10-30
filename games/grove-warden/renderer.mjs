@@ -3,14 +3,14 @@ import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { WORLD, HUNT_ZONES, STAGES, isStageUnlocked, isZoneUnlocked, getCamp } from './rules.mjs';
 
 const TAU = Math.PI * 2;
-const palette = { grass: 0x9bd650, pale: 0xe1f6a0, green: 0x20a466, dark: 0x145f4b, bark: 0xa86c36, gold: 0xffc735, skin: 0xffd2a0, red: 0xff684a };
+const palette = { grass: 0xbbe6b4, pale: 0xfff2d4, green: 0x88d7c4, dark: 0x6c668d, bark: 0xc8a9b5, gold: 0xffd577, skin: 0xffe4da, red: 0xf5a6c9 };
 const gearColors = { sprout: 0x8fea6b, thorn: 0xef987b, moon: 0xaaa4ff, ember: 0xff934f };
 const staffColors = { single: gearColors.sprout, burst: gearColors.thorn, spread: gearColors.moon, explosive: gearColors.ember };
 const materials = new Map();
 const geometries = new Map();
 function material(color, extra = {}) {
   const key = `${color}:${JSON.stringify(extra)}`;
-  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: .9, flatShading: true, ...extra }));
+  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: .54, metalness: 0, flatShading: false, ...extra }));
   return materials.get(key);
 }
 function geometry(type, args) {
@@ -33,10 +33,10 @@ function mesh(parent, type, args, color, x = 0, y = 0, z = 0, scale = [1, 1, 1],
   const m = new THREE.Mesh(geometry(type, args), material(color, extra));
   m.position.set(x, y, z); m.scale.set(...scale); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
 }
-function ball(p, color, x, y, z, sx, sy = sx, sz = sx) { return mesh(p, 'SphereGeometry', [1, 10, 7], color, x, y, z, [sx, sy, sz]); }
+function ball(p, color, x, y, z, sx, sy = sx, sz = sx) { return mesh(p, 'SphereGeometry', [1, 14, 10], color, x, y, z, [sx, sy, sz]); }
 function bone(p, from, to, radius, color) {
   const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to), d = b.clone().sub(a);
-  const m = mesh(p, 'CylinderGeometry', [radius * .72, radius, d.length(), 7], color);
+  const m = mesh(p, 'CylinderGeometry', [radius * .78, radius, d.length(), 8], color);
   m.position.copy(a.add(b).multiplyScalar(.5)); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); return m;
 }
 function circle(p, radius, color, opacity = 1) {
@@ -47,119 +47,135 @@ function ring(p, inner, outer, color, opacity = 1) {
   const m = mesh(p, 'RingGeometry', [inner, outer, 48], color, 0, .035, 0, [1, 1, 1], { transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
   m.rotation.x = -Math.PI / 2; m.castShadow = m.receiveShadow = false; m.renderOrder = 3; return m;
 }
-function eyes(p, y, z, x = .17, color = 0x243c34, size = .055) {
-  ball(p, color, -x, y, z, size, size * 1.3, size * .7); ball(p, color, x, y, z, size, size * 1.3, size * .7);
-  ball(p, 0xffffff, -x - .014, y + .025, z + .015, size * .25); ball(p, 0xffffff, x - .014, y + .025, z + .015, size * .25);
+function heart(parent, color, x, y, z, size = .2, extra) {
+  if (!geometries.has('toy-heart')) {
+    const shape = new THREE.Shape(); shape.moveTo(0, -.82);
+    shape.bezierCurveTo(-.18, -.58, -.92, -.05, -.92, .4);
+    shape.bezierCurveTo(-.92, 1.02, -.25, 1.08, 0, .58);
+    shape.bezierCurveTo(.25, 1.08, .92, 1.02, .92, .4);
+    shape.bezierCurveTo(.92, -.05, .18, -.58, 0, -.82); shape.closePath();
+    const shapeGeometry = new THREE.ExtrudeGeometry(shape, { depth: .22, steps: 1, bevelEnabled: true, bevelSegments: 1, bevelSize: .055, bevelThickness: .045, curveSegments: 5 });
+    shapeGeometry.translate(0, -.08, -.11); geometries.set('toy-heart', shapeGeometry);
+  }
+  const part = new THREE.Mesh(geometries.get('toy-heart'), material(color, extra));
+  part.position.set(x, y, z); part.scale.setScalar(size); part.castShadow = part.receiveShadow = true; parent.add(part); return part;
 }
+function eyes(p, y, z, x = .17, color = 0x6e54a1, size = .08) {
+  for (const side of [-1, 1]) {
+    ball(p, 0xfffcff, side * x, y, z, size * 1.19, size * 1.38, size * .34);
+    const iris = ball(p, color, side * x, y - size * .05, z + size * .3, size * .81, size * 1.04, size * .24);
+    iris.material = material(color, { roughness: .45 });
+    ball(p, 0xffffff, side * x - size * .26, y + size * .42, z + size * .52, size * .3, size * .35, size * .13);
+  }
+}
+function toySmile(p, y, z, size = .055) { return ball(p, 0xae719d, 0, y, z, size, size * .45, size * .24); }
 function makeDruid() {
   const root = new THREE.Group(), rig = new THREE.Group(); root.add(rig);
-  circle(root, .58, 0x183b31, .24); ring(root, .65, .71, 0xb5f7a1, .85);
-  const left = ball(rig, 0x473b2f, -.23, .15, .06, .2, .15, .31), right = ball(rig, 0x473b2f, .23, .15, .06, .2, .15, .31);
-  mesh(rig, 'ConeGeometry', [.58, 1.12, 9], palette.green, 0, .76, -.03, [1, 1, .8]);
-  ball(rig, 0x38b66a, 0, .88, 0, .44, .47, .32);
-  mesh(rig, 'TorusGeometry', [.35, .085, 5, 14], palette.gold, 0, .66, .1, [1, 1, .9]).rotation.x = Math.PI / 2;
-  ball(rig, 0x216b4d, 0, 1.52, -.04, .48, .46, .43);
-  ball(rig, palette.skin, 0, 1.48, .18, .35, .34, .29);
-  ball(rig, 0x7c5738, 0, 1.71, .18, .38, .17, .3);
-  ball(rig, palette.green, -.29, 1.63, .1, .19, .29, .25); ball(rig, palette.green, .29, 1.63, .1, .19, .29, .25);
-  eyes(rig, 1.51, .445, .12, 0x2b3834, .05);
-  ball(rig, palette.skin, 0, 1.39, .47, .055, .055, .055);
-  const shoulders = [ball(rig, 0xa5d855, -.43, 1.1, 0, .26, .22, .25), ball(rig, 0xa5d855, .43, 1.1, 0, .26, .22, .25)];
-  const arm = bone(rig, [.45, 1.05, 0], [.62, .78, .22], .13, palette.green);
-  const bag = new THREE.Group(); rig.add(bag); bag.visible = false;
-  ball(bag, 0xa67336, 0, .91, -.36, .35, .36, .24);
-  mesh(bag, 'BoxGeometry', [.43, .1, .09], 0xffcb55, 0, 1.05, -.59);
-  for (let i = 0; i < 3; i++) mesh(bag, 'CylinderGeometry', [.14, .14, .065, 10], palette.gold, (i - 1) * .13, 1.24 + i * .04, -.39);
-  bone(rig, [-.45, 1.05, 0], [-.48, .72, .25], .13, palette.green);
-  ball(rig, palette.skin, .62, .79, .23, .135); ball(rig, palette.skin, -.48, .72, .25, .135);
-  const staff = new THREE.Group(); staff.position.set(.69, .8, .25); rig.add(staff);
-  bone(staff, [0, -.72, 0], [0, 1.23, 0], .055, palette.bark);
-  bone(staff, [0, .92, 0], [-.26, 1.34, 0], .045, palette.bark);
-  bone(staff, [0, 1.06, 0], [.22, 1.34, 0], .04, palette.bark);
-  const jewel = mesh(staff, 'OctahedronGeometry', [.18, 0], 0xc8f6a4, 0, 1.35, 0, [1, 1.4, 1], { emissive: 0x85b567, emissiveIntensity: .5 }); jewel.name = 'equipped-jewel';
-  const castGlow = ball(staff, 0xf4ffb7, 0, 1.35, 0, .27); castGlow.material = new THREE.MeshBasicMaterial({ color: 0xe3ffae, transparent: true, opacity: .8, depthWrite: false }); castGlow.castShadow = false; castGlow.visible = false;
-  for (const sign of [-1, 1]) {
-    bone(rig, [sign * .24, 1.81, 0], [sign * .4, 2.17, 0], .055, palette.bark);
-    bone(rig, [sign * .4, 2.17, 0], [sign * .36, 2.4, .04], .04, palette.bark);
-    bone(rig, [sign * .37, 2.08, 0], [sign * .61, 2.17, .02], .04, palette.bark);
-    const leaf = ball(rig, 0xaedc59, sign * .57, 2.18, .03, .17, .075, .09); leaf.rotation.z = sign * .4;
+  circle(root, .58, 0x7d729d, .18); ring(root, .65, .71, 0xffe9ba, .8);
+  const left = ball(rig, 0xd2b5ef, -.23, .15, .06, .21, .15, .3), right = ball(rig, 0xd2b5ef, .23, .15, .06, .21, .15, .3);
+  ball(rig, 0xb5eddb, 0, .81, -.015, .36, .43, .3);
+  for (const side of [-1, 0, 1]) {
+    const petal = ball(rig, side ? 0xa2e4cf : 0xd6f7df, side * .29, .55, side ? .02 : .22, .26, .3, .2); petal.rotation.z = -side * .22;
   }
+  heart(rig, 0xf1a6cd, 0, .93, .3, .12);
+  ball(rig, 0xcab4ef, 0, 1.55, -.055, .56, .55, .46);
+  ball(rig, palette.skin, 0, 1.5, .21, .46, .43, .35);
+  for (const side of [-1, 1]) {
+    ball(rig, side < 0 ? 0xafdfd6 : 0xc8b3ed, side * .4, 1.48, .08, .21, .41, .3);
+    const bang = ball(rig, side < 0 ? 0xb5e9dc : 0xd3bff1, side * .2, 1.85, .33, .28, .19, .23); bang.rotation.z = side * .25;
+    ball(rig, 0xf4adc7, side * .29, 1.39, .493, .075, .045, .025);
+  }
+  eyes(rig, 1.57, .555, .185, 0x7351ac, .105); toySmile(rig, 1.36, .558, .048);
+  const crown = mesh(rig, 'TorusGeometry', [.25, .042, 5, 16], palette.gold, 0, 2.045, .08, [1, .7, 1]); crown.rotation.x = Math.PI / 2;
+  heart(rig, 0xf8b7d8, 0, 2.15, .26, .13);
+  const shoulders = [ball(rig, 0xcaf3df, -.39, 1.04, .015, .2, .18, .2), ball(rig, 0xcaf3df, .39, 1.04, .015, .2, .18, .2)];
+  const arm = bone(rig, [.4, .99, 0], [.61, .78, .22], .12, 0xb6e9d9);
+  bone(rig, [-.4, .99, 0], [-.48, .72, .25], .12, 0xb6e9d9);
+  ball(rig, palette.skin, .61, .79, .23, .13); ball(rig, palette.skin, -.48, .72, .25, .13);
+  const bag = new THREE.Group(); rig.add(bag); bag.visible = false;
+  ball(bag, 0xd4b3e9, 0, .87, -.37, .3, .31, .22); heart(bag, 0xffdfa0, 0, .93, -.59, .12);
+  const staff = new THREE.Group(); staff.position.set(.69, .8, .25); rig.add(staff);
+  bone(staff, [0, -.72, 0], [0, 1.22, 0], .055, 0xffd7ab);
+  const surround = heart(staff, palette.gold, 0, 1.35, 0, .3); surround.scale.z = .48;
+  const jewel = heart(staff, 0xc6f3e0, 0, 1.35, .055, .22, { emissive: 0x94ceb3, emissiveIntensity: .5 }); jewel.name = 'equipped-jewel';
+  const castGlow = ball(staff, 0xffeaf8, 0, 1.35, .055, .27); castGlow.material = new THREE.MeshBasicMaterial({ color: 0xffeaf8, transparent: true, opacity: .8, depthWrite: false }); castGlow.castShadow = false; castGlow.visible = false;
+  makeWings(rig, 0xf5bddb, .45);
   return { root, rig, left, right, jewel, arm, shoulders, bag, staff, castGlow };
 }
 function makeOwl() {
   const root = new THREE.Group(), rig = new THREE.Group(); root.name = 'owl-companion'; root.add(rig); root.visible = false;
-  const shadow = circle(root, .43, 0x173b2c, .18);
-  ball(rig, 0xa57a4c, 0, -.04, -.025, .39, .43, .31);
-  ball(rig, 0xcfab71, 0, -.12, .21, .27, .32, .13);
-  ball(rig, 0x956c43, 0, .22, .015, .4, .32, .31);
+  const shadow = circle(root, .43, 0x79739c, .16);
+  ball(rig, 0xd5c3ed, 0, -.06, -.025, .39, .42, .31); ball(rig, 0xffefdc, 0, -.12, .21, .27, .29, .13);
+  ball(rig, 0xc5b1e5, 0, .22, .015, .43, .34, .32);
+  const irisMaterial = material(0x7654a8, { emissive: 0x9e7ac8, emissiveIntensity: .15, roughness: .45 });
   for (const side of [-1, 1]) {
-    ball(rig, 0xf0dfb1, side * .16, .18, .27, .23, .25, .085);
-    ball(rig, 0x775936, side * .155, .205, .343, .143, .15, .044);
-    const iris = ball(rig, 0xf1ca69, side * .155, .21, .376, .116, .125, .037);
-    iris.material = material(0xf1ca69, { emissive: 0xb98935, emissiveIntensity: .15 });
-    ball(rig, 0x2b4235, side * .155, .21, .409, .054, .076, .019);
-    ball(rig, 0xfff7d6, side * .155 - .025, .249, .425, .022, .024, .012);
-    const tuft = mesh(rig, 'ConeGeometry', [.115, .29, 5], 0x8b6842, side * .25, .505, -.015); tuft.rotation.z = -side * .3;
-    ball(rig, 0xd3a764, side * .135, -.435, .115, .11, .055, .14);
+    ball(rig, 0xfff4e4, side * .175, .2, .29, .235, .245, .085);
+    const iris = ball(rig, 0x7654a8, side * .17, .21, .369, .125, .145, .039); iris.material = irisMaterial;
+    ball(rig, 0xffffff, side * .17 - .035, .261, .402, .04, .045, .015);
+    const tuft = ball(rig, 0xccb4ed, side * .28, .515, -.015, .1, .2, .09); tuft.rotation.z = -side * .35;
+    ball(rig, 0xffd7a5, side * .135, -.43, .115, .1, .055, .13);
+    ball(rig, 0xf5b3d1, side * .3, .06, .348, .065, .035, .018);
   }
-  const beak = mesh(rig, 'ConeGeometry', [.085, .18, 5], 0xe7b45e, 0, .055, .405); beak.rotation.x = -Math.PI / 2;
-  const scarf = mesh(rig, 'TorusGeometry', [.27, .065, 5, 14], 0x648c54, 0, -.225, .035, [1, 1, .82]); scarf.rotation.x = Math.PI / 2;
-  const scarfEnd = ball(rig, 0x86ad65, .075, -.35, .3, .085, .19, .045); scarfEnd.rotation.z = -.25;
+  const beak = mesh(rig, 'ConeGeometry', [.075, .15, 8], 0xffcf8d, 0, .07, .415); beak.rotation.x = -Math.PI / 2;
+  const scarf = mesh(rig, 'TorusGeometry', [.27, .065, 5, 14], 0x9edfcf, 0, -.225, .035, [1, 1, .82]); scarf.rotation.x = Math.PI / 2;
+  heart(rig, 0xffd9a2, 0, -.25, .3, .1);
   const wings = [-1, 1].map(side => {
     const wing = new THREE.Group(); wing.position.set(side * .31, .03, -.03); rig.add(wing);
-    ball(wing, 0x8e6945, side * .17, -.015, 0, .29, .13, .18);
-    for (let i = 0; i < 3; i++) ball(wing, i % 2 ? 0xb4915f : 0xc5a471, side * (.28 + i * .035), -.06, -.12 + i * .1, .15, .055, .065);
-    return wing;
+    const feather = ball(wing, 0xd8c5ef, side * .17, -.015, 0, .3, .14, .19); feather.rotation.z = side * .2;
+    ball(wing, 0xf2e3fa, side * .32, -.055, .025, .16, .085, .13); return wing;
   });
-  const launchGlow = ball(rig, 0xdbf9bf, 0, .04, .49, .16);
-  launchGlow.material = material(0xdbf9bf, { emissive: 0x90d2a4, emissiveIntensity: 1, transparent: true, opacity: .55, depthWrite: false });
+  const launchGlow = ball(rig, 0xe3edff, 0, .04, .49, .16);
+  launchGlow.material = material(0xe3edff, { emissive: 0xb5bbff, emissiveIntensity: 1, transparent: true, opacity: .55, depthWrite: false });
   launchGlow.castShadow = false; launchGlow.visible = false;
-  const irisMaterial = material(0xf1ca69, { emissive: 0xb98935, emissiveIntensity: .15 });
   return { root, rig, shadow, wings, launchGlow, irisMaterial };
 }
 function makeWings(parent, color, size = 1) {
   return [-1, 1].map(side => {
-    const wing = new THREE.Group(); wing.position.set(side * .38, 1.15, -.16); wing.scale.setScalar(size); parent.add(wing);
-    const key = `wing-${side}`;
+    const wing = new THREE.Group(); wing.position.set(side * .38, 1.15, -.2); wing.scale.setScalar(size); parent.add(wing);
+    const key = `toy-wing-${side}`;
     if (!geometries.has(key)) {
-      const shape = new THREE.Shape(); shape.moveTo(0, 0); shape.lineTo(side * .72, .75); shape.lineTo(side * 1.45, .15); shape.lineTo(side * 1.1, -.05); shape.lineTo(side * .92, -.48); shape.lineTo(side * .52, -.22); shape.lineTo(side * .2, -.5); shape.closePath();
-      geometries.set(key, new THREE.ExtrudeGeometry(shape, { depth: .045, bevelEnabled: false }));
+      const shape = new THREE.Shape(); shape.moveTo(0, -.13);
+      shape.bezierCurveTo(side * .14, .44, side * .8, 1.15, side * 1.19, .91);
+      shape.bezierCurveTo(side * 1.58, .64, side * 1.18, .15, side * .7, .06);
+      shape.bezierCurveTo(side * 1.32, -.1, side * 1.03, -.69, side * .65, -.53);
+      shape.bezierCurveTo(side * .32, -.49, side * .12, -.26, 0, -.13); shape.closePath();
+      geometries.set(key, new THREE.ExtrudeGeometry(shape, { depth: .07, steps: 1, bevelEnabled: true, bevelSegments: 1, bevelSize: .035, bevelThickness: .025, curveSegments: 5 }));
     }
-    const membrane = new THREE.Mesh(geometries.get(key), material(color)); membrane.castShadow = false; wing.add(membrane);
-    for (const [x, y] of [[.72, .75], [1.45, .15], [.92, -.48]]) bone(wing, [0, 0, .04], [side * x, y, .04], .035, 0xffe5ae);
+    const membrane = new THREE.Mesh(geometries.get(key), material(color, { side: THREE.DoubleSide })); membrane.castShadow = false; membrane.receiveShadow = true; wing.add(membrane);
+    const spot = ball(wing, 0xfff1e0, side * .88, .53, .11, .2, .3, .035); spot.rotation.z = -side * .5; spot.castShadow = false;
     return wing;
   });
 }
 function makeForm(form) {
   const root = new THREE.Group(), rig = new THREE.Group(); root.name = `player-${form}`; root.add(rig); root.visible = false;
-  circle(root, form === 'bear' ? .84 : .65, 0x173c31, .22); ring(root, .74, .8, 0xc5ffb2, .8);
+  circle(root, form === 'bear' ? .84 : .65, 0x79739c, .18); ring(root, .74, .8, 0xffe6b1, .8);
   const feet = [], arms = [], wings = [];
   const foot = (x, y, z, color, size = .2) => { const part = ball(rig, color, x, y, z, size, size * .75, size * 1.35); feet.push({ part, y, z }); };
   const head = new THREE.Group(); rig.add(head);
   if (form === 'wolf') {
-    ball(rig, 0x81a9b4, 0, .73, -.14, .43, .43, .76); ball(rig, 0xd2e6d8, 0, .82, .33, .38, .48, .35);
-    head.position.set(0, 1.15, .48); ball(head, 0x9bc9cc, 0, 0, 0, .38, .38, .4); ball(head, 0xe6f3dc, 0, -.1, .3, .25, .19, .3); ball(head, 0x284658, 0, -.04, .57, .12, .09, .09);
-    for (const side of [-1, 1]) { const ear = mesh(head, 'ConeGeometry', [.18, .5, 5], 0x527d92, side * .24, .36, -.06); ear.rotation.z = -side * .15; ball(head, 0xd8ecc8, side * .24, .37, .04, .075, .17, .045); }
-    eyes(head, .06, .33, .19, 0x253e48, .06);
-    for (const x of [-.3, .3]) for (const z of [-.48, .4]) { bone(rig, [x, .65, z], [x, .2, z], .09, 0x557e91); foot(x, .16, z, 0xc5e5db); }
-    const tail = bone(rig, [0, .7, -.65], [0, 1.15, -1.27], .2, 0x779fae); ball(rig, 0xe0efde, 0, 1.16, -1.28, .18, .22, .19);
-    mesh(rig, 'TorusGeometry', [.32, .075, 5, 12], 0x39aa72, 0, .96, .41, [1, 1, .8]).rotation.x = Math.PI / 2;
+    ball(rig, 0xa9d9ee, 0, .7, -.14, .43, .4, .69); ball(rig, 0xfff2e5, 0, .8, .3, .32, .4, .29);
+    head.position.set(0, 1.12, .45); ball(head, 0xb3ddf1, 0, 0, 0, .48, .45, .43); ball(head, 0xfff2e5, 0, -.14, .33, .28, .18, .22); ball(head, 0x777da6, 0, -.08, .54, .1, .075, .055);
+    for (const side of [-1, 1]) { const ear = mesh(head, 'ConeGeometry', [.2, .47, 8], 0xa3cce9, side * .3, .38, -.03); ear.rotation.z = -side * .16; ball(head, 0xf4c6df, side * .3, .4, .09, .1, .14, .035); }
+    eyes(head, .09, .414, .205, 0x6b64a8, .09);
+    for (const x of [-.29, .29]) for (const z of [-.46, .38]) foot(x, .17, z, 0xc8e7f4, .2);
+    const tail = bone(rig, [0, .7, -.61], [0, 1.1, -1.12], .23, 0xb3daf1); ball(rig, 0xfff0e4, 0, 1.14, -1.13, .2, .23, .2);
+    heart(rig, 0xf4b6d6, 0, .93, .485, .15);
     return { root, rig, feet, arms, wings, head, tail };
   }
   if (form === 'bear') {
-    ball(rig, 0xb87f45, 0, .98, 0, .77, .85, .59); ball(rig, 0xf3cc87, 0, .98, .45, .5, .56, .15);
-    head.position.set(0, 1.72, .2); ball(head, 0xcc985b, 0, 0, 0, .53, .48, .43); ball(head, 0xffdf9b, 0, -.13, .35, .3, .23, .18); ball(head, 0x543f31, 0, -.03, .52, .14, .1, .07); eyes(head, .05, .37, .2, 0x3e3c31, .065);
-    for (const side of [-1, 1]) { ball(head, 0xab713e, side * .39, .35, -.03, .19, .19, .13); ball(head, 0xefbd78, side * .39, .36, .07, .1, .1, .04); const arm = new THREE.Group(); arm.position.set(side * .64, 1.21, .1); rig.add(arm); ball(arm, 0xb87f45, side * .11, -.34, .03, .29, .48, .28); ball(arm, 0x714b31, side * .11, -.68, .13, .26, .18, .29); arms.push(arm); foot(side * .43, .2, .12, 0x8c5c35, .29); }
-    mesh(rig, 'TorusGeometry', [.48, .1, 6, 12], 0x3ea76c, 0, 1.42, .1).rotation.x = Math.PI / 2; mesh(rig, 'OctahedronGeometry', [.17, 0], 0xffdb70, 0, 1.35, .57);
+    ball(rig, 0xf5b8c9, 0, .86, -.025, .68, .73, .55); ball(rig, 0xffe8d8, 0, .84, .43, .43, .46, .14);
+    head.position.set(0, 1.58, .16); ball(head, 0xf8c0cc, 0, 0, 0, .61, .56, .48); ball(head, 0xffeddb, 0, -.15, .38, .31, .22, .16); ball(head, 0xa5729e, 0, -.06, .53, .115, .075, .055); eyes(head, .09, .46, .235, 0x80578f, .105);
+    for (const side of [-1, 1]) { ball(head, 0xefafc4, side * .43, .39, -.03, .2, .2, .14); ball(head, 0xffe2dd, side * .43, .4, .08, .115, .11, .035); const arm = new THREE.Group(); arm.position.set(side * .59, 1.12, .1); rig.add(arm); ball(arm, 0xf4b8cb, side * .09, -.29, .03, .25, .43, .25); arms.push(arm); foot(side * .4, .2, .12, 0xe7a8c0, .29); }
+    heart(rig, 0xc9b6ee, 0, 1.01, .575, .2);
     return { root, rig, feet, arms, wings, head };
   }
-  ball(rig, 0xe68b4f, 0, .9, -.1, .5, .6, .72); ball(rig, 0xffdda0, 0, .89, .4, .34, .43, .15);
-  head.position.set(0, 1.44, .49); ball(head, 0xed9d60, 0, 0, 0, .41, .39, .44); ball(head, 0xffc17a, 0, -.08, .37, .3, .21, .35); eyes(head, .08, .37, .2, 0x3b5143, .07);
-  for (const side of [-1, 1]) { const horn = mesh(head, 'ConeGeometry', [.11, .42, 5], 0xffefbc, side * .26, .35, -.16); horn.rotation.x = -.35; for (const z of [-.43, .35]) foot(side * .37, .24, z, 0xc16d42, .18); }
-  wings.push(...makeWings(rig, 0xc95c69, .9));
-  bone(rig, [0, .75, -.56], [.25, .55, -1.15], .15, 0xd87948); bone(rig, [.25, .55, -1.15], [.48, .85, -1.55], .1, 0xeb9a55); mesh(rig, 'ConeGeometry', [.15, .33, 5], 0xffda88, .48, .99, -1.55);
-  for (let i = 0; i < 4; i++) mesh(rig, 'ConeGeometry', [.11, .25, 4], 0xffe4a4, 0, 1.4 - i * .07, -.08 - i * .22);
-  const flame = ball(head, 0xffe09b, 0, -.08, .69, .12); flame.material = material(0xffe09b, { emissive: 0xff7e36, emissiveIntensity: 1 }); flame.visible = false; flame.castShadow = false;
+  ball(rig, 0xc8b3eb, 0, .87, -.1, .48, .55, .66); ball(rig, 0xffeddb, 0, .83, .4, .33, .4, .14);
+  head.position.set(0, 1.39, .46); ball(head, 0xcebcf0, 0, 0, 0, .51, .47, .46); ball(head, 0xffebdb, 0, -.14, .34, .31, .2, .28); eyes(head, .11, .44, .22, 0x7656a6, .1);
+  for (const side of [-1, 1]) { const horn = mesh(head, 'ConeGeometry', [.1, .31, 8], 0xffdfac, side * .29, .43, -.1); horn.rotation.z = -side * .18; for (const z of [-.4, .32]) foot(side * .34, .23, z, 0xb7a0dc, .19); }
+  wings.push(...makeWings(rig, 0xf2c0df, .7));
+  bone(rig, [0, .68, -.52], [.25, .51, -1.06], .17, 0xbfa6e4); heart(rig, 0xf2badb, .31, .65, -1.15, .19);
+  for (let i = 0; i < 2; i++) ball(rig, 0xffd9af, 0, 1.35 - i * .07, -.12 - i * .3, .11, .17, .1);
+  const flame = ball(head, 0xffe6b7, 0, -.08, .69, .12); flame.material = material(0xffe6b7, { emissive: 0xffa981, emissiveIntensity: 1 }); flame.visible = false; flame.castShadow = false;
   return { root, rig, feet, arms, wings, head, flame };
 }
 function makeEnemy(type, variant = '', trait = 'normal') {
@@ -167,48 +183,49 @@ function makeEnemy(type, variant = '', trait = 'normal') {
   const feet = [], wings = [];
   const foot = (...args) => { const part = ball(rig, ...args); feet.push({ part, y: part.position.y, z: part.position.z }); return part; };
   const boss = type === 'boss';
-  circle(root, boss ? 1.25 : .47, 0x18352c, .22);
+  circle(root, boss ? 1.25 : .47, 0x7b7294, .18);
   if (type === 'runner') {
-    ball(rig, 0x48a9d1, 0, .87, -.1, .29, .36, .63); ball(rig, 0xa4e9eb, 0, 1.08, .41, .3, .3, .32); ball(rig, 0xd9f7ed, 0, .98, .64, .18, .15, .23); eyes(rig, 1.13, .67, .14, 0x25495a, .05);
-    for (const side of [-1, 1]) { mesh(rig, 'ConeGeometry', [.1, .29, 5], 0x286f9e, side * .21, 1.38, .28); for (const z of [-.4, .34]) { bone(rig, [side * .22, .8, z], [side * .24, .16, z], .055, 0x338bb5); foot(0xc4f4eb, side * .24, .13, z, .12, .1, .2); } }
-    bone(rig, [0, .85, -.55], [0, 1.02, -1.12], .12, 0x74c9dd);
+    ball(rig, 0xa0d6ed, 0, .84, -.15, .29, .32, .58); ball(rig, 0xb8e3f4, 0, 1.05, .36, .39, .36, .35); ball(rig, 0xffecdf, 0, .92, .62, .21, .14, .18); eyes(rig, 1.12, .678, .17, 0x6c65a5, .075);
+    for (const side of [-1, 1]) { const ear = ball(rig, 0xc5b8ec, side * .27, 1.43, .24, .105, .23, .08); ear.rotation.z = -side * .2; for (const z of [-.4, .32]) { bone(rig, [side * .22, .77, z], [side * .24, .16, z], .065, 0xa3c6e6); foot(0xe6e7fa, side * .24, .13, z, .125, .1, .19); } }
+    bone(rig, [0, .8, -.55], [0, 1.06, -1.03], .13, 0xc4bcec);
   } else if (type === 'swarm') {
-    ball(rig, 0xf0bb37, 0, .39, -.06, .35, .3, .4); ball(rig, 0xffe47b, -.15, .48, -.05, .17, .25, .33); ball(rig, 0xffdf68, .15, .48, -.05, .17, .25, .33); ball(rig, 0xb6802e, 0, .32, .29, .25, .2, .2); eyes(rig, .39, .46, .13, 0x4d4933, .045);
-    for (const side of [-1, 1]) for (const z of [-.22, .04, .24]) { bone(rig, [side * .22, .3, z], [side * .43, .12, z + .08], .035, 0x8f7037); foot(0x9a7538, side * .43, .1, z + .08, .07, .065, .12); }
+    ball(rig, 0xffd889, 0, .39, -.06, .35, .3, .39); ball(rig, 0xffe8a9, -.15, .47, -.06, .17, .25, .31); ball(rig, 0xffe4a2, .15, .47, -.06, .17, .25, .31); ball(rig, 0xf3bb99, 0, .34, .3, .28, .23, .22); eyes(rig, .41, .508, .13, 0x9b6a95, .063);
+    for (const side of [-1, 1]) for (const z of [-.22, .04, .24]) foot(0xd8b1c6, side * .36, .12, z + .05, .13, .075, .09);
+    for (const side of [-1, 1]) ball(rig, 0xe9b7db, side * .16, .67, .27, .05, .13, .045);
   } else if (type === 'flyer') {
-    ball(rig, 0x9c7bdd, 0, .55, 0, .38, .43, .34); ball(rig, 0xd1b3ff, 0, .86, .12, .35, .31, .31); eyes(rig, .9, .4, .15, 0x382f66, .06); mesh(rig, 'ConeGeometry', [.12, .24, 5], 0xf6bf73, 0, .74, .45).rotation.x = Math.PI / 2;
-    wings.push(...makeWings(rig, 0xb998ed, .55));
+    ball(rig, 0xcfb8ed, 0, .53, -.02, .34, .35, .3); ball(rig, 0xe2cef5, 0, .87, .1, .4, .37, .34); eyes(rig, .94, .43, .18, 0x8760b2, .085); toySmile(rig, .73, .435, .045);
+    wings.push(...makeWings(rig, 0xf5c6e2, .55)); heart(rig, 0xffdfac, 0, .52, .295, .13);
   } else if (type === 'boar') {
-    ball(rig, 0xd76889, 0, .6, 0, .55, .48, .76); ball(rig, 0xf18c9d, 0, .7, .46, .48, .4, .4);
-    ball(rig, 0xffc1a6, 0, .57, .78, .28, .19, .15);
-    for (const s of [-1, 1]) { mesh(rig, 'ConeGeometry', [.17, .42, 5], 0xbe4e7c, s * .3, 1.12, .34).rotation.z = -s * .3; mesh(rig, 'ConeGeometry', [.075, .3, 6], 0xffedbd, s * .32, .51, .79).rotation.x = -.6; }
-    eyes(rig, .79, .75, .22, 0x4f3547, .055);
-    for (const x of [-.32, .32]) for (const z of [-.38, .38]) foot(0x744767, x, .17, z, .13, .2, .17);
+    ball(rig, 0xf4b5ca, 0, .59, -.08, .52, .43, .65); ball(rig, 0xf9c4d5, 0, .73, .4, .5, .43, .41); ball(rig, 0xffe0dc, 0, .56, .77, .29, .18, .13);
+    for (const side of [-1, 1]) { const ear = ball(rig, 0xe8add0, side * .31, 1.12, .31, .16, .25, .1); ear.rotation.z = -side * .35; mesh(rig, 'ConeGeometry', [.065, .19, 8], 0xffeccf, side * .31, .5, .76).rotation.x = -.6; }
+    eyes(rig, .83, .754, .22, 0x92628f, .075);
+    for (const x of [-.31, .31]) for (const z of [-.36, .34]) foot(0xce9cbe, x, .16, z, .14, .17, .17);
   } else if (type === 'caster') {
-    ball(rig, 0x4d9fd3, 0, .62, 0, .54, .6, .46); ball(rig, 0x85d0e5, 0, 1.05, .06, .43, .31, .39);
-    mesh(rig, 'ConeGeometry', [.51, .72, 7], 0x2f8ea9, 0, 1.4, -.03).rotation.z = -.2;
-    eyes(rig, 1.1, .4, .16, 0xa7efeb, .07);
-    bone(rig, [.55, .2, .1], [.55, 1.3, .1], .045, 0x36778d); mesh(rig, 'OctahedronGeometry', [.19, 0], 0x70efd8, .55, 1.46, .1);
+    ball(rig, 0xa8dcd9, 0, .59, 0, .45, .51, .4); ball(rig, 0xd9f0e9, 0, 1.02, .08, .46, .37, .37);
+    const cap = mesh(rig, 'ConeGeometry', [.48, .61, 12], 0xcab6ee, 0, 1.44, -.04); cap.rotation.z = -.22;
+    ball(rig, 0xffe5b3, -.08, 1.76, -.04, .11); eyes(rig, 1.08, .44, .19, 0x8462ab, .085);
+    bone(rig, [.52, .18, .1], [.52, 1.25, .1], .045, 0xe4bed9); heart(rig, 0xf4bbd9, .52, 1.42, .1, .18);
   } else if (boss) {
-    ball(rig, 0x637e9b, 0, 1.05, 0, 1.12, 1.2, .84);
-    ball(rig, 0x94a8b7, 0, 1.91, .22, .72, .62, .58);
-    for (const s of [-1, 1]) { ball(rig, 0x739f84, s * .93, 1.13, .1, .42, .75, .4); foot(0x486d84, s * .6, .28, .15, .46, .33, .5); ball(rig, 0x72c84a, s * .85, 1.78, -.04, .6, .32, .51); bone(rig, [s * .43, 2.29, 0], [s * .87, 2.93, 0], .12, 0x9b7845); bone(rig, [s * .68, 2.65, 0], [s * 1.06, 2.73, .04], .09, 0x9b7845); }
-    eyes(rig, 1.95, .78, .29, 0xffbe72, .12);
-    mesh(rig, 'OctahedronGeometry', [.32, 0], 0xffcb80, 0, 1.03, .8, [1, 1.5, .5], { emissive: 0xb86537, emissiveIntensity: .35 });
-    if (variant === 'sky') wings.push(...makeWings(rig, 0x9688e5, 1.25));
-    if (variant === 'ancient') for (const side of [-1, 1]) mesh(rig, 'OctahedronGeometry', [.28, 0], 0x81e5b3, side * .8, 1.65, .42, [1, 1.6, .7]);
+    const bodyColor = variant === 'sky' ? 0xc4b8ee : variant === 'ancient' ? 0xb1decf : 0xafd7de;
+    ball(rig, bodyColor, 0, 1, -.04, .98, 1.03, .77); ball(rig, 0xffefdc, 0, .91, .65, .63, .67, .16);
+    ball(rig, variant === 'sky' ? 0xd7c8f4 : 0xc8e7de, 0, 1.92, .15, .87, .77, .65);
+    for (const side of [-1, 1]) { ball(rig, bodyColor, side * .92, 1.02, .08, .36, .6, .35); foot(0xb4adc8, side * .57, .26, .12, .42, .29, .45); const ear = ball(rig, variant === 'sky' ? 0xe8bfdc : 0xb3d5b7, side * .65, 2.52, -.1, .25, .39, .21); ear.rotation.z = -side * .3; }
+    eyes(rig, 1.99, .778, .34, 0x7a5a9e, .15); toySmile(rig, 1.68, .798, .1);
+    heart(rig, 0xffcf9d, 0, 1.05, .83, .28, { emissive: 0xeab3a1, emissiveIntensity: .2 });
+    if (variant === 'sky') wings.push(...makeWings(rig, 0xe6c7ef, 1.25));
+    if (variant === 'ancient') for (const side of [-1, 1]) mesh(rig, 'OctahedronGeometry', [.25, 0], 0xf0c3e2, side * .79, 1.54, .44, [1, 1.35, .8]);
   } else {
-    ball(rig, 0xffedb8, 0, .47, 0, .33, .47, .31);
-    ball(rig, palette.red, 0, .93, 0, .7, .39, .63);
-    ball(rig, 0xfff4c3, -.26, 1.15, .22, .14, .05, .12); ball(rig, 0xfff4c3, .29, 1.12, .03, .17, .06, .14); ball(rig, 0xfff4c3, -.14, 1.21, -.23, .15, .05, .14);
-    eyes(rig, .58, .29, .12, 0x503c38, .05); foot(0xe0b583, -.27, .13, .05, .15, .14, .23); foot(0xe0b583, .27, .13, .05, .15, .14, .23);
+    ball(rig, 0xffefdf, 0, .48, 0, .38, .46, .32); ball(rig, 0xf5b1d0, 0, .99, -.03, .68, .35, .6);
+    ball(rig, 0xffefdf, -.25, 1.18, .22, .15, .055, .13); ball(rig, 0xe4cdf6, .28, 1.16, .06, .17, .055, .14);
+    eyes(rig, .59, .322, .15, 0x8d629e, .073); toySmile(rig, .41, .33, .045);
+    foot(0xe6bad7, -.25, .13, .05, .15, .14, .22); foot(0xe6bad7, .25, .13, .05, .15, .14, .22);
   }
   const flying = type === 'flyer' || variant === 'sky' || trait === 'airborne';
   const bar = new THREE.Group(); bar.position.y = flying ? boss ? 4.15 : 2.7 : boss ? 3.15 : 1.85; root.add(bar);
-  const backing = mesh(bar, 'PlaneGeometry', [boss ? 2.3 : .9, .11], 0x33473b); backing.castShadow = false;
-  const fill = mesh(bar, 'PlaneGeometry', [boss ? 2.22 : .82, .065], boss ? 0xffb379 : 0xf3c977, 0, 0, .005); fill.castShadow = false;
+  const backing = mesh(bar, 'PlaneGeometry', [boss ? 2.3 : .9, .11], 0x6f6384); backing.castShadow = false;
+  const fill = mesh(bar, 'PlaneGeometry', [boss ? 2.22 : .82, .065], boss ? 0xf4b7d2 : 0xffd996, 0, 0, .005); fill.castShadow = false;
   const danger = new THREE.Group(); root.add(danger); danger.visible = false;
-  const warningDisk = circle(danger, 1, 0xff6048, .25), warningRing = ring(danger, .94, 1, 0xffa044, .95);
+  const warningDisk = circle(danger, 1, 0xff6048, .25), warningRing = ring(danger, .94, 1, 0xbd4c78, .95);
   const warningLine = mesh(danger, 'PlaneGeometry', [1, 1], 0xff6945, 0, .045, 0, [1, 1, 1], { transparent: true, opacity: .35, depthWrite: false, side: THREE.DoubleSide }); warningLine.rotation.x = -Math.PI / 2; warningLine.castShadow = false;
   // Only the visual body owns flash materials; health bars and telegraphs stay unchanged.
   const copies = new Map(), hitMaterials = [];
@@ -231,14 +248,14 @@ export async function createRenderer(container) {
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.65)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping; renderer.toneMappingExposure = 1;
   renderer.domElement.setAttribute('aria-label', '거점과 사냥터가 이어진 입체적인 숲 필드'); container.append(renderer.domElement);
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0xb8e4e8); scene.fog = new THREE.Fog(0xb8e4e8, 52, 95);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf1e5fa); scene.fog = new THREE.Fog(0xf1e5fa, 52, 95);
   const camera = new THREE.OrthographicCamera(-10, 10, 13, -13, .1, 110); camera.position.set(0, 27, 21 + WORLD.camp.z); camera.lookAt(0, 0, WORLD.camp.z);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x7ca6b6, 1.2));
-  const light = new THREE.DirectionalLight(0xffffff, 2.7); light.position.set(-8, 19, 12); light.castShadow = true; light.shadow.mapSize.set(1536, 1536); Object.assign(light.shadow.camera, { left: -17, right: 17, top: 18, bottom: -18, near: 1, far: 60 }); light.shadow.camera.updateProjectionMatrix(); light.shadow.bias = -.0007; light.shadow.normalBias = .04; scene.add(light, light.target);
+  scene.add(new THREE.HemisphereLight(0xfff8ff, 0xaaa8cf, 1.25));
+  const light = new THREE.DirectionalLight(0xfff4ed, 2.2); light.position.set(-8, 19, 12); light.castShadow = true; light.shadow.mapSize.set(1536, 1536); Object.assign(light.shadow.camera, { left: -17, right: 17, top: 18, bottom: -18, near: 1, far: 60 }); light.shadow.camera.updateProjectionMatrix(); light.shadow.bias = -.0007; light.shadow.normalBias = .04; scene.add(light, light.target);
   const land = new THREE.Group(); scene.add(land);
   const worldLength = WORLD.maxZ - WORLD.minZ;
   mesh(land, 'BoxGeometry', [70, 1, worldLength + 12], palette.grass, 0, -.5, (WORLD.maxZ + WORLD.minZ) / 2);
-  const stageColors = { meadow: palette.grass, deep: 0x76d89a, ancient: 0x8bd5b1, sky: 0xa5dce0 };
+  const stageColors = { meadow: 0xa3dca7, deep: 0x9ddbd3, ancient: 0xc7bee9, sky: 0xb9dfef };
   for (const stage of STAGES) {
     const ground = mesh(land, 'PlaneGeometry', [70, stage.maxZ - stage.minZ], stageColors[stage.id], 0, .006, (stage.minZ + stage.maxZ) / 2); ground.rotation.x = -Math.PI / 2; ground.castShadow = false;
   }
@@ -248,61 +265,75 @@ export async function createRenderer(container) {
   const roadOutline = [...pathPoints.map(([x, z]) => [x - 1.45, -z]), ...[...pathPoints].reverse().map(([x, z]) => [x + 1.45, -z])];
   roadOutline.forEach(([x, y], i) => i === 0 ? roadShape.moveTo(x, y) : roadShape.lineTo(x, y)); roadShape.closePath();
   if (!geometries.has('world-road')) geometries.set('world-road', new THREE.ShapeGeometry(roadShape));
-  const road = new THREE.Mesh(geometries.get('world-road'), material(0xffd57a)); road.name = 'continuous-road'; road.rotation.x = -Math.PI / 2; road.position.y = .016; road.receiveShadow = true; land.add(road);
+  const road = new THREE.Mesh(geometries.get('world-road'), material(0xffe6c6)); road.name = 'continuous-road'; road.rotation.x = -Math.PI / 2; road.position.y = .016; road.receiveShadow = true; land.add(road);
+  function worldHeart(parent, color, x, y, z, size = .3) {
+    if (!geometries.has('world-fairy-heart')) {
+      const shape = new THREE.Shape(); shape.moveTo(0, .22);
+      shape.bezierCurveTo(-.58, .87, -1, .25, -.64, -.18); shape.bezierCurveTo(-.43, -.46, -.14, -.64, 0, -.78);
+      shape.bezierCurveTo(.14, -.64, .43, -.46, .64, -.18); shape.bezierCurveTo(1, .25, .58, .87, 0, .22);
+      const heartGeometry = new THREE.ExtrudeGeometry(shape, { depth: .22, bevelEnabled: true, bevelSize: .045, bevelThickness: .045, bevelSegments: 2, steps: 1, curveSegments: 7 });
+      heartGeometry.center(); geometries.set('world-fairy-heart', heartGeometry);
+    }
+    const charm = new THREE.Mesh(geometries.get('world-fairy-heart'), material(color)); charm.position.set(x, y, z); charm.scale.setScalar(size); charm.castShadow = true; parent.add(charm); return charm;
+  }
   const camp = new THREE.Group(); camp.position.set(WORLD.camp.x, 0, WORLD.camp.z); scene.add(camp);
-  circle(camp, 5.8, 0xffda83).position.y = .023; ring(camp, WORLD.camp.radius - .03, WORLD.camp.radius + .03, 0xffedbc, .55).position.y = .04;
+  circle(camp, 5.8, 0xffdfeb).position.y = .023; ring(camp, WORLD.camp.radius - .03, WORLD.camp.radius + .03, 0xfffcdf, .8).position.y = .04;
   const bonfire = new THREE.Group(); bonfire.position.x = -1.7; camp.add(bonfire);
-  for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; const stone = mesh(bonfire, 'DodecahedronGeometry', [1, 0], 0x93a5b4, Math.cos(a) * 1.15, .25, Math.sin(a) * 1.15, [.34, .25, .31]); stone.rotation.y = a; }
-  for (const a of [-.55, .55]) { const log = mesh(bonfire, 'CylinderGeometry', [.15, .18, 1.8, 7], 0x8b6140, 0, .28, 0); log.rotation.set(Math.PI / 2, a, 0); }
+  for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; const stone = ball(bonfire, i % 2 ? 0xe1c6f2 : 0xffe8b5, Math.cos(a) * 1.15, .25, Math.sin(a) * 1.15, .3, .23, .3); stone.rotation.y = a; }
+  mesh(bonfire, 'CylinderGeometry', [.79, .95, .32, 16], 0xe6b9db, 0, .24, 0); mesh(bonfire, 'CylinderGeometry', [.64, .79, .13, 16], 0xfff3ce, 0, .46, 0);
   const fire = new THREE.Group(); bonfire.add(fire);
-  mesh(fire, 'ConeGeometry', [.55, 1.25, 7], 0xf38f42, 0, .9, 0, [1, 1, 1], { emissive: 0xe46e23, emissiveIntensity: .7 });
-  mesh(fire, 'ConeGeometry', [.29, .9, 7], 0xffe4a2, -.06, .76, .18, [1, 1, 1], { emissive: 0xf9b54f, emissiveIntensity: .9 });
-  circle(bonfire, 1.85, 0xf6cf77, .16).position.y = .045;
+  const campCrystal = mesh(fire, 'OctahedronGeometry', [.53, 0], 0xa6eadb, 0, 1.03, 0, [1, 1.55, 1], { emissive: 0x62c7c1, emissiveIntensity: .22 }); campCrystal.rotation.z = .08;
+  worldHeart(fire, 0xffc2de, 0, 1.12, .48, .29);
+  circle(bonfire, 1.85, 0xf3dcff, .2).position.y = .045;
   const chest = new THREE.Group(); chest.position.set(-3.1, 0, 1.5); camp.add(chest);
-  mesh(chest, 'BoxGeometry', [1.2, .72, .82], 0xa86b37, 0, .43, 0); ball(chest, 0xc99042, 0, .82, 0, .62, .3, .43);
+  mesh(chest, 'BoxGeometry', [1.2, .72, .82], 0xcba7e6, 0, .43, 0); ball(chest, 0xf4bada, 0, .82, 0, .62, .3, .43);
   for (const s of [-1, 1]) mesh(chest, 'BoxGeometry', [.1, .91, .9], palette.gold, s * .38, .53, 0);
-  mesh(chest, 'BoxGeometry', [.22, .27, .08], 0xffde69, 0, .54, .46);
+  worldHeart(chest, 0xfff1b3, 0, .54, .46, .2);
   const forge = new THREE.Group(); forge.position.set(3.8, 0, -.5); camp.add(forge);
-  mesh(forge, 'BoxGeometry', [1.5, .4, 1.35], 0x657d95, 0, .2, 0); mesh(forge, 'BoxGeometry', [1.2, 1.7, 1.1], 0xa4b4c8, 0, 1.12, 0);
-  mesh(forge, 'BoxGeometry', [.64, .62, .035], 0xe5a15e, 0, .94, .575, [1, 1, 1], { emissive: 0xb36a2d, emissiveIntensity: .65 });
-  mesh(forge, 'BoxGeometry', [.7, .8, .7], 0x7e97ad, 0, 2.27, -.12); mesh(forge, 'BoxGeometry', [.83, .16, .84], 0xb6c6d2, 0, 2.74, -.12);
-  mesh(forge, 'BoxGeometry', [.8, .2, .45], 0x586f72, -.9, .73, .8); mesh(forge, 'BoxGeometry', [.34, .65, .34], 0x718382, -.9, .35, .8);
+  mesh(forge, 'CylinderGeometry', [.96, 1.02, .35, 16], 0xc7b3e5, 0, .2, 0); mesh(forge, 'CylinderGeometry', [.7, .78, 1.55, 16], 0xffebdf, 0, 1.12, 0);
+  ball(forge, 0xdbb2ee, 0, 2.01, -.06, .96, .54, .84); mesh(forge, 'TorusGeometry', [.76, .07, 6, 16], 0xffdc8f, 0, 1.69, -.06).rotation.x = Math.PI / 2;
+  mesh(forge, 'OctahedronGeometry', [.34, 0], 0x9de4d1, 0, 2.68, -.06, [1, 1.3, 1]); worldHeart(forge, 0xf6b1d1, 0, 1.08, .77, .29);
+  mesh(forge, 'CylinderGeometry', [.42, .36, .18, 12], 0xffe5a7, -.94, .73, .8); mesh(forge, 'CylinderGeometry', [.15, .2, .65, 10], 0xcbb1de, -.94, .35, .8);
   const npc = new THREE.Group(); npc.position.set(-3.4, 0, -2.3); camp.add(npc);
-  mesh(npc, 'ConeGeometry', [.43, .95, 8], 0x42b98a, 0, .59, 0); ball(npc, palette.skin, 0, 1.16, .04, .31, .33, .29); eyes(npc, 1.2, .3, .1, 0x364a3a, .045); ball(npc, 0xfff0c8, 0, .99, .2, .24, .23, .13);
-  mesh(npc, 'ConeGeometry', [.39, .55, 8], 0x398d51, 0, 1.63, 0); bone(npc, [.42, .05, .15], [.42, 1.5, .15], .045, palette.bark);
+  ball(npc, 0xbfa6e7, 0, .59, 0, .43, .53, .34); ball(npc, palette.skin, 0, 1.25, .04, .43, .42, .36); eyes(npc, 1.29, .365, .16, 0x5b498a, .09);
+  ball(npc, 0xffbacd, -.33, 1.17, .31, .085, .045, .035); ball(npc, 0xffbacd, .33, 1.17, .31, .085, .045, .035);
+  ball(npc, 0xffedc7, 0, 1.63, -.035, .45, .19, .36); worldHeart(npc, 0x9cdcc9, 0, 1.72, .25, .15); bone(npc, [.45, .05, .15], [.45, 1.5, .15], .045, palette.gold);
   const questMark = new THREE.Group(); questMark.position.set(0, 2.27, 0); npc.add(questMark); mesh(questMark, 'BoxGeometry', [.13, .39, .13], 0xf5d67d, 0, .15, 0); ball(questMark, 0xf5d67d, 0, -.18, 0, .09);
   const gates = STAGES.slice(1).map(stage => {
     const root = new THREE.Group(); root.name = `gate-${stage.id}`; root.position.z = stage.maxZ; scene.add(root);
     const barrier = new THREE.Group(); root.add(barrier);
     for (let x = WORLD.minX; x <= WORLD.maxX; x += 2) {
-      mesh(barrier, 'BoxGeometry', [.17, 1.4, .2], 0x8b7953, x, .7, 0);
-      if (x < WORLD.maxX) for (const y of [.45, .95]) mesh(barrier, 'BoxGeometry', [2.1, .15, .12], 0xb09c6b, x + 1, y, 0);
+      mesh(barrier, 'CylinderGeometry', [.12, .14, 1.4, 8], 0xffe9ce, x, .7, 0);
+      if (x < WORLD.maxX) for (const y of [.45, .95]) mesh(barrier, 'BoxGeometry', [2.1, .15, .12], 0xb7dcd3, x + 1, y, 0);
     }
-    for (const x of [-2, 2]) mesh(root, 'BoxGeometry', [.45, 3.2, .45], stage.id === 'sky' ? 0xb8d7db : 0x748f7b, x, 1.6, 0);
-    mesh(root, 'BoxGeometry', [4.8, .5, .6], 0x9bbdad, 0, 3.2, 0); mesh(root, 'OctahedronGeometry', [.33, 0], stage.id === 'sky' ? 0xc1b6ff : 0xc4ef98, 0, 3.64, 0);
+    const arch = new THREE.Group(); arch.name = 'fairy-gate-arch'; root.add(arch);
+    for (const x of [-2, 2]) { mesh(arch, 'CylinderGeometry', [.28, .36, 3.2, 12], 0xffecd9, x, 1.6, 0); ball(arch, 0xe2c0eb, x, 3.22, 0, .4, .35, .38); }
+    mesh(arch, 'BoxGeometry', [4.8, .4, .6], 0xd3b4e4, 0, 3.2, 0); worldHeart(arch, stage.id === 'sky' ? 0x9adeeb : 0xffb2d2, 0, 3.72, 0, .46);
+    const archMaterials = [];
+    arch.traverse(part => { if (!part.isMesh) return; part.material = part.material.clone(); part.material.transparent = true; part.material.depthWrite = false; archMaterials.push(part.material); });
     const lock = new THREE.Group(); lock.position.set(0, 2, .35); barrier.add(lock); mesh(lock, 'BoxGeometry', [.62, .55, .17], palette.gold); mesh(lock, 'TorusGeometry', [.23, .065, 6, 14], 0xffe39a, 0, .35, 0); mesh(lock, 'BoxGeometry', [.07, .18, .04], 0x775d35, 0, 0, .1);
-    return { stage, root, barrier };
+    return { stage, root, barrier, archMaterials, opacity: 1 };
   });
   const restCamps = STAGES.slice(1).map(stage => {
     const root = new THREE.Group(); root.name = `camp-${stage.id}`; root.position.set(stage.camp.x, 0, stage.camp.z); scene.add(root);
-    circle(root, stage.camp.radius, stage.id === 'sky' ? 0xe7e6c2 : 0xffdb8e).position.y = .028;
-    ring(root, stage.camp.radius - .035, stage.camp.radius + .035, 0xfff1b7, .8).position.y = .055;
-    for (let i = 0; i < 7; i++) { const angle = i / 7 * TAU; mesh(root, 'DodecahedronGeometry', [.22, 0], 0x97adab, -1 + Math.cos(angle) * .65, .13, Math.sin(angle) * .65); }
-    mesh(root, 'ConeGeometry', [.35, .85, 6], 0xffb15a, -1, .55, 0, [1, 1, 1], { emissive: 0xf18a38, emissiveIntensity: .5 });
-    mesh(root, 'BoxGeometry', [.9, .6, .65], 0xb47e42, 1.1, .35, .5); mesh(root, 'BoxGeometry', [.12, .66, .7], palette.gold, 1.1, .4, .5);
-    for (const x of [-.5, .5]) mesh(root, 'CylinderGeometry', [.12, .12, 1.2, 6], 0x9c7549, x, .4, -1.4).rotation.z = Math.PI / 2;
+    circle(root, stage.camp.radius, stage.id === 'sky' ? 0xe8ddfa : 0xffe0e9).position.y = .028;
+    ring(root, stage.camp.radius - .035, stage.camp.radius + .035, 0xfff5d4, .8).position.y = .055;
+    for (let i = 0; i < 7; i++) { const angle = i / 7 * TAU; ball(root, 0xdbbce7, -1 + Math.cos(angle) * .65, .13, Math.sin(angle) * .65, .22, .16, .2); }
+    mesh(root, 'OctahedronGeometry', [.43, 0], 0xa1e5d5, -1, .72, 0, [1, 1.5, 1], { emissive: 0x7ac7c6, emissiveIntensity: .22 }); worldHeart(root, 0xffc3de, -1, .75, .36, .2);
+    mesh(root, 'BoxGeometry', [.9, .6, .65], 0xc9a5e2, 1.1, .35, .5); mesh(root, 'BoxGeometry', [.12, .66, .7], palette.gold, 1.1, .4, .5);
+    for (const x of [-.5, .5]) mesh(root, 'CylinderGeometry', [.12, .12, 1.2, 8], 0xe1bad2, x, .4, -1.4).rotation.z = Math.PI / 2;
     return { stage, root };
   });
   const landmarks = new THREE.Group(); scene.add(landmarks);
   for (const side of [-1, 1]) {
-    for (let i = 0; i < 3; i++) { const pillar = mesh(landmarks, 'CylinderGeometry', [.4, .55, 2.8 + i * .3, 6], 0x94b8a5, side * (11.5 + i % 2), 1.4 + i * .15, -50 - i * 4); pillar.rotation.z = side * .08; }
+    for (let i = 0; i < 3; i++) { const pillar = mesh(landmarks, 'CylinderGeometry', [.4, .55, 2.8 + i * .3, 12], 0xffe9d1, side * (11.5 + i % 2), 1.4 + i * .15, -50 - i * 4); pillar.rotation.z = side * .08; worldHeart(pillar, 0xd8a7e5, 0, 1.6 + i * .15, 0, .38); }
     for (let i = 0; i < 4; i++) mesh(landmarks, 'OctahedronGeometry', [.6, 0], i % 2 ? 0xb8aff0 : 0x8ac8ed, side * (11.5 + i % 2), .9, -77 - i * 4, [.65, 1.7, .7]);
   }
   const territories = HUNT_ZONES.map(zone => {
     const root = new THREE.Group(); root.position.set(zone.x, .03, zone.z); scene.add(root);
-    circle(root, zone.radius, zone.deep ? 0x46ba76 : 0xb7df68, .1);
-    const edge = ring(root, zone.radius - .035, zone.radius + .035, 0xefe5a3, .24); edge.material = edge.material.clone();
-    if (zone.bossId) for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; mesh(root, 'DodecahedronGeometry', [.35, 0], 0x8b9b87, Math.cos(a) * (zone.radius + .2), .12, Math.sin(a) * (zone.radius + .2), [1, .6, 1]); }
+    circle(root, zone.radius, zone.deep ? 0x99cbe4 : 0xc4f1ba, .1);
+    const edge = ring(root, zone.radius - .035, zone.radius + .035, 0xfff4d1, .24); edge.material = edge.material.clone();
+    if (zone.bossId) for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; mesh(root, 'OctahedronGeometry', [.35, 0], 0xd8b5e6, Math.cos(a) * (zone.radius + .2), .18, Math.sin(a) * (zone.radius + .2), [1, .9, 1]); }
     return { zone, root, edge, label: null };
   });
   const decorations = new THREE.Group(); scene.add(decorations);
@@ -310,20 +341,21 @@ export async function createRenderer(container) {
   // Seeded decoration placement stays independent from combat randomness.
   let seed = 47281; const random = () => ((seed = (1664525 * seed + 1013904223) >>> 0) / 4294967296);
   for (let i = 0; i < 76; i++) {
-    const patch = mesh(decorations, 'CircleGeometry', [.7 + random() * 1.6, 9], i % 2 ? 0x78bd45 : 0xc3e87a, (random() - .5) * 30, .024, WORLD.minZ + random() * worldLength, [1.6, .65, 1], { transparent: true, opacity: .12, depthWrite: false });
+    const patch = mesh(decorations, 'CircleGeometry', [.7 + random() * 1.6, 12], i % 2 ? 0x67bd95 : 0xe7efb6, (random() - .5) * 30, .024, WORLD.minZ + random() * worldLength, [1.6, .65, 1], { transparent: true, opacity: .12, depthWrite: false });
     patch.rotation.x = -Math.PI / 2; patch.rotation.z = random() * TAU; patch.castShadow = patch.receiveShadow = false; patch.renderOrder = 1;
   }
   for (let i = 0; i < Math.ceil(worldLength) + 2; i++) {
     const side = i % 2 ? 1 : -1, z = WORLD.minZ + Math.floor(i / 2) * 2;
-    const rock = mesh(decorations, 'DodecahedronGeometry', [1, 0], i % 3 ? 0x8195a8 : 0xc1c9cf, side * 16.1, .6, z, [.8 + random() * .5, .8 + random() * .9, 1.1 + random() * .4]); rock.rotation.y = random() * TAU;
+    const rock = mesh(decorations, 'DodecahedronGeometry', [1, 0], i % 3 ? 0xc3b3df : 0xf0cadd, side * 16.1, .6, z, [.8 + random() * .5, .8 + random() * .9, 1.1 + random() * .4]); rock.rotation.y = random() * TAU;
   }
-  for (const z of [WORLD.minZ - .8, WORLD.maxZ + .8]) for (let x = -15; x <= 15; x += 1.5) mesh(decorations, 'DodecahedronGeometry', [1, 0], 0x98afa8, x, .48, z, [.9, .75, .75]);
-  const grass = new THREE.InstancedMesh(geometry('ConeGeometry', [.16, .45, 4]), material(0x31b67d), 680); grass.castShadow = false; scene.add(grass);
+  for (const z of [WORLD.minZ - .8, WORLD.maxZ + .8]) for (let x = -15; x <= 15; x += 1.5) mesh(decorations, 'DodecahedronGeometry', [1, 0], 0xddbfdf, x, .48, z, [.9, .75, .75]);
+  const grass = new THREE.InstancedMesh(geometry('ConeGeometry', [.16, .38, 6]), material(0x72c59f), 680); grass.castShadow = false; scene.add(grass);
   const dummy = new THREE.Object3D();
   for (let i = 0; i < 680; i++) { let x = (random() - .5) * 31, z = WORLD.minZ + random() * worldLength; if (Math.abs(x) < 2.1) x += 3.4; dummy.position.set(x, .12, z); dummy.rotation.set(0, random() * TAU, (random() - .5) * .4); dummy.scale.setScalar(.5 + random() * .9); dummy.updateMatrix(); grass.setMatrixAt(i, dummy.matrix); }
-  for (let i = 0; i < 72; i++) {
+  for (let i = 0; i < 36; i++) {
     const p = new THREE.Group(); p.position.set((random() - .5) * 27, .04, WORLD.minZ + random() * worldLength); decorations.add(p);
-    for (let j = 0; j < 3; j++) ball(p, i % 2 ? 0xf0d29a : 0xf0e9bb, (j - 1) * .1, .05, j % 2 * .1, .065, .035, .065);
+    for (let j = 0; j < 5; j++) { const angle = j / 5 * TAU; const petal = ball(p, i % 2 ? 0xffc3df : 0xe5c9fb, Math.cos(angle) * .19, .065, Math.sin(angle) * .19, .16, .045, .105); petal.rotation.y = -angle; }
+    ball(p, 0xffedb2, 0, .08, 0, .115, .065, .115);
   }
   const druid = makeDruid(); druid.rig.scale.setScalar(1.15); scene.add(druid.root);
   const forms = { wolf: makeForm('wolf'), bear: makeForm('bear'), dragon: makeForm('dragon') }; for (const form of Object.values(forms)) scene.add(form.root);
@@ -395,17 +427,27 @@ export async function createRenderer(container) {
   ];
   const sceneryStatus = await Promise.allSettled(nature.map(async ([kind, url]) => {
     const gltf = await loader.loadAsync(url); if (disposed) return;
+    const isTree = kind === 'tree' || kind === 'pine';
     const model = gltf.scene; model.traverse(o => {
       if (!o.isMesh) return;
       o.castShadow = true; o.receiveShadow = true;
-      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-        m.metalness = 0; m.roughness = 1;
-        if (/leaf/i.test(m.name)) m.color.setHex(/dark/i.test(m.name) ? 0x288d59 : 0x67bf45);
-        if (/wood|bark/i.test(m.name)) m.color.setHex(0xb17b41);
+      const parts = Array.isArray(o.material) ? o.material : [o.material];
+      if (isTree && parts.some(m => /leaf/i.test(m.name))) {
+        o.geometry.computeBoundingBox();
+        const bounds = o.geometry.boundingBox, center = bounds.getCenter(new THREE.Vector3()), extent = bounds.getSize(new THREE.Vector3());
+        o.position.add(center.multiply(o.scale).applyQuaternion(o.quaternion));
+        o.scale.multiply(extent.multiplyScalar(.55)); o.geometry = geometry('SphereGeometry', [1, 12, 8]);
+      }
+      for (const m of parts) {
+        m.metalness = 0; m.roughness = .62; m.flatShading = false;
+        if (/leaf/i.test(m.name)) m.color.setHex(kind === 'pine' ? /dark/i.test(m.name) ? 0xd795c3 : 0xf0b7d8 : /dark/i.test(m.name) ? 0x88c9b7 : 0xb4e4c9);
+        if (/wood|bark/i.test(m.name)) m.color.setHex(0xd0adbd);
+        if (kind === 'rock') m.color.setHex(0xd6bfeb);
+        if (kind === 'plant') m.color.setHex(/leaf|stem/i.test(m.name) ? 0x9ad4b3 : 0xffdf9e);
+        if (kind === 'mushroom') m.color.setHex(/stem/i.test(m.name) ? 0xffedda : 0xf8b2ce);
       }
     });
     const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3());
-    const isTree = kind === 'tree' || kind === 'pine';
     const scale = (isTree ? 4.2 : kind === 'rock' ? 1.35 : .55) / Math.max(size.x, size.y, size.z, .01);
     model.scale.setScalar(scale); model.position.y = -box.min.y * scale;
     const n = isTree ? 46 : kind === 'rock' ? 24 : 36;
@@ -441,12 +483,12 @@ export async function createRenderer(container) {
     const beam = mesh(root, 'CylinderGeometry', [.1, .35, 1.9, 8, 1, true], palette.gold, 0, 1, 0);
     beam.material = ownBasic(palette.gold, { transparent: true, opacity: .16, depthWrite: false, side: THREE.DoubleSide }); beam.castShadow = beam.receiveShadow = false;
     const staff = new THREE.Group(); staff.name = 'dropped-staff'; icon.add(staff);
-    bone(staff, [0, -.45, 0], [0, .45, 0], .055, 0x92643d);
+    bone(staff, [0, -.45, 0], [0, .45, 0], .055, 0xffead5);
     bone(staff, [0, .24, 0], [-.16, .52, 0], .045, 0xffd279); bone(staff, [0, .24, 0], [.16, .52, 0], .045, 0xffd279);
-    const jewel = mesh(staff, 'OctahedronGeometry', [.18, 0], 0x8fea6b, 0, .51, 0, [1, 1.3, 1]); jewel.material = jewel.material.clone(); feedbackMaterials.add(jewel.material);
+    const jewel = worldHeart(staff, 0xa5e8ce, 0, .51, 0, .23); jewel.material = jewel.material.clone(); feedbackMaterials.add(jewel.material);
     const scroll = new THREE.Group(); scroll.name = 'dropped-scroll'; icon.add(scroll);
     mesh(scroll, 'BoxGeometry', [.48, .64, .07], 0xffedc2);
-    for (const y of [-.32, .32]) { const roll = mesh(scroll, 'CylinderGeometry', [.085, .085, .6, 8], 0xd49b51, 0, y, 0); roll.rotation.z = Math.PI / 2; }
+    for (const y of [-.32, .32]) { const roll = mesh(scroll, 'CylinderGeometry', [.085, .085, .6, 8], 0xe7b4cf, 0, y, 0); roll.rotation.z = Math.PI / 2; }
     mesh(scroll, 'OctahedronGeometry', [.105, 0], 0x735cba, 0, -.04, .075, [1, 1, .45]);
     return { root, icon, base, beam, staff, scroll, jewel };
   }
@@ -454,14 +496,14 @@ export async function createRenderer(container) {
     const root = new THREE.Group(), icon = new THREE.Group(); root.name = 'field-discovery'; root.add(icon);
     const base = ring(root, .65, .75, palette.gold, .85); base.material = ownBasic(palette.gold, { transparent: true, opacity: .85, depthWrite: false, side: THREE.DoubleSide });
     const chest = new THREE.Group(); icon.add(chest);
-    mesh(chest, 'BoxGeometry', [.95, .52, .69], 0xa96b37, 0, -.06, 0);
-    ball(chest, 0xd69b4b, 0, .23, 0, .5, .22, .36);
+    mesh(chest, 'BoxGeometry', [.95, .52, .69], 0xd1b4ec, 0, -.06, 0);
+    ball(chest, 0xf7bdd9, 0, .23, 0, .5, .22, .36);
     for (const x of [-.3, .3]) mesh(chest, 'BoxGeometry', [.1, .69, .76], 0xffd34e, x, .02, 0);
-    mesh(chest, 'BoxGeometry', [.2, .23, .1], 0xffed9d, 0, -.04, .39);
+    worldHeart(chest, 0xffefba, 0, -.04, .39, .18);
     const blessing = new THREE.Group(); icon.add(blessing);
-    mesh(blessing, 'CylinderGeometry', [.56, .65, .23, 7], 0x819b9c, 0, .14, 0);
+    mesh(blessing, 'CylinderGeometry', [.56, .65, .23, 12], 0xd4bee8, 0, .14, 0);
     const seed = mesh(blessing, 'OctahedronGeometry', [.33, 0], 0x94ff9c, 0, .4, 0, [1, 1.4, 1], { emissive: 0x48bc7f, emissiveIntensity: .55 });
-    for (let i = 0; i < 3; i++) { const angle = i / 3 * TAU, leaf = ball(blessing, 0x28b36c, Math.sin(angle) * .27, .3, Math.cos(angle) * .27, .25, .07, .13); leaf.rotation.y = -angle; }
+    for (let i = 0; i < 3; i++) { const angle = i / 3 * TAU, leaf = ball(blessing, 0xa1dcca, Math.sin(angle) * .27, .3, Math.cos(angle) * .27, .25, .07, .13); leaf.rotation.y = -angle; }
     return { root, icon, base, chest, blessing, seed };
   }
   function makeFieldHazard() {
@@ -575,10 +617,12 @@ export async function createRenderer(container) {
     if (!pulse) {
       const root = new THREE.Group(), edge = ring(root, .92, 1, palette.gold, .8);
       edge.material = new THREE.MeshBasicMaterial({ color: palette.gold, transparent: true, opacity: .8, depthWrite: false, side: THREE.DoubleSide });
-      feedbackMaterials.add(edge.material); pulse = { root, edge };
+      const charm = worldHeart(root, 0xffb9d9, 0, .7, 0, .28); charm.castShadow = false;
+      charm.material = ownBasic(0xffb9d9, { transparent: true, opacity: .8, depthWrite: false });
+      feedbackMaterials.add(edge.material); pulse = { root, edge, charm };
     }
     pulse.age = 0; pulse.life = level ? .75 : .55; pulse.level = level;
-    pulse.root.position.set(x, .06, z); pulse.root.visible = true; pulse.edge.material.color.setHex(level ? 0xb9ff9c : palette.gold);
+    pulse.root.position.set(x, .06, z); pulse.root.visible = true; pulse.edge.material.color.setHex(level ? 0xf4c1ef : palette.gold);
     scene.add(pulse.root); pulses.push(pulse);
   }
   function emitFormBurst(event) {
@@ -613,7 +657,7 @@ export async function createRenderer(container) {
         const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthTest: false, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
         feedbackMaterials.add(m); return m;
       };
-      const outer = new THREE.Mesh(impactGeometry(), own(0x174c58)); outer.scale.setScalar(.95); flash.add(outer);
+      const outer = new THREE.Mesh(impactGeometry(), own(0x775285)); outer.scale.setScalar(.95); flash.add(outer);
       const fill = new THREE.Mesh(impactGeometry(), own(0x8df8ff)); fill.scale.setScalar(.74); fill.position.z = .005; flash.add(fill);
       const core = new THREE.Mesh(impactGeometry(), own(0xffffff)); core.scale.setScalar(.32); core.rotation.z = .22; core.position.z = .01; flash.add(core);
       const shock = new THREE.Mesh(geometry('RingGeometry', [.86, 1, 32]), own(0xffe48d)); shock.position.z = -.005; root.add(shock);
@@ -665,8 +709,9 @@ export async function createRenderer(container) {
   }
   function showNumber(e, y = 1.8) {
     if (floaters.length >= 24) return;
+    if (e.type === 'hit' && floaters.filter(f => f.type === 'hit' && f.age < .24 && Math.hypot(f.x - e.x, f.z - e.z) < 2.2).length >= 3) return;
     const el = document.createElement('span'); el.className = `combat-number ${e.type === 'player-hit' ? 'hurt' : ''}`; el.textContent = e.damage ? `${e.type === 'player-hit' ? '−' : ''}${Math.round(e.damage)}` : e.type === 'skill' ? '덩굴' : e.type === 'pickup' ? `+${e.amount}` : e.type === 'deposit' ? `보관 +${e.amount}` : e.type === 'level-up' ? '레벨 업!' : e.type === 'gear-pickup' ? e.copies > 0 ? '장비 획득!' : `두루마리 +${e.scrolls}` : e.type === 'field-chest' ? '보물 발견!' : e.type === 'field-boon' ? '숲의 축복!' : '';
-    if (!el.textContent) return; labels.append(el); floaters.push({ el, x: e.x ?? 0, z: e.z ?? 0, y, age: 0 });
+    if (!el.textContent) return; labels.append(el); floaters.push({ el, type: e.type, x: e.x ?? 0, z: e.z ?? 0, y, age: 0 });
   }
   return {
     canvas: renderer.domElement,
@@ -742,7 +787,12 @@ export async function createRenderer(container) {
       }
       fire.scale.set(1 + Math.sin(visualTime * 8) * .05, 1 + Math.sin(visualTime * 11) * .1, 1); fire.rotation.y = Math.sin(visualTime * 2) * .12;
       questMark.position.y = 2.27 + Math.sin(visualTime * 3) * .1; questMark.visible = (state.progress?.questIndex ?? 0) < 6;
-      for (const gate of gates) gate.barrier.visible = !isStageUnlocked(state.progress, gate.stage.id);
+      for (const gate of gates) {
+        gate.barrier.visible = !isStageUnlocked(state.progress, gate.stage.id);
+        const obscuresPlayer = Math.abs(p.x) < 3 && p.z < gate.stage.maxZ + .5 && p.z > gate.stage.maxZ - 5;
+        gate.opacity += ((obscuresPlayer ? .12 : 1) - gate.opacity) * Math.min(1, dt * 9);
+        for (const m of gate.archMaterials) m.opacity = gate.opacity > .995 ? 1 : gate.opacity;
+      }
       for (const rest of restCamps) rest.root.visible = isStageUnlocked(state.progress, rest.stage.id);
       depositFlash = Math.max(0, depositFlash - dt);
       const chestPop = depositFlash > 0 ? Math.sin((1 - depositFlash / .65) * Math.PI) : 0;
@@ -752,7 +802,7 @@ export async function createRenderer(container) {
       walkBlend += ((moving ? 1 : 0) - walkBlend) * Math.min(1, dt * 14);
       const stride = Math.sin(visualTime * 13) * walkBlend * motion;
       const castPose = castFlash > 0 ? Math.sin(castFlash / .22 * Math.PI) : 0;
-      druid.root.position.set(p.x, .035, p.z); druid.rig.rotation.y = castFlash > 0 ? castAngle : Math.atan2(p.facingX ?? 0, p.facingZ ?? 1);
+      druid.root.position.set(p.x, .035, p.z); druid.rig.rotation.y = state.inCamp && !moving ? 0 : castFlash > 0 ? castAngle : Math.atan2(p.facingX ?? 0, p.facingZ ?? 1);
       druid.rig.position.y = (Math.abs(stride) * .075 + Math.sin(visualTime * 2) * .025 * (1 - walkBlend)) * motion;
       druid.rig.rotation.x = (walkBlend * .055 - castPose * .055) * motion; druid.rig.rotation.z = stride * .035;
       druid.arm.rotation.x = -.6 * castPose; druid.staff.rotation.x = -.14 * castPose * motion; druid.staff.rotation.z = -.05 * castPose * motion;
@@ -906,7 +956,7 @@ export async function createRenderer(container) {
         const f = fx.get(e.id), progress = 1 - e.life / (e.maxLife || .6), warning = e.type.includes('warning');
         const hostile = e.team === 'enemy' || e.type === 'charge';
         f.disk.material.color.setHex(hostile ? 0xff7548 : 0x78e8a4); f.edge.material.color.setHex(hostile ? 0xffcf68 : 0xe1ffae);
-        f.disk.visible = e.type !== 'death'; f.edge.material.color.setHex(e.type === 'death' ? 0xffd58b : hostile ? 0xffcf68 : 0xe1ffae);
+        f.disk.visible = e.type !== 'death'; f.edge.material.color.setHex(e.type === 'death' ? 0xffd58b : hostile ? 0xbd4c78 : 0xe1ffae);
         f.root.position.set(e.x, .045, e.z); f.root.rotation.y = e.angle || 0;
         const scale = (e.radius || .7) * (warning ? 1 : .65 + progress * .5); f.root.scale.set(scale, scale, e.type === 'charge' ? (e.length || 5) * .5 : scale);
         if (e.type === 'root-burst' && !f.vines) f.vines = makeRootVines(f.root);
@@ -966,6 +1016,7 @@ export async function createRenderer(container) {
         const progress = pulse.age / pulse.life, ease = 1 - (1 - progress) ** 3;
         pulse.root.scale.setScalar((pulse.level ? .75 : .55) + ease * (pulse.level ? 1.35 : .8) * motion);
         pulse.edge.material.opacity = (1 - progress) * (reduceMotion ? .3 : .75);
+        pulse.charm.position.y = .7 + progress * .65 * motion; pulse.charm.material.opacity = (1 - progress) * .8;
       }
       for (const e of events) if (['enemy-hit', 'player-hit', 'pickup', 'deposit'].includes(e.type)) showNumber(e, e.type === 'player-hit' ? 1.8 : 2.7);
       for (let i = floaters.length - 1; i >= 0; i--) {

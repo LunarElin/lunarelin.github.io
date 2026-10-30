@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#19785d">
+  <meta name="theme-color" content="#f9d6e5">
   <meta name="description" content="드루이드가 상황에 맞춰 늑대·곰·용으로 변신하고, 네 지역을 탐험하며 성장하는 모바일 웹 3D 액션 RPG.">
   <title>숲의 수호자 · Grove Warden</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
@@ -18,7 +18,7 @@
           <div class="health-copy"><span id="level-value" class="level-value">Lv.1</span><strong id="hp-value" aria-label="생명">100</strong></div>
           <div class="health-track" role="presentation"><div id="hp-fill"></div></div>
         </div>
-        <div class="gold-counter" aria-label="보관 골드"><span class="coin-mark" aria-hidden="true">✦</span><strong id="gold-value">0</strong></div>
+        <div class="gold-counter" aria-label="보관 골드"><span class="coin-mark" aria-hidden="true">✧</span><strong id="gold-value">0</strong></div>
         <button id="pause-btn" class="pause-button" type="button" aria-label="일시 정지">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M17 5v14"/></svg>
         </button>
@@ -50,12 +50,12 @@
       <button id="camp-btn" class="field-button camp-button" type="button" hidden><span aria-hidden="true">✦</span> 거점 강화</button>
       <div id="skill-status" class="skill-status" role="group" aria-label="배운 자동 기술" hidden>
         <div id="owl-status" class="skill-chip owl-chip" hidden>
-          <svg class="skill-mark" viewBox="0 0 32 32" aria-hidden="true"><path fill="#c58e52" d="m6 3 9 5h2l9-5-1 12c4 12-2 15-9 15S3 27 7 15Z"/><path fill="#ffe4a3" d="M6 14c0-9 10-9 10-2 0-7 10-7 10 2 0 8-6 11-10 14C12 25 6 22 6 14Z"/><path fill="#3b3d65" d="M11 11a3 4 0 1 0 0 8 3 4 0 1 0 0-8Zm10 0a3 4 0 1 0 0 8 3 4 0 1 0 0-8Z"/><path fill="#fff" d="M10 12h2v3h-2Zm10 0h2v3h-2Z"/><path fill="#efac35" d="m13 19 3-3 3 3-3 4Z"/></svg>
+          <svg class="skill-mark" viewBox="0 0 32 32" aria-hidden="true"><path fill="#b69adc" d="m6 3 9 5h2l9-5-1 12c4 12-2 15-9 15S3 27 7 15Z"/><path fill="#fff0c9" d="M6 14c0-9 10-9 10-2 0-7 10-7 10 2 0 8-6 11-10 14C12 25 6 22 6 14Z"/><path fill="#624174" d="M11 11a3 4 0 1 0 0 8 3 4 0 1 0 0-8Zm10 0a3 4 0 1 0 0 8 3 4 0 1 0 0-8Z"/><path fill="#fff" d="M10 12h2v3h-2Zm10 0h2v3h-2Z"/><path fill="#e3b35f" d="m13 19 3-3 3 3-3 4Z"/></svg>
           <div class="skill-copy"><span class="skill-name">부엉이</span><strong id="owl-cooldown">대기</strong></div>
           <div class="skill-cooldown-track" aria-hidden="true"><div id="owl-cooldown-fill"></div></div>
         </div>
         <div id="roots-status" class="skill-chip roots-chip" hidden>
-          <svg class="skill-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28V9m0 11L7 12m9 13 9-9M16 14l6-7" fill="none" stroke="#d6ec9b" stroke-width="3" stroke-linecap="round"/><path fill="#80e56b" d="M14 13C4 16 1 8 3 4c7-1 12 2 11 9Zm4 7c0-9 6-13 12-11 1 7-4 12-12 11Zm-1-9c-3-7 1-12 7-10 2 6-1 10-7 10Z"/><path d="m16 25-5 5m5-5 5 5" fill="none" stroke="#effac5" stroke-width="3" stroke-linecap="round"/></svg>
+          <svg class="skill-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28V9m0 11L7 12m9 13 9-9M16 14l6-7" fill="none" stroke="#c9a574" stroke-width="3" stroke-linecap="round"/><path fill="#90ccb4" d="M14 13C4 16 1 8 3 4c7-1 12 2 11 9Zm4 7c0-9 6-13 12-11 1 7-4 12-12 11Zm-1-9c-3-7 1-12 7-10 2 6-1 10-7 10Z"/><path d="m16 25-5 5m5-5 5 5" fill="none" stroke="#fff2c8" stroke-width="3" stroke-linecap="round"/></svg>
           <div class="skill-copy"><span class="skill-name">덩굴</span><strong id="roots-cooldown">대기</strong></div>
           <div class="skill-cooldown-track" aria-hidden="true"><div id="roots-cooldown-fill"></div></div>
         </div>
@@ -64,21 +64,21 @@
     </div>
 
     <nav class="growth-nav" aria-label="성장">
-      <button id="growth-stats-btn" class="growth-tab" data-growth="stats" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path class="icon-shadow" d="m24 3 17 10v17L24 40 7 30V13Z"/><path fill="#d5e3a0" d="m24 3 17 10-17 10L7 13Z"/><path fill="#8ba966" d="M7 13 24 23v17L7 30Z"/><path fill="#658753" d="m24 23 17-10v17L24 40Z"/><path d="M24 11v19m-9-14 18 10m0-10L15 26" fill="none" stroke="#f6e9b2" stroke-width="3" stroke-linecap="round"/></svg><span>능력치</span></button>
-      <button id="growth-druid-btn" class="growth-tab" data-growth="druid" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path d="m13 14-4-9m4 5L5 8m30 6 4-9m-4 5 8-2" fill="none" stroke="#d2bd7f" stroke-width="3.5" stroke-linecap="round"/><path fill="#5c865a" d="M8 39c0-10 4-13 5-22C14 8 34 8 35 17c1 9 5 12 5 22Z"/><path fill="#9ab66d" d="M15 16c2-7 16-7 18 0l3 14H12Z"/><path fill="#f0c48e" d="M16 20c0-9 16-9 16 0v7c-1 9-15 9-16 0Z"/><path d="M20 23v2m8-2v2" stroke="#304b37" stroke-width="3" stroke-linecap="round"/><path fill="#dce7a5" d="m24 32 5 5-5 4-5-4Z"/></svg><span>드루이드</span></button>
-      <button id="growth-wolf-btn" class="growth-tab" data-growth="wolf" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path fill="#849d9a" d="m8 4 13 9h6l13-9-1 19-6 13-9 5-9-5-6-13Z"/><path fill="#bacac0" d="m24 16 9 20-9 5-9-5Z"/><path fill="#416565" d="m11 9 8 7-7 4m25-11-8 7 7 4"/><path d="m14 23 6 2m14-2-6 2" stroke="#f5e6a5" stroke-width="3" stroke-linecap="round"/><path fill="#365253" d="m19 32 5-2 5 2-5 5Z"/></svg><span>늑대</span></button>
-      <button id="growth-bear-btn" class="growth-tab" data-growth="bear" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><circle cx="11" cy="10" r="8" fill="#aa865e"/><circle cx="37" cy="10" r="8" fill="#aa865e"/><circle cx="11" cy="10" r="4" fill="#665a46"/><circle cx="37" cy="10" r="4" fill="#665a46"/><path fill="#b99a6b" d="M7 19C7 2 41 2 41 19l-2 13-8 8H17l-8-8Z"/><path fill="#deca96" d="M14 29c0-11 20-11 20 0 0 14-20 14-20 0Z"/><path d="M16 20v2m16-2v2" stroke="#3e4936" stroke-width="3" stroke-linecap="round"/><path fill="#4e5940" d="m19 27 5-2 5 2-5 5Z"/></svg><span>곰</span></button>
-      <button id="growth-dragon-btn" class="growth-tab" data-growth="dragon" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path fill="#d1c58c" d="m13 16-3-14 12 11m11 3 6-14-2 19"/><path fill="#6caaa0" d="m10 18 13-9 15 8 4 17-12 7-17-6-8-9Z"/><path fill="#abd2b2" d="m23 22 15-5 4 17-12 7-8-6Z"/><path fill="#477e77" d="m6 15 9 4-10 5m2 7 11-2-8 8"/><path d="m17 20 5 2m10-1 3 1" stroke="#f1d887" stroke-width="3" stroke-linecap="round"/><path fill="#477e77" d="m28 31 5-3 4 3-5 4Z"/></svg><span>용</span></button>
+      <button id="growth-stats-btn" class="growth-tab" data-growth="stats" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path class="icon-shadow" d="m24 3 17 10v17L24 40 7 30V13Z"/><path fill="#fff0c6" d="m24 3 17 10-17 10L7 13Z"/><path fill="#e8bbd6" d="M7 13 24 23v17L7 30Z"/><path fill="#c792bf" d="m24 23 17-10v17L24 40Z"/><path d="M24 11v19m-9-14 18 10m0-10L15 26" fill="none" stroke="#fff9e3" stroke-width="3" stroke-linecap="round"/></svg><span>능력치</span></button>
+      <button id="growth-druid-btn" class="growth-tab" data-growth="druid" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path d="m13 14-4-9m4 5L5 8m30 6 4-9m-4 5 8-2" fill="none" stroke="#d2ab68" stroke-width="3.5" stroke-linecap="round"/><path fill="#d18db6" d="M8 39c0-10 4-13 5-22C14 8 34 8 35 17c1 9 5 12 5 22Z"/><path fill="#efaed0" d="M15 16c2-7 16-7 18 0l3 14H12Z"/><path fill="#ffd9bc" d="M16 20c0-9 16-9 16 0v7c-1 9-15 9-16 0Z"/><path d="M20 23v2m8-2v2" stroke="#603d69" stroke-width="3" stroke-linecap="round"/><path fill="#fff2bb" d="m24 32 5 5-5 4-5-4Z"/></svg><span>드루이드</span></button>
+      <button id="growth-wolf-btn" class="growth-tab" data-growth="wolf" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path fill="#c4a8e2" d="m8 4 13 9h6l13-9-1 19-6 13-9 5-9-5-6-13Z"/><path fill="#eee4fc" d="m24 16 9 20-9 5-9-5Z"/><path fill="#9773b1" d="m11 9 8 7-7 4m25-11-8 7 7 4"/><path d="m14 23 6 2m14-2-6 2" stroke="#fff5cc" stroke-width="3" stroke-linecap="round"/><path fill="#735480" d="m19 32 5-2 5 2-5 5Z"/></svg><span>늑대</span></button>
+      <button id="growth-bear-btn" class="growth-tab" data-growth="bear" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><circle cx="11" cy="10" r="8" fill="#e2b69e"/><circle cx="37" cy="10" r="8" fill="#e2b69e"/><circle cx="11" cy="10" r="4" fill="#c38ba2"/><circle cx="37" cy="10" r="4" fill="#c38ba2"/><path fill="#f2c8b2" d="M7 19C7 2 41 2 41 19l-2 13-8 8H17l-8-8Z"/><path fill="#fff1dc" d="M14 29c0-11 20-11 20 0 0 14-20 14-20 0Z"/><path d="M16 20v2m16-2v2" stroke="#6c4567" stroke-width="3" stroke-linecap="round"/><path fill="#91657a" d="m19 27 5-2 5 2-5 5Z"/></svg><span>곰</span></button>
+      <button id="growth-dragon-btn" class="growth-tab" data-growth="dragon" type="button" aria-pressed="false"><svg viewBox="0 0 48 42" aria-hidden="true"><path fill="#edc883" d="m13 16-3-14 12 11m11 3 6-14-2 19"/><path fill="#9cd7c1" d="m10 18 13-9 15 8 4 17-12 7-17-6-8-9Z"/><path fill="#d8f5d8" d="m23 22 15-5 4 17-12 7-8-6Z"/><path fill="#6da98e" d="m6 15 9 4-10 5m2 7 11-2-8 8"/><path d="m17 20 5 2m10-1 3 1" stroke="#fff3bf" stroke-width="3" stroke-linecap="round"/><path fill="#6da98e" d="m28 31 5-3 4 3-5 4Z"/></svg><span>용</span></button>
     </nav>
     <div id="joystick" aria-hidden="true" hidden><div id="stick-knob"></div></div>
 
     <section id="menu" class="overlay" aria-labelledby="game-title">
       <div class="panel title-panel">
-        <img class="hero-mark" src="./icon.svg" alt="" width="92" height="92">
+        <img class="hero-mark" src="./assets/fairy-guardian.webp" alt="" width="92" height="92">
         <p class="wordmark" lang="en">GROVE WARDEN</p>
         <h1 id="game-title">숲의 수호자</h1>
         <p class="menu-subtitle">숲을 누비고, 거점을 키우세요</p>
-        <div class="title-divider" aria-hidden="true"><span></span>✦<span></span></div>
+        <div class="title-divider" aria-hidden="true"><span></span>♡<span></span></div>
         <button id="start-btn" class="button primary-button" type="button">모험 시작 <span aria-hidden="true">›</span></button>
         <button id="help-btn" class="button quiet-button" type="button">플레이 방법</button>
         <p id="load-status" class="load-status" role="status">숲을 준비하고 있어요</p>
@@ -102,7 +102,7 @@
       <div class="panel growth-panel">
         <div class="growth-heading"><h2 id="growth-title">능력치</h2><button id="growth-close-btn" class="growth-close" type="button" aria-label="성장 닫기">×</button></div>
         <div class="growth-content">
-          <div class="growth-resources"><span class="bank-amount"><span class="coin-mark" aria-hidden="true">✦</span><strong id="growth-bank-value" aria-label="보관 골드">0</strong></span><span id="growth-level-value">Lv.1</span></div>
+          <div class="growth-resources"><span class="bank-amount"><span class="coin-mark" aria-hidden="true">✧</span><strong id="growth-bank-value" aria-label="보관 골드">0</strong></span><span id="growth-level-value">Lv.1</span></div>
           <div id="stats-pages" class="stats-pages" role="group" aria-label="능력치와 장비" hidden><button type="button" data-stats-page="stats" aria-pressed="true">능력치</button><button type="button" data-stats-page="equipment" aria-pressed="false">장비</button></div>
           <p id="growth-summary" class="growth-summary">성장한 힘은 계속 유지돼요.</p>
           <div id="growth-list" class="growth-list"></div>
