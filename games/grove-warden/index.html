@@ -22,46 +22,26 @@
         <div class="gold-counter" aria-label="보관 골드"><span class="coin-mark" aria-hidden="true">◆</span><strong id="gold-value">0</strong></div>
         <button id="pause-btn" class="pause-button" type="button" aria-label="일시 정지">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M17 5v14"/></svg>
+          <span id="save-indicator" class="edge-badge save-indicator" aria-hidden="true" hidden>!</span>
         </button>
       </div>
-      <div class="progress-row"><span id="zone-value">숲의 거점</span><div class="xp-track" aria-label="경험치"><div id="xp-fill"></div><span id="xp-value">0 / 30</span></div></div>
-      <div class="quest-row" role="group" aria-label="현재 의뢰">
-        <span id="quest-title">숲의 첫 사냥</span>
-        <strong id="quest-count">0 / 5</strong>
-        <span class="quest-claim-slot">
-          <button id="claim-btn" type="button" hidden>보상</button>
-          <span class="quest-claim-placeholder" aria-hidden="true">보상</span>
-        </span>
-      </div>
+      <div class="xp-track" role="progressbar" aria-label="경험치" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="xp-fill"></div></div>
       <div id="boss-track" class="boss-track" role="progressbar" aria-label="수문장 생명" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden><div id="boss-fill"></div></div>
-      <p id="save-warning" class="save-warning" role="status" hidden>저장할 수 없어요. 이 창에서는 계속 플레이할 수 있어요.</p>
     </header>
 
     <div class="scene-frame">
       <div id="viewport" aria-label="숲과 거점"></div>
       <div class="field-navigation">
-        <span id="camp-direction" class="camp-compass" aria-label="거점 방향">안전 거점</span>
-        <span id="hunt-status" class="hunt-status" role="status">이동</span>
+        <span id="camp-direction" class="camp-compass" aria-label="거점 방향" hidden>↑</span>
       </div>
-      <div id="toast" class="toast" role="status" aria-live="polite"></div>
-      <div id="direction-guide" class="direction-guide" aria-label="현재 목표 방향" hidden></div>
-      <div id="field-status" class="field-status" role="status" hidden></div>
-      <div id="reward-banner" class="reward-banner" role="status" aria-live="polite" hidden><strong id="reward-title"></strong><span id="reward-detail"></span></div>
-      <div class="cargo-pill" aria-label="가방에 담은 전리품"><span class="bag-mark" aria-hidden="true"><svg viewBox="0 0 28 28"><path d="M9 7 7 3h14l-2 4M10 7c-4 4-7 8-7 12 0 5 5 6 11 6s11-1 11-6c0-4-3-8-7-12ZM9 8h10M14 14v6M11 17h6"/></svg></span><div class="cargo-copy"><span id="cargo-value">0 / 24</span><div class="cargo-track"><div id="cargo-fill"></div></div></div></div>
-      <button id="camp-btn" class="field-button camp-button" type="button" hidden><span aria-hidden="true">◆</span> 거점 강화</button>
-      <div id="skill-status" class="skill-status" role="group" aria-label="배운 자동 기술" hidden>
-        <div id="owl-status" class="skill-chip owl-chip" hidden>
-          <svg class="skill-mark" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="0" width="2" height="1" fill="#292333"/><rect x="12" y="0" width="2" height="1" fill="#292333"/><rect x="2" y="1" width="1" height="1" fill="#292333"/><rect x="3" y="1" width="1" height="1" fill="#d0aa74"/><rect x="4" y="1" width="2" height="1" fill="#292333"/><rect x="10" y="1" width="2" height="1" fill="#292333"/><rect x="12" y="1" width="1" height="1" fill="#d0aa74"/><rect x="13" y="1" width="1" height="1" fill="#292333"/><rect x="2" y="2" width="1" height="1" fill="#292333"/><rect x="3" y="2" width="3" height="1" fill="#d0aa74"/><rect x="6" y="2" width="4" height="1" fill="#292333"/><rect x="10" y="2" width="3" height="1" fill="#d0aa74"/><rect x="13" y="2" width="1" height="1" fill="#292333"/><rect x="2" y="3" width="1" height="1" fill="#292333"/><rect x="3" y="3" width="10" height="1" fill="#d0aa74"/><rect x="13" y="3" width="1" height="1" fill="#292333"/><rect x="2" y="4" width="1" height="1" fill="#292333"/><rect x="3" y="4" width="1" height="1" fill="#d0aa74"/><rect x="4" y="4" width="8" height="1" fill="#eee4c5"/><rect x="12" y="4" width="1" height="1" fill="#d0aa74"/><rect x="13" y="4" width="1" height="1" fill="#292333"/><rect x="2" y="5" width="1" height="1" fill="#292333"/><rect x="3" y="5" width="2" height="1" fill="#eee4c5"/><rect x="5" y="5" width="2" height="1" fill="#3e3447"/><rect x="7" y="5" width="2" height="1" fill="#eee4c5"/><rect x="9" y="5" width="2" height="1" fill="#3e3447"/><rect x="11" y="5" width="2" height="1" fill="#eee4c5"/><rect x="13" y="5" width="1" height="1" fill="#292333"/><rect x="2" y="6" width="1" height="1" fill="#292333"/><rect x="3" y="6" width="2" height="1" fill="#eee4c5"/><rect x="5" y="6" width="2" height="1" fill="#3e3447"/><rect x="7" y="6" width="2" height="1" fill="#eee4c5"/><rect x="9" y="6" width="2" height="1" fill="#3e3447"/><rect x="11" y="6" width="2" height="1" fill="#eee4c5"/><rect x="13" y="6" width="1" height="1" fill="#292333"/><rect x="2" y="7" width="1" height="1" fill="#292333"/><rect x="3" y="7" width="10" height="1" fill="#eee4c5"/><rect x="13" y="7" width="1" height="1" fill="#292333"/><rect x="3" y="8" width="1" height="1" fill="#292333"/><rect x="4" y="8" width="3" height="1" fill="#eee4c5"/><rect x="7" y="8" width="2" height="1" fill="#ddbb75"/><rect x="9" y="8" width="3" height="1" fill="#eee4c5"/><rect x="12" y="8" width="1" height="1" fill="#292333"/><rect x="3" y="9" width="1" height="1" fill="#292333"/><rect x="4" y="9" width="1" height="1" fill="#d0aa74"/><rect x="5" y="9" width="2" height="1" fill="#eee4c5"/><rect x="7" y="9" width="1" height="1" fill="#ddbb75"/><rect x="8" y="9" width="2" height="1" fill="#eee4c5"/><rect x="10" y="9" width="2" height="1" fill="#d0aa74"/><rect x="12" y="9" width="1" height="1" fill="#292333"/><rect x="4" y="10" width="1" height="1" fill="#292333"/><rect x="5" y="10" width="2" height="1" fill="#d0aa74"/><rect x="7" y="10" width="1" height="1" fill="#eee4c5"/><rect x="8" y="10" width="3" height="1" fill="#d0aa74"/><rect x="11" y="10" width="1" height="1" fill="#292333"/><rect x="4" y="11" width="1" height="1" fill="#292333"/><rect x="5" y="11" width="6" height="1" fill="#d0aa74"/><rect x="11" y="11" width="1" height="1" fill="#292333"/><rect x="5" y="12" width="1" height="1" fill="#292333"/><rect x="6" y="12" width="4" height="1" fill="#d0aa74"/><rect x="10" y="12" width="1" height="1" fill="#292333"/><rect x="6" y="13" width="4" height="1" fill="#292333"/><rect x="6" y="14" width="1" height="1" fill="#ddbb75"/><rect x="9" y="14" width="1" height="1" fill="#ddbb75"/></svg>
-          <div class="skill-copy"><span class="skill-name">부엉이</span><strong id="owl-cooldown">대기</strong></div>
-          <div class="skill-cooldown-track" aria-hidden="true"><div id="owl-cooldown-fill"></div></div>
-        </div>
-        <div id="roots-status" class="skill-chip roots-chip" hidden>
-          <svg class="skill-mark" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><rect x="11" y="0" width="3" height="1" fill="#a6bd7b"/><rect x="10" y="1" width="1" height="1" fill="#a6bd7b"/><rect x="11" y="1" width="1" height="1" fill="#5e805c"/><rect x="12" y="1" width="1" height="1" fill="#a6bd7b"/><rect x="2" y="2" width="3" height="1" fill="#a6bd7b"/><rect x="9" y="2" width="1" height="1" fill="#a6bd7b"/><rect x="10" y="2" width="1" height="1" fill="#5e805c"/><rect x="11" y="2" width="1" height="1" fill="#a6bd7b"/><rect x="2" y="3" width="1" height="1" fill="#a6bd7b"/><rect x="3" y="3" width="1" height="1" fill="#5e805c"/><rect x="4" y="3" width="2" height="1" fill="#a6bd7b"/><rect x="8" y="3" width="1" height="1" fill="#a6bd7b"/><rect x="9" y="3" width="1" height="1" fill="#5e805c"/><rect x="10" y="3" width="1" height="1" fill="#a6bd7b"/><rect x="3" y="4" width="1" height="1" fill="#a6bd7b"/><rect x="4" y="4" width="1" height="1" fill="#5e805c"/><rect x="5" y="4" width="3" height="1" fill="#a6bd7b"/><rect x="8" y="4" width="1" height="1" fill="#5e805c"/><rect x="9" y="4" width="1" height="1" fill="#a6bd7b"/><rect x="4" y="5" width="1" height="1" fill="#a6bd7b"/><rect x="5" y="5" width="1" height="1" fill="#5e805c"/><rect x="6" y="5" width="1" height="1" fill="#a6bd7b"/><rect x="7" y="5" width="1" height="1" fill="#5e805c"/><rect x="8" y="5" width="1" height="1" fill="#292333"/><rect x="5" y="6" width="1" height="1" fill="#a6bd7b"/><rect x="6" y="6" width="2" height="1" fill="#5e805c"/><rect x="8" y="6" width="1" height="1" fill="#292333"/><rect x="6" y="7" width="1" height="1" fill="#292333"/><rect x="7" y="7" width="1" height="1" fill="#5e805c"/><rect x="8" y="7" width="1" height="1" fill="#292333"/><rect x="11" y="7" width="3" height="1" fill="#a6bd7b"/><rect x="3" y="8" width="2" height="1" fill="#a6bd7b"/><rect x="6" y="8" width="1" height="1" fill="#292333"/><rect x="7" y="8" width="1" height="1" fill="#5e805c"/><rect x="8" y="8" width="1" height="1" fill="#292333"/><rect x="9" y="8" width="2" height="1" fill="#a6bd7b"/><rect x="11" y="8" width="1" height="1" fill="#5e805c"/><rect x="12" y="8" width="1" height="1" fill="#a6bd7b"/><rect x="2" y="9" width="2" height="1" fill="#a6bd7b"/><rect x="4" y="9" width="1" height="1" fill="#5e805c"/><rect x="5" y="9" width="1" height="1" fill="#a6bd7b"/><rect x="6" y="9" width="1" height="1" fill="#292333"/><rect x="7" y="9" width="1" height="1" fill="#5e805c"/><rect x="8" y="9" width="1" height="1" fill="#292333"/><rect x="9" y="9" width="1" height="1" fill="#a6bd7b"/><rect x="10" y="9" width="1" height="1" fill="#5e805c"/><rect x="11" y="9" width="1" height="1" fill="#a6bd7b"/><rect x="3" y="10" width="2" height="1" fill="#a6bd7b"/><rect x="5" y="10" width="1" height="1" fill="#5e805c"/><rect x="6" y="10" width="1" height="1" fill="#292333"/><rect x="7" y="10" width="1" height="1" fill="#5e805c"/><rect x="8" y="10" width="1" height="1" fill="#292333"/><rect x="9" y="10" width="1" height="1" fill="#5e805c"/><rect x="10" y="10" width="1" height="1" fill="#a6bd7b"/><rect x="5" y="11" width="1" height="1" fill="#292333"/><rect x="6" y="11" width="3" height="1" fill="#5e805c"/><rect x="9" y="11" width="1" height="1" fill="#292333"/><rect x="6" y="12" width="1" height="1" fill="#292333"/><rect x="7" y="12" width="1" height="1" fill="#5e805c"/><rect x="8" y="12" width="1" height="1" fill="#292333"/><rect x="5" y="13" width="2" height="1" fill="#292333"/><rect x="7" y="13" width="1" height="1" fill="#5e805c"/><rect x="8" y="13" width="2" height="1" fill="#292333"/><rect x="4" y="14" width="1" height="1" fill="#292333"/><rect x="5" y="14" width="1" height="1" fill="#9d7654"/><rect x="6" y="14" width="1" height="1" fill="#292333"/><rect x="7" y="14" width="1" height="1" fill="#9d7654"/><rect x="8" y="14" width="1" height="1" fill="#292333"/><rect x="9" y="14" width="1" height="1" fill="#9d7654"/><rect x="10" y="14" width="1" height="1" fill="#292333"/><rect x="3" y="15" width="2" height="1" fill="#9d7654"/><rect x="7" y="15" width="1" height="1" fill="#9d7654"/><rect x="10" y="15" width="2" height="1" fill="#9d7654"/></svg>
-          <div class="skill-copy"><span class="skill-name">덩굴</span><strong id="roots-cooldown">대기</strong></div>
-          <div class="skill-cooldown-track" aria-hidden="true"><div id="roots-cooldown-fill"></div></div>
-        </div>
+      <button id="quest-btn" class="quest-button" type="button" aria-label="의뢰" aria-haspopup="dialog" aria-controls="quest-menu">
+        <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="#211a2c" d="M3 1h8v2h2v12H3Z"/><path fill="#e5d6ad" d="M4 2h6v12H4Z"/><path fill="#aa8b5b" d="M10 4h2v10h-2Z"/><path fill="#766650" d="M5 5h4v1H5Zm0 3h4v1H5Zm0 3h3v1H5Z"/></svg>
+        <span id="quest-badge" class="edge-badge quest-badge" aria-hidden="true" hidden>!</span>
+      </button>
+      <div class="cargo-pill" aria-label="가방에 담은 전리품">
+        <span class="bag-mark" aria-hidden="true"><svg viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path fill="#211a2c" d="M3 0h6v2H8v1h1v1h1v2h1v4h-1v1H2v-1H1V6h1V4h1V3h1V2H3Z"/><path fill="#ba925b" d="M4 1h4v1H7v2h2v2h1v4H2V6h1V4h2V2H4Z"/><path fill="#e3c58b" d="M4 4h4v1H4Zm1 2h2v3H5Z"/></svg></span>
+        <div class="cargo-copy"><span id="cargo-value">0 / 24</span><div class="cargo-track"><div id="cargo-fill"></div></div></div>
       </div>
-      <div id="form-status" class="form-status" role="status" aria-label="현재 자동 변신" hidden><span>자동 변신</span><strong id="form-name"></strong><span id="form-counter"></span></div>
     </div>
 
     <nav class="growth-nav" aria-label="성장">
@@ -90,11 +70,31 @@
       <div class="panel compact-panel">
         <p class="panel-eyebrow">잠깐 쉬어가기</p>
         <h2 id="pause-title">숲이 기다려요</h2>
+        <dl class="pause-info">
+          <div><dt>지역</dt><dd id="zone-value">숲의 거점</dd></div>
+          <div><dt>경험치</dt><dd id="xp-value">0 / 30</dd></div>
+        </dl>
+        <p id="save-warning" class="save-warning" role="status" hidden>저장할 수 없어요. 이 창에서는 계속 플레이할 수 있어요.</p>
         <div class="button-list">
           <button id="resume-btn" class="button primary-button" type="button">계속</button>
           <button id="sound-btn" class="button stone-button" type="button" aria-pressed="true">소리 켜짐</button>
           <button id="pause-help-btn" class="button stone-button" type="button">플레이 방법</button>
           <a id="home-link" class="button quiet-button" href="../../">홈으로</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="quest-menu" class="overlay" role="dialog" aria-modal="true" aria-labelledby="quest-menu-title" hidden>
+      <div class="panel quest-panel">
+        <div class="growth-heading quest-heading"><h2 id="quest-menu-title">의뢰</h2><button id="quest-close-btn" class="growth-close" type="button" aria-label="의뢰 닫기">×</button></div>
+        <div class="quest-content">
+          <div class="quest-row" role="group" aria-label="현재 의뢰">
+            <span id="quest-title">숲의 첫 사냥</span>
+            <strong id="quest-count">0 / 5</strong>
+          </div>
+          <p id="quest-guide" class="quest-guide" hidden></p>
+          <p id="quest-reward" class="quest-reward"></p>
+          <button id="claim-btn" class="button primary-button" type="button" hidden>보상 받기</button>
         </div>
       </div>
     </section>
@@ -131,8 +131,10 @@
         <dl class="help-controls">
           <div><dt>이동</dt><dd>화면을 누른 채 끌어 움직여요. 직접 이동이 자동 추적보다 우선해요. PC는 WASD·방향키를 사용해요.</dd></div>
           <div><dt>사냥</dt><dd>가까운 적은 원 밖에서도 공격해요. 군락 주변에서 손을 떼면 같은 종류를 추적하고 사거리에서 멈춰요.</dd></div>
+          <div><dt>의뢰</dt><dd>의뢰에서 목표와 보상을 확인해요.</dd></div>
           <div><dt>변신</dt><dd>고속 몹은 늑대, 작은 군체는 곰의 광역 내려찍기, 공중 몹은 용의 화염으로 상대해요. Lv.4·8·12에 자동 해금되고 상황에 맞춰 변신해요.</dd></div>
           <div><dt>지팡이</dt><dd>거점의 능력치 → 장비에서 네 기본형을 무료로 받아요. 새싹의 단발은 긴 사거리, 가시의 3연발은 집중 화력이 강점이에요. 달빛은 가까운 적 여럿에게 부채꼴로 발사해 1회 관통하며 같은 적에게 중첩되지 않아요. 불씨는 한곳에 모인 적을 함께 폭발시켜요.</dd></div>
+          <div><dt>의뢰</dt><dd>문서 표시에서 목표를 확인하고 보상을 받아요.</dd></div>
           <div><dt>성장</dt><dd>능력치·기술·변신은 100단계, 장비 강화·승급도 각각 100단계까지 성장해요. 거점에서 골드와 재료로 성장하며, 변신 첫 해금 외에는 레벨 제한이 없어요. 부엉이·덩굴은 드루이드 모습일 때 자동 사용해요.</dd></div>
           <div><dt>돌발</dt><dd>보물과 축복은 직접 다가가 얻어요. 붉은 바닥 전조는 터지기 전에 벗어나세요. 수문장은 잠시 뒤 다시 나타나요.</dd></div>
           <div><dt>가방</dt><dd>금화는 직접 다가가서 주워요. 가방이 차면 게이지가 붉게 바뀌어요. 거점으로 운반해 보관 골드로 바꾸세요.</dd></div>

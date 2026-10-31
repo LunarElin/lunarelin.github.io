@@ -182,15 +182,66 @@ test('a mixed combat and reward burst stays bounded freezes when paused and expi
       targetId: state.enemies[index % state.enemies.length].id, damage: 12, enemyType: 'mushroom', from: 'druid', form: 'bear',
       targetX: state.player.x + 1, targetZ: state.player.z, radius: 2, amount: 3, level: 4 }));
     const before = structuredClone(state); f.view.draw(state, 0.05, 0); assert.deepEqual(state, before);
-    assert.ok(f.view.stats().effects > 0 && f.view.stats().effects <= 152);
+    assert.ok(f.view.stats().effects > 0 && f.view.stats().effects <= 136);
     state.events = []; state.phase = 'paused';
     const frozen = drawSignature(f.view, state, 0.05, 1), count = f.view.stats().effects, clock = f.view.stats().clock;
     for (let frame = 0; frame < 6; frame++) assert.equal(drawSignature(f.view, state, 1, 100 + frame), frozen);
     assert.equal(f.view.stats().effects, count); assert.equal(f.view.stats().clock, clock);
     state.phase = 'playing';
-    for (let frame = 0; frame < 20; frame++) { f.view.canvas.context.calls.length = 0; f.view.draw(state, 0.05, 1000 + frame); assert.ok(f.view.stats().effects <= 152); }
+    for (let frame = 0; frame < 20; frame++) { f.view.canvas.context.calls.length = 0; f.view.draw(state, 0.05, 1000 + frame); assert.ok(f.view.stats().effects <= 136); }
     assert.equal(f.view.stats().effects, 0); assert.ok(f.view.stats().clock > clock);
     f.view.draw(state, 0.05, 2000); assert.equal(f.view.stats().effects, 0);
+  } finally { f.close(); }
+});
+
+test('a focused damage burst shows one bitmap number until active-time expiry and omits zero damage', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw();
+    state.player.x = state.player.z = 0; state.enemies = []; state.projectiles = []; state.effects = [];
+    state.loot = []; state.fieldLoot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [], boon: null };
+    const digits = () => f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[3] === 2 && call[4] === 2 && ['#f2e7c5', '#bc6262'].includes(call[5]));
+    state.events = [{ type: 'hit', x: 0, z: 0, damage: 7 }]; drawSignature(f.view, state, 0);
+    const original = structuredClone(digits()); assert.ok(original.length > 0);
+    state.events = Array.from({ length: 80 }, (_, index) => ({ type: 'hit', x: [0, 2.2, -2.19, 0][index % 4], z: index % 4 === 3 ? 2.19 : 0, damage: 88 }));
+    drawSignature(f.view, state, 0); assert.deepEqual(digits(), original, 'nearby hits must leave the first readable number in place');
+    state.events = []; state.phase = 'paused';
+    for (let frame = 0; frame < 12; frame++) { drawSignature(f.view, state, .05); assert.deepEqual(digits(), original); }
+    state.phase = 'playing'; f.document.hidden = true; drawSignature(f.view, state, .05); assert.deepEqual(digits(), original); f.document.hidden = false;
+    for (let frame = 0; frame < 9; frame++) drawSignature(f.view, state, .05);
+    assert.equal(digits().length, original.length, 'the number remains readable for at least .45 seconds');
+    drawSignature(f.view, state, .04); assert.equal(digits().length, 0, 'the number expires before .5 seconds of active time');
+    state.events = [0, .1, -5, NaN, Infinity].flatMap(damage => ['hit', 'player-hit'].map(type => ({ type, x: 0, z: 0, damage })));
+    drawSignature(f.view, state, 0); assert.equal(digits().length, 0);
+    state.events = [{ type: 'hit', x: 0, z: 0, damage: 7 }]; drawSignature(f.view, state, 0);
+    assert.deepEqual(digits(), original, 'the same location can display damage again after expiry');
+  } finally { f.close(); }
+});
+
+test('separated damage bursts draw at most eight numbers without replacing any active one', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw();
+    state.player.x = state.player.z = 0; state.enemies = []; state.projectiles = []; state.effects = [];
+    state.loot = []; state.fieldLoot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [], boon: null };
+    const digits = () => f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[3] === 2 && call[4] === 2 && call[5] === '#f2e7c5');
+    state.events = [{ type: 'hit', x: -3, z: -3, damage: 1 }]; drawSignature(f.view, state, 0);
+    const perNumber = digits().length; assert.ok(perNumber > 0);
+    state.events = []; for (let frame = 0; frame < 10; frame++) drawSignature(f.view, state, .05);
+    const targets = [-3, 0, 3].flatMap(z => [-3, 0, 3].map(x => ({ x, z })));
+    state.events = targets.map(point => ({ type: 'hit', ...point, damage: 1 })); drawSignature(f.view, state, 0);
+    assert.equal(digits().length, perNumber * 8);
+    const viewport = f.module.computePixelViewport(f.bounds.width, f.bounds.height);
+    const drawnAt = target => {
+      const p = f.module.projectPixel(target.x, target.z, 0, 0, viewport);
+      return digits().some(call => call[1] >= p.x - 5 && call[1] < p.x + 5 && call[2] >= p.y - 37 && call[2] < p.y - 23);
+    };
+    targets.slice(0, 8).forEach(target => assert.equal(drawnAt(target), true));
+    assert.equal(drawnAt(targets[8]), false, 'the ninth number is omitted instead of evicting an existing number');
+    state.events = []; for (let frame = 0; frame < 10; frame++) drawSignature(f.view, state, .05);
+    assert.equal(digits().length, 0);
+    state.events = [{ type: 'hit', ...targets[8], damage: 1 }]; drawSignature(f.view, state, 0);
+    assert.equal(digits().length, perNumber); assert.equal(drawnAt(targets[8]), true);
   } finally { f.close(); }
 });
 

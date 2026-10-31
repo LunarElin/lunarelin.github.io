@@ -111,11 +111,9 @@ export async function createRenderer(container) {
     if (event.type === 'hit' || event.type === 'player-hit') {
       if (event.targetId !== undefined) hitTimes.set(event.targetId, .12);
       if (impacts.length >= 20) impacts.shift(); impacts.push({ x, z, age: 0, life: .25, color });
-      const nearby = labels.filter(label => label.age < .28 && Math.hypot(label.x - x, label.z - z) < 2.2).length;
-      if (nearby < 2) {
-        if (labels.length >= 24) labels.shift();
-        labels.push({ x, z, lift: nearby * 16, age: 0, life: .6, value: Math.round(event.damage || 0), color: event.type === 'player-hit' ? C.red : C.cream });
-      }
+      const value = Number.isFinite(event.damage) ? Math.round(event.damage) : 0;
+      if (value > 0 && labels.length < 8 && !labels.some(label => Math.hypot(label.x - x, label.z - z) <= 2.2))
+        labels.push({ x, z, age: 0, life: .48, value, color: event.type === 'player-hit' ? C.red : C.cream });
     }
     if (['hit', 'kill', 'transform', 'level-up', 'deposit', 'pickup', 'field-chest', 'field-boon'].includes(event.type)) for (let i = 0, n = event.type === 'hit' ? 4 : 12; i < n; i++) {
       if (particles.length >= 96) particles.shift(); const a = i * 2.39996; particles.push({ x, z, vx: Math.cos(a) * (1 + i % 3), vz: Math.sin(a) * (1 + i % 3), age: 0, life: .3 + i % 3 * .1, color });
@@ -189,7 +187,7 @@ export async function createRenderer(container) {
     for (const p of particles) { const q = point(p.x + p.vx * p.age, p.z + p.vz * p.age); rect(q.x, q.y - 6 - Math.sin(p.age / p.life * Math.PI) * 9, 2, 2, p.color); }
     // Bars and damage stay readable above foreground foliage.
     for (const e of state.enemies || []) if (e.hp > 0 && e.hp < e.maxHp) { const p = point(e.x, e.z), s = cached.get(spriteId(e)); if (!visible(p)) continue; const w = e.type === 'boss' ? 30 : 18, y = p.y - (s?.height || 24) - 3; rect(p.x - w / 2 - 1, y - 1, w + 2, 5, C.ink); rect(p.x - w / 2, y, w, 3, C.shade); rect(p.x - w / 2, y, Math.ceil(w * e.hp / e.maxHp), 3, C.red); }
-    for (const label of labels) { const p = point(label.x, label.z); number(label.value, p.x, Math.round(p.y - 37 - label.lift - label.age * 14), label.color); }
+    for (const label of labels) { const p = point(label.x, label.z); number(label.value, p.x, Math.round(p.y - 37 - label.age * 14), label.color); }
   }
   return {
     canvas, setAim() {}, draw,
