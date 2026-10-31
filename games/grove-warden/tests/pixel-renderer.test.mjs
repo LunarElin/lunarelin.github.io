@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../rules.mjs';
 import { buildPixelArt } from '../pixel-art.mjs';
+import { PIXEL_COLORS as C } from '../theme.mjs';
 
 let fixtureId = 0;
 const integerArgs = values => assert.ok(values.every(value => Number.isFinite(value) && Number.isInteger(value)), `fractional raster coordinates: ${values}`);
@@ -176,6 +177,33 @@ test('selected melee weapons replace the held staff with distinct native sprites
   } finally { f.close(); }
 });
 
+test('native melee poses follow preparation, impact, and recovery frames without changing the body foot anchor', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(), art = buildPixelArt(); state.player.x = state.player.z = 0; state.player.form = 'druid'; state.player.facingX = 0; state.player.facingZ = -1;
+    state.enemies = []; state.projectiles = []; state.effects = []; state.loot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [] };
+    const foot = f.module.projectPixel(0, 0, 0, 0, f.module.computePixelViewport(f.bounds.width, f.bounds.height));
+    const palette = art.palette.map(color => color ? [...Buffer.from(color.slice(1), 'hex'), 255] : [0, 0, 0, 0]);
+    for (const [weapon, id, attackType] of [['sword', 'druidSwordAttack', 'slash'], ['axe', 'druidAxeAttack', 'cleave'], ['spear', 'druidSpearAttack', 'thrust']]) {
+      const asset = art.sprites[id]; assert.ok(asset, `${id} must supply native preparation/impact/recovery artwork`);
+      state.progress.weapon = weapon; state.events = [{ type: 'melee-attack', weaponId: weapon, attackType, x: 0, z: 0, aimX: 1, aimZ: 0, range: 2, arc: 1.6 }];
+      const frame = (dt, index) => {
+        const before = structuredClone(state); drawSignature(f.view, state, dt); assert.deepEqual(state, before);
+        const call = f.view.canvas.context.calls.find(call => call[0] === 'drawImage' && f.canvases[call[1]].width === 48 && f.canvases[call[1]].height === 48 && call[2] === foot.x - 24 && call[3] === foot.y - 38);
+        assert.ok(call, `${id} frame ${index} must retain its padded foot anchor`);
+        const pixels = f.canvases[call[1]].context.images[0].data, expected = asset.frames.right[index];
+        for (let i = 0; i < expected.length; i++) assert.deepEqual([...pixels.slice(i * 4, i * 4 + 4)], palette[expected[i]], `${id}/right/${index}/${i}`);
+        return call[1];
+      };
+      const preparation = frame(0, 0); state.events = []; const impact = frame(.05, 1); assert.notEqual(preparation, impact);
+      frame(.05, 1); const recovery = frame(.04, 2); assert.notEqual(impact, recovery);
+      state.phase = 'paused'; assert.equal(frame(.05, 2), recovery); state.phase = 'playing';
+      for (let i = 0; i < 4; i++) drawSignature(f.view, state, .05);
+      assert.ok(f.view.canvas.context.calls.some(call => call[0] === 'drawImage' && f.canvases[call[1]].width === 32 && f.canvases[call[1]].height === 32 && call[2] === foot.x - 16 && call[3] === foot.y - 30), 'ordinary idle pose returns after the swing');
+    }
+  } finally { f.close(); }
+});
+
 test('melee sweeps and thrusts remain native pixels, bounded, direction-aware, and frozen while paused', async () => {
   const f = await fixture();
   try {
@@ -188,7 +216,7 @@ test('melee sweeps and thrusts remain native pixels, bounded, direction-aware, a
         const before = structuredClone(state); drawSignature(f.view, state, 0); assert.deepEqual(state, before);
         assert.equal(f.view.stats().effects, 1); const extra = f.view.canvas.context.calls.slice(base); assert.ok(extra.length > 15);
         shapes.push(JSON.stringify(extra));
-        const center = Math.floor(f.view.canvas.width / 2), cream = extra.filter(item => item[0] === 'fillRect' && item[5] === '#f2e7c5');
+        const center = Math.floor(f.view.canvas.width / 2), cream = extra.filter(item => item[0] === 'fillRect' && item[5] === C.cream);
         assert.ok(cream.length > 0); assert.ok(cream.every(item => aimX > 0 ? item[1] > center : item[1] < center));
         state.events = []; state.phase = 'paused'; const frozen = drawSignature(f.view, state, .05), clock = f.view.stats().clock;
         assert.equal(drawSignature(f.view, state, 10), frozen); assert.equal(f.view.stats().clock, clock);
@@ -243,13 +271,122 @@ test('a mixed combat and reward burst stays bounded freezes when paused and expi
   } finally { f.close(); }
 });
 
+test('terrain is baked once and copied without scaling while hunting does not add permanent rings or markers', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(); state.enemies = []; state.projectiles = []; state.effects = []; state.loot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [] };
+    drawSignature(f.view, state, 0);
+    const terrain = f.canvases.find(canvas => canvas.width > 300 && canvas.height > 1000); assert.ok(terrain);
+    const bakedCalls = terrain.context.calls.length; assert.ok(bakedCalls > 1000); assert.ok(f.view.stats().terrainPixels < 800000);
+    const surface = terrain.context.images[0]; assert.ok(surface);
+    assert.equal(surface.data[(surface.width * surface.height - 1) * 4 + 3], 0, 'beyond the cliff, transparent cache pixels reveal the valley rather than a hard rectangle');
+    assert.ok(f.view.canvas.context.calls.some(call => call[0] === 'fillRect' && call[1] === 0 && call[2] === 0 && call[3] === f.view.canvas.width && call[4] === f.view.canvas.height && call[5] === C.sky));
+    const original = drawSignature(f.view, state, 0);
+    state.huntZoneId = 'meadow-mushrooms'; state.autoHunt = true;
+    assert.equal(drawSignature(f.view, state, 0), original, 'an active hunt must not draw an oversized permanent circle over the field');
+    for (const z of [8, -28, -57, -82]) {
+      state.player.z = z; drawSignature(f.view, state, 0);
+      const copies = f.view.canvas.context.calls.filter(call => call[0] === 'drawImage' && call[1] === terrain.id);
+      assert.equal(copies.length, 1); const copy = copies[0]; assert.equal(copy.length, 11);
+      assert.equal(copy[4], copy[8]); assert.equal(copy[5], copy[9]);
+      assert.equal(terrain.context.calls.length, bakedCalls, 'camera movement must not rebuild the terrain');
+    }
+  } finally { f.close(); }
+});
+
+test('one simulation event creates one transient attack even when the same event list is rendered at high refresh rates', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(); state.enemies = []; state.projectiles = []; state.effects = []; state.owl.active = false; state.events = [{ type: 'melee-attack', weaponId: 'sword', attackType: 'slash', x: 0, z: 0, aimX: 1, aimZ: 0, range: 2, arc: 1.6 }];
+    const event = state.events[0]; drawSignature(f.view, state, 0);
+    assert.equal(f.view.stats().effects, 1);
+    for (let i = 0; i < 12; i++) { drawSignature(f.view, state, 1 / 144); assert.equal(f.view.stats().effects, 1); }
+    for (let i = 0; i < 30; i++) drawSignature(f.view, state, 1 / 144);
+    assert.equal(f.view.stats().effects, 0, 'the consumed event must not renew itself on every render');
+    state.events = [{ ...event }]; state.phase = 'paused'; drawSignature(f.view, state, .05); assert.equal(f.view.stats().effects, 0);
+    state.phase = 'playing'; f.document.hidden = true; drawSignature(f.view, state, .05); assert.equal(f.view.stats().effects, 0);
+    f.document.hidden = false; drawSignature(f.view, state, 0); assert.equal(f.view.stats().effects, 1, 'a newly produced event is consumed after resuming');
+    assert.deepEqual(event, { type: 'melee-attack', weaponId: 'sword', attackType: 'slash', x: 0, z: 0, aimX: 1, aimZ: 0, range: 2, arc: 1.6 });
+  } finally { f.close(); }
+});
+
+test('the initial heavy swing has a broad white strike core that quickly resolves to a thin recovery trace', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(); state.player.x = state.player.z = 0; state.progress.weapon = 'axe'; state.enemies = []; state.projectiles = []; state.effects = []; state.loot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [] };
+    state.events = [{ type: 'melee-attack', x: 0, z: 0, weaponId: 'axe', attackType: 'cleave', aimX: 1, aimZ: 0, range: 1.9, arc: 2.7 }];
+    const whiteArea = () => f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[5] === C.cream).reduce((sum, call) => sum + call[3] * call[4], 0);
+    drawSignature(f.view, state, 0); const strike = whiteArea(); assert.ok(strike > 60);
+    state.events = []; for (let i = 0; i < 3; i++) drawSignature(f.view, state, .05);
+    const recovery = whiteArea(); assert.ok(recovery > 0); assert.ok(strike > recovery * 2, `${strike} strike pixels should clearly exceed ${recovery} recovery pixels`);
+  } finally { f.close(); }
+});
+
+test('form attacks, transformation leaves, spell missiles, roots, and explosions have distinct local pixel silhouettes', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(); state.player.x = state.player.z = 0; state.enemies = []; state.projectiles = []; state.effects = []; state.loot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [] };
+    const shapes = [];
+    for (const detail of [{ type: 'form-attack', form: 'wolf' }, { type: 'form-attack', form: 'bear' }, { type: 'form-attack', form: 'dragon' }, { type: 'staff-explosion' }, { type: 'transform', form: 'wolf' }, { type: 'shoot', weaponStyle: 'single' }, { type: 'owl-shoot' }]) {
+      state.events = [{ ...detail, x: 0, z: 0, targetX: 1, targetZ: 0, aimX: 1, aimZ: 0, radius: 2 }];
+      const before = structuredClone(state); drawSignature(f.view, state, 0); assert.deepEqual(state, before);
+      state.events = []; const signature = drawSignature(f.view, state, .05); shapes.push(signature);
+      assert.ok(f.view.stats().effects > 0);
+      for (const call of f.view.canvas.context.calls) if (call[0] === 'fillRect') assert.ok(Object.values(C).includes(call[5]), `${detail.type}: unshared render color ${call[5]}`);
+      for (let i = 0; i < 12; i++) drawSignature(f.view, state, .05);
+      assert.equal(f.view.stats().effects, 0);
+    }
+    assert.equal(new Set(shapes).size, shapes.length);
+    state.effects = [{ type: 'root-burst', x: 0, z: 0, radius: 2.7, life: .85, maxLife: 1 }];
+    const sprouting = drawSignature(f.view, state, 0); state.effects[0].life = .4;
+    assert.notEqual(drawSignature(f.view, state, 0), sprouting, 'native vine stems and thorns grow with the simulated root cast');
+  } finally { f.close(); }
+});
+
+test('ordinary wounded health bars stay compact while one current target and bosses retain clear bars', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(); state.effects = []; state.projectiles = []; state.events = []; state.owl.active = false;
+    state.enemies = [
+      { id: 5001, type: 'mushroom', x: 0, z: 0, hp: 5, maxHp: 10 },
+      { id: 5002, type: 'mushroom', x: 2, z: 0, hp: 5, maxHp: 10 },
+      { id: 5003, type: 'boss', x: -2, z: 0, hp: 5, maxHp: 10 },
+    ]; state.player.x = state.player.z = 0; state.fightTargetId = 5002;
+    drawSignature(f.view, state, 0);
+    const red = f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[5] === C.red);
+    assert.ok(red.some(call => call[3] === 7 && call[4] === 2 && call[6] === .8));
+    assert.ok(red.some(call => call[3] === 9 && call[4] === 3 && call[6] === 1));
+    assert.ok(red.some(call => call[3] === 15 && call[4] === 3 && call[6] === 1));
+  } finally { f.close(); }
+});
+
+test('outgoing damage uses small native glyphs and incoming damage takes priority with a larger red warning', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(); state.player.x = state.player.z = 0; state.enemies = []; state.effects = []; state.projectiles = []; state.events = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [] };
+    const y = Math.floor(f.view.canvas.height * .54), glyphs = (color, scale) => f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[3] === scale && call[4] === scale && call[5] === color && call[2] < y - 25);
+    state.events = [{ type: 'hit', damage: 88, x: 0, z: 0 }]; drawSignature(f.view, state, 0);
+    assert.ok(glyphs(C.cream, 1).length > 20); assert.equal(glyphs(C.cream, 2).length, 0);
+    state.events = [{ type: 'player-hit', damage: 17, x: 0, z: 0 }]; drawSignature(f.view, state, 0);
+    assert.ok(glyphs(C.red, 2).length > 20); assert.equal(glyphs(C.cream, 1).length, 0, 'incoming damage replaces nearby decorative outgoing numbers');
+    state.events = [{ type: 'hit', damage: 99, x: 0, z: 0 }]; drawSignature(f.view, state, 0);
+    assert.equal(glyphs(C.cream, 1).length, 0, 'nearby outgoing numbers cannot obscure the danger warning');
+    for (const form of ['bear', 'dragon']) {
+      state.events = []; for (let i = 0; i < 10; i++) drawSignature(f.view, state, .05);
+      state.player.form = form; state.events = [{ type: 'player-hit', damage: 7, x: 0, z: 0 }]; drawSignature(f.view, state, 0);
+      assert.equal(Math.min(...glyphs(C.red, 2).map(call => call[2])), y - 58, `${form}: incoming damage must clear the larger form's head`);
+    }
+  } finally { f.close(); }
+});
+
 test('a focused damage burst shows one bitmap number until active-time expiry and omits zero damage', async () => {
   const f = await fixture();
   try {
     const state = stateForDraw();
     state.player.x = state.player.z = 0; state.enemies = []; state.projectiles = []; state.effects = [];
     state.loot = []; state.fieldLoot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [], boon: null };
-    const digits = () => f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[3] === 2 && call[4] === 2 && ['#f2e7c5', '#bc6262'].includes(call[5]));
+    const labelBottom = Math.floor(f.view.canvas.height * .54) - 24;
+    const digits = () => f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[3] === 1 && call[4] === 1 && call[5] === C.cream && call[2] <= labelBottom);
     state.events = [{ type: 'hit', x: 0, z: 0, damage: 7 }]; drawSignature(f.view, state, 0);
     const original = structuredClone(digits()); assert.ok(original.length > 0);
     state.events = Array.from({ length: 80 }, (_, index) => ({ type: 'hit', x: [0, 2.2, -2.19, 0][index % 4], z: index % 4 === 3 ? 2.19 : 0, damage: 88 }));
@@ -273,14 +410,17 @@ test('separated damage bursts draw at most eight numbers without replacing any a
     const state = stateForDraw();
     state.player.x = state.player.z = 0; state.enemies = []; state.projectiles = []; state.effects = [];
     state.loot = []; state.fieldLoot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [], boon: null };
-    const digits = () => f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[3] === 2 && call[4] === 2 && call[5] === '#f2e7c5');
+    const targets = [-3, 0, 3].flatMap(z => [-3, 0, 3].map(x => ({ x, z })));
+    const viewport = f.module.computePixelViewport(f.bounds.width, f.bounds.height);
+    const digits = () => f.view.canvas.context.calls.filter(call => call[0] === 'fillRect' && call[3] === 1 && call[4] === 1 && call[5] === C.cream && targets.some(target => {
+      const p = f.module.projectPixel(target.x, target.z, 0, 0, viewport);
+      return call[1] >= p.x - 5 && call[1] < p.x + 5 && call[2] >= p.y - 37 && call[2] < p.y - 30;
+    }));
     state.events = [{ type: 'hit', x: -3, z: -3, damage: 1 }]; drawSignature(f.view, state, 0);
     const perNumber = digits().length; assert.ok(perNumber > 0);
     state.events = []; for (let frame = 0; frame < 10; frame++) drawSignature(f.view, state, .05);
-    const targets = [-3, 0, 3].flatMap(z => [-3, 0, 3].map(x => ({ x, z })));
     state.events = targets.map(point => ({ type: 'hit', ...point, damage: 1 })); drawSignature(f.view, state, 0);
     assert.equal(digits().length, perNumber * 8);
-    const viewport = f.module.computePixelViewport(f.bounds.width, f.bounds.height);
     const drawnAt = target => {
       const p = f.module.projectPixel(target.x, target.z, 0, 0, viewport);
       return digits().some(call => call[1] >= p.x - 5 && call[1] < p.x + 5 && call[2] >= p.y - 37 && call[2] < p.y - 23);

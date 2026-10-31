@@ -2,6 +2,7 @@ import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, S
 import { createRenderer } from './renderer.mjs';
 import { createGameAudio } from './audio.mjs';
 import { WEAPONS, activeWeapon, getWeaponAttack } from './equipment.mjs';
+import { PIXEL_COLORS } from './theme.mjs';
 
 const $ = id => document.getElementById(id);
 const lifetime = new AbortController();
@@ -139,7 +140,7 @@ function showAmount(id, value, label) {
   element.textContent = formatAmount(value); element.setAttribute('aria-label', `${label} ${value}`); element.title = String(value);
 }
 function weaponIcon(definition) {
-  const border = '#292537', light = '#f2e7c5', handle = '#b58b56';
+  const border = PIXEL_COLORS.ink, light = PIXEL_COLORS.cream, handle = PIXEL_COLORS.woodLight;
   const body = definition.id === 'sword'
     ? `<path fill="${border}" d="M7 0h3v2h2v6h-2v2h3v2H9v4H6v-4H3v-2h3V3h1Z"/><path fill="currentColor" d="M8 1h1v2h2v4H9v2H7V4h1Z"/><path fill="${handle}" d="M4 10h8v1H4Zm3 2h1v3H7Z"/>`
     : definition.id === 'axe'

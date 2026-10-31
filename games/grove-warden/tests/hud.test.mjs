@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import * as rules from '../rules.mjs';
 import * as equipment from '../equipment.mjs';
+import * as theme from '../theme.mjs';
 
 // Execute the complete client body with real rules; only browser/render/audio boundaries
 // are replaced. Parsing the actual HTML makes removed or misspelled IDs fail normally.
@@ -115,7 +116,7 @@ async function boot(saved = [], { failWrites = false } = {}) {
   const $ = id => { const node = document.getElementById(id); assert.ok(node, `HTML element #${id} exists`); return node; };
   const ruleBindings = { ...rules, createGame: (...args) => (state = rules.createGame(...args)) };
   const modules = {
-    './rules.mjs': ruleBindings, './equipment.mjs': equipment,
+    './rules.mjs': ruleBindings, './equipment.mjs': equipment, './theme.mjs': theme,
     './renderer.mjs': { createRenderer: async container => { const canvas = document.createElement('canvas'); container.append(canvas); return { canvas, draw: () => { drawCount++; }, dispose() { canvas.remove(); } }; } },
     './audio.mjs': { createGameAudio: () => ({ wake() {}, suspend() {}, dispose() {}, setEnabled() {}, play: name => sounds.push(name) }) },
   };

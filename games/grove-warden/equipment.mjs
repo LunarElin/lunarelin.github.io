@@ -1,12 +1,16 @@
+import { PIXEL_COLORS } from './theme.mjs';
+
+const tint = name => parseInt(PIXEL_COLORS[name].slice(1), 16);
+
 // Weapons choose a combat pattern. There are no item ranks, copies or materials.
 export const WEAPONS = Object.freeze([
-  { id: 'sprout', name: '새싹 지팡이', color: 0x8fea6b, attackStyle: 'single', attackLabel: '단발', targetLabel: '보스 · 긴 사거리', tradeoff: '한 번에 한 마리' },
-  { id: 'thorn', name: '가시 지팡이', color: 0xef987b, attackStyle: 'burst', attackLabel: '연발', targetLabel: '보스 · 집중 화력', tradeoff: '세 발을 이어 쏘는 동안 접근을 허용해요' },
-  { id: 'moon', name: '달빛 지팡이', color: 0xaaa4ff, attackStyle: 'spread', attackLabel: '방사', targetLabel: '가까운 밀집 무리', tradeoff: '짧은 사거리 · 대상마다 한 발만' },
-  { id: 'ember', name: '불씨 지팡이', color: 0xff934f, attackStyle: 'explosive', attackLabel: '폭발', targetLabel: '뭉친 무리', tradeoff: '한 마리 상대 화력은 낮아요' },
-  { id: 'sword', name: '숲의 검', color: 0xcbd5df, attackStyle: 'slash', attackLabel: '연속 베기', targetLabel: '근접 · 빠른 한 마리 사냥', tradeoff: '짧은 사거리 · 좁은 부채꼴' },
-  { id: 'axe', name: '숲의 도끼', color: 0xe79a4e, attackStyle: 'cleave', attackLabel: '크게 베기', targetLabel: '근접 · 넓은 무리', tradeoff: '공격 뒤 긴 대기 · 근접 위험' },
-  { id: 'spear', name: '숲의 창', color: 0x83b5a3, attackStyle: 'thrust', attackLabel: '관통 찌르기', targetLabel: '중거리 · 일렬로 선 적', tradeoff: '좁은 직선 · 옆으로 퍼진 적에 약해요' },
+  { id: 'sprout', name: '새싹 지팡이', color: tint('leafLight'), attackStyle: 'single', attackLabel: '단발', targetLabel: '보스 · 긴 사거리', tradeoff: '한 번에 한 마리' },
+  { id: 'thorn', name: '가시 지팡이', color: tint('red'), attackStyle: 'burst', attackLabel: '연발', targetLabel: '보스 · 집중 화력', tradeoff: '세 발을 이어 쏘는 동안 접근을 허용해요' },
+  { id: 'moon', name: '달빛 지팡이', color: tint('sky'), attackStyle: 'spread', attackLabel: '방사', targetLabel: '가까운 밀집 무리', tradeoff: '짧은 사거리 · 대상마다 한 발만' },
+  { id: 'ember', name: '불씨 지팡이', color: tint('orange'), attackStyle: 'explosive', attackLabel: '폭발', targetLabel: '뭉친 무리', tradeoff: '한 마리 상대 화력은 낮아요' },
+  { id: 'sword', name: '숲의 검', color: tint('stoneLight'), attackStyle: 'slash', attackLabel: '연속 베기', targetLabel: '근접 · 빠른 한 마리 사냥', tradeoff: '짧은 사거리 · 좁은 부채꼴' },
+  { id: 'axe', name: '숲의 도끼', color: tint('gold'), attackStyle: 'cleave', attackLabel: '크게 베기', targetLabel: '근접 · 넓은 무리', tradeoff: '공격 뒤 긴 대기 · 근접 위험' },
+  { id: 'spear', name: '숲의 창', color: tint('mint'), attackStyle: 'thrust', attackLabel: '관통 찌르기', targetLabel: '중거리 · 일렬로 선 적', tradeoff: '좁은 직선 · 옆으로 퍼진 적에 약해요' },
 ].map(Object.freeze));
 
 const ATTACKS = Object.freeze({
