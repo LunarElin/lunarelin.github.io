@@ -1,8 +1,13 @@
+import { act } from './interaction-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { act, createGame, getCustomerQueueSlots, getDiningLayout, getFacilityStats, getSalePrice, restore, serialize, step } from '../rules.mjs';
+import { createGame, getCustomerQueueSlots, getDiningLayout, getFacilityStats, getSalePrice, restore, serialize, step } from '../rules.mjs';
 import { setSeatState, expandDining } from './dining-fixtures.mjs';
 const run = (state, seconds, input = {}) => { for (let i = 0; i < Math.round(seconds * 20); i++) step(state, .05, input); };
+function until(state, predicate, seconds = 12) {
+  for (let i = 0; i < seconds * 20 && !predicate(); i++) step(state, .05);
+  assert.ok(predicate(), 'workflow completes within the larger room travel budget');
+}
 function shop(count = 1, seed = 42) {
   const state = createGame(seed); state.sales = 20; state.unlocks.inn = state.unlocks.alchemy = true;
   expandDining(state, count); state.gold = 10000; state.raid.timer = state.raid.triggerSales = state.timers.customer = 1e6;
@@ -22,7 +27,8 @@ function customer(state, id, phase = 'food-queue', total = 1, seatId = null) {
 
 test('one purchased table seats two diners opposite each other and a third waits without spending food', () => {
   const state = shop(); state.dining.food = 4;
-  const a = customer(state, 'a'), b = customer(state, 'b'), c = customer(state, 'c'); run(state, 3);
+  const a = customer(state, 'a'), b = customer(state, 'b'), c = customer(state, 'c');
+  until(state, () => a.phase === 'eating' && b.phase === 'eating');
   assert.equal(a.phase, 'eating'); assert.equal(b.phase, 'eating'); assert.equal(c.phase, 'food-queue');
   assert.equal(a.tableId, 0); assert.equal(b.tableId, 0); assert.deepEqual(new Set([a.seatId, b.seatId]), new Set([0, 1]));
   assert.equal(Math.abs(a.seatYaw - b.seatYaw), Math.PI); assert.ok(Math.abs(a.z - b.z) > 1.2);
@@ -93,7 +99,7 @@ test('partial meal order holds one seat, waits for the remaining food, then eats
   assert.equal(state.dining.tables[0].seats[0].status, 'reserved'); assert.equal(guest.seatId, 0); assert.equal(state.lodgings, 0);
   run(state, 1); assert.equal(guest.order.served, 1); state.dining.food = 2; run(state, .5);
   assert.equal(guest.phase, 'to-table'); assert.equal(guest.mealCount, 3); assert.equal(state.dining.food, 0);
-  run(state, 8); assert.equal(state.lodgings, 1); assert.equal(state.dining.tables[0].cash, 720); assert.equal(state.patrons[0].loyalty, 2);
+  until(state, () => state.lodgings === 1); assert.equal(state.dining.tables[0].cash, 720); assert.equal(state.patrons[0].loyalty, 2);
 });
 
 test('partial orders survive save/reload and departure through durable stock returns without loss, double payment or overflow', () => {

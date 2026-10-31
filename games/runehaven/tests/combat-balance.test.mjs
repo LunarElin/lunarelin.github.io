@@ -1,7 +1,8 @@
+import { actWhileTraveling as act, getPendingActionTarget } from './interaction-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  act, CLASS_STATS, createGame, getCapacity, getHireInfo, getMoneyPiles,
+  CLASS_STATS, createGame, getCapacity, getHireInfo, getMoneyPiles,
   getRaidPlan, getStationApproach, getUpgradeInfo, step,
 } from '../rules.mjs';
 import { BATTLE_BOUNDS } from '../battlefield.mjs';
@@ -69,7 +70,7 @@ function campaign(seed, upgradeEquipment = true) {
     if (cashKind && !state.moneyPiles[cashKind]) cashKind = null;
     if (bag === 0 && !cashKind) cashKind = piles.filter((pile) => pile.amount > 0).sort((a, b) => b.amount - a.amount)[0]?.kind ?? null;
     const station = carrying ? (state.player.bag.gear > 0 ? 'counter' : 'potionCounter') : product === 'gear' ? 'forge' : 'alchemy';
-    step(state, .1, { target: cashKind ? piles.find((pile) => pile.kind === cashKind) : getStationApproach(state, station) });
+    step(state, .1, { target: getPendingActionTarget(state) ?? (cashKind ? piles.find((pile) => pile.kind === cashKind) : getStationApproach(state, station)) });
     crowd = Math.max(crowd, state.customers.length);
     if (phase !== 'battle' && state.raid.phase === 'battle') {
       start = { stage: state.stage, priceLevel: state.player.priceLevel, classes: state.raid.defenders.reduce((counts, actor) => { counts[actor.kind]++; return counts; }, { warrior: 0, archer: 0, mage: 0 }) };

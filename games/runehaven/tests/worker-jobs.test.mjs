@@ -1,9 +1,10 @@
+import { act } from './interaction-fixtures.mjs';
 import { shopLineClear } from '../shop-navigation.mjs';
 import { expandDining, setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { act, createGame, getCapacity, getDiningLayout, getStationApproach, getStations, restore, serialize, step } from '../rules.mjs';
+import { createGame, getCapacity, getDiningLayout, getStationApproach, getStations, restore, serialize, step } from '../rules.mjs';
 
 const count = (bag) => bag.gear + bag.potion + (bag.food ?? 0);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -276,7 +277,7 @@ test('food transport and cleaning workers repeat the complete dining cycle beyon
   const state = shop();
   state.timers.customer = 1; state.stocks.gear = state.stocks.potion = 60;
   hire(state, 'food'); hire(state, 'clean');
-  run(state, 240, {}, () => {
+  run(state, 360, {}, () => {
     assert.ok(state.dining.food >= 0 && state.dining.food <= 8);
     assert.ok(state.dining.kitchen >= 0 && state.dining.kitchen <= 8);
     assert.ok(state.staff.every((helper) => count(helper.bag) <= helper.capacity));

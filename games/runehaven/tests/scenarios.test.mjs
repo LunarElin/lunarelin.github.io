@@ -1,7 +1,8 @@
+import { act } from './interaction-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { act, COMBAT_RADIUS, getDiningLayout, getMoneyPiles, getRepairInfo, restore, serialize, step } from '../rules.mjs';
+import { COMBAT_RADIUS, getDiningLayout, getMoneyPiles, getRepairInfo, restore, serialize, step } from '../rules.mjs';
 import { BATTLE_BOUNDS } from '../battlefield.mjs';
 import { buildScenario, SCENARIO_INFO } from './scenarios.mjs';
 

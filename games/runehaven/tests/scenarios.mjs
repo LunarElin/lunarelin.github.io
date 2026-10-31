@@ -1,10 +1,11 @@
+import { actWhileTraveling as act, getPendingActionTarget } from './interaction-fixtures.mjs';
 import { expandDining } from './dining-fixtures.mjs';
 // Browser QA fixtures only. No browser APIs, storage, wall clock, or random seeds.
 // late/late-defense/defense/defeat earn progression through normal simulation.
 // queues/dining/dining-pairs deliberately assign supplies and unlocks for visual fixtures.
 // Import this module only for an explicitly requested QA scenario.
 import {
-  act, createGame, getCapacity, getDiningLayout, getFacilityUpgradeInfo, getHireInfo, getMoneyPiles, getRegion, getStations, getUpgradeInfo, getWorkerUpgradeInfo,
+  createGame, getCapacity, getDiningLayout, getFacilityUpgradeInfo, getHireInfo, getMoneyPiles, getRegion, getStations, getUpgradeInfo, getWorkerUpgradeInfo,
   getStationApproach, restore, serialize, step,
 } from '../rules.mjs';
 
@@ -65,7 +66,7 @@ function commerce(name) {
     if (!bag && !cashId) cashId = piles.filter((pile) => pile.amount > 0).sort((a, b) => b.amount - a.amount)[0]?.id ?? null;
     const target = cashId ? piles.find((pile) => pile.id === cashId)
       : getStationApproach(state, carrying ? (state.player.bag.gear > 0 ? 'counter' : 'potionCounter') : (product === 'gear' ? 'forge' : 'alchemy'));
-    step(state, 0.1, { target });
+    step(state, 0.1, { target: getPendingActionTarget(state) ?? target });
     if (name === 'defense' && state.raid.phase === 'warning' && state.raid.timer <= 8 && state.patrons.length >= 8) return mark(state, name);
     if (name === 'late-defense' && state.stage >= 6 && state.raid.phase === 'warning' && state.raid.timer <= 8
       && ['warrior', 'archer', 'mage'].every((kind) => state.patrons.slice(-18).some((patron) => patron.kind === kind))) return mark(state, name);

@@ -3,7 +3,7 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
   const group = new THREE.Group(); group.name = 'shop-scenery'; scene.add(group);
   function decoration(item, region) {
     const g = new THREE.Group(); g.name = 'regional-silhouette'; group.add(g);
-    g.position.set(Math.sign(item.x) * 10, 0, item.z * 1.2);
+    g.position.set(Math.sign(item.x) * (region.dimensions.width / 2 + 1), 0, item.z * 1.45);
     g.rotation.y = item.rotation || 0; g.scale.setScalar(item.scale || 1);
     const color = `#${new THREE.Color(item.color || region.accentColor).lerp(new THREE.Color('#d9c4e6'), .58).getHexString()}`;
     if (item.type === 'tree') {
@@ -33,8 +33,9 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
     scene.background?.set(new THREE.Color(region.groundColor).lerp(new THREE.Color('#e6f3eb'), .68));
     const floorColor = `#${new THREE.Color(region.floorColor).lerp(new THREE.Color('#efb6cf'), .72).getHexString()}`;
     const wallColor = `#${new THREE.Color(region.wallColor).lerp(new THREE.Color('#e8cfe2'), .75).getHexString()}`;
-    box(18, .3, 18, wallColor, 0, -.23, 0, group);
-    const floor = box(18, .12, 18, floorColor, 0, -.055, 0, group); floor.name = 'shop-solid-floor';
+    const { width, depth } = region.dimensions;
+    box(width, .3, depth, wallColor, 0, -.23, 0, group);
+    const floor = box(width, .12, depth, floorColor, 0, -.055, 0, group); floor.name = 'shop-solid-floor';
     const featureColor = (color) => `#${new THREE.Color(color || region.accentColor).lerp(new THREE.Color(floorColor), .65).getHexString()}`;
     for (const [index, feature] of (region.floorFeatures || []).slice(0, 2).entries()) {
       const height = .012 + index * .012;
@@ -46,8 +47,8 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
         patch.rotation.y = feature.rotation || 0;
       }
     }
-    box(18.2, .5, .2, wallColor, 0, .2, -8.9, group);
-    for (const side of [-1, 1]) box(.2, .2, 18, wallColor, side * 9.03, .05, 0, group);
+    box(width + .2, .5, .2, wallColor, 0, .2, -depth / 2 + .1, group);
+    for (const side of [-1, 1]) box(.2, .2, depth, wallColor, side * (width / 2 + .03), .05, 0, group);
     const laneColor = '#d8b9d0';
     const stations = region.stations, fork = { x: stations.gate.x, z: stations.gate.z - 1.25 };
     for (const key of ['counter', 'potionCounter']) {

@@ -32,16 +32,16 @@ export function getDiningLayout(state) {
   if (layouts.has(key)) return layouts.get(key);
   const inn = getStations(state).inn;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  const kitchen = { x: inn.x - 2, z: inn.z + 1.4 };
-  const counter = { x: inn.x + 2, z: inn.z + 1.4 };
-  const kitchenPoint = { x: kitchen.x, z: kitchen.z + .65 };
-  const counterPoint = { x: counter.x, z: counter.z - .75 };
+  const kitchen = { x: inn.x - 2.6, z: inn.z + 2.2 };
+  const counter = { x: inn.x + 2.6, z: inn.z + 2.2 };
+  const kitchenPoint = { x: kitchen.x, z: kitchen.z + 1.25 };
+  const counterPoint = { x: counter.x, z: counter.z - 1.25 };
   const tables = Array.from({ length: DINING_RULES.tables }, (_, id) => {
-    const x = clamp(inn.x + (id % 2 ? 2 : -2), BOUNDS.minX + .9, BOUNDS.maxX - .9);
-    const z = clamp(inn.z + (id < 2 ? 4.1 : 7.3), BOUNDS.minZ + .9, BOUNDS.maxZ - 1.1);
+    const x = clamp(inn.x + (id % 2 ? 2.6 : -2.6), BOUNDS.minX + .9, BOUNDS.maxX - .9);
+    const z = clamp(inn.z + (id < 2 ? 5.8 : 10.1), BOUNDS.minZ + .9, BOUNDS.maxZ - 1.1);
     const seats = [
-      { id: 0, tableId: id, seatPoint: { x, z: z + .65 }, dishPoint: { x, y: .66, z: z + .26 }, cleanPoint: { x, z: z + .95 }, yaw: Math.PI },
-      { id: 1, tableId: id, seatPoint: { x, z: z - .58 }, dishPoint: { x, y: .66, z: z - .26 }, cleanPoint: { x, z: z - .95 }, yaw: 0 },
+      { id: 0, tableId: id, seatPoint: { x, z: z + .65 }, dishPoint: { x, y: .66, z: z + .26 }, cleanPoint: { x: x - 1.45, z: z + .65 }, yaw: Math.PI },
+      { id: 1, tableId: id, seatPoint: { x, z: z - .58 }, dishPoint: { x, y: .66, z: z - .26 }, cleanPoint: { x: x - 1.45, z: z - .65 }, yaw: 0 },
     ];
     return { id, x, z, seats, seat: seats[0].seatPoint, cleanPoint: seats[0].cleanPoint };
   });

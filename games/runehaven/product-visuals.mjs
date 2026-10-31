@@ -1,16 +1,17 @@
 import { THREE } from './asset-loader.mjs';
 import { CARRY_SPACING } from './cargo-layout.mjs';
+import { createSourceGeometry } from './source-meshes.mjs';
 export { CARRY_SPACING } from './cargo-layout.mjs';
 
 const CAPACITY = 60;
-const POP_SECONDS = .18;
+const POP_SECONDS = .34;
 const poseMatrix = new THREE.Matrix4(), posePosition = new THREE.Vector3(), poseScale = new THREE.Vector3();
 const poseRotation = new THREE.Quaternion();
 
 // Carried stacks opt in; stationary shelf stacks never upload moving matrices.
-// Parts keep their shared meshes and local offsets while each layer flexes a
-// little. The combined sway and 3.5% top-item pop stay below .04 world units.
-// These feedback values are web presentation choices, not original-game timings.
+// Shared instance buffers flex by layer. Every added top item launches a short
+// damped landing bounce through the upper layers, then returns to the same rest
+// pose. These spring timings are web feedback choices, not extracted constants.
 export function animateCarryStack(stack, { time = 0, moving = false, dt = 0 } = {}) {
   if (!stack || !stack.count) return stack;
   dt = Number.isFinite(dt) ? Math.max(0, Math.min(.05, dt)) : 0;
@@ -23,14 +24,18 @@ export function animateCarryStack(stack, { time = 0, moving = false, dt = 0 } = 
   const rows = Math.ceil(stack.count / stack.columns);
   for (let i = 0; i < stack.count; i++) {
     const row = Math.floor(i / stack.columns), weight = rows === 1 ? 1 : row / (rows - 1);
-    const x = Math.sin(time * 7 - row * .23) * .021 * stack.strength * weight;
-    const z = Math.cos(time * 6 - row * .23) * .011 * stack.strength * weight;
-    const pop = i === stack.popIndex && stack.popRemaining > 0 ? Math.sin((1 - stack.popRemaining / POP_SECONDS) * Math.PI) * .035 : 0;
-    const size = 1 + pop;
-    poseScale.setScalar(size);
+    const x = Math.sin(time * 7 - row * .23) * .032 * stack.strength * weight;
+    const z = Math.cos(time * 6 - row * .23) * .016 * stack.strength * weight;
+    const age = POP_SECONDS - stack.popRemaining;
+    const bounce = stack.popRemaining > 0 ? Math.sin(age / POP_SECONDS * Math.PI * 2) * Math.exp(-age * 9) : 0;
+    const topWeight = Math.max(0, 1 - (stack.count - 1 - i) / 4);
+    const lift = Math.max(0, bounce) * .1 * topWeight;
+    const squash = bounce * .12 * topWeight;
+    const size = 1 + squash * .45;
+    poseScale.set(size, 1 - squash, size);
     for (const part of stack.parts) {
       posePosition.set(((i % stack.columns) - (stack.columns - 1) / 2) * stack.columnWidth + x,
-        row * stack.spacing + part.y * size, part.z * size + z);
+        row * stack.spacing + part.y * (1 - squash) + lift, part.z * size + z);
       poseMatrix.compose(posePosition, poseRotation, poseScale); part.mesh.setMatrixAt(i, poseMatrix);
     }
   }
@@ -41,7 +46,7 @@ export function animateCarryStack(stack, { time = 0, moving = false, dt = 0 } = 
 
 export function setCarryStackCount(stack, count) {
   if (stack.count !== undefined && stack.count !== count) {
-    stack.popRemaining = count ? POP_SECONDS : 0; stack.popIndex = count - 1;
+    stack.popRemaining = count > stack.count ? POP_SECONDS : 0; stack.popIndex = count - 1;
   }
   stack.count = count;
   if (!count) { stack.strength = 0; stack.animated = false; }
@@ -51,15 +56,15 @@ export function setCarryStackCount(stack, count) {
 export function createProductVisuals(material) {
   const products = {
     gear: {
-      base: new THREE.BoxGeometry(.58, .145, .38),
-      detail: new THREE.BoxGeometry(.43, .035, .065),
-      baseMaterial: material('#9b6d43'),
+      base: createSourceGeometry('burger', { size: [.52, .16, .52], vertexColor: point => point.y > .105 ? '#c6a6df' : point.y > .06 ? '#72509c' : '#e0cbef' }),
+      detail: new THREE.BufferGeometry(),
+      baseMaterial: new THREE.MeshLambertMaterial({ vertexColors: true }),
       detailMaterial: material('#d9e8ed'),
     },
     potion: {
-      base: new THREE.IcosahedronGeometry(.125, 1),
-      detail: new THREE.CylinderGeometry(.055, .06, .065, 6),
-      baseMaterial: material('#76dfc2'),
+      base: createSourceGeometry('cup', { size: [.28, .30, .28], vertexColor: point => point.y > .24 ? '#e0f1e5' : '#65b99d' }),
+      detail: new THREE.BufferGeometry(),
+      baseMaterial: new THREE.MeshLambertMaterial({ vertexColors: true }),
       detailMaterial: material('#d4b478'),
     },
   };
@@ -73,8 +78,7 @@ export function createProductVisuals(material) {
     stack.detail.geometry = geometry.detail;
     stack.detail.material = geometry.detailMaterial;
     stack.base.count = stack.detail.count = CAPACITY;
-    stack.parts = [{ mesh: stack.base, y: product === 'potion' ? .125 : .09, z: 0 },
-      { mesh: stack.detail, y: product === 'potion' ? .2675 : .18, z: product === 'potion' ? 0 : .08 }];
+    stack.parts = [{ mesh: stack.base, y: 0, z: 0 }, { mesh: stack.detail, y: 0, z: 0 }];
     for (let i = 0; i < CAPACITY; i++) {
       const x = ((i % columns) - (columns - 1) / 2) * .61;
       const y = Math.floor(i / columns) * spacing;
@@ -87,7 +91,7 @@ export function createProductVisuals(material) {
       mesh.instanceMatrix.needsUpdate = true;
       mesh.computeBoundingBox();
       mesh.computeBoundingSphere();
-      mesh.boundingBox.expandByScalar(.04); mesh.boundingBox.getBoundingSphere(mesh.boundingSphere);
+      mesh.boundingBox.expandByScalar(.12); mesh.boundingBox.getBoundingSphere(mesh.boundingSphere);
     }
     stack.product = product;
     stack.columns = columns;
@@ -128,6 +132,7 @@ export function createProductVisuals(material) {
       for (const geometry of [product.base, product.detail]) if (!alreadyDisposed.has(geometry)) {
         geometry.dispose(); alreadyDisposed.add(geometry);
       }
+      if (product.baseMaterial.vertexColors) product.baseMaterial.dispose();
     }
   }
 

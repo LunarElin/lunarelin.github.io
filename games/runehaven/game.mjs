@@ -8,6 +8,11 @@ import { createBattleCameraTransition } from './camera-transition.mjs';
 import { createProductVisuals } from './product-visuals.mjs';
 import { CARRY_BASE, CARRY_SPACING } from './cargo-layout.mjs';
 import { projectShopTarget, getShopObstacles, SHOP_RADIUS } from './shop-navigation.mjs';
+import { getActionZones, getActionZone, getWorkZone, getUpgradeZone, getUnlockZone, getTableUnlockZone, isStandingInActionZone } from './action-zones.mjs';
+import { createActionZoneVisuals } from './action-zone-visuals.mjs';
+import { createZoneEntryGate } from './zone-entry.mjs';
+import { getStockItemPoint, STOCK_LAYOUT } from './stock-layout.mjs';
+import { createSourceGeometry } from './source-meshes.mjs';
 import { createActorMarkers } from './actor-markers.mjs';
 import { getActorPalette } from './actor-appearance.mjs';
 import { DINING_RULES, getDiningLayout } from './dining.mjs';
@@ -65,6 +70,8 @@ let frame = 0;
 let renderDirty = true;
 let lastTime = 0;
 let target = null;
+let pendingVisit = null;
+const zoneEntry = createZoneEntryGate();
 let blinkAim = false;
 let lastMessage = '';
 let lastRaidPhase = state.raid?.phase;
@@ -77,10 +84,11 @@ let audioContext;
 let sound = true;
 let voices = 0;
 
-function clearDestination() { target = null; }
+function clearDestination() { target = null; pendingVisit = null; state.player.target = null; }
 function setDestination(point) {
+  pendingVisit = null;
   target = projectShopTarget(state, point);
-  destination.position.set(target.x, .035, target.z);
+  destination.position.set(target.x, .08, target.z);
 }
 
 function toast(text) {
@@ -218,11 +226,10 @@ const queueGeometry = new THREE.CircleGeometry(.075, 8); geometries.add(queueGeo
 const queueMarks = new THREE.InstancedMesh(queueGeometry, material('#795c41', { transparent: true, opacity: .28 }), 36);
 queueMarks.receiveShadow = false; shopScene.add(queueMarks);
 
-// Simple color blocks replace decorative model furniture.
+// Selected source meshes keep the original fixture silhouettes.
 const fixtures = createShopFixtures(shopScene);
 const { forge: forgeGroup, alchemy: alchemyGroup, inn: innGroup, counter: counterGroup, potionCounter: potionGroup } = fixtures;
-const supplyRing = ring(1.22, '#f6c16e', -4, -2);
-const alchemyRing = ring(1.2, '#8cceb6', 3, -2);
+const actionCircles = createActionZoneVisuals(shopScene);
 const destination = ring(.35, '#fff0a5', 0, 0, .04, scene); destination.visible = false;
 const playerRing = ring(.42, '#e2d7ff', 0, 0, .025, scene);
 const stockVisuals = { forge: new THREE.Group(), gear: new THREE.Group(), alchemy: new THREE.Group(), potion: new THREE.Group() };
@@ -245,14 +252,14 @@ function labelStation(key) {
 }
 function stationDestination(key) {
   const station = labelStation(key);
-  if (key === 'kitchen') return getDiningLayout(state).kitchenPoint;
-  if (key === 'meal') return getDiningLayout(state).counterPoint;
   if (key.startsWith('table-')) {
+    if (state.dining.tables[station.id].status === 'locked') return getTableUnlockZone(state, station.id);
     const data = state.dining.tables[station.id];
     return station.seats.filter(seat => data.seats[seat.id].status === 'dirty')
       .sort((a, b) => Math.hypot(state.player.x - a.cleanPoint.x, state.player.z - a.cleanPoint.z) - Math.hypot(state.player.x - b.cleanPoint.x, state.player.z - b.cleanPoint.z))[0]?.cleanPoint || station.cleanPoint;
   }
-  return getStationApproach(state, key);
+  if (key === 'inn' || key === 'alchemy' && !state.unlocks.alchemy) return getUnlockZone(state, key);
+  return getWorkZone(state, key);
 }
 const stationIcons = {
   forge: '<path d="M4 4h11v6H4zM10 10v11" fill="#b4c9ce"/><path d="M3 19h16l-3 3H6z" fill="#96704d"/>',
@@ -273,8 +280,9 @@ for (const [key, text, x, z, y] of labelConfig) {
   listen(el, 'click', () => {
     if (paused || !started) return;
     if (key.startsWith('table-') && state.dining.tables[Number(key.slice(6))]?.status === 'locked') {
-      action('unlock-table'); return;
+      visitZone(getTableUnlockZone(state), openBuild); return;
     }
+    if ((key === 'inn' || key === 'alchemy') && !state.unlocks[key]) { visitZone(getUnlockZone(state, key), openBuild); return; }
     setDestination(stationDestination(key));
     blinkAim = false;
     toast(key.startsWith('table-') ? '식탁 옆에 멈추면 정리해요' : `${text} ${['counter', 'potionCounter', 'meal'].includes(key) ? '뒤로' : '앞으로'} 이동`);
@@ -292,6 +300,13 @@ function createCashVisual(pile) {
   const visual = { group, el, name, amount: -1 }; cashVisuals.set(id, visual); return visual;
 }
 
+const zoneLabels = new Map();
+for (const kind of ['player', 'worker', 'forge', 'counter', 'potionCounter', 'alchemy', 'inn']) {
+  const el = document.createElement('button'); el.className = 'zone-label'; el.innerHTML = '<b>+</b><span></span>';
+  el.setAttribute('aria-label', `${kind === 'player' ? '주인공 강화' : kind === 'worker' ? '조수 고용과 훈련' : '시설 강화'} 바닥 원으로 이동`);
+  $('station-labels').append(el); zoneLabels.set(kind, el);
+  listen(el, 'click', () => { if (paused || !started) return; visitZone(getUpgradeZone(state, kind), kind === 'player' ? openUpgrades : kind === 'worker' ? openWorkers : openBuild); });
+}
 const actors = new Map();
 const temporary = [];
 let diningVisuals;
@@ -394,56 +409,37 @@ function project(point) {
 }
 function projectXYZ(x, y, z) { vector.set(x, y, z); return project(vector); }
 function positionLabels() {
-  if (state.raid.location === 'outside' || state.raid.phase === 'departure') {
-    for (const { el } of stationLabels.values()) el.hidden = true;
-    for (const { el } of cashVisuals.values()) el.hidden = true;
-    return;
+  const hidden = state.raid.location === 'outside' || state.raid.phase === 'departure';
+  const width = viewport.width, height = viewport.height;
+  function place(el, zone) {
+    if (!zone || hidden) { el.hidden = true; return; }
+    const p = projectXYZ(zone.x, .075, zone.z);
+    const x = Math.max(28, Math.min(width - 28, p.x));
+    const y = Math.max(30, Math.min(height - 125, p.y));
+    const offscreen = Math.abs(p.x - x) > 22 || Math.abs(p.y - y) > 22;
+    el.classList.toggle('offscreen', offscreen);
+    // Distant upgrades already have HUD navigation; do not stack several
+    // unrelated floor buttons on one screen edge.
+    if (el.classList.contains('zone-label') && offscreen) { el.hidden = true; return; }
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+    el.dataset.zoneX = zone.x; el.dataset.zoneZ = zone.z;
   }
-  const width = viewport.width, height = viewport.height, short = mobileRender || height < 430;
-  const labels = [];
-  for (const [key, { el, point, height: labelHeight }] of stationLabels) {
-    const side = key === 'counter' ? -1.3 : key === 'potionCounter' ? 1.3 : 0;
-    const station = labelStation(key);
-    point.set(station.x + side, key === 'inn' ? 1.6 : short ? labelHeight : .04, station.z + (key === 'inn' ? -.2 : short ? 0 : .95));
-    const entry = stationLabels.get(key);
-    el.hidden = Boolean(entry.unavailable);
-    if (el.hidden) continue;
-    const p = project(point), w = entry.width || (short ? 52 : 104), h = entry.heightPx || 52, anchor = short ? h * .55 : 0;
-    const x = Math.max(w / 2 + 6, Math.min(width - w / 2 - 6, p.x));
-    const y = Math.max(8, Math.min(height - 126 - h, p.y - anchor));
-    el.classList.toggle('offscreen', Math.abs(p.x - x) > w || Math.abs(p.y - y - anchor) > h);
-    labels.push({ el, w, h, anchor, x, y, avoidActor: key.startsWith('table-') || key === 'kitchen' || key === 'meal' });
+  for (const [key, entry] of stationLabels) {
+    entry.el.hidden = hidden || Boolean(entry.unavailable);
+    if (!entry.el.hidden) place(entry.el, stationDestination(key));
   }
-  // Money has its own physical pickup targets; keep work buttons clear of them.
-  const placed = [...cashVisuals.values()].filter(({ el }) => !el.hidden).map(({ el }) => ({
-    x: Number.parseFloat(el.style.left), y: Number.parseFloat(el.style.top) - 22, w: 44, h: 44,
-  }));
-  for (const { el, x, top } of orderBubbles.values()) if (!el.hidden) placed.push({ x, y: top, w: 70, h: 58 });
-  const head = projectXYZ(state.player.x, carryHeight(state.player.bag), state.player.z);
-  const feet = projectXYZ(state.player.x, .1, state.player.z);
-  for (const label of labels.sort((a, b) => Number(b.avoidActor) - Number(a.avoidActor) || a.y - b.y)) {
-    const candidates = [[0, 0], [0, -label.h - 7], [0, label.h + 7], [-label.w / 2 - 10, 0], [label.w / 2 + 10, 0], [0, -2 * label.h - 14]];
-    for (const row of [0, -1, 1, -2, 2]) for (const column of [-1, 1, -2, 2]) {
-      candidates.push([column * (label.w + 7), row * (label.h + 7)]);
+  for (const [kind, el] of zoneLabels) {
+    const zone = getUpgradeZone(state, kind);
+    el.hidden = hidden || !zone.enabled;
+    if (!el.hidden) {
+      el.querySelector('span').textContent = kind === 'worker' ? '고용' : '강화';
+      if (!['player', 'worker'].includes(kind) && Math.hypot(state.player.x - zone.x, state.player.z - zone.z) > 5) el.hidden = true;
+      else place(el, zone);
     }
-    // A compact screen grid also covers the fragmented space on 320px phones.
-    // Local offsets alone can exhaust their options around the inn tables.
-    for (let y = 8; y <= height - 126 - label.h; y += label.h + 4) {
-      for (let x = label.w / 2 + 4; x <= width - label.w / 2 - 4; x += label.w + 4) candidates.push([x - label.x, y - label.y]);
-    }
-    let chosen;
-    for (const [dx, dy] of candidates) {
-      const x = Math.max(label.w / 2 + 4, Math.min(width - label.w / 2 - 4, label.x + dx));
-      const y = Math.max(8, Math.min(height - 126 - label.h, label.y + dy));
-      if (label.avoidActor && x + label.w / 2 > head.x - 28 && x - label.w / 2 < head.x + 28 && y + label.h > head.y - 8 && y < feet.y + 5) continue;
-      if (placed.every((other) => x + label.w / 2 + 4 <= other.x - other.w / 2 || x - label.w / 2 - 4 >= other.x + other.w / 2 || y + label.h + 4 <= other.y || y - 4 >= other.y + other.h)) { chosen = { x, y }; break; }
-    }
-    Object.assign(label, chosen || { x: label.x, y: label.y }); placed.push(label);
-    label.el.style.left = `${label.x}px`; label.el.style.top = `${label.y + label.anchor}px`;
-    // Keep the physical cargo readable when its screen silhouette crosses a sign.
-    if (!label.avoidActor && label.x + label.w / 2 > head.x - 28 && label.x - label.w / 2 < head.x + 28 && label.y + label.h > head.y - 8 && label.y < feet.y + 5) label.el.hidden = true;
   }
+  if (hidden) for (const { el } of cashVisuals.values()) el.hidden = true;
 }
+
 function updateCamera(dt) {
   let framing = cameraFraming(viewport.width, viewport.height, state.player.bag);
   let focus = cameraFocus(state.player, framing, viewport.width, viewport.height, state.player.bag, BOUNDS);
@@ -538,19 +534,28 @@ function resize() {
 const resizeObserver = new ResizeObserver(resize); resizeObserver.observe($('world'));
 listen(window.visualViewport || window, 'resize', resize);
 
-function setStockVisual(group, amount, x, z, potion) {
+function setStockVisual(group, amount, key) {
   const count = Math.min(60, Math.max(0, Math.floor(amount || 0)));
-  group.position.set(x, .88, z);
+  const layout = STOCK_LAYOUT[key], station = getStations(state)[key];
+  group.position.set(station.x, 0, station.z);
   if (group.userData.count === count) return;
   group.userData.count = count;
-  const columns = group === stockVisuals.gear || group === stockVisuals.potion ? 4 : 3;
-  productInstances(group, count, potion ? 'potion' : 'gear', columns, potion ? CARRY_SPACING.potion : CARRY_SPACING.gear);
+  const stack = products.set(group, count, layout.product);
+  const matrix = new THREE.Matrix4();
+  for (let index = 0; index < count; index++) {
+    const point = getStockItemPoint(state, key, index);
+    matrix.makeScale(layout.scale, layout.scale, layout.scale);
+    matrix.setPosition(point.x - station.x, point.y, point.z - station.z);
+    for (const part of stack.parts) part.mesh.setMatrixAt(index, matrix);
+  }
+  for (const part of stack.parts) { part.mesh.instanceMatrix.needsUpdate = true; part.mesh.computeBoundingBox(); part.mesh.computeBoundingSphere(); }
 }
 
 function syncRegion() {
   const region = getRegion(state);
   if (currentRegionId === region.id) return;
   const previous = currentRegionId; currentRegionId = region.id;
+  zoneEntry.reset();
   cameraSnap = true; shadowClock = 1; sceneLocation = '';
   stopInput(); blinkAim = false;
   mapScenery.apply(region);
@@ -563,8 +568,6 @@ function syncRegion() {
   });
   queueMarks.count = queuePoints.length; queueMarks.instanceMatrix.needsUpdate = true; queueMarks.computeBoundingSphere();
   for (const [key, group] of [['forge', forgeGroup], ['alchemy', alchemyGroup], ['inn', innGroup], ['counter', counterGroup], ['potionCounter', potionGroup]]) group.position.set(stations[key].x, 0, stations[key].z);
-  supplyRing.position.set(stations.forge.x, .025, stations.forge.z + .8);
-  alchemyRing.position.set(stations.alchemy.x, .025, stations.alchemy.z + .8);
   for (const [key, label] of stationLabels) {
     const station = labelStation(key);
     const side = key === 'counter' ? -1.3 : key === 'potionCounter' ? 1.3 : 0;
@@ -589,15 +592,14 @@ function updateCashVisuals() {
     if (visual.group.userData.count !== count) {
       emptyGroup(visual.group); visual.group.userData.count = count;
       if (count) {
-        const geometry = new THREE.CylinderGeometry(.18, .18, .1, 8); geometries.add(geometry);
-        const coins = new THREE.InstancedMesh(geometry, material('#ffd36d', { emissive: '#da9d25', emissiveIntensity: .25 }), count); coins.castShadow = true;
+        const geometry = createSourceGeometry('cash', { size: [.38, .07, .22], color: '#73b78c' }); geometries.add(geometry);
+        const coins = new THREE.InstancedMesh(geometry, material('#ffffff', { vertexColors: true }), count); coins.castShadow = true;
         const matrix = new THREE.Matrix4();
         for (let i = 0; i < count; i++) {
           const x = (i % 3 - 1) * .29, z = Math.floor(i / 3) % 2 * .27, y = Math.floor(i / 6) * .11;
           matrix.makeTranslation(x, y, z); coins.setMatrixAt(i, matrix);
         }
         visual.group.add(coins);
-        ring(.7, '#fbd579', 0, 0, .045, visual.group);
       }
     }
     const p = projectXYZ(pile.x, .3, pile.z);
@@ -644,7 +646,7 @@ function handPoint(customer, product, count) {
   return { x: customer.x + Math.sin(angle) * .35 * scale, y: (.65 + Math.max(0, count - 1) * CARRY_SPACING[product] * itemScale) * scale, z: customer.z + Math.cos(angle) * .35 * scale };
 }
 function stationItemPoint(effect, supply) {
-  const product = effect.product, stations = getStations(state), dining = getDiningLayout(state);
+  const product = effect.product, dining = getDiningLayout(state);
   const amount = effect.stockCount ?? (product === 'food' ? state.dining[supply ? 'kitchen' : 'food'] : state.stocks[supply ? product === 'gear' ? 'forge' : 'alchemy' : product]);
   const index = Math.max(0, amount - (supply || effect.type === 'order-transfer' ? 0 : 1));
   if (product === 'food') {
@@ -652,10 +654,8 @@ function stationItemPoint(effect, supply) {
     return supply ? { x: station.x + .08 + index % 2 * .48, y: .71 + Math.floor(index / 4) * .22, z: station.z + (Math.floor(index / 2) % 2 - .5) * .48 }
       : { x: station.x + (index % 4 - 1.5) * .45, y: .71, z: station.z + (Math.floor(index / 4) - .5) * .47 };
   }
-  const station = stations[supply ? product === 'gear' ? 'forge' : 'alchemy' : product === 'gear' ? 'counter' : 'potionCounter'];
-  const columns = supply ? 3 : 4;
-  return { x: station.x + (supply && product === 'gear' ? .8 : 0) + (index % columns - (columns - 1) / 2) * .61,
-    y: .88 + Math.floor(index / columns) * CARRY_SPACING[product], z: station.z + (supply && product === 'gear' ? .6 : 0) };
+  const key = supply ? product === 'gear' ? 'forge' : 'alchemy' : product === 'gear' ? 'counter' : 'potionCounter';
+  return getStockItemPoint(state, key, index);
 }
 function updateServicePresentation() {
   const hidden = state.raid.location === 'outside' || state.raid.phase === 'departure';
@@ -736,7 +736,7 @@ function flyAttack(effect) {
 function flyProduct(effect) {
   if (flights.length > 35) return;
   const node = new THREE.Group();
-  if (effect.type === 'cash-collect') cylinder(.14, .14, .08, '#ffe18c', 0, 0, 0, node, 8);
+  if (effect.type === 'cash-collect') mesh(createSourceGeometry('cash', { size: [.38, .07, .22], color: '#73b78c' }), '#ffffff', node, { vertexColors: true });
   else if (effect.product === 'food') diningVisuals?.setFoodStack(node, 1);
   else productInstances(node, 1, effect.product || 'gear');
   const actor = effect.actorId === 'player' || !effect.actorId ? state.player : state.staff.find(h => h.id === effect.actorId);
@@ -744,20 +744,25 @@ function flyProduct(effect) {
   if (!actor && !customer) { releaseOwnedGeometry(node); return; }
   const product = effect.product || 'gear';
   const count = effect.carriedCount ?? actor?.bag[product] ?? 0;
-  let from, to, carryId, orderId, stockProduct, endScale = 1;
+  let from, to, carryId, orderId, stockProduct, startScale = 1, endScale = 1;
+  const stockKey = product === 'gear' ? 'counter' : 'potionCounter';
   if (customer) {
     from = stationItemPoint(effect, false); to = handPoint(customer, product, effect.servedCount ?? customer.order?.served ?? 1);
+    startScale = product === 'food' ? 1 : STOCK_LAYOUT[stockKey].scale;
     orderId = customer.id; endScale = product === 'food' ? .72 : .72 * .72;
   } else if (effect.type === 'cash-collect') {
     from = { x: effect.x, y: .2, z: effect.z }; to = { x: actor.x, y: .6, z: actor.z };
   } else if (effect.type === 'collect') {
     from = stationItemPoint(effect, true); to = carryPoint(actor, product, count);
+    startScale = product === 'food' ? 1 : STOCK_LAYOUT[product === 'gear' ? 'forge' : 'alchemy'].scale;
     carryId = effect.actorId; endScale = actor === state.player ? 1 : .92;
   } else {
     from = carryPoint(actor, product, count + 1); to = stationItemPoint(effect, false); stockProduct = product;
+    startScale = actor === state.player ? 1 : .92;
+    endScale = product === 'food' ? 1 : STOCK_LAYOUT[stockKey].scale;
   }
-  node.position.set(from.x, from.y, from.z); scene.add(node);
-  flights.push({ node, from, to, age: 0, duration: .18, arc: .35, carryId, orderId, stockProduct, product, count, endScale, servedCount: effect.servedCount });
+  node.position.set(from.x, from.y, from.z); node.scale.setScalar(startScale); scene.add(node);
+  flights.push({ node, from, to, age: 0, duration: .18, arc: .35, carryId, orderId, stockProduct, product, count, startScale, endScale, servedCount: effect.servedCount });
 }
 function burst(x, z, color = '#ffdb8a', count = 8) {
   if (temporary.length > 75) return;
@@ -780,7 +785,7 @@ function visuals(dt) {
     sceneLocation = outside ? 'outside' : 'shop'; cameraSnap = true; shadowClock = 1;
     stopInput();
     for (const flight of flights.splice(0)) { scene.remove(flight.node); releaseOwnedGeometry(flight.node); }
-    scene.background.set(outside ? getBattleLayout(state).background : new THREE.Color(getRegion(state).groundColor).lerp(new THREE.Color('#f8ecf6'), .55));
+    scene.background.set(outside ? getBattleLayout(state).background : getRegion(state).groundColor);
   }
   shopScene.visible = !outside;
   battlefieldVisuals.update(state, outside);
@@ -793,11 +798,10 @@ function visuals(dt) {
   const dz = cameraFrame.z - (previousCameraFrame?.z ?? cameraFrame.z);
   const jumpPixels = Math.hypot(dx * CAMERA_RIGHT.x + dz * CAMERA_RIGHT.z,
     (dx * CAMERA_DOWN.x + dz * CAMERA_DOWN.z) * groundProjection) * viewport.height / cameraFrame.span;
-  const stations = getStations(state);
   queueMarks.visible = !outside;
   const present = new Set(['player']);
   updateActor(state.player, 'player', 'player', dt);
-  playerRing.position.set(state.player.x, .025, state.player.z);
+  playerRing.position.set(state.player.x, .08, state.player.z);
   for (const c of state.customers || []) { const id = `c-${c.id}`; present.add(id); updateActor(c, id, c.kind || 'warrior', dt); }
   for (const s of state.staff || []) { const id = `s-${s.id}`; present.add(id); updateActor(s, id, 'staff', dt); }
   for (const d of state.raid?.defenders || []) {
@@ -814,17 +818,16 @@ function visuals(dt) {
   for (const actor of actors.values()) markerEntries.push(actor.marker);
   actorMarkers.update(markerEntries);
   alchemyGroup.visible = Boolean(state.unlocks.alchemy); innGroup.visible = Boolean(state.unlocks.inn); potionGroup.visible = Boolean(state.unlocks.alchemy);
-  alchemyRing.visible = state.unlocks.alchemy;
+  actionCircles.update(state);
   diningVisuals?.update({ ...state, dining: { ...state.dining, food: Math.max(0, state.dining.food - incomingStock('food')) } });
-  setStockVisual(stockVisuals.forge, state.stocks.forge, stations.forge.x + .8, stations.forge.z + .6, false);
-  setStockVisual(stockVisuals.gear, Math.max(0, state.stocks.gear - incomingStock('gear')), stations.counter.x, stations.counter.z, false);
-  setStockVisual(stockVisuals.alchemy, state.unlocks.alchemy ? state.stocks.alchemy : 0, stations.alchemy.x, stations.alchemy.z, true);
-  setStockVisual(stockVisuals.potion, state.unlocks.alchemy ? Math.max(0, state.stocks.potion - incomingStock('potion')) : 0, stations.potionCounter.x, stations.potionCounter.z, true);
+  setStockVisual(stockVisuals.forge, state.stocks.forge, 'forge');
+  setStockVisual(stockVisuals.gear, Math.max(0, state.stocks.gear - incomingStock('gear')), 'counter');
+  setStockVisual(stockVisuals.alchemy, state.unlocks.alchemy ? state.stocks.alchemy : 0, 'alchemy');
+  setStockVisual(stockVisuals.potion, state.unlocks.alchemy ? Math.max(0, state.stocks.potion - incomingStock('potion')) : 0, 'potionCounter');
   updateCashVisuals();
   destination.visible = Boolean(target) || blinkAim;
-  if (target) destination.position.set(target.x, .035, target.z);
+  if (target) destination.position.set(target.x, .08, target.z);
   destination.rotation.z += dt * .8;
-  supplyRing.scale.setScalar(1 + Math.sin(state.time * 2) * .025);
   for (let i = flights.length - 1; i >= 0; i--) {
     const flight = flights[i]; flight.age += dt;
     if (flight.carryId) {
@@ -836,7 +839,7 @@ function visuals(dt) {
     }
     const t = Math.min(1, flight.age / flight.duration), curve = Math.sin(t * Math.PI) * (flight.arc ?? .7);
     flight.node.position.set(THREE.MathUtils.lerp(flight.from.x, flight.to.x, t), THREE.MathUtils.lerp(flight.from.y, flight.to.y, t) + curve, THREE.MathUtils.lerp(flight.from.z, flight.to.z, t));
-    if (flight.endScale) flight.node.scale.setScalar(1 + (flight.endScale - 1) * t);
+    flight.node.scale.setScalar(THREE.MathUtils.lerp(flight.startScale, flight.endScale, t));
     if (t === 1) { scene.remove(flight.node); releaseOwnedGeometry(flight.node); flights.splice(i, 1); }
   }
   for (let i = temporary.length - 1; i >= 0; i--) {
@@ -912,7 +915,7 @@ function updateHud() {
     const feet = projectXYZ(state.player.x, 0, state.player.z), head = projectXYZ(state.player.x, carryHeight(state.player.bag), state.player.z);
     const body = projectXYZ(state.player.x, 1.75, state.player.z);
     const samples = renderSamples.length || 1;
-    const service = { player: { ...state.player }, staff: state.staff.map(s => ({ id: s.id, workKind: s.workKind, workProgress: s.workProgress, workTarget: s.workTarget, timer: s.timer })), solids: getShopObstacles(state), radius: SHOP_RADIUS, transfers: flights.map(f => ({ product: f.product, from: f.from, to: f.to, progress: f.age / f.duration, carryId: f.carryId, orderId: f.orderId, stockProduct: f.stockProduct })), stacks: [...actors.values()].filter(a => a.carry.visible && a.count !== -1).map(a => ({ id: a.id, shown: a.count, x: a.x, z: a.z })) };
+    const service = { actionZones: actionCircles.zones, pendingZone: pendingVisit?.zone?.id ?? null, player: { ...state.player }, staff: state.staff.map(s => ({ id: s.id, workKind: s.workKind, workProgress: s.workProgress, workTarget: s.workTarget, timer: s.timer })), solids: getShopObstacles(state), radius: SHOP_RADIUS, transfers: flights.map(f => ({ product: f.product, from: f.from, to: f.to, progress: f.age / f.duration, carryId: f.carryId, orderId: f.orderId, stockProduct: f.stockProduct })), stacks: [...actors.values()].filter(a => a.carry.visible && a.count !== -1).map(a => ({ id: a.id, shown: a.count, x: a.x, z: a.z })) };
     inspection.textContent = JSON.stringify({ service, state: JSON.parse(serialize(state)), visualFixture: previewRegion, cargoFixture: previewCargo, region: getRegion(state).theme, battle: { defenders: state.raid.defenders, enemies: state.raid.enemies }, paused, started, target, dining: { ...state.dining, layout: getDiningLayout(state), guests: state.customers.filter((c) => ["food-queue", "to-table", "eating"].includes(c.phase)) }, cameraSafety, cameraPresentation, camera: { ...cameraFrame, width: viewport.width, height: viewport.height, feet, head, bodyPixels: feet.y - body.y }, quality: { mobile: mobileRender, pixelRatio: renderer.getPixelRatio(), shadowSize: sunlight.shadow.mapSize.x }, average: { calls: renderSamples.reduce((n, s) => n + s.calls, 0) / samples, triangles: renderSamples.reduce((n, s) => n + s.triangles, 0) / samples, animations: renderSamples.reduce((n, s) => n + s.animations, 0) / samples }, calls: renderedCalls, triangles: renderedTriangles, renderedFrames, geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, actors: actors.size, visibleActors: [...actors.values()].filter((a) => a.root.visible).length });
   }
   $('gold').textContent = compact(state.gold);
@@ -1043,6 +1046,18 @@ function closeSheet() {
 function openIntro() {
   openSheet('룬빛 상회', `<div class="intro"><img class="intro-rune" src="icon.svg" alt=""><h2>오늘의 손님이<br>내일의 영웅으로.</h2><p>작은 대장간에서 시작하는<br>당신만의 마법 상회.</p><div class="intro-steps"><div><b>⚒</b><span>만들고</span></div><div><b>♜</b><span>가게를 키우고</span></div><div><b>⚔</b><span>함께 지켜요</span></div></div><button class="gold-button full" data-command="start">${stored ? '상회로 돌아가기' : '가게 열기'}</button><button class="secondary-button full danger" data-command="reset-confirm">진행 초기화</button><p class="muted">화면을 누르면 이동 · 멈추면 물건을 옮겨요</p></div>`, 'intro', false);
 }
+function visitZone(zone, onArrival) {
+  if (!zone?.enabled || !started || state.raid.location === 'outside') return;
+  closeSheet();
+  setDestination(zone);
+  pendingVisit = { zone, onArrival };
+  toast(`${zone.label} 바닥 원으로 이동해요`);
+}
+function visitAction(name, payload, onArrival) {
+  const zone = getActionZone(state, name, payload);
+  if (zone && !isStandingInActionZone(state, zone)) { visitZone(zone, onArrival); return false; }
+  return true;
+}
 const upgradeNames = { speed: '순간이동 수련', capacity: '공간 주머니', price: '물건 마법 부여' };
 const upgradeDescriptions = { speed: '이동 속도 상승 · 21단계에서 3.5 거리 순간이동', capacity: '한 번에 운반하는 물건 수가 늘어납니다', price: '판매가 상승 · 새로 구매할 단골의 장비 공격력과 체력도 강화합니다' };
 function upgradeCards() {
@@ -1062,10 +1077,12 @@ function updateUpgradeButtons() {
   }
 }
 function openUpgrades() {
+  if (!isStandingInActionZone(state, getUpgradeZone(state, 'player'))) { visitZone(getUpgradeZone(state, 'player'), openUpgrades); return; }
   openSheet('마법 공방', `<p class="sheet-description">물건을 팔아 수련하고, 더 큰 마법을 익히세요.</p><div class="gold-note">보유 <strong>${number(state.gold)}</strong> 골드</div>${upgradeCards()}<button class="secondary-button full" data-command="resume">상회로</button>`, 'upgrades'); updateUpgradeButtons();
 }
 const workerJobs = { gear: '무기 운반', potion: '물약 운반', food: '음식 운반', clean: '식탁 정리' };
 function openWorkers() {
+  if (!isStandingInActionZone(state, getUpgradeZone(state, 'worker'))) { visitZone(getUpgradeZone(state, 'worker'), openWorkers); return; }
   const hire = getHireInfo(state), count = hire.count;
   const roster = count ? state.staff.map((s) => {
     const job = s.job || s.product;
@@ -1096,13 +1113,13 @@ function openBuild() {
     const info = getFacilityUpgradeInfo(state, kind);
     if (!info.unlocked) {
       const sales = kind === 'alchemy' ? 8 : 16, available = state.sales >= sales, cost = BALANCE.facilities[kind].costs[0];
-      return '<section class="build-card"><div class="card-top"><h2>' + facilityNames[kind] + '</h2><span class="level-chip">미개방</span></div><p>' + (kind === 'alchemy' ? '물약 생산과 마법사 손님을 준비해요.' : '주방 음식을 배식대에 나르고, 빈 식탁을 정리해 주세요.') + '</p><button class="gold-button" data-command="unlock" data-kind="' + kind + '" ' + (!available || state.gold < cost ? 'disabled' : '') + '>' + (available ? '건설 · ' + number(cost) + ' 골드' : '판매 ' + sales + '회 필요') + '</button></section>';
+      return '<section class="build-card"><div class="card-top"><h2>' + facilityNames[kind] + '</h2><span class="level-chip">미개방</span></div><p>' + (kind === 'alchemy' ? '물약 생산과 마법사 손님을 준비해요.' : '주방 음식을 배식대에 나르고, 빈 식탁을 정리해 주세요.') + '</p><button class="gold-button" data-command="unlock" data-kind="' + kind + '" ' + (!available || state.gold < cost ? 'disabled' : '') + '>' + (available ? (isStandingInActionZone(state, getUnlockZone(state, kind)) ? '건설 · ' : '원으로 이동 · ') + number(cost) + ' 골드' : '판매 ' + sales + '회 필요') + '</button></section>';
     }
-    return '<section class="build-card"><div class="card-top"><h2>' + facilityNames[kind] + '</h2><span class="level-chip">' + info.currentLevel + ' / ' + info.maxLevel + '</span></div><p class="facility-stat">' + facilityStatText(kind, info.value) + '</p><p class="facility-next">' + (info.nextValue ? '다음: ' + facilityStatText(kind, info.nextValue) : '최고 단계에 도달했어요') + '</p><button class="gold-button" data-command="upgrade-facility" data-kind="' + kind + '" ' + (!info.canBuy ? 'disabled' : '') + '>' + (info.currentLevel === info.maxLevel ? '최고 단계' : '시설 강화 · ' + number(info.cost) + ' 골드') + '</button></section>';
+    return '<section class="build-card"><div class="card-top"><h2>' + facilityNames[kind] + '</h2><span class="level-chip">' + info.currentLevel + ' / ' + info.maxLevel + '</span></div><p class="facility-stat">' + facilityStatText(kind, info.value) + '</p><p class="facility-next">' + (info.nextValue ? '다음: ' + facilityStatText(kind, info.nextValue) : '최고 단계에 도달했어요') + '</p><button class="gold-button" data-command="upgrade-facility" data-kind="' + kind + '" ' + (!info.canBuy ? 'disabled' : '') + '>' + (info.currentLevel === info.maxLevel ? '최고 단계' : (isStandingInActionZone(state, getActionZone(state, 'upgrade-facility', { kind })) ? '시설 강화 · ' : '원으로 이동 · ') + number(info.cost) + ' 골드') + '</button></section>';
   }).join('');
   const table = getTableUnlockInfo(state);
-  const tables = !state.unlocks.inn ? '' : '<section class="build-card"><div class="card-top"><h2>여관 식탁</h2><span class="level-chip">' + table.count + ' / ' + table.max + '</span></div><p>식탁을 하나씩 늘려요. 식사 대금은 해당 식탁 옆에서 직접 주워요.</p><button class="gold-button" data-command="unlock-table" ' + (!table.canBuy ? 'disabled' : '') + '>' + (table.count >= table.max ? '모두 개방' : '식탁 ' + (table.tableId + 1) + ' 개방 · ' + number(table.cost) + ' 골드') + '</button></section>';
-  openSheet('상회 시설', '<div class="gold-note">보유 ' + number(state.gold) + ' 골드</div>' + cards + tables + '<button class="secondary-button full" data-command="resume">상회로</button>', 'build');
+  const tables = !state.unlocks.inn ? '' : '<section class="build-card"><div class="card-top"><h2>여관 식탁</h2><span class="level-chip">' + table.count + ' / ' + table.max + '</span></div><p>식탁을 하나씩 늘려요. 식사 대금은 해당 식탁 옆에서 직접 주워요.</p><button class="gold-button" data-command="unlock-table" ' + (!table.canBuy ? 'disabled' : '') + '>' + (table.count >= table.max ? '모두 개방' : (isStandingInActionZone(state, getTableUnlockZone(state)) ? '식탁 ' + (table.tableId + 1) + ' 개방 · ' : '원으로 이동 · ') + number(table.cost) + ' 골드') + '</button></section>';
+  openSheet('상회 시설', '<p class="sheet-description">각 시설의 파란 바닥 원에서 강화해요.<br>멀리 있으면 먼저 원으로 이동합니다.</p><div class="gold-note">보유 ' + number(state.gold) + ' 골드</div>' + cards + tables + '<button class="secondary-button full" data-command="resume">상회로</button>', 'build');
 }
 function openRegions() {
   const current = getRegion(state);
@@ -1123,7 +1140,7 @@ function openMenu() {
 function cancelReset() { if (resetReturn === 'intro') openIntro(); else openMenu(); }
 function dismissSheet() { if (activeSheet === 'confirm') cancelReset(); else closeSheet(); }
 function openHelp() {
-  openSheet('놀이 방법', `<ol class="help-list"><li>조이스틱을 움직이거나 작업장 표식·바닥을 누르세요. 대장간 앞에서 멈추면 무기가 머리 위에 하나씩 쌓여요.</li><li>진열대 앞에서 멈추면 물건을 하나씩 내려놓아요. 이동 중에는 상하차하지 않아요.</li><li>손님이 낸 돈은 바닥에 쌓여요. 금화 더미나 금액을 눌러 직접 다가가 주워야 내 골드가 돼요.</li><li>시설에서 제작·결제·식사를 강화하고 고용에서 모든 조수를 훈련하세요. 판매가 늘면 공방과 여관이 열려요.</li><li>여관 주방에서 음식을 머리 위에 쌓고 배식대 뒤에서 내려놓으세요. 손님이 먹고 떠난 식탁 옆에서 멈추면 정리해요. 식탁마다 두 명이 앉아요. 주문 말풍선의 수량을 모두 받아야 식사해요. 시설에서 식탁을 늘리고, 식사 대금은 각 식탁 옆에서 주워요. 고용에서 최대 5명 조수에게 음식 운반·식탁 정리를 맡길 수 있어요.</li><li>물건을 산 검사·궁수·마법사가 습격 때 돌아와요. 방어에 성공하면 배치와 풍경이 다른 다음 지역으로 옮겨요.</li><li>이동 수련 21단계! 순간이동을 누른 뒤 가까운 바닥을 선택하세요. 재사용 4초.</li></ol><p class="muted">화면을 벗어나면 시간이 멈춥니다.<br>${saveFailed ? '현재 브라우저 저장을 사용할 수 없습니다.' : '진행은 이 브라우저에 자동으로 저장됩니다.'}</p><button class="gold-button full" data-command="resume">알겠어요</button>`, 'help');
+  openSheet('놀이 방법', `<ol class="help-list"><li>조이스틱을 움직이거나 작업장 표식·바닥을 누르세요. 대장간 앞에서 멈추면 무기가 머리 위에 하나씩 쌓여요.</li><li>진열대 앞에서 멈추면 물건을 하나씩 내려놓아요. 이동 중에는 상하차하지 않아요.</li><li>손님이 낸 돈은 바닥에 쌓여요. 초록 수금 원으로 이동해 멈춰야 내 골드가 돼요.</li><li>시설에서 제작·결제·식사를 강화하고 고용에서 모든 조수를 훈련하세요. 판매가 늘면 공방과 여관이 열려요.</li><li>여관 주방에서 음식을 머리 위에 쌓고 배식대 뒤에서 내려놓으세요. 손님이 먹고 떠난 식탁 옆에서 멈추면 정리해요. 식탁마다 두 명이 앉아요. 주문 말풍선의 수량을 모두 받아야 식사해요. 시설에서 식탁을 늘리고, 식사 대금은 각 식탁 옆에서 주워요. 고용에서 최대 5명 조수에게 음식 운반·식탁 정리를 맡길 수 있어요.</li><li>물건을 산 검사·궁수·마법사가 습격 때 돌아와요. 방어에 성공하면 배치와 풍경이 다른 다음 지역으로 옮겨요.</li><li>흰 작업 원에 멈추면 싣고 내려요. 초록 수금 원에 멈추면 대금을 주워요. 파란 강화·고용 원에 서야 비용을 지불할 수 있어요. 메뉴에서 원으로 이동을 누르면 안내합니다.</li><li>이동 수련 21단계! 순간이동을 누른 뒤 가까운 바닥을 선택하세요. 재사용 4초.</li></ol><p class="muted">화면을 벗어나면 시간이 멈춥니다.<br>${saveFailed ? '현재 브라우저 저장을 사용할 수 없습니다.' : '진행은 이 브라우저에 자동으로 저장됩니다.'}</p><button class="gold-button full" data-command="resume">알겠어요</button>`, 'help');
 }
 function openLedger() {
   const count = (kind) => state.patrons.filter((p) => p.kind === kind).length;
@@ -1152,9 +1169,9 @@ listen($('sheet-content'), 'click', (event) => {
   if (command === 'hire') { action('hire'); openWorkers(); return; }
   if (command === 'upgrade-worker') { action(command, { kind: button.dataset.kind }); openWorkers(); return; }
   if (command === 'assign-worker') { action(command, { id: button.dataset.worker, job: button.dataset.job }); openWorkers(); return; }
-  if (command === 'upgrade-facility') { action(command, { kind: button.dataset.kind }); openBuild(); return; }
-  if (command === 'unlock') { action('unlock', { kind: button.dataset.kind }); openBuild(); return; }
-  if (command === 'unlock-table') { action(command); openBuild(); return; }
+  if (command === 'upgrade-facility') { const payload = { kind: button.dataset.kind }; if (!visitAction(command, payload, openBuild)) return; action(command, payload); openBuild(); return; }
+  if (command === 'unlock') { const payload = { kind: button.dataset.kind }; if (!visitAction(command, payload, openBuild)) return; action(command, payload); openBuild(); return; }
+  if (command === 'unlock-table') { if (!visitAction(command, {}, openBuild)) return; action(command); openBuild(); return; }
   if (command === 'help') { openHelp(); return; }
   if (command === 'ledger') { openLedger(); return; }
   if (command === 'sound') { sound = !sound; openMenu(); return; }
@@ -1198,9 +1215,19 @@ listen(canvas, 'pointerup', (e) => {
   if (distance > 22) return;
   const point = worldPoint(e); if (!point) return;
   if (blinkAim) { action('blink', point); blinkAim = false; clearDestination(); return; }
-  for (const [key, station] of Object.entries(getStations(state))) {
-    if (key === 'gate') continue;
-    if (Math.hypot(point.x - station.x, point.z - station.z) < 1.1) { Object.assign(point, getStationApproach(state, key)); break; }
+  pendingVisit = null;
+  const zone = getActionZones(state).filter(zone => zone.enabled && Math.hypot(point.x - zone.x, point.z - zone.z) <= zone.radius + .18)
+    .sort((a, b) => Math.hypot(point.x - a.x, point.z - a.z) - Math.hypot(point.x - b.x, point.z - b.z))[0];
+  if (zone) {
+    if (zone.kind === 'upgrade') {
+      visitZone(zone, zone.stationKey === 'player' ? openUpgrades : zone.stationKey === 'worker' ? openWorkers : openBuild); return;
+    }
+    Object.assign(point, zone);
+  } else {
+    for (const [key, station] of Object.entries(getStations(state))) {
+      if (key === 'gate') continue;
+      if (Math.hypot(point.x - station.x, point.z - station.z) < 1.1) { Object.assign(point, getStationApproach(state, key)); break; }
+    }
   }
   setDestination(point);
 });
@@ -1247,6 +1274,15 @@ function loop(time) {
     if (kx || kz) { x = kx * CAMERA_RIGHT.x + kz * CAMERA_DOWN.x; z = kx * CAMERA_RIGHT.z + kz * CAMERA_DOWN.z; clearDestination(); }
     step(state, dt, state.raid.location === 'outside' || state.raid.phase === 'departure' ? {} : { x, z, target });
     if (target && Math.hypot(state.player.x - target.x, state.player.z - target.z) < .1) target = null;
+    if (pendingVisit && isStandingInActionZone(state, pendingVisit.zone) && !target) {
+      zoneEntry.mark(pendingVisit.zone);
+      const arrival = pendingVisit.onArrival; pendingVisit = null; arrival();
+    } else if (!pendingVisit) {
+      const zone = state.raid.location === 'outside' || state.raid.phase === 'departure' ? null
+        : getActionZones(state).find(zone => zone.kind === 'upgrade' && zone.enabled && Math.hypot(state.player.x - zone.x, state.player.z - zone.z) <= zone.radius + .12);
+      const entered = zoneEntry.update(zone, Boolean(zone && isStandingInActionZone(state, zone)), dt);
+      if (entered) (entered.stationKey === 'player' ? openUpgrades : entered.stationKey === 'worker' ? openWorkers : openBuild)();
+    }
     saveClock += dt;
     if (saveClock > 5) { saveClock = 0; save(); }
   }
@@ -1259,6 +1295,7 @@ function teardown(event) {
   paused = true; save(); stopInput();
   if (event.persisted) return;
   disposed = true; cancelAnimationFrame(frame); clearTimeout(toastTimer); clearTimeout(transitionTimer); resizeObserver.disconnect(); controller.abort();
+  actionCircles.dispose();
   const disposedMaterials = new Set(), disposedGeometries = new Set(), disposedTextures = new Set(), disposedSkeletons = new Set();
   scene.traverse((node) => {
     if (node.isInstancedMesh) node.dispose();

@@ -6,6 +6,8 @@ import { createDiningVisuals } from '../dining-visuals.mjs';
 import { createShopFixtures } from '../shop-visuals.mjs';
 import { BALANCE } from '../balance.mjs';
 import { BOUNDS, REGIONS, STATIONS, getRegion, getStations, legacySTATIONS } from '../maps.mjs';
+import { getActionZones } from '../action-zones.mjs';
+import { projectShopTarget } from '../shop-navigation.mjs';
 
 const stationKeys = ['forge', 'counter', 'alchemy', 'potionCounter', 'inn', 'gate'];
 const workshopKeys = stationKeys.filter((key) => key !== 'gate');
@@ -23,7 +25,7 @@ test('ten regions retain the normal source-stage names and IDs without including
 });
 
 test('larger shop bounds include all historical save positions while separating rear and side work areas', () => {
-  assert.deepEqual(BOUNDS, { minX: -8, maxX: 8, minZ: -7, maxZ: 8 });
+  assert.deepEqual(BOUNDS, { minX: -11, maxX: 11, minZ: -10.8, maxZ: 11 });
   for (const point of [{ x: -6, z: -4.7 }, { x: 6, z: 6 }, { x: 0, z: 1 }]) assert.ok(inBounds(point));
   assert.equal(STATIONS, legacySTATIONS);
   assert.equal(STATIONS, getStations(1));
@@ -51,7 +53,7 @@ test('each map changes actual station layout and floor geometry, not only its co
 test('workshops, their front interaction points and entrances remain reachable within bounds', () => {
   for (const region of REGIONS) {
     assert.equal(region.bounds, BOUNDS);
-    assert.deepEqual(region.dimensions, { width: 18, depth: 18 });
+    assert.deepEqual(region.dimensions, { width: 24, depth: 24 });
     assert.deepEqual(Object.keys(region.stations).sort(), [...stationKeys].sort());
     assert.ok(inBounds(region.spawn), `${region.name}: entry spawn`);
     assert.equal(region.spawn.x, region.stations.gate.x);
@@ -117,7 +119,7 @@ function rectangle(x, z, left, right, back, front) {
   return { minX: x + left, maxX: x + right, minZ: z + back, maxZ: z + front };
 }
 
-test('actual fixture geometry leaves at least 0.6 units between every facility and dining-table footprint', async (t) => {
+test('the expanded room leaves at least 1.3 units between every facility and dining-table footprint', async (t) => {
   const { fixtures, diningGroup, place } = await visualFixtures(t);
   for (const region of REGIONS) {
     const dining = place(region.index + 1);
@@ -133,7 +135,7 @@ test('actual fixture geometry leaves at least 0.6 units between every facility a
     ];
     for (let left = 0; left < pieces.length; left++) for (let right = left + 1; right < pieces.length; right++) {
       const clearance = gap(pieces[left][1], pieces[right][1]);
-      assert.ok(clearance >= .6, `${region.name}: ${pieces[left][0]}/${pieces[right][0]} gap ${clearance}`);
+      assert.ok(clearance >= 1.3, `${region.name}: ${pieces[left][0]}/${pieces[right][0]} gap ${clearance}`);
     }
     for (const [name, box] of pieces) {
       assert.ok(box.minX > -region.dimensions.width / 2 && box.maxX < region.dimensions.width / 2, `${name}: within shop walls`);
@@ -153,6 +155,47 @@ test('the food waiting line crosses the service area without entering any actual
         footprint(diningGroup.getObjectByName(`dining-chair-${table.id}-1`)),
       ]);
       assert.ok(gap(rectangle(point.x, point.z, -.25, .25, -.25, .25), tableBox) >= .6);
+    }
+  }
+});
+
+test('every visible action circle lies outside actual furniture and its center remains directly reachable', async (t) => {
+  const { fixtures, diningGroup, place } = await visualFixtures(t);
+  for (const region of REGIONS) {
+    const layout = place(region.index + 1), dining = createDiningState();
+    dining.tableCount = 4;
+    for (const table of dining.tables) for (const seat of table.seats) seat.status = 'dirty';
+    const state = { stage: region.index + 1, unlocks: { inn: true, alchemy: true }, dining, moneyPiles: { gear: 0, potion: 0, inn: 0 } };
+    const pieces = [
+      ...Object.entries(fixtures).map(([kind, group]) => [kind, footprint(group)]),
+      ['kitchen', footprint(diningGroup.getObjectByName('dining-kitchen'))],
+      ['meal', footprint(diningGroup.getObjectByName('dining-counter'))],
+      ...layout.tables.flatMap(table => [
+        [`table-${table.id}`, footprint(diningGroup.getObjectByName(`dining-table-${table.id}`))],
+        [`chair-${table.id}-0`, footprint(diningGroup.getObjectByName(`dining-chair-${table.id}`))],
+        [`chair-${table.id}-1`, footprint(diningGroup.getObjectByName(`dining-chair-${table.id}-1`))],
+      ]),
+    ];
+    for (const zone of getActionZones(state).filter(zone => zone.enabled)) {
+      const target = projectShopTarget(state, zone);
+      assert.ok(distance(target, zone) < 1e-6, `${region.name}: ${zone.id} is not displaced by a body`);
+      for (const [kind, box] of pieces) {
+        const clearance = gap(rectangle(zone.x, zone.z, 0, 0, 0, 0), box);
+        assert.ok(clearance + 1e-6 >= zone.radius, `${region.name}: ${zone.id} overlaps ${kind} by ${zone.radius - clearance}`);
+      }
+    }
+  }
+});
+
+test('work, cash, cleaning and upgrade circles remain separate throughout all ten regional layouts', () => {
+  for (const region of REGIONS) {
+    const dining = createDiningState(); dining.tableCount = 4;
+    for (const table of dining.tables) for (const seat of table.seats) seat.status = 'dirty';
+    const state = { stage: region.index + 1, unlocks: { inn: true, alchemy: true }, dining, moneyPiles: { gear: 0, potion: 0, inn: 0 } };
+    const zones = getActionZones(state).filter(zone => zone.enabled);
+    for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
+      assert.ok(distance(zones[i], zones[j]) + 1e-6 >= zones[i].radius + zones[j].radius,
+        `${region.name}: ${zones[i].id}/${zones[j].id} overlap`);
     }
   }
 });

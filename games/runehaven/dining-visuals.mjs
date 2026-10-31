@@ -1,24 +1,17 @@
 import { THREE } from './asset-loader.mjs';
-import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
+import { createSourceGeometry } from './source-meshes.mjs';
 import { DINING_RULES, getDiningLayout } from './dining.mjs';
 import { CARRY_SPACING, animateCarryStack, setCarryStackCount } from './product-visuals.mjs';
 
 const STACK_CAPACITY = 60;
 
-// A bowl and its fill read clearly even in a small overhead stack.
+// Source burger and empty wrapper keep the original food silhouette. Geometry
+// is palette-colored once and shared by stock, cargo, guests and dining places.
 function dishGeometry(dirty) {
-  const parts = [];
-  function part(geometry, color, y) {
-    const rgb = new THREE.Color(color), colors = new Float32Array(geometry.attributes.position.count * 3);
-    for (let i = 0; i < colors.length; i += 3) { colors[i] = rgb.r; colors[i + 1] = rgb.g; colors[i + 2] = rgb.b; }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.translate(0, y, 0); parts.push(geometry);
-  }
-  part(new THREE.CylinderGeometry(.23, .16, .13, 8), dirty ? '#b8b6af' : '#fff1cd', .065);
-  part(new THREE.CylinderGeometry(.187, .187, .012, 8), dirty ? '#8f938d' : '#e98042', .137);
-  const geometry = mergeGeometries(parts);
-  for (const part of parts) part.dispose();
-  return geometry;
+  return createSourceGeometry(dirty ? 'emptyDish' : 'burger', {
+    size: [.46, dirty ? .03 : .143, .46],
+    vertexColor: point => dirty ? '#a19c9e' : point.y > .1 ? '#edc081' : point.y > .075 ? '#87bba0' : point.y > .045 ? '#a16d69' : '#edc081',
+  });
 }
 
 // Keep the async entry point compatible with the existing asset-library caller.
@@ -26,20 +19,11 @@ function dishGeometry(dirty) {
 export async function createDiningVisuals(scene) {
   const group = new THREE.Group(); group.name = 'inn-dining'; group.visible = false; scene.add(group);
   const mealGeometry = dishGeometry(false), dirtyGeometry = dishGeometry(true);
-  const boxGeometry = new THREE.BoxGeometry(1, 1, 1), cylinderGeometry = new THREE.CylinderGeometry(1, 1, 1, 8);
-  const chairParts = [];
-  for (const [geometry, color, x, y, z, sx, sy, sz] of [
-    [boxGeometry, '#99c4d4', 0, .31, 0, .5, .12, .5],
-    [boxGeometry, '#99c4d4', 0, .49, -.2, .5, .32, .1],
-    [cylinderGeometry, '#a9c5d0', 0, .14, 0, .12, .28, .12],
-  ]) {
-    const part = geometry.clone(); part.scale(sx, sy, sz); part.translate(x, y, z);
-    const rgb = new THREE.Color(color), colors = new Float32Array(part.attributes.position.count * 3);
-    for (let i = 0; i < colors.length; i += 3) { colors[i] = rgb.r; colors[i + 1] = rgb.g; colors[i + 2] = rgb.b; }
-    part.setAttribute('color', new THREE.BufferAttribute(colors, 3)); chairParts.push(part);
+  const furnitureGeometries = new Set();
+  function furnitureGeometry(key, size) {
+    const geometry = createSourceGeometry(key, { size }); furnitureGeometries.add(geometry); return geometry;
   }
-  const chairGeometry = mergeGeometries(chairParts);
-  for (const part of chairParts) part.dispose();
+  const chairGeometry = furnitureGeometry('chair', [.5, .65, .5]);
   const furnitureMaterials = new Map();
   function material(color) {
     if (!furnitureMaterials.has(color)) {
@@ -48,26 +32,25 @@ export async function createDiningVisuals(scene) {
     }
     return furnitureMaterials.get(color);
   }
-  function piece(parent, geometry, color, x, y, z, sx, sy, sz) {
-    const result = new THREE.Mesh(geometry, material(color));
-    result.position.set(x, y, z); result.scale.set(sx, sy, sz); parent.add(result); return result;
-  }
-  const cleanTable = material('#fff0cf'), dirtyTable = material('#b9a4b8');
-  function table(name, height, width = 1.6, depth = 1.1, support = '#a9c5d0') {
+  const cleanTable = material('#ebdfc6'), dirtyTable = material('#aaa29c');
+  const diningTableGeometry = furnitureGeometry('table', [1.6, .65, 1.1]);
+  function table(name, height, width = 1.6, depth = 1.1) {
     const result = new THREE.Group(); result.name = name;
-    const top = piece(result, boxGeometry, '#fff0cf', 0, height - .07, 0, width, .14, depth); top.name = 'dining-table-top';
-    piece(result, cylinderGeometry, support, 0, (height - .14) / 2, 0, .19, height - .14, .19);
+    const top = new THREE.Mesh(diningTableGeometry, cleanTable); top.name = 'dining-table-top';
+    top.castShadow = top.receiveShadow = true; result.add(top);
     return { object: result, top };
   }
   function chair(name) {
-    const result = new THREE.Mesh(chairGeometry, foodMaterial); result.name = name;
-    return result;
+    const result = new THREE.Mesh(chairGeometry, material('#91b5c1')); result.name = name;
+    result.castShadow = true; return result;
   }
-  const counter = table('dining-counter', .7, 1.9, 1.3, '#90cfc8').object;
-  const kitchen = table('dining-kitchen', .7, 1.9, 1.3, '#dfae86').object;
-  group.add(counter, kitchen);
-  piece(kitchen, cylinderGeometry, '#687b86', -.55, .83, -.1, .3, .26, .3);
-  piece(kitchen, cylinderGeometry, '#e98042', -.55, .965, -.1, .25, .012, .25);
+  const counter = new THREE.Group(), kitchen = new THREE.Group();
+  counter.name = 'dining-counter'; kitchen.name = 'dining-kitchen'; group.add(counter, kitchen);
+  const servingTable = new THREE.Mesh(furnitureGeometry('table', [1.9, .71, 1.3]), material('#91b5c1'));
+  servingTable.castShadow = servingTable.receiveShadow = true; counter.add(servingTable);
+  const stove = new THREE.Mesh(createSourceGeometry('grill', { bounds: { minX: -.95, maxX: -.1, minY: 0, maxY: 1.08, minZ: -.65, maxZ: .65 } }), material('#a68db7'));
+  const kitchenOutput = new THREE.Mesh(createSourceGeometry('table', { bounds: { minX: -.1, maxX: .95, minY: 0, maxY: .71, minZ: -.65, maxZ: .65 } }), material('#d1b9a0'));
+  for (const mesh of [stove, kitchenOutput]) { furnitureGeometries.add(mesh.geometry); mesh.castShadow = mesh.receiveShadow = true; kitchen.add(mesh); }
   const foodMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
   foodMaterial.userData.diningShared = true;
   const instances = new Set();
@@ -165,7 +148,7 @@ export async function createDiningVisuals(scene) {
       }
       stack.userData.foodColumns = columns; stack.userData.foodSpacing = spacing;
       stack.instanceMatrix.needsUpdate = true; stack.computeBoundingBox(); stack.computeBoundingSphere();
-      stack.boundingBox.expandByScalar(.04); stack.boundingBox.getBoundingSphere(stack.boundingSphere);
+      stack.boundingBox.expandByScalar(.12); stack.boundingBox.getBoundingSphere(stack.boundingSphere);
       stack.userData.carryStack = { parts: [{ mesh: stack, y: 0, z: 0 }], columns, spacing, columnWidth: .5 };
     }
     stack.count = count; stack.visible = count > 0;
@@ -181,7 +164,7 @@ export async function createDiningVisuals(scene) {
     if (disposed) return;
     disposed = true; group.removeFromParent();
     for (const mesh of [...instances]) mesh.dispose();
-    for (const geometry of [mealGeometry, dirtyGeometry, boxGeometry, cylinderGeometry, chairGeometry]) if (!disposedGeometries.has(geometry)) {
+    for (const geometry of [mealGeometry, dirtyGeometry, ...furnitureGeometries]) if (!disposedGeometries.has(geometry)) {
       disposedGeometries.add(geometry); geometry.dispose();
     }
     for (const material of [foodMaterial, ...furnitureMaterials.values()]) if (!disposedMaterials.has(material)) {

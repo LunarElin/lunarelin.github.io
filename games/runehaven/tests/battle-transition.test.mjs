@@ -1,7 +1,8 @@
+import { act } from './interaction-fixtures.mjs';
 import { expandDining, setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { act, BOUNDS, CLASS_STATS, createGame, getRegion, restore, serialize, step } from '../rules.mjs';
+import { BOUNDS, CLASS_STATS, createGame, getRegion, restore, serialize, step } from '../rules.mjs';
 import { BATTLE_BOUNDS, getBattleLayout } from '../battlefield.mjs';
 
 // Controlled transition/combat fixtures; no claim that this roster was earned.

@@ -1,8 +1,9 @@
+import { act } from './interaction-fixtures.mjs';
 import { setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE, TABLE_UNLOCK_COSTS } from '../balance.mjs';
-import { act, createGame, getDiningLayout, getFacilityStats, getMoneyPiles, getTableUnlockInfo, restore, serialize, step } from '../rules.mjs';
+import { createGame, getDiningLayout, getFacilityStats, getMoneyPiles, getTableUnlockInfo, restore, serialize, step } from '../rules.mjs';
 
 function run(state, seconds, input = {}) {
   for (let frame = 0; frame < Math.round(seconds * 20); frame++) step(state, .05, input);

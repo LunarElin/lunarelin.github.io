@@ -20,15 +20,16 @@ export function getShopObstacles(state) {
   add('forge', s.forge, -1.105, 1.23, -.725, .43);
   add('counter', s.counter, -1.2, 1.2, -.5, .5);
   if (state.unlocks.alchemy) {
-    add('alchemy', s.alchemy, -.95, .95, -.5, .5);
+    add('alchemy', s.alchemy, -1.025, 1.025, -.6, .6);
     add('potionCounter', s.potionCounter, -1.05, 1.05, -.5, .5);
   }
   if (state.unlocks.inn) {
     const d = getDiningLayout(state);
     add('inn', s.inn, -1.1, 1.1, -1.075, .075);
-    // Tabletop overhangs are reachable from the work point; the body below is solid.
-    add('kitchen', d.kitchen, -.85, .85, -.48, .48);
-    add('meal', d.counter, -.85, .85, -.48, .48);
+    // The complete service fixture body blocks movement. Dining tables keep
+    // their narrow source-style pedestal so seated guests can approach chairs.
+    add('kitchen', d.kitchen, -.95, .95, -.65, .65);
+    add('meal', d.counter, -.95, .95, -.65, .65);
     for (const table of d.tables.slice(0, state.dining.tableCount)) add(`table-${table.id}`, table, -.3, .3, -.3, .3);
   }
   const value = Object.freeze(result);

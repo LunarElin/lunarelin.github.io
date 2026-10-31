@@ -3,14 +3,16 @@ import { BOUNDS, getRegion, getStations, STATIONS } from './maps.mjs';
 import { DINING_RULES, createDiningState, createDiningTable, updateDiningTable, getDiningLayout } from './dining.mjs';
 import { getShopWaypoint, moveShopPoint, projectShopTarget } from './shop-navigation.mjs';
 import { BATTLE_BOUNDS, getBattleLayout } from './battlefield.mjs';
+import { getWorkZone, getCashZones, getActionZone, isInsideActionZone, isStandingInActionZone, ACTION_RADIUS } from './action-zones.mjs';
 
 export { DINING_RULES, getDiningLayout };
 
 export { BOUNDS, getRegion, getStations, STATIONS };
+export { getActionZones, getActionZone, getWorkZone, getUpgradeZone, getUnlockZone, getTableUnlockZone, isInsideActionZone, isStandingInActionZone, ACTION_RADIUS } from './action-zones.mjs';
 
 export function getStationApproach(state, key) {
-  const station = getStations(state)[key];
-  return { x: station.x, z: station.z + (key === 'counter' || key === 'potionCounter' ? -.85 : .8) };
+  const zone = getWorkZone(state, key);
+  return { x: zone.x, z: zone.z };
 }
 
 export const SAVE_VERSION = 1;
@@ -156,15 +158,7 @@ function applyWorkerStats(state, helper, source = BALANCE.staffs.find((row) => r
 }
 
 export function getMoneyPiles(state) {
-  const stations = getStations(state);
-  return [
-    { id: 'gear', kind: 'gear', x: stations.counter.x - Math.sign(stations.counter.x) * 1.25, z: stations.counter.z - 0.4, amount: state.moneyPiles.gear },
-    { id: 'potion', kind: 'potion', x: stations.potionCounter.x - Math.sign(stations.potionCounter.x) * 1.25, z: stations.potionCounter.z - 0.4, amount: state.moneyPiles.potion },
-    { id: 'inn', kind: 'inn', x: stations.inn.x + 1.5, z: stations.inn.z + 0.45, amount: state.moneyPiles.inn },
-    ...(state.unlocks.inn ? getDiningLayout(state).tables.slice(0, state.dining.tableCount).map((table) => ({
-      id: `table-${table.id}`, kind: 'inn', tableId: table.id, x: table.x + .95, z: table.z - .15, amount: state.dining.tables[table.id].cash ?? 0,
-    })) : []),
-  ];
+  return getCashZones(state).map(({ pileId, pileKind, x, z, amount, radius, tableId }) => ({ id: pileId, kind: pileKind, x, z, amount, radius, ...(Number.isInteger(tableId) ? { tableId } : {}) }));
 }
 
 export function getTableUnlockInfo(state) {
@@ -260,6 +254,8 @@ export function act(state, action, payload = {}) {
     return result(state, true, '', { cost: info.cost });
   }
   if (state.status !== 'playing') return result(state, false, '상회를 복구해 주세요');
+  const actionZone = getActionZone(state, action, payload);
+  if (actionZone && !isStandingInActionZone(state, actionZone)) return result(state, false, `${actionZone.label} 바닥 원 위에 멈춰 주세요`, { requiresZone: actionZone });
   if (action === 'upgrade-facility' || action === 'upgrade-worker') {
     const facility = action === 'upgrade-facility';
     const info = facility ? getFacilityUpgradeInfo(state, payload.kind) : getWorkerUpgradeInfo(state, payload.kind);
@@ -429,7 +425,7 @@ function updatePlayer(state, dt, input) {
   player.workProgress = 0; player.workTarget = null;
   if (state.raid.location === 'outside') { player.dwell = 0; player.transferClock = 0; player.workKind = null; return; }
   for (const pile of getMoneyPiles(state)) {
-    if (pile.amount > 0 && distance(player, pile) <= BALANCE.web.moneyPickupRadius) {
+    if (pile.amount > 0 && !player.moving && distance(player, pile) <= pile.radius) {
       state.gold += pile.amount;
       if (Number.isInteger(pile.tableId)) state.dining.tables[pile.tableId].cash = 0;
       else state.moneyPiles[pile.kind] = 0;
@@ -444,12 +440,12 @@ function updatePlayer(state, dt, input) {
   if (updateTableCleaning(state, dt)) return;
   const dining = getDiningLayout(state);
   const routes = [
-    [state.stocks, 'forge', 'gear', stations.forge, true, 60], [state.stocks, 'gear', 'gear', stations.counter, false, 60],
-    [state.stocks, 'alchemy', 'potion', stations.alchemy, true, 60], [state.stocks, 'potion', 'potion', stations.potionCounter, false, 60],
-    [state.dining, 'kitchen', 'food', dining.kitchen, true, DINING_RULES.foodCapacity], [state.dining, 'food', 'food', dining.counter, false, DINING_RULES.foodCapacity],
+    [state.stocks, 'forge', 'gear', stations.forge, true, 60, 'forge'], [state.stocks, 'gear', 'gear', stations.counter, false, 60, 'counter'],
+    [state.stocks, 'alchemy', 'potion', stations.alchemy, true, 60, 'alchemy'], [state.stocks, 'potion', 'potion', stations.potionCounter, false, 60, 'potionCounter'],
+    [state.dining, 'kitchen', 'food', dining.kitchen, true, DINING_RULES.foodCapacity, 'kitchen'], [state.dining, 'food', 'food', dining.counter, false, DINING_RULES.foodCapacity, 'meal'],
   ];
-  const eligible = routes.find(([pool, stock, product, position, collect, limit]) =>
-    (product !== 'potion' || state.unlocks.alchemy) && (product !== 'food' || state.unlocks.inn) && distance(player, position) <= 1.12 &&
+  const eligible = routes.find(([pool, stock, product, position, collect, limit, key]) =>
+    (product !== 'potion' || state.unlocks.alchemy) && (product !== 'food' || state.unlocks.inn) && isInsideActionZone(player, getWorkZone(state, key)) &&
     (collect ? pool[stock] > 0 && bagCount(player.bag) < getCapacity(state) : (player.bag[product] ?? 0) > 0 && pool[stock] < limit));
   player.workKind = eligible ? (eligible[4] ? 'collect' : 'deposit') : null;
   player.dwell = eligible ? Math.min(BALANCE.web.stationDwell, player.dwell + dt) : 0;
@@ -507,7 +503,7 @@ function cleanTable(state, actor, tableId, seatId, dt, actorId = actor.id) {
 function updateTableCleaning(state, dt) {
   const player = state.player;
   if (!state.unlocks.inn || state.raid.phase === 'battle') { releaseCleaning(state, 'player'); return false; }
-  const target = dirtyDiningSeats(state, 'player').filter(place => distance(player, place.cleanPoint) <= DINING_RULES.cleanRadius)
+  const target = dirtyDiningSeats(state, 'player').filter(place => distance(player, place.cleanPoint) <= ACTION_RADIUS.clean)
     .sort((a, b) => distance(player, a.cleanPoint) - distance(player, b.cleanPoint))[0];
   releaseCleaning(state, 'player', target?.tableId, target?.id);
   if (!target) return false;

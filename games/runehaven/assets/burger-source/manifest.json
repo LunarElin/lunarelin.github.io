@@ -1,0 +1,239 @@
+{
+  "apk": "io.supercent.burgeridle 31.6.0 (141)",
+  "apkSha256": "426bd4308f45b9b8b84dec3819eb893a7c25ff254e7d6c26bc50551448a4d334",
+  "copyright": "Supercent, Inc. Proprietary source game assets; not Kenney/CC0.",
+  "conversion": "Selected source vertices/faces; mesh coordinates rounded to 1e-6; runtime bounds normalization and palette recolor. Source player compressed weights decoded, T-pose arms relaxed, weights folded to the web 8-bone rig. Web animations are separate.",
+  "assets": [
+    {
+      "key": "customer",
+      "source": "customer__0a477a10__857.obj",
+      "sha256": "884e886701d2ec32a29c36945f51e2b27c88951ed766f4afe1b9aeb946f74eb0",
+      "vertices": 102,
+      "triangles": 196,
+      "bounds": [
+        [
+          -0.296282122,
+          0.300443023
+        ],
+        [
+          0.00264988939,
+          1.0532811
+        ],
+        [
+          -0.234466143,
+          0.2344572
+        ]
+      ]
+    },
+    {
+      "key": "player",
+      "source": "main-Character__0a477a10__1041.obj",
+      "sha256": "e91527366c81fb92cb07a89876bb96e91b89e9cb88d554ceb5659949c7a8e470",
+      "vertices": 1088,
+      "triangles": 1274,
+      "bounds": [
+        [
+          -0.844897318,
+          0.844897389
+        ],
+        [
+          0.00535957743,
+          1.75994909
+        ],
+        [
+          -0.249827562,
+          0.272421085
+        ]
+      ]
+    },
+    {
+      "key": "apron",
+      "source": "player_cloth__05b15b88__2.obj",
+      "sha256": "87038393f50fddd7553d9d31ede6141fb0631a1a0ea72a4558cf3b87d0b76ffb",
+      "vertices": 376,
+      "triangles": 566,
+      "bounds": [
+        [
+          -0.276639769,
+          0.276641887
+        ],
+        [
+          0.389038373,
+          1.77905121
+        ],
+        [
+          -0.281956762,
+          0.437815719
+        ]
+      ]
+    },
+    {
+      "key": "counter",
+      "source": "01_Counter__66005191__1.obj",
+      "sha256": "424f98474c93539ac53573b3e4c2231751c33b7c33504e4cf319f3f8437b4c9f",
+      "vertices": 1620,
+      "triangles": 937,
+      "bounds": [
+        [
+          -1.90411863,
+          1.8482089
+        ],
+        [
+          -0.00211176429,
+          2.14452982
+        ],
+        [
+          -0.639390273,
+          0.826228446
+        ]
+      ]
+    },
+    {
+      "key": "grill",
+      "source": "Burger_Grill_01_01__76c3e367__1.obj",
+      "sha256": "f5b44d61c9b6927a06ab59c04bdb58e85d2abe9b4a0516170c6146dcb03afc2b",
+      "vertices": 1222,
+      "triangles": 1878,
+      "bounds": [
+        [
+          -0.501013451,
+          0.732193708
+        ],
+        [
+          0.0145049367,
+          2.38110924
+        ],
+        [
+          -0.453666278,
+          0.917640701
+        ]
+      ]
+    },
+    {
+      "key": "table",
+      "source": "Table__f1645ab2__1.obj",
+      "sha256": "91122c317e6752074b16c7ce7069aed9b6817be57a48a9201ece20b93bd0d1f6",
+      "vertices": 144,
+      "triangles": 76,
+      "bounds": [
+        [
+          -0.610881232,
+          0.610956841
+        ],
+        [
+          0.000967623797,
+          0.903680444
+        ],
+        [
+          -0.611049294,
+          0.611089252
+        ]
+      ]
+    },
+    {
+      "key": "chair",
+      "source": "01_Chair__0197ca1a__1.obj",
+      "sha256": "bf2d9fcf208cf953b79e462deb4b3424fd9fa0a861973c604cd97686da4a315a",
+      "vertices": 275,
+      "triangles": 252,
+      "bounds": [
+        [
+          -0.381449103,
+          0.465159923
+        ],
+        [
+          -0.00238085066,
+          1.13518974
+        ],
+        [
+          -0.394660045,
+          0.394660199
+        ]
+      ]
+    },
+    {
+      "key": "burger",
+      "source": "Hamburger__45a62237__1.obj",
+      "sha256": "71b3241f0d768fa53a40072906f216f2207b32eb097877781476aaa68a19d466",
+      "vertices": 132,
+      "triangles": 128,
+      "bounds": [
+        [
+          -0.211700062,
+          0.211704525
+        ],
+        [
+          0.00761203358,
+          0.379333302
+        ],
+        [
+          -0.222597793,
+          0.222602514
+        ]
+      ]
+    },
+    {
+      "key": "emptyDish",
+      "source": "Hamburger.006__eda3c7fa__1.obj",
+      "sha256": "2613531ccbee6366d88f07988425b37b583d4dfc35eedd5ad76963bb81113f27",
+      "vertices": 44,
+      "triangles": 84,
+      "bounds": [
+        [
+          -0.204658355,
+          0.202888242
+        ],
+        [
+          -0.0379524139,
+          0.0397421434
+        ],
+        [
+          -0.211539134,
+          0.216984078
+        ]
+      ]
+    },
+    {
+      "key": "cup",
+      "source": "Coffee_cup02__0a477a10__838.obj",
+      "sha256": "3fda5e37855c0a6f84ffe947279c507b028e0750a1ae0039e8fc0c8a86de11dd",
+      "vertices": 182,
+      "triangles": 236,
+      "bounds": [
+        [
+          -0.199131585,
+          0.199135363
+        ],
+        [
+          -1.88884468e-06,
+          0.540002167
+        ],
+        [
+          -0.199135363,
+          0.199131585
+        ]
+      ]
+    },
+    {
+      "key": "cash",
+      "source": "Money__0a477a10__908.obj",
+      "sha256": "1fab217a9f47b4d978ba4cb6f30e156b9773b0a9cdf5ae8a882d49176a342f6f",
+      "vertices": 24,
+      "triangles": 22,
+      "bounds": [
+        [
+          -0.32910344,
+          0.32910344
+        ],
+        [
+          -0.00401241548,
+          0.0901964887
+        ],
+        [
+          -0.180779656,
+          0.180779656
+        ]
+      ]
+    }
+  ]
+}

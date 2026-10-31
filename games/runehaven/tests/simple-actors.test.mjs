@@ -21,37 +21,29 @@ after(() => {
   disposeSimpleActors(); disposeCombatMotion();
 });
 
-test('fairy characters share one texture-free body draw and retain a large readable head within the original height', () => {
+test('source customers and source player apron preserve their source triangle topology with shared texture-free draws', () => {
   const customer = actor('warrior', ACTOR_PALETTES.customer, '', false);
   const second = actor('archer', ACTOR_PALETTES.customer, '', false);
   const player = actor('player', ACTOR_PALETTES.player, '', false);
-  const body = customer.rig.mesh, bounds = body.geometry.boundingBox || (body.geometry.computeBoundingBox(), body.geometry.boundingBox);
-  assert.ok(Math.abs(bounds.min.y) < .000001);
-  assert.ok(Math.abs(bounds.max.y - 1.3) < .000001);
-  assert.equal(body.geometry, second.rig.mesh.geometry);
-  assert.equal(body.material, player.rig.mesh.material);
-  assert.equal(body.material.map, null);
-  assert.equal(customer.gear.children.length, 0);
-  assert.ok(body.geometry.index.count / 3 <= 1250, 'body, face and two small hair puffs stay within a small shared mesh');
-  let meshes = 0; customer.body.traverse(node => { if (node.isMesh) meshes++; });
-  assert.equal(meshes, 1);
-  const color = new THREE.Color(ACTOR_PALETTES.customer.body), vertexColor = new THREE.Color();
-  const positions = body.geometry.attributes.position, colors = body.geometry.attributes.color;
-  let roleVertices = 0, headLeft = Infinity, headRight = -Infinity, darkEyes = 0, brightEyes = 0;
-  for (let i = 0; i < positions.count; i++) {
-    vertexColor.fromBufferAttribute(colors, i);
-    if (['r', 'g', 'b'].every(channel => Math.abs(vertexColor[channel] - color[channel]) < .00001)) roleVertices++;
-    if (positions.getY(i) > .9) {
-      headLeft = Math.min(headLeft, positions.getX(i)); headRight = Math.max(headRight, positions.getX(i));
-      if (positions.getZ(i) > .3 && vertexColor.r < .2 && vertexColor.g < .2) darkEyes++;
-      if (positions.getZ(i) > .3 && vertexColor.r > .9 && vertexColor.g > .9) brightEyes++;
-    }
+  const body = customer.rig.mesh, bounds = body.geometry.boundingBox;
+  assert.ok(Math.abs(bounds.min.y) < .000001); assert.ok(Math.abs(bounds.max.y - 1.3) < .000001);
+  assert.equal(body.geometry, second.rig.mesh.geometry); assert.equal(body.material, player.rig.mesh.material);
+  assert.equal(body.material.map, null); assert.equal(customer.gear.children.length, 0);
+  assert.equal(body.geometry.index.count / 3, 196, 'the original basic customer has 196 triangles');
+  assert.equal(player.rig.mesh.geometry.index.count / 3, 1274 + 566, 'source main-Character and its apron/hat are merged without decorative fairy additions');
+  assert.equal(body.geometry.userData.sourceActor, 'customer');
+  assert.equal(player.rig.mesh.geometry.userData.sourceActor, 'main-Character + player_cloth');
+  let meshes = 0; customer.body.traverse(node => { if (node.isMesh) meshes++; }); assert.equal(meshes, 1);
+  const expected = new THREE.Color(ACTOR_PALETTES.customer.body), color = new THREE.Color();
+  for (let i = 0; i < body.geometry.attributes.color.count; i++) {
+    color.fromBufferAttribute(body.geometry.attributes.color, i);
+    for (const axis of ['r', 'g', 'b']) assert.ok(Math.abs(color[axis] - expected[axis]) < .000001, 'the source faceless silhouette only receives the role color');
   }
-  assert.ok(roleVertices >= 100, 'the body and limbs preserve the role palette');
-  assert.ok(headRight - headLeft >= .8 && headRight - headLeft < .82, 'two colored hair puffs preserve a broad fairy silhouette inside the existing camera guard');
-  assert.ok(darkEyes > 0 && brightEyes > 0, 'dark eyes and highlights survive without image textures');
-  const playerColors = player.rig.mesh.geometry.attributes.color;
-  assert.ok(Array.from(playerColors.array).some((value, index) => Math.abs(value - colors.array[index]) > .1));
+  const weights = player.rig.mesh.geometry.attributes.skinWeight;
+  for (let i = 0; i < weights.count; i++) {
+    const row = [weights.getX(i), weights.getY(i), weights.getZ(i), weights.getW(i)];
+    assert.ok(row.every(w => w >= 0 && w <= 1)); assert.ok(Math.abs(row.reduce((a, b) => a + b) - 1) < .000001, 'compressed fourth source weights stay normalized after conversion');
+  }
 });
 
 test('walking moves opposing legs and the actual weapon binding; stopping and carrying reset the pose', () => {
@@ -84,7 +76,7 @@ test('sitting bends the knees and legs rather than replacing the actor, then ret
     rig.mesh.getVertexPosition(i, point).applyMatrix4(rig.mesh.matrixWorld); bounds.expandByPoint(point);
   }
   assert.ok(bounds.min.y >= -.001, 'seated feet remain above the actual floor');
-  assert.ok(Math.abs(rig.leftLeg.getWorldPosition(point).y - .38) < .001, 'hips rest just above the .37-high chair');
+  assert.ok(Math.abs(rig.leftLeg.getWorldPosition(point).y - .46) < .001, 'the rounded source customer rests above the chair without lowering its source floor through the floor');
   updateSimpleActor(rig, { moving: true, time: .2 });
   assert.equal(rig.leftKnee.scale.y, 1);
   assert.equal(rig.mesh.geometry, geometry); assert.equal(rig.mesh.material, material);

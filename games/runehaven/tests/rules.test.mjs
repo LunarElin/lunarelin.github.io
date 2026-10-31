@@ -1,8 +1,9 @@
+import { act, actWhileTraveling, getPendingActionTarget } from './interaction-fixtures.mjs';
 import { setSeatState } from './dining-fixtures.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BALANCE } from '../balance.mjs';
-import { act, BOUNDS, CLASS_STATS, COMBAT_RADIUS, createGame, getCapacity, getFacilityStats, getFacilityUpgradeInfo, getHireInfo, getMoneyPiles, getRegion, getSalePrice, getStationApproach, getStations, getUpgradeInfo, getWorkerUpgradeInfo, restore, separateCombatants, serialize, STATIONS, step } from '../rules.mjs';
+import { BOUNDS, CLASS_STATS, COMBAT_RADIUS, createGame, getCapacity, getFacilityStats, getFacilityUpgradeInfo, getHireInfo, getMoneyPiles, getRegion, getSalePrice, getStationApproach, getStations, getUpgradeInfo, getWorkerUpgradeInfo, restore, separateCombatants, serialize, STATIONS, step } from '../rules.mjs';
 import { BATTLE_BOUNDS, getBattleLayout } from '../battlefield.mjs';
 
 function run(state, seconds, input = {}) {
@@ -39,11 +40,11 @@ test('upgrade transaction preserves exact imported cost, capacity and speed curv
 
 test('movement, collection and deposit enforce shared bag capacity and shop bounds', () => {
   const state = createGame(2);
-  Object.assign(state.player, STATIONS.forge);
+  Object.assign(state.player, getStationApproach(state, 'forge'));
   run(state, 2);
   assert.equal(state.player.bag.gear, 2);
   assert.equal(state.player.bag.gear + state.player.bag.potion, getCapacity(state));
-  Object.assign(state.player, STATIONS.counter);
+  Object.assign(state.player, getStationApproach(state, 'counter'));
   run(state, 1);
   assert.equal(state.player.bag.gear, 0);
   assert.equal(state.stocks.gear, 2);
@@ -257,6 +258,7 @@ test('battle saves resume at preparation checkpoint; pause and invalid dt do not
 });
 
 test('an unmodified new game reaches its first defense milestone through normal movement and purchases', () => {
+  const act = actWhileTraveling;
   const state = createGame(42);
   act(state, 'hire');
   act(state, 'upgrade', { kind: 'capacity' });
@@ -266,7 +268,7 @@ test('an unmodified new game reaches its first defense milestone through normal 
     if (state.unlocks.innAvailable && !state.unlocks.inn) act(state, 'unlock', { kind: 'inn' });
     if (state.player.bag.gear >= getCapacity(state)) carrying = true;
     if (state.player.bag.gear === 0) carrying = false;
-    step(state, 0.1, { target: carrying ? STATIONS.counter : STATIONS.forge });
+    step(state, 0.1, { target: getPendingActionTarget(state) ?? getStationApproach(state, carrying ? 'counter' : 'forge') });
   }
   assert.equal(state.raid.wins, 1);
   assert.equal(state.milestone, true);
@@ -278,11 +280,13 @@ test('an unmodified new game reaches its first defense milestone through normal 
 
 test('walking through a station never transfers stock; standing dwells then transfers one object per interval', () => {
   const state = createGame(101);
-  Object.assign(state.player, { x: STATIONS.forge.x - .6, z: STATIONS.forge.z + .8 });
+  const forge = getStationApproach(state, 'forge');
+  Object.assign(state.player, { x: forge.x - .6, z: forge.z });
   run(state, 0.4, { x: 1 });
   assert.equal(state.player.bag.gear, 0);
   assert.equal(state.player.moving, true);
   assert.equal(state.player.dwell, 0);
+  Object.assign(state.player, forge);
   run(state, 0.3);
   assert.equal(state.player.bag.gear, 0);
   assert.equal(state.player.workKind, 'collect');
@@ -292,10 +296,12 @@ test('walking through a station never transfers stock; standing dwells then tran
   assert.equal(state.player.bag.gear, 1);
   run(state, 0.2);
   assert.equal(state.player.bag.gear, 2);
-  Object.assign(state.player, { x: STATIONS.counter.x - .6, z: STATIONS.counter.z - .85 });
+  const counter = getStationApproach(state, 'counter');
+  Object.assign(state.player, { x: counter.x - .6, z: counter.z });
   run(state, 0.4, { x: 1 });
   assert.equal(state.player.bag.gear, 2);
   assert.equal(state.stocks.gear, 0);
+  Object.assign(state.player, counter);
   run(state, 0.3);
   assert.equal(state.stocks.gear, 0);
   run(state, 0.11);
@@ -310,7 +316,7 @@ test('walking through a station never transfers stock; standing dwells then tran
 test('sale proceeds remain in a physical pile across saving and are collected exactly once by proximity', () => {
   const state = createGame(102);
   state.stocks.gear = 1;
-  run(state, 10);
+  run(state, 16);
   const amount = getSalePrice(state);
   assert.equal(state.sales, 1);
   assert.equal(state.gold, BALANCE.web.startingCoins);
@@ -321,6 +327,9 @@ test('sale proceeds remain in a physical pile across saving and are collected ex
   const pile = getMoneyPiles(loaded).find((entry) => entry.kind === 'gear');
   Object.assign(loaded.player, { x: pile.x - 1.2, z: pile.z });
   run(loaded, 0.3, { x: 1 });
+  assert.equal(loaded.gold, BALANCE.web.startingCoins, 'passing through cannot collect while moving');
+  Object.assign(loaded.player, { x: pile.x, z: pile.z });
+  step(loaded, .05);
   assert.equal(loaded.gold, BALANCE.web.startingCoins + amount);
   assert.equal(loaded.moneyPiles.gear, 0);
   run(loaded, 0.2);
@@ -464,12 +473,12 @@ test('production, customer entry and money positions follow all ten regional lay
     const state = createGame(stage);
     state.stage = stage; state.raid.wins = stage - 1;
     const stations = getStations(state);
-    Object.assign(state.player, stations.forge);
+    Object.assign(state.player, getStationApproach(state, 'forge'));
     run(state, 1.1);
     assert.equal(state.player.bag.gear, 2, `forge stage ${stage}`);
     assert.ok(Math.abs(state.customers[0].x - stations.gate.x) < 0.8);
     const cash = getMoneyPiles(state)[0];
-    assert.equal(cash.x, stations.counter.x - Math.sign(stations.counter.x) * 1.25);
+    assert.equal(cash.x, stations.counter.x - Math.sign(stations.counter.x) * 1.95);
     assert.ok(Math.abs(cash.x) < Math.abs(stations.counter.x), `central cash access stage ${stage}`);
   }
 });

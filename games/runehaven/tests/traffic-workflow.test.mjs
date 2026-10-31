@@ -1,9 +1,10 @@
+import { act } from './interaction-fixtures.mjs';
 import { BALANCE } from '../balance.mjs';
 import { BATTLE_BOUNDS } from '../battlefield.mjs';
 import { getShopObstacles, projectShopTarget, SHOP_RADIUS, shopLineClear } from '../shop-navigation.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { act, createGame, getMoneyPiles, getStationApproach, getStations, restore, serialize, step } from '../rules.mjs';
+import { createGame, getMoneyPiles, getStationApproach, getStations, restore, serialize, step } from '../rules.mjs';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 

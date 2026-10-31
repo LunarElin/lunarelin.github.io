@@ -28,7 +28,7 @@ function grownShop(seed = 42, stage = 1) {
 function inBounds(customer) {
   return Number.isFinite(customer.x) && Number.isFinite(customer.z)
     && customer.x >= BOUNDS.minX && customer.x <= BOUNDS.maxX
-    && customer.z >= BOUNDS.minZ && customer.z <= (customer.phase ? 26 : BOUNDS.maxZ);
+    && customer.z >= BOUNDS.minZ && customer.z <= (customer.phase ? BOUNDS.maxZ + .6 + 23 * .7 : BOUNDS.maxZ);
 }
 
 function queues(state, product) {

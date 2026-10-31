@@ -1,9 +1,9 @@
 import { BALANCE } from './balance.mjs';
 
-export const BOUNDS = Object.freeze({ minX: -8, maxX: 8, minZ: -7, maxZ: 8 });
+export const BOUNDS = Object.freeze({ minX: -11, maxX: 11, minZ: -10.8, maxZ: 11 });
 
-// Side workshops and a separate rear inn fill an 18 x 18 shop. Furniture and
-// scenery remain visual rather than collision obstacles; characters may overlap.
+// A 24 x 24 room keeps the original furniture/body sizes while opening wider
+// aisles. Static furniture blocks movement; customers do not block one another.
 const layouts = [
   {
     theme: 'market', floorPattern: 'planks',
@@ -249,16 +249,35 @@ function freeze(value) {
 
 const stages = BALANCE.stages.filter((stage) => !stage.event).slice(0, 10);
 
-export const REGIONS = freeze(layouts.map((layout, index) => ({
-  id: stages[index].id,
-  index,
-  name: stages[index].name,
-  sourceStageId: stages[index].stageId,
-  bounds: BOUNDS,
-  dimensions: { width: 18, depth: 18 },
-  spawn: { x: layout.stations.gate.x, z: layout.stations.gate.z - 1.3 },
-  ...layout,
-})));
+// Expand the authored regional arrangements, not the characters or furniture.
+// Work points and obstacles both derive from these same station coordinates.
+function expandLayout(layout) {
+  const stations = Object.fromEntries(Object.entries(layout.stations).map(([kind, point]) => [kind, {
+    x: Number((point.x * 1.4).toFixed(3)),
+    z: kind === 'gate' ? BOUNDS.maxZ : Number((point.z * 1.45).toFixed(3)),
+  }]));
+  const floorFeatures = layout.floorFeatures.map(feature => ({ ...feature,
+    x: feature.x * 1.4, z: feature.z * 1.45,
+    ...(feature.width ? { width: feature.width * 1.35 } : {}),
+    ...(feature.depth ? { depth: feature.depth * 1.35 } : {}),
+    ...(feature.radius ? { radius: feature.radius * 1.2 } : {}),
+  }));
+  return { ...layout, stations, floorFeatures };
+}
+
+export const REGIONS = freeze(layouts.map((authored, index) => {
+  const layout = expandLayout(authored);
+  return {
+    id: stages[index].id,
+    index,
+    name: stages[index].name,
+    sourceStageId: stages[index].stageId,
+    bounds: BOUNDS,
+    dimensions: { width: 24, depth: 24 },
+    spawn: { x: layout.stations.gate.x, z: layout.stations.gate.z - 1.3 },
+    ...layout,
+  };
+}));
 
 /** Stage numbers are one based; the ten regions repeat after stage ten. */
 export function getRegion(stageOrState = 1) {
