@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, stat, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { HEROES } from '../rules.mjs';
+import { HEROES, SEASONS, DECORATIONS } from '../rules.mjs';
 import { ACTION_TIMING, VIEWS, frameAt } from '../motion.mjs';
 import { createHash } from 'node:crypto';
 
@@ -22,30 +22,41 @@ function webpInfo(bytes) {
   assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
   assert.equal(bytes.toString('ascii', 8, 12), 'WEBP');
   assert.equal(bytes.readUInt32LE(4) + 8, bytes.length, 'WebP container must be complete');
-  let offset = 12;
+  let offset = 12, info = null, imagePayload = false;
   while (offset + 8 <= bytes.length) {
     const kind = bytes.toString('ascii', offset, offset + 4);
     const length = bytes.readUInt32LE(offset + 4);
     const start = offset + 8;
     assert.ok(start + length <= bytes.length, 'WebP chunk cannot exceed its file');
-    if (kind === 'VP8X') return {
-      width: bytes.readUIntLE(start + 4, 3) + 1,
-      height: bytes.readUIntLE(start + 7, 3) + 1,
-      alpha: Boolean(bytes[start] & 0x10),
-    };
+    if (kind === 'VP8X') {
+      assert.ok(length >= 10, 'Extended WebP header must be complete');
+      info = {
+        width: bytes.readUIntLE(start + 4, 3) + 1,
+        height: bytes.readUIntLE(start + 7, 3) + 1,
+        alpha: Boolean(bytes[start] & 0x10),
+      };
+    }
     if (kind === 'VP8L') {
+      assert.ok(length >= 5, 'Lossless WebP header must be complete');
       assert.equal(bytes[start], 0x2f);
       const bits = bytes.readUInt32LE(start + 1);
-      return { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1, alpha: Boolean(bits & 0x10000000) };
+      const payload = { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1, alpha: Boolean(bits & 0x10000000) };
+      if (info) assert.deepEqual([payload.width, payload.height], [info.width, info.height], 'Static image dimensions must match the canvas');
+      else info = payload;
+      imagePayload = true;
     }
-    if (kind === 'VP8 ') return {
-      width: bytes.readUInt16LE(start + 6) & 0x3fff,
-      height: bytes.readUInt16LE(start + 8) & 0x3fff,
-      alpha: false,
-    };
+    if (kind === 'VP8 ') {
+      assert.ok(length >= 10, 'Lossy WebP header must be complete');
+      const payload = { width: bytes.readUInt16LE(start + 6) & 0x3fff, height: bytes.readUInt16LE(start + 8) & 0x3fff, alpha: false };
+      if (info) assert.deepEqual([payload.width, payload.height], [info.width, info.height], 'Static image dimensions must match the canvas');
+      else info = payload;
+      imagePayload = true;
+    }
     offset = start + length + length % 2;
   }
-  assert.fail('WebP has no recognized image chunk');
+  assert.equal(offset, bytes.length, 'All WebP chunks and padding must be complete');
+  assert.ok(info && imagePayload, 'WebP must contain a recognized static image payload');
+  return info;
 }
 
 test('every animal has four independently drawn views with native movement and complete harvesting', async () => {
@@ -134,6 +145,44 @@ test('berry, bamboo and grain have transparent local props with usable ground an
   }
 });
 
+test('all four seasonal tree images are distinct transparent atlases compatible with the tree frame layout', async () => {
+  assert.deepEqual(Object.keys(manifest.seasons).sort(), SEASONS.map(season => season.id).sort());
+  const original = webpInfo(await readFile(localAsset(manifest.tree.image)));
+  assert.deepEqual([original.width, original.height], [384, 576]);
+  const images = new Set(), digests = new Set();
+  for (const { id } of SEASONS) {
+    const reference = manifest.seasons[id].tree, bytes = await readFile(localAsset(reference)), actual = webpInfo(bytes);
+    images.add(reference); digests.add(createHash('sha256').update(bytes).digest('hex'));
+    assert.deepEqual([actual.width, actual.height], [original.width, original.height], `${id} shares the original atlas geometry`);
+    assert.ok(actual.alpha, `${id} tree supports transparency around the canopy and stump`);
+    for (const animation of Object.values(manifest.tree.animations)) for (const frame of animation.frames) {
+      assert.ok(frame.x >= 0 && frame.y >= 0 && frame.x + frame.w <= actual.width && frame.y + frame.h <= actual.height, `${id} native tree frame fits its binary image`);
+    }
+  }
+  assert.equal(images.size, 4, 'Every season has its own local tree image');
+  assert.equal(digests.size, 4, 'The seasons do not silently share identical artwork');
+});
+
+test('winter room, arrival cabin and every craftable decoration have complete images with usable anchors', async () => {
+  const shelter = manifest.shelter;
+  assert.ok(shelter?.room && shelter.cabin && shelter.decor);
+  assert.deepEqual(Object.keys(shelter.decor).sort(), DECORATIONS.map(item => item.id).sort());
+  const images = new Set(), digests = new Set();
+  const entries = [['room', shelter.room, 768, false], ['cabin', shelter.cabin, 384, true],
+    ...DECORATIONS.map(({ id }) => [id, shelter.decor[id], 256, true])];
+  for (const [id, data, size, alpha] of entries) {
+    const bytes = await readFile(localAsset(data.image)), actual = webpInfo(bytes);
+    images.add(data.image); digests.add(createHash('sha256').update(bytes).digest('hex'));
+    assert.deepEqual([actual.width, actual.height], [size, size], `${id} binary image has the expected display resolution`);
+    assert.deepEqual([data.width, data.height], [actual.width, actual.height], `${id} declares its real image dimensions`);
+    assert.equal(actual.alpha, alpha, `${id} ${alpha ? 'supports transparent placement' : 'is an opaque room backdrop'}`);
+    assert.equal(data.anchor.x, .5, `${id} uses a centered horizontal anchor`);
+    assert.equal(data.anchor.y, alpha ? .9375 : .5, `${id} anchor matches its floor line or backdrop center`);
+  }
+  assert.equal(images.size, entries.length, 'Room, cabin and furniture use separate local images');
+  assert.equal(digests.size, entries.length, 'Craftable furniture is not duplicated placeholder artwork');
+});
+
 test('HTML, module, stylesheet and manifest references resolve locally', async () => {
   const references = [];
   const html = await readFile(path.join(gameRoot, 'index.html'), 'utf8');
@@ -154,7 +203,9 @@ test('HTML, module, stylesheet and manifest references resolve locally', async (
   }
   const images = [manifest.background, manifest.ground, manifest.spark, manifest.tree?.image,
     ...Object.values(manifest.heroes).flatMap(hero=>Object.values(hero.views).flatMap(view=>[view.image,...Object.values(view.animations).map(animation=>animation.image)])),
-    ...Object.values(manifest.resources).map(resource => resource.image)].filter(Boolean);
+    ...Object.values(manifest.resources).map(resource => resource.image),
+    ...Object.values(manifest.seasons).map(season => season.tree), manifest.shelter.room.image, manifest.shelter.cabin.image,
+    ...Object.values(manifest.shelter.decor).map(decoration => decoration.image)].filter(Boolean);
   for (const image of images) assert.ok((await stat(localAsset(image))).isFile(), image);
 });
 

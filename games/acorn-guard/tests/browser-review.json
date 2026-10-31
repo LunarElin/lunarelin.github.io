@@ -1,87 +1,75 @@
 {
-  "scope": "Original outlined2D woodland art replacement",
+  "scope": "Annual seasons, winter home decoration and next-spring loop",
   "date": "2026-10-31",
-  "artRevision": "outlined-20261031-v1",
-  "environment": "Asset contact-sheet/native-frame inspection and Node tests. Current in-app-browser access disabled by Work settings.",
+  "artRevision": "year-cycle-20261031-v1",
   "currentBrowserReview": {
     "completed": false,
     "reason": "Local browser use is disabled in Work settings",
-    "userAskedToEnable": true,
-    "gameplayObservedThisRevision": false
+    "gameplayObservedInBrowser": false
   },
-  "previousLayoutReview": {
-    "date": "2026-10-30",
-    "viewports": [
-      [
-        320,
-        740
-      ],
-      [
-        390,
-        844
-      ],
-      [
-        1280,
-        720
-      ]
-    ],
-    "primaryNumberSizeAt320": "28px",
-    "mainTouchTargetMinimum": "44 CSS px",
-    "note": "Previous artwork revision only. This change preserves geometry and font sizes, but these screenshots are not evidence of the new revision."
+  "verificationEnvironment": {
+    "logic": "Node24.19 built-in test runner",
+    "DOM": "jsdom26.1.0, actual game.mjs/HTML/module graph, manual RAF and seeded ordinary gameplay; Canvas/Image/layout/clock are stubs",
+    "renderer": "Canvas coordinate/state call tests, not pixel output",
+    "assetArt": "Native source and furniture images visually inspected, canonical RGBA/hash/alpha/season-palette validation"
   },
   "observed": [
-    "Five animal species,20 independently drawn front/back/right/left atlases and312 unique frames inspected.",
-    "Broad warm brown contours, dot eyes and simple earth/sage color regions match the woodland art brief; costume/star/gloss features removed.",
-    "Independent per-frame review checked source clipping, anatomy, facing, basket handedness and work preparation/contact/recovery.",
-    "Squirrel profile throwing rows regenerated to remove a clipped muzzle and inconsistent paw colors.",
-    "Fox duplicate basket, tail clipping and incorrect left work facing regenerated before export.",
-    "Canonical native tree/plant/ground previews checked;2x2 ground repeat has no sharp seam.",
-    "Canvas cliff/grass geometry exercised with a stub at320/390/510/800 and worldY±1000000; coordinates finite. This is not browser rendering verification."
+    "Actual UI code completed a fresh first-year journey in DOM simulation, recruited all5animals, showed spring/summer/autumn, stopped exactly at108harvests, walked through the2.4second arrival then opened winter home.",
+    "Actual UI nest craft deducted wood12andgrain2 from existing personalmaterials; styles/placement persisted and nextspring retained growth, inventory and decor.",
+    "Pause/restart preserved current year/home; restored winter stayed at home without gathering or replaying arrival; real UI migrated a v3roster/inventory to first spring.",
+    "Four season tree atlases preserve original trunk/outline/stump and alpha; room/cabin/sixfurnishings inspected in isolation at native size.",
+    "Season colors, worldanchoring, Canvas save/restore balance, six furniture hit targets at320/390/shortPC validated with renderer tests.",
+    "House/furniture images loaded lazily near winter and on restoredwinter, confirmed by DOM image request log."
   ],
   "automatedTests": {
     "rules": 25,
+    "yearCycle": 13,
     "motion": 7,
-    "assets": 6,
-    "passed": 38
+    "assets": 8,
+    "renderer": 5,
+    "DOMIntegration": 3,
+    "passed": 61
+  },
+  "layoutReview": {
+    "mode": "Static CSS sizing and computed renderer geometry only",
+    "minimumMainTouchTarget": "44 CSS px",
+    "primaryYearAndFoodFont": "28px CSS rule, actual browser rendering unverified",
+    "yearHUDContentFit": "82px desktop/portrait and73px compact landscape; minimum font sizes retained"
   },
   "assetReview": {
-    "animalViews": 20,
     "animalFrames": 312,
-    "animalAtlasBytes": 2870594,
-    "environmentImageBytes": 132098,
-    "assetFolderBytes": 3447446,
-    "allFramesDistinctAndInsideAlphaMargins": true,
-    "groundTiling": "pass",
-    "sourceWarnings": [
-      "Static stump is an intentional one-frame end state."
-    ],
-    "smallVisualLimits": [
-      "Generated frame-to-frame head/foot/tail shape differences remain small in native contact sheets.",
-      "Minor low-amplitude color variation remains in animal/plant source art."
+    "newSeasonAndHomeImages": 12,
+    "newImageBytes": 797628,
+    "assetFolderBytes": 4257699,
+    "assetBudgetBytes": 6000000,
+    "notes": [
+      "Room/cabin/furniture match broad brown outlines and warm simple color regions.",
+      "Seasonal tree recolor changes green canopy only; brown trunk/stump and alpha are exact.",
+      "Minor frame-shape variation remains from existing six-frame animal cycles."
     ]
   },
   "provisionalScore": {
     "core": 24,
-    "mobile": 14,
+    "mobile": 13,
     "visual": 17,
-    "feedback": 12,
+    "feedback": 13,
     "performance": 8,
     "maintenance": 9,
     "total": 84
   },
   "scoreBasis": {
-    "core": "Rules and32motion/logic tests pass; unchanged mechanics, no current live play.",
-    "mobile": "Touch geometry/font size preserved from prior review; current browser and physical devices unverified.",
-    "visual": "All animal/environment families and native frames visually reviewed; current game composition unverified.",
-    "feedback": "Contactframe3/330ms contract verified, gestures independently inspected; runtime temporal feel unverified.",
-    "performance": "Local lossless assets below6MB and existing runtime caps retained; no real hardware profile.",
-    "maintenance": "38targeted tests, separate art cache version, v3 saves preserved and provenance updated."
+    "core": "Annual/home/nextspring and expenses verified by rules plus actual UI DOM simulation; no live browser play.",
+    "mobile": "44px controls and320/390renderer targets checked; real CSS layout/touch unverified.",
+    "visual": "New assets inspected, cohesive seasonal palettes and room scene geometry checked; final composited pixels unverified.",
+    "feedback": "Contacttiming and2.4second arrival/menu chain tested; human feel remains design/simulation assessment.",
+    "performance": "4.3MBasset budget, lazywinterart, boundedworld effects retained; realdevice frame/battery/thermal unmeasured.",
+    "maintenance": "61focused checks, v4migration/roundtrip, localassetprovenance and isolated locked test-onlydependency."
   },
   "limits": [
-    "Current PC/mobile browser composition, input, restart/navigation and tab resume not rechecked because browser access is disabled.",
-    "Physical iOS Safari/Android Chrome touch, address bar, safe areas and sustained frame/battery/thermal behavior unverified.",
-    "Six-frame cycles retain small source-shape changes; exact same-foot stride transitions unverified.",
-    "No independent human enjoyment playtest; game-feel assessment is based on design and frame review only."
+    "PC/320/390 browser screenshots, real input, navigation, safearea/addressbar and tabreturn not rechecked because localbrowser access is disabled.",
+    "Actual mobile sustainedfps, thermal andbattery unmeasured.",
+    "DOM simulation and Canvas stubs do not validate raster composition, visual overlap or human enjoyment.",
+    "Generated animal cycles retain small head/foot/tail shape differences."
   ],
-  "nextPriority": "Enable browser access and play this revision at320/390portrait andPC, then test physical phones and refine any visible foot/shape transitions."
+  "nextPriority": "Enable localbrowser and play a full year at320/390portrait andPC; check furniture overlap, touch, pause/resume and second spring, then profile physical phones."
 }

@@ -1,0 +1,15 @@
+{
+  "name": "acorn-guard-dom-tests",
+  "private": true,
+  "description": "DOM simulation tests; no browser rendering or real-device verification",
+  "type": "module",
+  "scripts": {
+    "test:ui": "node --experimental-vm-modules --test ui-cycle.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

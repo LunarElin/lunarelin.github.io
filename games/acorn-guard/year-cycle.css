@@ -1,0 +1,58 @@
+.wave-hud{width:244px;height:82px;display:grid;grid-template-columns:45px 1fr;grid-template-rows:32px 5px 27px;gap:2px 8px;padding:5px 10px;border-radius:18px;top:calc(env(safe-area-inset-top,0px) + 102px)}
+.wave-hud:active{transform:translate(-50%,3px)}
+.year-badge{grid-row:1/4;display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:2px solid #cfbc8a;padding-right:8px}
+.year-badge svg{width:26px;height:26px}
+#year{font-size:28px;line-height:30px}
+.year-seasons{display:flex;justify-content:space-between;align-items:center;min-width:0}
+.year-seasons>span{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;opacity:.34}
+.year-seasons svg{width:26px;height:26px}
+.year-seasons .current{opacity:1;background:#fff7dd;box-shadow:inset 0 0 0 2px #b29458,0 2px #bb9e66}
+.year-seasons .visited{opacity:.75}
+.year-track{height:5px;border-radius:5px;background:#c9bd91;overflow:hidden}
+.year-track i{display:block;height:100%;width:0;background:#8fa968;transition:width .6s}
+.year-food{display:flex;gap:5px;align-items:center;justify-content:center;min-width:0}
+.year-food svg{width:26px;height:26px}
+#food{font-size:28px;line-height:28px}
+.year-food .food-snow{width:20px;height:20px;opacity:.7}
+.side-actions{top:calc(env(safe-area-inset-top,0px) + 197px)}
+.home-tools[hidden]{display:none}
+.home-mode .upgrades,.home-mode .party-bar,.home-mode .experience-track,.home-mode .field-controls,.home-mode .side-actions{display:none}
+.home-mode .bottom-hud{background:linear-gradient(#fff0ce,#e3c99c);border-top-color:#fff4da;box-shadow:0 -3px #92683f,0 -7px 18px #67442630}
+.home-mode .vignette{box-shadow:inset 0 0 38px #6d411b20}
+.home-tools{padding:8px 0 11px}
+.decor-tabs{display:grid;grid-template-columns:repeat(6,minmax(44px,1fr));gap:4px}
+.decor-tab{position:relative;height:47px;display:grid;place-items:center;background:#e3d1a6;border:2px solid #b79b6a;border-radius:12px;box-shadow:0 3px #aa8b59}
+.decor-tab svg{width:33px;height:33px}
+.decor-tab b{position:absolute;right:-2px;bottom:-4px;font-size:15px;line-height:19px;min-width:18px;border-radius:7px;background:#f3d789;border:1px solid #997847}
+.decor-tab.selected{background:#c8d4a1;border-color:#829650;box-shadow:inset 0 2px #ecf0ca,0 3px #7f9258}
+.decor-info{display:flex;gap:9px;align-items:center;min-height:51px;margin-top:5px}
+.decor-preview{display:flex;gap:4px;align-items:center}
+.decor-preview svg{width:29px;height:29px}
+.decor-preview strong{font-size:28px;line-height:32px}
+.decor-cost{display:flex;align-items:center;gap:9px;margin-left:auto;min-width:0}
+.decor-cost>span{display:flex;align-items:center;gap:2px}
+.decor-cost svg{width:24px;height:24px}
+.decor-cost b{font-size:19px;line-height:23px}
+.decor-cost .short{color:#ad6045}
+.comfort-meter{display:flex;align-items:center;gap:2px;color:#a46952;margin-left:auto}
+.comfort-meter svg{width:21px;height:21px}
+.comfort-meter b{font-size:20px}
+.decor-actions{display:flex;gap:9px;align-items:center}
+.decor-actions button{height:48px;min-width:48px;display:flex;align-items:center;justify-content:center;border:2px solid #a58a5c;border-radius:14px;background:linear-gradient(#fff5d8,#e6cea0);box-shadow:inset 0 2px #fff9e8,0 4px #aa8856}
+.decor-actions button svg{width:30px;height:30px}
+.decor-actions button:disabled{opacity:.4;box-shadow:0 2px #b49b74}
+.decor-actions .craft-button{position:relative;width:70px;background:linear-gradient(#c8d99a,#a8bf78);border-color:#849c58;box-shadow:inset 0 2px #e4edc3,0 4px #7f9255}
+.craft-button .craft-up{width:19px;height:19px;position:absolute;right:3px;top:2px;color:#658044}
+.decor-actions .unaffordable{background:linear-gradient(#e3d9b9,#cbbb97);border-color:#af9b70}
+.decor-actions .spring-button{margin-left:auto;min-width:89px;background:linear-gradient(#f2d896,#dfba70);border-color:#af8a4c;gap:5px}
+.spring-button svg:last-child{width:23px;height:23px}
+.winter-summary{display:flex;justify-content:center;align-items:center;gap:11px;margin:10px 0 12px}
+.winter-summary>svg{width:43px;height:43px}
+.winter-summary strong{font-size:36px;line-height:42px}
+.winter-foods{display:flex;justify-content:center;gap:17px;margin:12px 0}
+.winter-foods>span{display:flex;flex:1;min-width:0;flex-direction:column;align-items:center;gap:4px;font-size:23px}
+.winter-foods svg{width:30px;height:30px}
+.year-record{display:flex;justify-content:center;gap:9px;align-items:center;margin-top:15px;font-size:28px}
+.year-record svg{width:33px;height:33px}
+@media(max-width:350px){.wave-hud{top:calc(env(safe-area-inset-top,0px) + 91px);width:232px}.side-actions{top:calc(env(safe-area-inset-top,0px) + 184px);right:10px}.decor-tabs{gap:3px}.decor-actions{gap:7px}.decor-info{gap:5px}.decor-cost{gap:5px}.decor-preview svg{width:25px}.comfort-meter{gap:0}.home-mode .bottom-hud{padding-inline:10px}}
+@media(max-height:580px) and (orientation:landscape){.wave-hud{top:calc(env(safe-area-inset-top,0px) + 96px);left:50%;width:210px;height:73px;grid-template-rows:27px 4px 24px}.year-seasons svg{width:23px;height:23px}.year-seasons>span{height:27px}.home-tools{padding-block:4px}}

@@ -4,11 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#cfd99a">
-  <meta name="description" content="다람쥐와 네 친구가 각자의 방법으로 채집하고 성장하는 숲길 방치형 채집 게임. 화면을 드래그하면 직접 이동합니다.">
+  <meta name="description" content="사계절 숲에서 겨울나기 먹이를 모으고, 따뜻한 겨울 집을 꾸민 뒤 다시 봄으로 떠나는 동물 친구들의 채집 여행.">
   <title>도토리 원정대</title>
   <link rel="icon" href="icon.svg?v=outlined-20261031-v1" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="forest-theme.css?v=outlined-20261031-v1">
+  <link rel="stylesheet" href="year-cycle.css?v=year-cycle-20261031-v1">
 </head>
 <body>
   <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -47,6 +48,21 @@
       <symbol id="i-beak" viewBox="0 0 48 48"><circle cx="20" cy="21" r="16" fill="#b69b72"/><path d="m30 14 15 9-15 6" fill="#d5a751"/><circle cx="22" cy="17" r="3" fill="#583f21" stroke="none"/><path d="m35 36 4 7m-15-3 2 5" stroke="#af854e" stroke-width="4"/></symbol>
       <symbol id="i-double" viewBox="0 0 48 48"><path d="m8 7 16 10-16 9Zm17 14 17 10-17 10Z" fill="#dbb57d"/><path d="m4 34 8 6m24-33 7 6" stroke="#9b7a52" stroke-width="3"/></symbol>
       <symbol id="i-lock" viewBox="0 0 48 48"><path d="M13 22V13a11 11 0 0 1 22 0v9" fill="none" stroke="#88714e" stroke-width="5"/><rect x="8" y="20" width="32" height="24" rx="7" fill="#c0ad82"/><path d="M24 28v8" stroke="#7b6243" stroke-width="4"/></symbol>
+      <symbol id="i-flower" viewBox="0 0 48 48"><path d="M24 46V28m0 10C11 40 9 32 9 28c9 0 15 3 15 10m1-7c11 0 15-7 14-12-9 1-13 5-14 12" fill="#91ad6c"/><path d="M23 8c3-12 17-4 12 5 14-1 14 15 2 16 5 12-9 18-15 7-8 10-20 0-12-9-14-4-8-18 4-15-4-13 10-16 9-4Z" fill="#efb9ad"/><circle cx="24" cy="22" r="7" fill="#efce79"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 48 48"><circle cx="24" cy="24" r="12" fill="#efca65"/><path d="M24 2v5m0 34v5M2 24h5m34 0h5M8 8l4 4m24 24 4 4M8 40l4-4m24-24 4-4" fill="none" stroke="#bb8c3d" stroke-width="4"/></symbol>
+      <symbol id="i-autumn" viewBox="0 0 48 48"><path d="M23 41C1 39 1 18 10 5c2 8 7 4 11 0 7 6 4 11 17 6 9 24-2 30-15 30Z" fill="#dc9c55"/><path d="m15 46 13-29m-7 18-9-10m14 1 11-4" fill="none"/></symbol>
+      <symbol id="i-snow" viewBox="0 0 48 48"><path d="M24 3v42M6 14l36 20M6 34l36-20M17 7l7 7 7-7m-14 34 7-7 7 7M7 22l10-3-2-10m18 30-2-10 10-3M7 26l10 3-2 10m18-30-2 10 10 3" fill="none" stroke="#8caeb2" stroke-width="3"/></symbol>
+      <symbol id="i-calendar" viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="33" rx="7" fill="#f6e2b2"/><path d="M6 21h36M15 5v11M33 5v11" fill="none" stroke-width="4"/><path d="m19 31 4 4 8-9" fill="none" stroke="#7e9856" stroke-width="4"/></symbol>
+      <symbol id="i-nest" viewBox="0 0 48 48"><ellipse cx="24" cy="33" rx="21" ry="11" fill="#ba965e"/><ellipse cx="24" cy="27" rx="18" ry="10" fill="#eddbad"/><path d="M10 31 35 40M8 38l28-9M14 43l25-10" stroke="#8a693e" stroke-width="2"/><path d="M16 25c-7-13 11-16 13-6 13-3 17 8 5 10Z" fill="#fff0cc"/></symbol>
+      <symbol id="i-pantry" viewBox="0 0 48 48"><path d="M7 7h34v37H7Z" fill="#b48958"/><path d="M5 24h38M5 43h38" stroke-width="5"/><circle cx="16" cy="17" r="5" fill="#d88b6b"/><path d="M27 12h9v11h-9Z" fill="#dcc68a"/><path d="M12 31h11v10H12Z" fill="#dec18a"/><circle cx="33" cy="35" r="5" fill="#c3aa69"/></symbol>
+      <symbol id="i-rug" viewBox="0 0 48 48"><ellipse cx="24" cy="28" rx="22" ry="14" fill="#c88466"/><ellipse cx="24" cy="26" rx="17" ry="9" fill="#e7c98b"/><ellipse cx="24" cy="26" rx="10" ry="5" fill="#9eb47c"/><path d="m6 37-3 5m11-3-1 6m23-6 1 6m5-8 3 5" fill="none" stroke-width="2"/></symbol>
+      <symbol id="i-hearth" viewBox="0 0 48 48"><path d="M17 3h14v14H17Z" fill="#a69276"/><path d="M6 23 14 13h20l8 10v21H6Z" fill="#b4a38b"/><path d="M13 43V29c0-14 22-14 22 0v14Z" fill="#6f5338"/><path d="M16 37c-3-7 7-8 7-16 10 6 12 15 6 19-6 4-12 1-13-3Z" fill="#eaa552"/><path d="M23 40c-4-3 0-8 2-9 4 5 5 8-2 9" fill="#f9d67e" stroke="none"/></symbol>
+      <symbol id="i-lantern" viewBox="0 0 48 48"><path d="M23 3v8M15 13h18l8 25-17 8L7 38Z" fill="#f0cc77"/><path d="M12 15h25M8 38h33M17 15l2 23m12-23-2 23" fill="none" stroke="#8f7145" stroke-width="3"/><path d="M19 13c-5-14 16-14 11 0" fill="none"/></symbol>
+      <symbol id="i-curtains" viewBox="0 0 48 48"><path d="M3 5h42v39H3Z" fill="#c3d8d2"/><path d="M4 7h18c0 18-8 20-12 20l4 17H4Zm40 0H26c0 18 8 20 12 20l-4 17h10Z" fill="#ce8f79"/><path d="M2 6h44M9 28h7m16 0h7" fill="none" stroke-width="4"/></symbol>
+      <symbol id="i-hammer" viewBox="0 0 48 48"><path d="m9 42 20-26 7 6-20 26Z" fill="#b68a53"/><path d="m17 7 10-5 17 13-4 10-7-6-8 3-11-8Z" fill="#b9ad90"/></symbol>
+      <symbol id="i-palette" viewBox="0 0 48 48"><path d="M25 3C-4 0-6 43 21 45c14 0-1-10 8-13 5-2 14 1 16-9C48 11 36 4 25 3Z" fill="#e7cf9c"/><circle cx="14" cy="15" r="5" fill="#ce8b72"/><circle cx="29" cy="12" r="5" fill="#a2b77a"/><circle cx="36" cy="24" r="4" fill="#8faeb6"/><circle cx="11" cy="29" r="4" fill="#deb45f"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 48 48"><path d="M3 24C14 5 34 5 45 24 34 43 14 43 3 24Z" fill="#efe5bd"/><circle cx="24" cy="24" r="8" fill="#8aa05f"/><circle cx="24" cy="24" r="3" fill="#583f21" stroke="none"/></symbol>
+      <symbol id="i-check" viewBox="0 0 48 48"><path d="m8 25 11 11L41 10" fill="none" stroke="#789653" stroke-width="7"/></symbol>
     </defs>
   </svg>
   <main id="game" class="game-shell" aria-label="도토리 원정대 게임">
@@ -57,7 +73,7 @@
       <div class="resources"><div class="coin-counter"><svg><use href="#i-coin"/></svg><strong id="coins">0</strong></div><div class="material-counter"><svg><use id="material-icon" href="#i-acorn"/></svg><strong id="materials">0</strong><span class="party-count"><svg><use href="#i-paw"/></svg><b id="party-count">1/5</b></span></div></div>
       <button id="pause-button" class="round-button pause-button" aria-label="일시 정지"><svg><use href="#i-pause"/></svg></button>
     </header>
-    <button id="stats-button" class="wave-hud" aria-label="원정 기록"><svg><use href="#i-leaf"/></svg><strong id="wave">1–1</strong><span class="wave-track"><i id="wave-fill"></i></span><svg class="wave-crown"><use href="#i-crown"/></svg></button>
+    <button id="stats-button" class="wave-hud" aria-label="올해의 계절과 겨울나기 먹이 기록"><span class="year-badge"><svg><use href="#i-calendar"/></svg><strong id="year">1</strong></span><span class="year-seasons"><span data-season="spring" class="current"><svg><use href="#i-flower"/></svg></span><span data-season="summer"><svg><use href="#i-sun"/></svg></span><span data-season="autumn"><svg><use href="#i-autumn"/></svg></span><span data-season="winter"><svg><use href="#i-snow"/></svg></span></span><span class="year-track"><i id="year-fill"></i></span><span class="year-food"><svg><use href="#i-basket"/></svg><strong id="food">0</strong><svg class="food-snow"><use href="#i-snow"/></svg></span></button>
     <div class="side-actions"><button id="gift-button" class="round-button gift-button" aria-label="원정 보급 받기"><svg><use href="#i-gift"/></svg><span class="notification-dot"></span></button></div>
     <div id="reward-toast" class="reward-toast" role="status" aria-live="polite"></div>
     <div class="field-controls">
@@ -72,11 +88,16 @@
         <button class="upgrade" data-slot="2" data-upgrade="bounty" aria-label="도토리 보상 강화"><span class="upgrade-top"><svg><use class="upgrade-icon" href="#i-coin"/></svg><span class="upgrade-level">1</span><svg class="upgrade-arrow"><use href="#i-up"/></svg></span><strong class="upgrade-value">120%</strong><span class="upgrade-cost"><span><svg><use href="#i-coin"/></svg><b class="coin-price">40</b></span><span><svg><use class="cost-material-icon" href="#i-acorn"/></svg><b class="material-price">3</b></span></span></button>
       </div>
       <nav class="party-bar" id="party-bar" aria-label="동물별 성장 선택"></nav>
+      <section id="home-tools" class="home-tools" aria-label="겨울 집 꾸미기" hidden>
+        <div id="decor-tabs" class="decor-tabs" role="group" aria-label="꾸밀 가구 선택"></div>
+        <div class="decor-info"><span id="decor-preview" class="decor-preview"></span><span id="decor-cost" class="decor-cost" aria-live="polite"></span><span class="comfort-meter" aria-label="집의 포근함"><svg><use href="#i-heart"/></svg><b id="comfort">0</b></span></div>
+        <div class="decor-actions"><button id="craft-button" class="craft-button" aria-label="선택한 가구 만들기"><svg><use href="#i-hammer"/></svg><svg class="craft-up"><use href="#i-up"/></svg></button><button id="style-button" aria-label="가구 색상 바꾸기"><svg><use href="#i-palette"/></svg></button><button id="place-button" aria-label="가구 배치 또는 치우기" aria-pressed="false"><svg><use href="#i-eye"/></svg></button><button id="spring-button" class="spring-button" aria-label="다음 해 봄으로 출발"><svg><use href="#i-flower"/></svg><svg><use href="#i-play"/></svg></button></div>
+      </section>
     </footer>
     <div id="overlay" class="overlay" hidden><section id="dialog" class="dialog" role="dialog" aria-modal="true" aria-label="게임 메뉴"></section></div>
     <div id="load-indicator" class="load-indicator" aria-label="리소스 불러오는 중"><svg><use href="#i-acorn"/></svg><div><i></i></div></div>
     <span id="announcer" class="sr-only" aria-live="polite"></span>
   </main>
-  <script type="module" src="game.mjs?v=outlined-20261031-v1"></script>
+  <script type="module" src="game.mjs?v=year-cycle-20261031-v1"></script>
 </body>
 </html>

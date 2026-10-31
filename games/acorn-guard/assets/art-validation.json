@@ -1,6 +1,6 @@
 {
-  "version": 6,
-  "artRevision": "outlined-20261031-v1",
+  "version": 7,
+  "artRevision": "year-cycle-20261031-v1",
   "generator": "sprite-gen3.7.0 / codex GPT images and GPT image rows",
   "runtimeGenerationRequired": false,
   "runtimeManifestVersion": 2,
@@ -3004,5 +3004,321 @@
   },
   "totalAnimalFrames": 312,
   "totalAnimalAtlasBytes": 2870594,
-  "totalRuntimeAssetBytesExcludingReport": 3374895
+  "totalRuntimeAssetBytesExcludingReport": 4176206,
+  "seasonTrees": {
+    "method": "Canonical sprite-gen recolor tolerance22; green canopy palette centers measured from existing oak; geometry and alpha unchanged",
+    "source": "oak.webp",
+    "sourcePalette": [
+      "#568359",
+      "#799351",
+      "#8DB05D",
+      "#9CB970"
+    ],
+    "variants": {
+      "spring": {
+        "image": "oak-spring.webp",
+        "width": 384,
+        "height": 576,
+        "bytes": 46538,
+        "sha256": "9fead0c828eb4a851e5b017174d6f656ca6c39451b3acbe3626bd601591fd49d",
+        "alphaExact": true,
+        "stumpExact": true,
+        "brownOutlineAndTrunkExact": true,
+        "changedRGBPixels": 42242
+      },
+      "summer": {
+        "image": "oak-summer.webp",
+        "width": 384,
+        "height": 576,
+        "bytes": 46016,
+        "sha256": "2bf3ca98d4fd0279a370b1d38e426cd5eba08cb235e6b6004126620ee7cdd7c1",
+        "alphaExact": true,
+        "stumpExact": true,
+        "brownOutlineAndTrunkExact": true,
+        "changedRGBPixels": 42242
+      },
+      "autumn": {
+        "image": "oak-autumn.webp",
+        "width": 384,
+        "height": 576,
+        "bytes": 46402,
+        "sha256": "8e8bce0d9ed405d18724b3b656f11b0cad7258559250d24231e242efd56af2f1",
+        "alphaExact": true,
+        "stumpExact": true,
+        "brownOutlineAndTrunkExact": true,
+        "changedRGBPixels": 42242
+      },
+      "winter": {
+        "image": "oak-winter.webp",
+        "width": 384,
+        "height": 576,
+        "bytes": 47168,
+        "sha256": "513444fe67cfca361c4acc752cf40ef37e5b12d0c402986297c4518b1ddfc64e",
+        "alphaExact": true,
+        "stumpExact": true,
+        "brownOutlineAndTrunkExact": true,
+        "changedRGBPixels": 42242
+      }
+    }
+  },
+  "winterShelter": {
+    "generator": "sprite-gen3.7.0 / codex GPT image generation",
+    "artStyle": "Original simple2D woodland cartoon, broad warm brown contours and large muted honey/cream/sage/rust regions",
+    "normalization": "Canonical sprite-gen slice-sheet alpha-floor64 + containfit, padded12px; canonical resize_cell for opaque768room; WebP lossless exact",
+    "images": {
+      "shelter-room": {
+        "image": "shelter-room.webp",
+        "width": 768,
+        "height": 768,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.5
+        },
+        "bytes": 345530,
+        "sha256": "9fa935afb24a94cd77ac164ff12c6638fd9ed8af5166887a2c5b1570ab486c58",
+        "alphaBounds": [
+          0,
+          0,
+          768,
+          768
+        ],
+        "hasRealTransparency": false,
+        "RGBAExactToNormalizedSource": true,
+        "normalization": {
+          "method": "canonical resize_cell",
+          "sourceSize": [
+            1254,
+            1254
+          ],
+          "targetSize": [
+            768,
+            768
+          ]
+        }
+      },
+      "shelter-cabin": {
+        "image": "shelter-cabin.webp",
+        "width": 384,
+        "height": 384,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        },
+        "bytes": 83648,
+        "sha256": "33cd91d0b9594e85484da5ac5f68fc799fc032ae5412c5459b8f18dc14420ccc",
+        "alphaBounds": [
+          24,
+          24,
+          360,
+          360
+        ],
+        "hasRealTransparency": true,
+        "RGBAExactToNormalizedSource": true,
+        "normalization": {
+          "method": "canonical slice-sheet1x1 alpha-floor64 contain-fit +12px padding",
+          "innerCell": [
+            360,
+            360
+          ],
+          "innerBaseline": 348.0,
+          "baseline": 360.0
+        }
+      },
+      "decor-nest": {
+        "image": "decor-nest.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        },
+        "bytes": 33490,
+        "sha256": "1955748261e72352d8836f8d754c0a2bfa8bdde360ec915a9eeb2715ac856911",
+        "alphaBounds": [
+          12,
+          84,
+          244,
+          240
+        ],
+        "hasRealTransparency": true,
+        "RGBAExactToNormalizedSource": true,
+        "normalization": {
+          "method": "canonical slice-sheet1x1 alpha-floor64 contain-fit +12px padding",
+          "innerCell": [
+            232,
+            232
+          ],
+          "innerBaseline": 228.0,
+          "baseline": 240.0
+        }
+      },
+      "decor-pantry": {
+        "image": "decor-pantry.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        },
+        "bytes": 41756,
+        "sha256": "7998b2d4df88a8bd1dbcb0038eab6e926a2518862b97a8ef8ec6a5cc0454e671",
+        "alphaBounds": [
+          12,
+          49,
+          244,
+          240
+        ],
+        "hasRealTransparency": true,
+        "RGBAExactToNormalizedSource": true,
+        "normalization": {
+          "method": "canonical slice-sheet1x1 alpha-floor64 contain-fit +12px padding",
+          "innerCell": [
+            232,
+            232
+          ],
+          "innerBaseline": 228.0,
+          "baseline": 240.0
+        }
+      },
+      "decor-rug": {
+        "image": "decor-rug.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        },
+        "bytes": 24990,
+        "sha256": "a6a868b6dcf5e7f6a7f9de966c6c99801f07290699b3e02f01681e80018ed638",
+        "alphaBounds": [
+          12,
+          145,
+          244,
+          240
+        ],
+        "hasRealTransparency": true,
+        "RGBAExactToNormalizedSource": true,
+        "normalization": {
+          "method": "canonical slice-sheet1x1 alpha-floor64 contain-fit +12px padding",
+          "innerCell": [
+            232,
+            232
+          ],
+          "innerBaseline": 228.0,
+          "baseline": 240.0
+        }
+      },
+      "decor-hearth": {
+        "image": "decor-hearth.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        },
+        "bytes": 30260,
+        "sha256": "d1b7072bdc0f503da101397ea48b0e7313de99541209d35fa69930a164ba9511",
+        "alphaBounds": [
+          37,
+          32,
+          220,
+          240
+        ],
+        "hasRealTransparency": true,
+        "RGBAExactToNormalizedSource": true,
+        "normalization": {
+          "method": "canonical slice-sheet1x1 alpha-floor64 contain-fit +12px padding",
+          "innerCell": [
+            232,
+            232
+          ],
+          "innerBaseline": 228.0,
+          "baseline": 240.0
+        }
+      },
+      "decor-lantern": {
+        "image": "decor-lantern.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        },
+        "bytes": 25878,
+        "sha256": "01be6a0918b2ce68a73d352019ac4783fcdb55436f13273c72a3d326adaf606c",
+        "alphaBounds": [
+          56,
+          32,
+          199,
+          240
+        ],
+        "hasRealTransparency": true,
+        "RGBAExactToNormalizedSource": true,
+        "normalization": {
+          "method": "canonical slice-sheet1x1 alpha-floor64 contain-fit +12px padding",
+          "innerCell": [
+            232,
+            232
+          ],
+          "innerBaseline": 228.0,
+          "baseline": 240.0
+        }
+      },
+      "decor-curtains": {
+        "image": "decor-curtains.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        },
+        "bytes": 25952,
+        "sha256": "bfca8708e1df42468d57df9262b4cdd8357c783e7ba7c6f3f60eac5aa0c692e9",
+        "alphaBounds": [
+          12,
+          66,
+          244,
+          240
+        ],
+        "hasRealTransparency": true,
+        "RGBAExactToNormalizedSource": true,
+        "normalization": {
+          "method": "canonical slice-sheet1x1 alpha-floor64 contain-fit +12px padding",
+          "innerCell": [
+            232,
+            232
+          ],
+          "innerBaseline": 228.0,
+          "baseline": 240.0
+        }
+      }
+    },
+    "room": {
+      "windowInnerBounds": [
+        0.274,
+        0.113,
+        0.727,
+        0.355
+      ],
+      "windowOuterBounds": [
+        0.234,
+        0.075,
+        0.767,
+        0.392
+      ],
+      "floorBackY": 0.49,
+      "furnitureBaked": false,
+      "animalsBaked": false
+    },
+    "limits": [
+      "Small generated tonal variation remains at large source resolution.",
+      "Native game composition and interaction are verified by parent, not this image-only pipeline."
+    ],
+    "totalBytes": 611504
+  },
+  "loadingPolicy": {
+    "seasonTrees": "initial",
+    "shelter": "prefetch after annualharvest84 or immediately when loading a saved winter",
+    "runtimeGenerationRequired": false
+  }
 }

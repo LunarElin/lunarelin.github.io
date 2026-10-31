@@ -1,5 +1,6 @@
-import { HEROES, WORLD, RECRUIT_THRESHOLDS, createGame, stepGame, xpForLevel, upgrade, upgradeCost, upgradeDefinitions, upgradeValue, recruitFriend, selectHero, useSkill, restartRun, loadProfile, saveProfile } from './rules.mjs?v=outlined-20261031-v1';
+import { HEROES, WORLD, RECRUIT_THRESHOLDS, SEASONS, DECORATIONS, seasonStatus, decorationCost, craftDecoration, cycleDecorationStyle, toggleDecoration, homeComfort, beginSpring, createGame, stepGame, xpForLevel, upgrade, upgradeCost, upgradeDefinitions, upgradeValue, recruitFriend, selectHero, useSkill, restartRun, loadProfile, saveProfile } from './rules.mjs?v=year-cycle-20261031-v1';
 import { projectWorldVector, screenInputToWorld, createPoseMemory, actorPose, frameAt } from './motion.mjs';
+import { seasonPalette, drawSeasonDetails, drawShelter, drawTrailCabin } from './season-render.mjs?v=year-cycle-20261031-v1';
 
 const $ = selector => document.querySelector(selector);
 const canvas = $('#world'), ctx = canvas.getContext('2d', { alpha: false });
@@ -10,12 +11,16 @@ let storage;
 try { storage = window.localStorage; } catch { storage = { getItem: () => null, setItem: () => {} }; }
 const profile = loadProfile(storage);
 const state = createGame(profile);
-const assets = { heroes: {}, resources: {}, icons: {}, tree: null, background: null, spark: null };
+const assets = { heroes: {}, resources: {}, icons: {}, tree: null, background: null, spark: null, seasonTrees: [], shelter: { room:null,cabin:null,decor:{} } };
 const camera = { x: state.hero.x, y: state.hero.y };
 let width = 390, height = 844, dpr = 1, playTop = 160, playHeight = 450, running = false;
 let animationId = 0, lastTime = 0, uiTime = 0, saveTime = 0, lastEffect = 0;
-let menu = 'start', previousFocus = null, toastTimer, sound = false, audio, giftClaimed = false, lastWave = state.wave;
+let menu = 'start', previousFocus = null, toastTimer, sound = false, audio, giftClaimed = false;
 let terrain, groundPattern, touch = null, assetsReady = false;
+let visualSeason=seasonStatus(state).position, ambientTime=0, arrivalTime=0, sceneFade=0, shelterHits=[], selectedDecoration='nest', homeSignature='';
+let palette=seasonPalette(visualSeason);
+let runtimeManifest=null,assetRevision='year-cycle-20261031-v1',shelterPromise=null;
+const atHome=()=>state.journey.phase==='home';
 const stumps = [], coins = [], keys = new Set(), uiCache = new Map();
 const poses = new Map();
 const RESOURCE_NAMES={acorn:'도토리',wood:'목재',berries:'열매',bamboo:'대나무',grain:'곡식'};
@@ -81,8 +86,15 @@ function updateHUD(){
   setText('#coins',money(state.coins));setText('#level',growth.level);setText('#materials',money(growth.materials));setText('#party-count',`${state.recruited.length}/5`);
   $('#material-icon').setAttribute('href',`#i-${resourceIcon(selected.resource)}`);
   $('.material-counter').setAttribute('aria-label',`${selected.name} ${RESOURCE_NAMES[selected.resource]} ${growth.materials}개, 동료 ${state.recruited.length}마리`);
-  setText('#wave',`${Math.floor((state.wave-1)/5)+1}–${(state.wave-1)%5+1}`);
-  $('#wave-fill').style.width=`${state.waveKills/state.waveTotal*100}%`;
+  const season=seasonStatus(state),home=season.atHome&&arrivalTime<=0;
+  shell.classList.toggle('home-mode',home);
+  setText('#year',season.year);setText('#food',money(season.food));
+  $('#year-fill').style.width=`${season.progress*100}%`;
+  $('#stats-button').setAttribute('aria-label',`${season.year}년째 ${SEASONS[season.index].name}, 올해 모은 먹이 ${season.food}개, 겨울 집까지 ${Math.round(season.progress*100)}퍼센트`);
+  document.querySelectorAll('[data-season]').forEach((el,index)=>{el.classList.toggle('current',index===season.index);el.classList.toggle('visited',index<season.index);});
+  $('#home-tools').hidden=!home;
+  $('#world').setAttribute('aria-label',home?'겨울 집. 가구를 누르거나 아래 꾸미기 버튼으로 모은 재료를 사용합니다.':'사계절 숲길에서 겨울나기 먹이를 모읍니다. 화면을 누르고 드래그하면 직접 이동합니다.');
+  if(home)updateHomeTools();
   const xpMax=xpForLevel(growth.level);
   $('#xp-fill').style.width=`${Math.min(100,growth.xp/xpMax*100)}%`;
   $('.experience-track').setAttribute('aria-valuenow',Math.round(growth.xp/xpMax*100));
@@ -106,6 +118,24 @@ function updateHUD(){
   $('#auto-button').classList.toggle('active',state.autoMove);$('#auto-button').setAttribute('aria-pressed',String(state.autoMove));
   $('#auto-button').setAttribute('aria-label',state.autoMove?'자동 이동 끄기':'자동 이동 켜기');
   $('#gift-button').classList.toggle('claimed',giftClaimed);$('#gift-button').setAttribute('aria-label',giftClaimed?'원정 보급 수령 완료':'원정 보급 동전 100개 받기');
+}
+function resourceAmount(resource){const hero=HEROES.find(h=>h.resource===resource);return hero?state.members[hero.id].materials:0;}
+function updateHomeTools(){
+  const signature=selectedDecoration+'|'+JSON.stringify(state.homestead.decorations)+'|'+HEROES.map(h=>state.members[h.id].materials).join(',');
+  if(signature===homeSignature)return;homeSignature=signature;
+  const focusedDecoration=document.activeElement?.dataset?.decoration;
+  const selected=DECORATIONS.find(d=>d.id===selectedDecoration),item=state.homestead.decorations[selectedDecoration],cost=decorationCost(state,selectedDecoration);
+  $('#decor-tabs').innerHTML=DECORATIONS.map(d=>{const value=state.homestead.decorations[d.id];return `<button class="decor-tab ${d.id===selectedDecoration?'selected':''}" data-decoration="${d.id}" aria-label="${d.name} ${value.level}단계 선택" aria-pressed="${d.id===selectedDecoration}">${icon(d.icon)}<b>${value.level}</b></button>`;}).join('');
+  $('#decor-preview').innerHTML=`${icon(selected.icon)}<strong>${item.level}/3</strong>`;
+  $('#decor-cost').innerHTML=cost?Object.entries(cost).map(([resource,amount])=>`<span class="${resourceAmount(resource)<amount?'short':''}" aria-label="${RESOURCE_NAMES[resource]} ${resourceAmount(resource)}개 보유, ${amount}개 필요">${icon(resourceIcon(resource))}<b>${amount}</b></span>`).join(''):`<span>${icon('check')}</span>`;
+  const craft=$('#craft-button'),affordable=!!cost&&Object.entries(cost).every(([resource,amount])=>resourceAmount(resource)>=amount);
+  craft.classList.toggle('unaffordable',!affordable);craft.setAttribute('aria-disabled',String(!affordable));craft.setAttribute('aria-label',`${selected.name} ${item.level?'꾸미기 강화':'만들기'}. ${cost?Object.entries(cost).map(([r,n])=>`${RESOURCE_NAMES[r]} ${n}개`).join(', '):'최대 단계'}`);
+  $('#style-button').disabled=item.level===0;$('#place-button').disabled=item.level===0;
+  $('#style-button').setAttribute('aria-label',`${selected.name} 색상 바꾸기, 현재 ${item.style+1}번`);
+  $('#place-button').setAttribute('aria-label',`${selected.name} ${item.placed?'치우기':'배치하기'}`);$('#place-button').setAttribute('aria-pressed',String(item.placed));
+  setText('#comfort',homeComfort(state));
+  $('#spring-button').setAttribute('aria-label',`${state.journey.year+1}년 봄으로 출발. 동료, 성장, 남은 재료와 집 꾸미기를 유지합니다.`);
+  if(focusedDecoration)$('#decor-tabs').querySelector(`[data-decoration="${focusedDecoration}"]`)?.focus({preventScroll:true});
 }
 
 function ellipse(x, y, rx, ry, color, stroke) {
@@ -155,12 +185,12 @@ function drawCliff(edge,y0,y1,drop,raised=false){
     const top=raised?-drop:0,bottom=raised?0:drop;
     ctx.beginPath();ctx.moveTo(a.x,a.y+top);ctx.lineTo(b.x,b.y+top);
     ctx.lineTo(b.x+shift(i+1),b.y+bottom);ctx.lineTo(a.x+shift(i),a.y+bottom);ctx.closePath();
-    ctx.fillStyle=['#816046','#79593f','#715138'][Math.floor(seeded(i+21)*3)];ctx.fill();
+    ctx.fillStyle=palette.cliffs[Math.floor(seeded(i+21)*3)];ctx.fill();
     ctx.strokeStyle='#583f21';ctx.lineWidth=2;ctx.stroke();
     const m={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
     ctx.beginPath();ctx.moveTo(m.x,m.y+top+drop*.2);ctx.lineTo(m.x-4,m.y+top+drop*.5);
     ctx.lineTo(m.x+2,m.y+top+drop*.77);ctx.stroke();
-    if(i%4===0)roundRect(m.x-8,m.y+top+drop*.56,18,5,3,'#72934b');
+    if(i%4===0)roundRect(m.x-8,m.y+top+drop*.56,18,5,3,palette.plateau);
   }
 }
 function drawGrassLip(edge,y0,y1,drop=0){
@@ -172,23 +202,24 @@ function drawGrassLip(edge,y0,y1,drop=0){
   const a=position({x:edge,y:start*40}),b=position({x:edge,y:end*40});
   ctx.beginPath();ctx.moveTo(a.x,a.y+drop-5);ctx.lineTo(b.x,b.y+drop-5);
   for(let i=points.length-1;i>=0;i--)ctx.lineTo(points[i].x,points[i].y);
-  ctx.closePath();ctx.fillStyle=drop?'#81a855':'#cfd99a';ctx.fill();
+  ctx.closePath();ctx.fillStyle=drop?palette.plateau:palette.ground;ctx.fill();
   ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
   ctx.lineJoin='round';ctx.strokeStyle='#583f21';ctx.lineWidth=2.5;ctx.stroke();
 }
 function drawBackground(){
-  ctx.fillStyle='#7d8956';ctx.fillRect(0,0,width,height);
+  ctx.fillStyle=palette.background;ctx.fillRect(0,0,width,height);
   const y0=camera.y-2500,y1=camera.y+2500,drop=Math.max(48,width*.21);
   const back=[position({x:-2400,y:y0}),position({x:0,y:y0}),position({x:0,y:y1}),position({x:-2400,y:y1})];
-  ctx.beginPath();back.forEach((p,i)=>i?ctx.lineTo(p.x,p.y-drop):ctx.moveTo(p.x,p.y-drop));ctx.closePath();ctx.fillStyle='#81a855';ctx.fill();
+  ctx.beginPath();back.forEach((p,i)=>i?ctx.lineTo(p.x,p.y-drop):ctx.moveTo(p.x,p.y-drop));ctx.closePath();ctx.fillStyle=palette.plateau;ctx.fill();
   // The same projected plane drives terrain, targets and the camera. The rim has real screen depth.
   groundPath(y0,y1,drop);ctx.fillStyle='#664a35';ctx.fill();
   drawCliff(WORLD.width,y0,y1,drop);
   const s=groundScale(),origin=position({x:0,y:0});
   ctx.save();groundPath(y0,y1);ctx.clip();
   ctx.transform(Math.SQRT1_2*s,.40558*s,-Math.SQRT1_2*s,.40558*s,origin.x,origin.y);
-  ctx.fillStyle=groundPattern||'#cfd99a';ctx.fillRect(0,y0,WORLD.width,y1-y0);
+  ctx.fillStyle=palette.ground;ctx.fillRect(0,y0,WORLD.width,y1-y0);
   ctx.restore();
+  ctx.save();groundPath(y0,y1);ctx.clip();drawSeasonDetails(ctx,{width,height,position:visualSeason,time:ambientTime,camera,groundScale:groundScale(),project:position,reduceMotion,worldWidth:WORLD.width});ctx.restore();
   // The far rim rises above the trail; its wall stays in front of the ground plane.
   drawCliff(0,y0,y1,drop,true);
   drawGrassLip(0,y0,y1,-drop);
@@ -222,7 +253,12 @@ function drawTree(tree,stump=false){
     const frame=animation.frames[Math.min(animation.frames.length-1,Math.floor(time*(animation.fps||3))%animation.frames.length)];
     const scale=stump?(animation.renderScale||1):1;
     if(tree.kind==='golden')ctx.filter='sepia(.35) saturate(1.25)';
-    ctx.drawImage(data.bitmap,frame.x,frame.y,frame.w,frame.h,-size*(data.anchor?.x??.5)*scale,-size*(data.anchor?.y??.92)*scale,size*scale,size*scale);
+    const first=Math.min(3,Math.floor(visualSeason)),next=Math.min(3,first+1),blend=visualSeason-first;
+    const covered=ctx.globalAlpha<1;
+    const firstBitmap=assets.seasonTrees[covered&&blend>=.5?next:first]||data.bitmap,nextBitmap=assets.seasonTrees[next];
+    const renderTree=bitmap=>ctx.drawImage(bitmap,frame.x,frame.y,frame.w,frame.h,-size*(data.anchor?.x??.5)*scale,-size*(data.anchor?.y??.92)*scale,size*scale,size*scale);
+    renderTree(firstBitmap);
+    if(nextBitmap&&next!==first&&blend>0&&!stump&&!covered){ctx.globalAlpha=blend;renderTree(nextBitmap);ctx.globalAlpha=1;}
     ctx.filter='none';
   }else{
     if(stump)roundRect(-13,-10,26,12,6,'#b58a5c','#583f21');
@@ -350,11 +386,24 @@ function drawEffects() {
 }
 function draw() {
   if(!terrain)return;
-  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);drawBackground();
+  palette=seasonPalette(visualSeason);
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+  if(atHome()&&arrivalTime<=0){
+    shelterHits=drawShelter(ctx,{width,height,top:playTop-8,bottom:height-$('.bottom-hud').getBoundingClientRect().height-5,time:ambientTime,state,assets,drawAnimal:(...args)=>drawHeroImage(ctx,...args),reduceMotion,selectedDecoration});
+    if(sceneFade>0){ctx.save();ctx.globalAlpha=sceneFade/.6;ctx.fillStyle='#fff1d5';ctx.fillRect(0,0,width,height);ctx.restore();}
+    return;
+  }
+  shelterHits=[];drawBackground();
+  const approaching=state.journey.harvests>=90;
+  const cabin=approaching?position({x:WORLD.width*.55,y:state.hero.y-140-Math.max(0,108-state.journey.harvests)*28}):null;
   stumps.forEach(stump=>drawTree(stump,true));
-  const actors=[...state.targets.map(tree=>({depth:position(tree).y,tree})),...state.workers.map(worker=>({depth:position(worker).y,worker}))];
+  const actors=[...state.targets.map(tree=>({depth:position(tree).y,tree})),...(arrivalTime>0?[]:state.workers.map(worker=>({depth:position(worker).y,worker})))];
+  if(cabin)actors.push({depth:cabin.y,cabin});
   if(state.encounter)actors.push({depth:position(state.encounter).y,worker:{...state.encounter,animTime:state.elapsed,face:-1},npc:true});
-  actors.sort((a,b)=>a.depth-b.depth).forEach(actor=>actor.worker?drawWorker(actor.worker,actor.npc):drawTree(actor.tree));
+  actors.sort((a,b)=>a.depth-b.depth).forEach(actor=>{
+    if(actor.cabin){ctx.save();ctx.globalAlpha=Math.min(1,(state.journey.harvests-89)/8);drawTrailCabin(ctx,{x:actor.cabin.x,y:actor.cabin.y,size:168*width/390,assets});ctx.restore();}
+    else if(actor.worker)drawWorker(actor.worker,actor.npc);else drawTree(actor.tree);
+  });
   for(const projectile of state.projectiles){
     const point=position(projectile),tail=position({x:projectile.x-projectile.vx*.025,y:projectile.y-projectile.vy*.025});
     const age=1.4-projectile.life,progress=Math.min(1,age*Math.hypot(projectile.vx,projectile.vy)/(projectile.targetDistance||300));
@@ -365,6 +414,11 @@ function draw() {
     acorn(point.x,point.y-lift,projectile.skill?12:10,Math.atan2(velocity.y,velocity.x)+age*8,projectile.skill);
   }
   drawCoins();drawEffects();
+  if(arrivalTime>0&&cabin){
+    const progress=1-arrivalTime/2.4,ease=progress*progress*(3-2*progress);
+    state.workers.forEach((worker,i)=>{const start=position(worker),end={x:cabin.x+(i-2)*4,y:cabin.y-8+i*2},x=start.x+(end.x-start.x)*ease,y=start.y+(end.y-start.y)*ease,view=Math.abs(end.x-start.x)>Math.abs(end.y-start.y)*1.2?(end.x>start.x?'right':'left'):'back';drawHeroImage(ctx,worker.id,x,y,spriteSize()*(1-ease*.24),'run',ambientTime,view);});
+    if(progress>.72){ctx.save();ctx.globalAlpha=(progress-.72)/.28;ctx.fillStyle='#fff1d5';ctx.fillRect(0,0,width,height);ctx.restore();}
+  }else if(sceneFade>0){ctx.save();ctx.globalAlpha=sceneFade/.6;ctx.fillStyle='#fff1d5';ctx.fillRect(0,0,width,height);ctx.restore();}
 }
 
 function clearInput(){keys.clear();touch=null;$('#dpad').classList.remove('active');$('#pad-knob').style.transform='';}
@@ -373,10 +427,15 @@ function openMenu(which){
   if(overlay.hidden)previousFocus=document.activeElement;
   overlay.hidden=false;dialog.className=`dialog ${which==='start'?'start-dialog':which==='encounter'?'encounter-dialog':''}`;
   shell.querySelectorAll('.hud,.wave-hud,.side-actions,.field-controls,.bottom-hud').forEach(element=>element.inert=true);
-  const close=['start','encounter'].includes(which)?'':`<button class="close-dialog" data-action="resume" aria-label="숲으로 돌아가기">${icon('close')}</button>`;
+  const close=['start','encounter','winter'].includes(which)?'':`<button class="close-dialog" data-action="resume" aria-label="${atHome()?'겨울 집':'숲'}으로 돌아가기">${icon('close')}</button>`;
   if(which==='start'){
     dialog.setAttribute('aria-label','도토리 원정대 시작');
     dialog.innerHTML=`<canvas class="splash-hero" data-hero="squirrel" width="240" height="240"></canvas><div class="splash-trail">${icon('paw')}<span></span>${icon('infinity')}<span></span>${icon('acorn','class="splash-acorn"')}</div><div class="splash-animals">${HEROES.map(h=>`<canvas class="${state.recruited.includes(h.id)?'':'unmet'}" data-hero="${h.id}" width="90" height="90"></canvas>`).join('')}</div><div class="dialog-actions"><button class="menu-action" data-action="roster" aria-label="동물 원정대">${icon('paw')}</button><button class="menu-action primary" data-action="resume" aria-label="게임 시작">${icon('play')}</button><button class="menu-action ${sound?'':'sound-off'}" data-action="sound" aria-label="효과음 ${sound?'끄기':'켜기'}">${icon('sound')}</button></div>`;
+  }else if(which==='winter'){
+    dialog.setAttribute('aria-label',`${state.journey.year}년 겨울 집에 도착했습니다. 모은 먹이 ${state.journey.food}개. 재료로 집을 꾸밀 수 있습니다.`);
+    dialog.innerHTML=`<div class="winter-summary">${icon('snow')}${icon('home')}</div><div class="winter-summary">${icon('basket')}<strong>${money(state.journey.food)}</strong>${icon('heart')}</div><div class="winter-foods">${['acorn','berries','grain'].map(r=>`<span>${icon(resourceIcon(r))}<b>${money(state.journey.foodByType[r])}</b></span>`).join('')}</div><div class="dialog-actions"><button class="menu-action primary" data-action="resume" aria-label="겨울 집 꾸미기 시작">${icon('hammer')}</button></div>`;
+    $('#announcer').textContent=`겨울 집에 도착했습니다. 모은 먹이는 ${state.journey.food}개입니다. 아래 가구를 골라 집을 꾸미고 꽃 버튼으로 다음 봄에 출발하세요.`;
+    tone(570,.3,'triangle');
   }else if(which==='encounter'&&state.encounter){
     const friend=HEROES.find(h=>h.id===state.encounter.id);
     dialog.setAttribute('aria-label',`${friend.name} 친구를 만났습니다. ${friend.trait}. 동료로 맞이하기`);
@@ -392,7 +451,7 @@ function openMenu(which){
     }).join('')}</div><div class="dialog-actions"><button class="menu-action" data-action="records" aria-label="원정 기록">${icon('crown')}</button><button class="menu-action primary" data-action="resume" aria-label="선택한 동물 성장 보기">${icon('up')}</button></div><span class="sr-only">${selected.name}: ${selected.trait}. 선택은 성장 대상을 바꾸며 동료들은 계속 함께 채집합니다.</span>`;
   }else if(which==='records'){
     dialog.setAttribute('aria-label','원정 기록');
-    dialog.innerHTML=`${close}<div class="dialog-header">${icon('crown')}</div><div class="record-grid"><div class="record-item" aria-label="최고 숲 ${state.bestTier}">${icon('crown')}<strong>${state.bestTier}</strong></div><div class="record-item" aria-label="전체 수확 ${state.harvested}">${icon('basket')}<strong>${money(state.harvested)}</strong></div><div class="record-item" aria-label="원정대 ${state.recruited.length}마리">${icon('paw')}<strong>${state.recruited.length}/5</strong></div><div class="record-item" aria-label="보유 동전 ${state.coins}">${icon('coin')}<strong>${money(state.coins)}</strong></div></div>`;
+    dialog.innerHTML=`${close}<div class="dialog-header">${icon('calendar')}</div><div class="record-grid"><div class="record-item" aria-label="현재 ${state.journey.year}년째">${icon('calendar')}<strong>${state.journey.year}</strong></div><div class="record-item" aria-label="전체 수확 ${state.harvested}">${icon('basket')}<strong>${money(state.harvested)}</strong></div><div class="record-item" aria-label="원정대 ${state.recruited.length}마리">${icon('paw')}<strong>${state.recruited.length}/5</strong></div><div class="record-item" aria-label="집의 포근함 ${homeComfort(state)}">${icon('home')}<strong>${homeComfort(state)}</strong></div></div><div class="year-record" aria-label="올해 모은 먹이 ${state.journey.food}개">${icon('basket')}<strong>${money(state.journey.food)}</strong>${icon('snow')}</div>`;
   }else{
     dialog.setAttribute('aria-label','일시 정지 및 설정');
     dialog.innerHTML=`${close}<div class="dialog-header">${icon('pause')}</div><canvas class="splash-hero" data-hero="squirrel" width="200" height="200"></canvas><div class="dialog-actions"><button class="menu-action ${sound?'':'sound-off'}" data-action="sound" aria-label="효과음 ${sound?'끄기':'켜기'}">${icon('sound')}</button><button class="menu-action primary" data-action="resume" aria-label="계속하기">${icon('play')}</button><a href="../../" class="menu-action" aria-label="홈페이지로 돌아가기">${icon('home')}</a></div><div class="dialog-actions"><button class="menu-action" data-action="restart" aria-label="숲길 다시 탐색, 동료와 성장 유지">${icon('restart')}</button></div>`;
@@ -417,7 +476,7 @@ overlay.addEventListener('click',event=>{
   if(action==='records')openMenu('records');
   if(action==='recruit'){const id=state.encounter?.id;if(id&&recruitFriend(state,id)){selectHero(state,id);partySignature='';refreshPortraits();updateHUD();persist();resume();toast('paw',`${state.recruited.length}/5`,`${HEROES.find(h=>h.id===id).name} 친구가 함께 채집합니다.`);}}
   if(action==='sound'){sound=!sound;saveSettings();tone(700,.12);openMenu(menu);}
-  if(action==='restart'){restartRun(state);camera.x=state.hero.x;camera.y=state.hero.y;stumps.length=0;coins.length=0;poses.clear();lastEffect=0;lastWave=state.wave;uiCache.clear();updateHUD();resume();}
+  if(action==='restart'){restartRun(state);resetTrailView();updateHUD();resume();}
 },listen);
 overlay.addEventListener('keydown',event=>{
   if(event.key!=='Tab')return;
@@ -439,6 +498,19 @@ $('#party-bar').addEventListener('click',event=>{
   if(!state.recruited.includes(id)){toast('paw',`${Math.min(state.harvested,ENCOUNTERS[id])}/${ENCOUNTERS[id]}`,`${HEROES.find(h=>h.id===id).name}는 수확 ${ENCOUNTERS[id]}회 이후 만납니다.`);return;}
   if(selectHero(state,id)){updateHUD();refreshPortraits();persist();tone(600);}
 },listen);
+$('#decor-tabs').addEventListener('click',event=>{
+  const id=event.target.closest('[data-decoration]')?.dataset.decoration;
+  if(!id||!atHome())return;selectedDecoration=id;homeSignature='';updateHUD();draw();tone(570);
+},listen);
+$('#craft-button').addEventListener('click',()=>{
+  if(craftDecoration(state,selectedDecoration)){homeSignature='';updateHUD();draw();persist();tone(790,.15);toast('heart',homeComfort(state),`${DECORATIONS.find(d=>d.id===selectedDecoration).name}를 꾸몄습니다.`);}
+  else{const cost=decorationCost(state,selectedDecoration);const missing=cost&&Object.entries(cost).find(([r,n])=>resourceAmount(r)<n);toast(missing?resourceIcon(missing[0]):'check',missing?missing[1]:'✓',missing?`${RESOURCE_NAMES[missing[0]]} ${missing[1]}개가 필요합니다.`:'최대 꾸미기 단계입니다.');tone(170);}
+},listen);
+$('#style-button').addEventListener('click',()=>{if(cycleDecorationStyle(state,selectedDecoration)){updateHUD();draw();persist();tone(620);}},listen);
+$('#place-button').addEventListener('click',()=>{if(toggleDecoration(state,selectedDecoration)){updateHUD();draw();persist();tone(490);}},listen);
+$('#spring-button').addEventListener('click',()=>{
+  if(!beginSpring(state))return;resetTrailView();visualSeason=0;sceneFade=.6;homeSignature='';updateHUD();resume();toast('flower',state.journey.year,`${state.journey.year}년 봄입니다. 함께 겨울나기 먹이를 모으러 떠납니다.`);
+},listen);
 $('.upgrades').addEventListener('click',event=>{
   const button=event.target.closest('[data-upgrade]');if(!button)return;
   if(upgrade(state,button.dataset.upgrade)){tone(850,.14);button.classList.remove('flash');void button.offsetWidth;button.classList.add('flash');persist();updateHUD();}
@@ -446,6 +518,13 @@ $('.upgrades').addEventListener('click',event=>{
 },listen);
 canvas.addEventListener('pointerdown',event=>{
   if(!running||touch)return;
+  if(atHome()){
+    if(arrivalTime>0)return;
+    const box=shell.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;
+    const hit=[...shelterHits].reverse().find(h=>x>=h.x&&x<=h.x+h.w&&y>=h.y&&y<=h.y+h.h);
+    if(hit){event.preventDefault();selectedDecoration=hit.id;homeSignature='';updateHUD();draw();tone(570);}
+    return;
+  }
   event.preventDefault();canvas.focus({preventScroll:true});canvas.setPointerCapture(event.pointerId);
   const box=shell.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;
   touch={id:event.pointerId,x,y,dx:0,dy:0};
@@ -459,9 +538,9 @@ canvas.addEventListener('pointermove',event=>{
 },listen);
 for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,event=>{if(touch?.id===event.pointerId)clearInput();},listen);
 window.addEventListener('keydown',event=>{
-  if(event.key==='Escape'){event.preventDefault();overlay.hidden?openMenu('pause'):!['start','encounter'].includes(menu)&&resume();return;}
-  if(event.code==='Space'&&running&&!event.target.closest('button,a')){event.preventDefault();if(useSkill(state))tone(250,.3,'triangle');}
-  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D'].includes(event.key)){if(running)event.preventDefault();keys.add(event.key.toLowerCase());}
+  if(event.key==='Escape'){event.preventDefault();overlay.hidden?openMenu('pause'):!['start','encounter','winter'].includes(menu)&&resume();return;}
+  if(event.code==='Space'&&running&&!atHome()&&!event.target.closest('button,a')){event.preventDefault();if(useSkill(state))tone(250,.3,'triangle');}
+  if(!atHome()&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D'].includes(event.key)){if(running)event.preventDefault();keys.add(event.key.toLowerCase());}
 },listen);
 window.addEventListener('keyup',event=>keys.delete(event.key.toLowerCase()),listen);
 window.addEventListener('blur',()=>{clearInput();if(running)openMenu('pause');},listen);
@@ -478,11 +557,25 @@ function input() {
   if(keys.has('arrowdown')||keys.has('s'))value.y++;
   return screenInputToWorld(value.x,value.y);
 }
+function resetTrailView(){
+  camera.x=state.hero.x;camera.y=state.hero.y;stumps.length=0;coins.length=0;poses.clear();lastEffect=0;arrivalTime=0;clearInput();uiCache.clear();
+}
 function frame(time) {
   const dt=Math.min(.05,Math.max(0,(time-lastTime)/1000));lastTime=time;
+  sceneFade=Math.max(0,sceneFade-dt);
   if(running){
-    stepGame(state,dt,input());
-    const smoothing=1-Math.exp(-dt*9);camera.x+=(state.hero.x-camera.x)*smoothing;camera.y+=(state.hero.y-camera.y)*smoothing;
+    ambientTime+=dt;
+    const wasHome=atHome();
+    if(arrivalTime>0){
+      arrivalTime=Math.max(0,arrivalTime-dt);
+      if(arrivalTime===0){visualSeason=3;sceneFade=.6;homeSignature='';updateHUD();openMenu('winter');}
+    }else if(!wasHome){
+      stepGame(state,dt,input());
+      if(atHome()){arrivalTime=reduceMotion?0.05:2.4;clearInput();ensureShelter();persist();}
+    }
+    visualSeason+=(seasonStatus(state).position-visualSeason)*(1-Math.exp(-dt*1.8));
+    if(!atHome()){const smoothing=1-Math.exp(-dt*9);camera.x+=(state.hero.x-camera.x)*smoothing;camera.y+=(state.hero.y-camera.y)*smoothing;}
+    if(state.journey.harvests>=84)ensureShelter();
     for(const c of coins)c.age+=dt;while(coins.length&&coins[0].age>1)coins.shift();
     for(let i=stumps.length-1;i>=0;i--)if(Math.abs(stumps[i].y-camera.y)>1400)stumps.splice(i,1);
     for(const effect of state.effects){
@@ -495,8 +588,7 @@ function frame(time) {
       }
       lastEffect=Math.max(lastEffect,effect.id);
     }
-    if(state.encounter?.phase==='ready'&&menu!=='encounter')openMenu('encounter');
-    if(state.wave!==lastWave){lastWave=state.wave;toast('crown',`${state.wave}`);persist();}
+    if(!atHome()&&state.encounter?.phase==='ready'&&menu!=='encounter')openMenu('encounter');
     saveTime+=dt;if(saveTime>=5){persist();saveTime=0;}
   }
   uiTime+=dt;const uiDue=uiTime>=.1;if(uiDue){updateHUD();uiTime=0;}
@@ -505,12 +597,24 @@ function frame(time) {
 async function loadBitmap(path) {
   const img=new Image();img.decoding='async';img.src=new URL(path,import.meta.url);await img.decode();return img;
 }
+const assetURL=name=>`assets/${name}?v=${encodeURIComponent(assetRevision)}`;
+async function ensureShelter(){
+  if(!runtimeManifest?.shelter)return;
+  if(!shelterPromise){
+    const shelter=runtimeManifest.shelter;
+    shelterPromise=Promise.allSettled([
+      ...['room','cabin'].map(id=>loadBitmap(assetURL(shelter[id].image)).then(bitmap=>assets.shelter[id]=bitmap)),
+      ...Object.entries(shelter.decor).map(([id,data])=>loadBitmap(assetURL(data.image)).then(bitmap=>assets.shelter.decor[id]=bitmap)),
+    ]).then(()=>draw());
+  }
+  return shelterPromise;
+}
 async function loadAssets() {
   try{
-    const response=await fetch(new URL('assets/runtime-assets.json?v=outlined-20261031-v1',import.meta.url));
+    const response=await fetch(new URL('assets/runtime-assets.json?v=year-cycle-20261031-v1',import.meta.url));
     if(!response.ok)throw new Error('asset manifest unavailable');
-    const manifest=await response.json();
-    const imageURL=name=>`assets/${name}?v=${encodeURIComponent(manifest.artRevision||'original-v2')}`;
+    const manifest=await response.json();runtimeManifest=manifest;assetRevision=manifest.artRevision||assetRevision;
+    const imageURL=assetURL;
     async function loadView(data){
       const bitmap=await loadBitmap(imageURL(data.image)),animations={...data.animations};
       await Promise.allSettled(Object.entries(animations).map(async([action,animation])=>{if(animation.image&&animation.image!==data.image)animations[action]={...animation,bitmap:await loadBitmap(imageURL(animation.image))};}));
@@ -527,9 +631,11 @@ async function loadAssets() {
     });
     if(manifest.background)tasks.push(loadBitmap(imageURL(manifest.background)).then(img=>{assets.background=img;makeTerrain();}));
     if(manifest.tree)tasks.push(loadBitmap(imageURL(manifest.tree.image)).then(bitmap=>assets.tree={...manifest.tree,bitmap}));
+    SEASONS.forEach((season,index)=>{const data=manifest.seasons?.[season.id];if(data)tasks.push(loadBitmap(imageURL(data.tree)).then(bitmap=>assets.seasonTrees[index]=bitmap));});
     for(const [kind,data] of Object.entries(manifest.resources||{}))tasks.push(loadBitmap(imageURL(data.image)).then(bitmap=>assets.resources[kind]={...data,bitmap}));
     if(manifest.spark)tasks.push(loadBitmap(imageURL(manifest.spark)).then(img=>assets.spark=img));
     await Promise.allSettled(tasks);
+    if(atHome())await ensureShelter();
   }catch{ /* An offline image failure must not block core controls. */ }
   await Promise.allSettled(Object.keys(RESOURCE_NAMES).map(async id=>{
     const source=document.querySelector(`#i-${resourceIcon(id)}`);if(!source)return;

@@ -1,9 +1,22 @@
 import { ACTION_TIMING, actionWindow } from './motion.mjs';
 
-export const STORAGE_KEY = 'acorn-guard:v3';
-export const LEGACY_STORAGE_KEY = 'acorn-guard:v2';
+export const STORAGE_KEY = 'acorn-guard:v4';
+export const LEGACY_STORAGE_KEY = 'acorn-guard:v3';
 export const WORLD = Object.freeze({ width: 900, height: 700, margin: 38 });
 export const RECRUIT_THRESHOLDS = Object.freeze({ bear: 8, fox: 25, redpanda: 50, sparrow: 85 });
+export const YEAR_HARVESTS = 108;
+export const SEASONS = Object.freeze([
+  { id: 'spring', name: '봄', icon: 'flower' }, { id: 'summer', name: '여름', icon: 'sun' },
+  { id: 'autumn', name: '가을', icon: 'autumn' }, { id: 'winter', name: '겨울', icon: 'snow' },
+]);
+export const DECORATIONS = Object.freeze([
+  { id: 'nest', name: '포근한 잠자리', icon: 'nest', baseCost: { wood: 12, grain: 2 }, maxLevel: 3 },
+  { id: 'pantry', name: '먹이 선반', icon: 'pantry', baseCost: { wood: 10, bamboo: 4 }, maxLevel: 3 },
+  { id: 'rug', name: '폭신한 깔개', icon: 'rug', baseCost: { grain: 6, berries: 6 }, maxLevel: 3 },
+  { id: 'hearth', name: '따뜻한 화로', icon: 'hearth', baseCost: { wood: 18, acorn: 8 }, maxLevel: 3 },
+  { id: 'lantern', name: '도토리 등불', icon: 'lantern', baseCost: { bamboo: 6, acorn: 10 }, maxLevel: 3 },
+  { id: 'curtains', name: '창가 커튼', icon: 'curtains', baseCost: { bamboo: 8, berries: 8 }, maxLevel: 3 },
+]);
 export const HEROES = Object.freeze([
   { id: 'squirrel', name: '다람쥐', resource: 'acorn', damage: 17, rate: 1.9, speed: 160, yield: 1.2, color: '#e2bc80', trait: '도토리를 발사해 나무를 수확' },
   { id: 'bear', name: '곰', resource: 'wood', damage: 36, rate: 1.05, speed: 172, yield: 1, color: '#c5a077', trait: '나무에 다가가 앞발로 내려쳐 목재 수확' },
@@ -15,6 +28,8 @@ const HERO_BY_ID = new Map(HEROES.map(hero => [hero.id, hero]));
 const ORDER = HEROES.map(hero => hero.id), START_Y = WORLD.height * .65;
 const MAX_COINS = 999999999, MAX_OFFLINE_MS = 8 * 60 * 60 * 1000, MAX_NODES = 36;
 const TREE_KINDS = new Set(['oak', 'pine', 'golden']);
+const FOOD_RESOURCES = ['acorn', 'berries', 'grain'];
+const RESOURCE_OWNER = { acorn: 'squirrel', wood: 'bear', berries: 'fox', bamboo: 'redpanda', grain: 'sparrow' };
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = (value, fallback = 0) => typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 const integer = (value, min, max, fallback = min) => clamp(Math.floor(finite(value, fallback)), min, max);
@@ -57,8 +72,23 @@ function blankMember(id, source = {}) {
   while (level < 100 && xp >= xpForLevel(level)) { xp -= xpForLevel(level); level++; }
   return { level, xp: Math.min(xp, xpForLevel(level) - 1), materials: integer(source.materials, 0, MAX_COINS), upgrades };
 }
+function blankJourney(source = {}) {
+  if (!source || typeof source !== 'object') source = {};
+  const harvests = integer(source.harvests, 0, YEAR_HARVESTS);
+  const foodByType = Object.fromEntries(FOOD_RESOURCES.map(id => [id, integer(source.foodByType?.[id], 0, MAX_COINS)]));
+  return { year: integer(source.year, 1, 9999), harvests, foodByType,
+    food: Math.min(MAX_COINS, FOOD_RESOURCES.reduce((sum, id) => sum + foodByType[id], 0)),
+    phase: harvests >= YEAR_HARVESTS ? 'home' : 'journey' };
+}
+function blankHomestead(source = {}) {
+  if (!source || typeof source !== 'object') source = {};
+  return { decorations: Object.fromEntries(DECORATIONS.map(({ id, maxLevel }) => {
+    const saved = source.decorations?.[id], level = integer(saved?.level, 0, maxLevel);
+    return [id, { level, style: integer(saved?.style, 0, 2), placed: level > 0 && saved?.placed !== false }];
+  })) };
+}
 function normalizeProfile(source = {}) {
-  if (!source || typeof source !== 'object' || ![undefined, 1, 2, 3].includes(source.version)) source = {};
+  if (!source || typeof source !== 'object' || ![undefined, 1, 2, 3, 4].includes(source.version)) source = {};
   const old = source.version === 1 || source.version === 2;
   const harvested = integer(source.version === 1 ? source.kills : source.harvested, 0, MAX_COINS);
   const tier = integer(source.tier ?? source.wave ?? Math.floor(harvested / 30) + 1, 1, 999);
@@ -76,13 +106,52 @@ function normalizeProfile(source = {}) {
   } });
   const selectedHeroId = recruited.includes(source.selectedHeroId) ? source.selectedHeroId : 'squirrel';
   return {
-    version: 3, recruited, selectedHeroId, members, coins: integer(source.coins, 0, MAX_COINS), harvested,
+    version: 4, recruited, selectedHeroId, members, coins: integer(source.coins, 0, MAX_COINS), harvested,
     treesHarvested: integer(source.treesHarvested ?? harvested, 0, MAX_COINS), tier,
     bestTier: Math.max(tier, integer(source.bestTier ?? source.bestWave, 1, 999, tier)),
     groveHarvested: integer(source.groveHarvested ?? (source.version === 1 ? 0 : harvested % 30), 0, 29),
     distance: Math.max(0, finite(source.distance)), autoMove: source.autoMove !== false,
     savedAt: Math.max(0, finite(source.savedAt)), offlineReward: integer(source.offlineReward, 0, MAX_COINS),
+    journey: blankJourney(source.version === 4 ? source.journey : {}),
+    homestead: blankHomestead(source.version === 4 ? source.homestead : {}),
   };
+}
+export function seasonStatus(state) {
+  const journey = state.journey, position = clamp(journey.harvests / (YEAR_HARVESTS / 3), 0, 3);
+  return { year: journey.year, index: Math.floor(position), position, progress: journey.harvests / YEAR_HARVESTS,
+    harvests: journey.harvests, food: journey.food, foodGoal: 120, atHome: journey.phase === 'home' };
+}
+export function decorationCost(state, id) {
+  const definition = DECORATIONS.find(item => item.id === id), decoration = state.homestead.decorations[id];
+  if (!definition || !decoration || decoration.level >= definition.maxLevel) return null;
+  return Object.fromEntries(Object.entries(definition.baseCost).map(([resource, amount]) => [resource, amount * (decoration.level + 1)]));
+}
+export function craftDecoration(state, id) {
+  if (state.journey.phase !== 'home') return false;
+  const cost = decorationCost(state, id);
+  if (!cost || Object.entries(cost).some(([resource, amount]) => !state.recruited.includes(RESOURCE_OWNER[resource]) || state.members[RESOURCE_OWNER[resource]].materials < amount)) return false;
+  for (const [resource, amount] of Object.entries(cost)) state.members[RESOURCE_OWNER[resource]].materials -= amount;
+  const decoration = state.homestead.decorations[id]; decoration.level++; decoration.placed = true;
+  syncState(state); return true;
+}
+export function cycleDecorationStyle(state, id) {
+  const decoration = state.homestead.decorations[id];
+  if (state.journey.phase !== 'home' || !decoration?.level) return false;
+  decoration.style = (decoration.style + 1) % 3; return true;
+}
+export function toggleDecoration(state, id) {
+  const decoration = state.homestead.decorations[id];
+  if (state.journey.phase !== 'home' || !decoration?.level) return false;
+  decoration.placed = !decoration.placed; return true;
+}
+export function homeComfort(state) {
+  return DECORATIONS.reduce((sum, { id }) => sum + (state.homestead.decorations[id].placed ? state.homestead.decorations[id].level : 0), 0);
+}
+export function beginSpring(state, rng = Math.random) {
+  if (state.journey.phase !== 'home') return false;
+  const profile = serializeProfile(state);
+  profile.journey = blankJourney({ year: Math.min(9999, profile.journey.year + 1) });
+  Object.assign(state, createGame(profile, rng)); return true;
 }
 function statsFor(state, id) {
   const member = state.members[id], upgrades = member.upgrades, base = HERO_BY_ID.get(id);
@@ -126,8 +195,28 @@ export function createGame(profile = {}, rng = Math.random) {
     shotCount: 0, hitCount: 0, lastReward: clean.offlineReward };
   state.workers = clean.recruited.map((id, index) => makeWorker(state, id, index));
   state.hero = state.workers[0];
-  syncState(state); fillGrove(state, rng); updateEncounter(state);
+  syncState(state);
+  if (state.journey.phase === 'home') restAtHome(state);
+  else { fillGrove(state, rng); updateEncounter(state); }
   return state;
+}
+function restAtHome(state) {
+  state.projectiles = []; state.regrowth = []; state.targetId = null; state.encounter = null;
+  for (const worker of state.workers) {
+    worker.pendingAction = null; worker.pendingThrow = null; worker.targetId = null;
+    worker.actionDuration = 0; worker.actionTimer = 0; worker.actionFlash = 0;
+    worker.attackTimer = 0; worker.attackFlash = 0; worker.actionCancelled = true;
+    worker.moveDX = 0; worker.moveDY = 0; worker.moving = false; worker.mode = 'rest';
+  }
+}
+function recordYearHarvest(state, resource, amount) {
+  const journey = state.journey;
+  journey.harvests = Math.min(YEAR_HARVESTS, journey.harvests + 1);
+  if (FOOD_RESOURCES.includes(resource)) {
+    journey.foodByType[resource] = Math.min(MAX_COINS, journey.foodByType[resource] + amount);
+    journey.food = Math.min(MAX_COINS, FOOD_RESOURCES.reduce((sum, id) => sum + journey.foodByType[id], 0));
+  }
+  if (journey.harvests >= YEAR_HARVESTS) { journey.phase = 'home'; restAtHome(state); }
 }
 function spawnNode(state, kind, x, y, rng) {
   if (state.targets.length >= MAX_NODES) return;
@@ -197,7 +286,7 @@ function updateEncounter(state) {
 }
 export function recruitFriend(state, id) {
   const encounter = state.encounter;
-  if (!encounter || encounter.id !== id || encounter.phase !== 'ready' || ORDER[state.recruited.length] !== id || state.harvested < RECRUIT_THRESHOLDS[id] || distance(state.hero, encounter) > 85) return false;
+  if (state.journey.phase === 'home' || !encounter || encounter.id !== id || encounter.phase !== 'ready' || ORDER[state.recruited.length] !== id || state.harvested < RECRUIT_THRESHOLDS[id] || distance(state.hero, encounter) > 85) return false;
   state.recruited.push(id);
   const worker = makeWorker(state, id, state.workers.length);
   worker.x = encounter.x; worker.y = encounter.y; state.workers.push(worker);
@@ -256,9 +345,10 @@ function award(state, node, worker, rng) {
     state.waveKills = state.groveHarvested;
   }
   syncState(state);
+  recordYearHarvest(state, HERO_BY_ID.get(worker.id).resource, materials);
 }
 function damageNode(state, node, amount, worker, rng) {
-  if (node.hp <= 0 || !eligible(worker.id, node) || (node.claimedBy && node.claimedBy !== worker.id)) return false;
+  if (state.journey.phase === 'home' || node.hp <= 0 || !eligible(worker.id, node) || (node.claimedBy && node.claimedBy !== worker.id)) return false;
   node.hp -= amount; node.hurtTimer = .25; state.hitCount++;
   effect(state, 'damage', node.x, node.y - 30, amount, '#fff9d4', .6, worker.id);
   if (node.hp <= 0) award(state, node, worker, rng);
@@ -355,6 +445,7 @@ export function stepGame(state, delta, input = {}, rng = Math.random) {
     worker.actionFlash = Math.max(0, worker.actionFlash - dt); worker.attackTimer = worker.actionTimer;
     worker.attackFlash = Math.max(0, worker.attackFlash - dt); worker.skillCooldown = Math.max(0, worker.skillCooldown - dt);
   }
+  if (state.journey.phase === 'home') return state;
   for (const node of state.targets) {
     node.hurtTimer = Math.max(0, node.hurtTimer - dt); node.animTime += dt;
     if (node.claimedBy && !state.workers.some(w => w.id === node.claimedBy && w.targetId === node.id && distance(w, state.hero) <= 420)) node.claimedBy = null;
@@ -373,7 +464,8 @@ export function stepGame(state, delta, input = {}, rng = Math.random) {
   state.hero.mode = state.hero.moving ? 'seek' : 'harvest';
   state.runDistance = Math.max(state.runDistance, START_Y - state.hero.y); state.distance = state.baseDistance + state.runDistance;
   updateEncounter(state);
-  for (let index = 1; index < state.workers.length; index++) workCompanion(state, state.workers[index], index, dt, rng);
+  for (let index = 1; index < state.workers.length && state.journey.phase !== 'home'; index++) workCompanion(state, state.workers[index], index, dt, rng);
+  if (state.journey.phase === 'home') return state;
   const closest = nearest(state, state.hero);
   state.targetId = closest.distance <= state.hero.range ? closest.target?.id ?? null : null;
   state.hero.targetId = state.targetId;
@@ -394,6 +486,7 @@ export function stepGame(state, delta, input = {}, rng = Math.random) {
     state.hero.pendingThrow = { targetId: closest.target.id, time: state.hero.actionDuration * ACTION_TIMING.contactRatio };
   }
   for (const projectile of state.projectiles) {
+    if (state.journey.phase === 'home') break;
     projectile.prevX = projectile.x; projectile.prevY = projectile.y;
     projectile.x += projectile.vx * dt; projectile.y += projectile.vy * dt; projectile.life -= dt;
     for (const node of state.targets) {
@@ -402,6 +495,7 @@ export function stepGame(state, delta, input = {}, rng = Math.random) {
       damageNode(state, node, projectile.damage, state.hero, rng); projectile.life = 0; break;
     }
   }
+  if (state.journey.phase === 'home') return state;
   state.targets = state.targets.filter(node => node.hp > 0);
   state.projectiles = state.projectiles.filter(p => p.life > 0 && p.x > -30 && p.x < WORLD.width + 30 && Math.abs(p.y - state.hero.y) < 1000);
   if (state.targetId !== null && !state.targets.some(node => node.id === state.targetId)) state.targetId = state.hero.targetId = null;
@@ -446,16 +540,17 @@ export function selectHero(state, id) {
   state.selectedHeroId = id; syncState(state); return true;
 }
 export function useSkill(state) {
-  if (state.hero.skillCooldown > 0) return false;
+  if (state.journey.phase === 'home' || state.hero.skillCooldown > 0) return false;
   for (let index = 0; index < 16; index++) fire(state, index / 16 * Math.PI * 2, true);
   state.hero.skillCooldown = 12; state.hero.attackFlash = .3;
   effect(state, 'burst', state.hero.x, state.hero.y, 0, '#ffe698', .6); return true;
 }
 export function restartRun(state, rng = Math.random) { Object.assign(state, createGame(serializeProfile(state), rng)); return state; }
 export function serializeProfile(state, now = Date.now()) {
-  const p = normalizeProfile({ version: 3, recruited: state.recruited, selectedHeroId: state.selectedHeroId, members: state.members,
+  const p = normalizeProfile({ version: 4, recruited: state.recruited, selectedHeroId: state.selectedHeroId, members: state.members,
     coins: state.coins, harvested: state.harvested, treesHarvested: state.treesHarvested, tier: state.tier, bestTier: state.bestTier,
-    groveHarvested: state.groveHarvested, distance: state.distance, autoMove: state.autoMove, savedAt: now });
+    groveHarvested: state.groveHarvested, distance: state.distance, autoMove: state.autoMove, savedAt: now,
+    journey: state.journey, homestead: state.homestead });
   delete p.offlineReward; return p;
 }
 export function saveProfile(storage, state, now = Date.now()) {
@@ -464,8 +559,11 @@ export function saveProfile(storage, state, now = Date.now()) {
 export function loadProfile(storage, now = Date.now()) {
   let source;
   try {
-    const current = storage.getItem(STORAGE_KEY), old = current === null ? storage.getItem(LEGACY_STORAGE_KEY) : null;
-    source = JSON.parse(current ?? old ?? storage.getItem('acorn-guard:v1'));
+    for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY, 'acorn-guard:v2', 'acorn-guard:v1']) {
+      const value = storage.getItem(key);
+      if (value === null) continue;
+      try { source = JSON.parse(value); break; } catch { /* Try an older intact profile. */ }
+    }
   } catch { source = null; }
   const p = normalizeProfile(source), currentTime = Math.max(0, finite(now));
   const elapsed = p.savedAt > 0 ? clamp(currentTime - p.savedAt, 0, MAX_OFFLINE_MS) : 0;

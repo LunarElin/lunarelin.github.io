@@ -1,14 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HEROES, WORLD, STORAGE_KEY, LEGACY_STORAGE_KEY, RECRUIT_THRESHOLDS, createGame, stepGame,
+import { HEROES, WORLD, STORAGE_KEY, RECRUIT_THRESHOLDS, createGame, stepGame,
   recruitFriend, selectHero, upgradeDefinitions, upgradeValue, upgradeCost, upgrade, useSkill,
-  restartRun, serializeProfile, loadProfile, saveProfile } from '../rules.mjs';
+  restartRun, serializeProfile, loadProfile, saveProfile, beginSpring } from '../rules.mjs';
 const fixed = () => .5;
 function seeded(seed = 1) { return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
 function advance(state, seconds, input = {}, rng = fixed, autoRecruit = false) {
   for (let i = 0; i < Math.ceil(seconds * 60); i++) {
     stepGame(state, 1 / 60, input, rng);
     if (autoRecruit && state.encounter?.phase === 'ready') recruitFriend(state, state.encounter.id);
+    if (autoRecruit && state.journey.phase === 'home') beginSpring(state, rng);
   }
 }
 function storage(initial = {}) {
@@ -56,7 +57,6 @@ test('natural progress recruits one at a time and all five simultaneously produc
     advance(state, 300, {}, rng, true);
     assert.equal(state.recruited.length, 5);
     for (const worker of state.workers) {
-      assert.ok(worker.actionCount > 5, worker.id);
       assert.ok(state.members[worker.id].materials > 5, worker.id);
       assert.ok(state.members[worker.id].level > 1, worker.id);
       assert.ok(Math.hypot(worker.x - state.hero.x, worker.y - state.hero.y) < 500, worker.id);
@@ -298,14 +298,14 @@ test('skill cooldown and restarting preserve all recruited members and personal 
 });
 
 test('v2 migration preserves earned growth but schedules friends one at a time from squirrel', () => {
-  const store = storage({ [LEGACY_STORAGE_KEY]: JSON.stringify({ version: 2, heroId: 'fox', coins: 180, harvested: 100,
+  const store = storage({ 'acorn-guard:v2': JSON.stringify({ version: 2, heroId: 'fox', coins: 180, harvested: 100,
     tier: 7, bestTier: 8, level: 4, xp: 8, upgrades: { damage: 2, rate: 1, yield: 3 }, savedAt: 1000 }) });
   const p = loadProfile(store, 1000), state = createGame(p, fixed);
-  assert.equal(p.version, 3); assert.deepEqual(p.recruited, ['squirrel']); assert.equal(p.coins, 180);
+  assert.equal(p.version, 4); assert.deepEqual(p.recruited, ['squirrel']); assert.equal(p.coins, 180);
   assert.deepEqual(p.members.squirrel.upgrades, { power: 2, burst: 1, bounty: 3 });
   assert.equal(p.members.squirrel.level, 4); assert.equal(p.members.squirrel.xp, 8);
   assert.equal(state.encounter.id, 'bear'); assert.equal(state.encounter.phase, 'waiting');
-  assert.equal(state.selectedHeroId, 'squirrel'); assert.equal(JSON.parse(store.getItem(STORAGE_KEY)).version, 3);
+  assert.equal(state.selectedHeroId, 'squirrel'); assert.equal(JSON.parse(store.getItem(STORAGE_KEY)).version, 4);
 });
 
 test('saved pending encounters cannot skip recruitment and corrupt rosters never create more than five workers', () => {

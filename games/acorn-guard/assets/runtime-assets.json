@@ -3026,7 +3026,7 @@
       "height": 192
     }
   },
-  "artRevision": "outlined-20261031-v1",
+  "artRevision": "year-cycle-20261031-v1",
   "artDirection": {
     "id": "outlined-woodland",
     "medium": "AI-generated2D cartoon raster sprites with broad brown contours and simple color regions",
@@ -3041,5 +3041,95 @@
     "eyes": "small solid brown dots",
     "detail": "low, rounded silhouettes, short limbs",
     "costume": "none; fox carries one berry basket"
+  },
+  "seasons": {
+    "spring": {
+      "tree": "oak-spring.webp"
+    },
+    "summer": {
+      "tree": "oak-summer.webp"
+    },
+    "autumn": {
+      "tree": "oak-autumn.webp"
+    },
+    "winter": {
+      "tree": "oak-winter.webp"
+    }
+  },
+  "shelter": {
+    "room": {
+      "image": "shelter-room.webp",
+      "width": 768,
+      "height": 768,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "cabin": {
+      "image": "shelter-cabin.webp",
+      "width": 384,
+      "height": 384,
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9375
+      }
+    },
+    "decor": {
+      "nest": {
+        "image": "decor-nest.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        }
+      },
+      "pantry": {
+        "image": "decor-pantry.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        }
+      },
+      "rug": {
+        "image": "decor-rug.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        }
+      },
+      "hearth": {
+        "image": "decor-hearth.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        }
+      },
+      "lantern": {
+        "image": "decor-lantern.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        }
+      },
+      "curtains": {
+        "image": "decor-curtains.webp",
+        "width": 256,
+        "height": 256,
+        "anchor": {
+          "x": 0.5,
+          "y": 0.9375
+        }
+      }
+    }
   }
 }

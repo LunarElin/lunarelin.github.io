@@ -14,3 +14,11 @@
 - `spark.png`: [Kenney Particle Pack](https://kenney.nl/assets/particle-pack) 1.1, CC0. 실제 사용 원본은 `PNG (Transparent)/spark_01.png`. 64×64 이하로 축소했으며 색상은 런타임에서 처리한다. 동봉 라이선스는 `kenney-particles-license.txt`에 보관한다.
 - `nunito.ttf`: [Google Fonts / Nunito](https://github.com/google/fonts/tree/main/ofl/nunito)의 `Nunito[wght].ttf`, 수정 없이 로컬 제공. SIL OFL 1.1, `nunito-OFL.txt` 보관. 숫자와 기호에 사용한다.
 - 메뉴와 상태 아이콘: 게임 코드에서 작성한 SVG. 화면에는 아이콘과 수치를 표시하고 접근성 이름은 보조 기술에 제공한다.
+
+## 계절과 겨울 집
+
+- `oak-spring.webp`, `oak-summer.webp`, `oak-autumn.webp`, `oak-winter.webp`: 기존 나무 아틀라스에서 공식 `sprite-gen recolor`로 녹색 수관만 바꾼 네 계절 그림이다. 봄 연녹색·여름 녹색·가을 황갈색·겨울 크림색 눈을 사용한다. 384×576 크기·기존 프레임 사각형·알파·갈색 선과 줄기·그루터기는 원본과 픽셀 단위로 같으며 변환 보고서를 검사했다. 게임에서 두 계절 그림을 겹쳐 전환한다.
+- `shelter-room.webp`: 새로 생성한 768×768 불투명 겨울 집 실내. 넓은 눈 덮인 창과 빈 나무 바닥을 가지며 동물과 가구는 별도로 그린다. 실제 창 위치에 맞춰 작은 눈송이를 잘라 그린다.
+- `shelter-cabin.webp`: 384×384 투명 오두막 외관. 눈 덮인 지붕과 따뜻한 창·문을 가지며 늦가을의 도착 지점을 보여준다. 아래 기준점은 0.5, 0.9375다.
+- `decor-nest.webp`, `decor-pantry.webp`, `decor-rug.webp`, `decor-hearth.webp`, `decor-lantern.webp`, `decor-curtains.webp`: 새로 생성한 가구 여섯 종류. 공식 `slice-sheet`의 알파 보존과 `contain` 정규화로 256×256·12px 여백·아래 기준선 240px에 맞췄다. 커튼의 가운데 창은 투명하다. 단계 장식·세 가지 색상·선택 테두리는 런타임에서 더하며 원본 이미지를 변경하지 않는다.
+- 겨울 집·가구의 독자 원화 8종은 `sprite-gen` 3.7.0 GPT 이미지 경로로 제작했고 정규화 후 무손실 WebP의 RGBA 일치를 확인했다. 새 계절·겨울 집 이미지 12개는 합계 797,628바이트다. `art-validation.json`에 해시·알파·크기·변환 근거를 기록했다. 초기에는 계절 나무만 불러오고 집과 가구는 겨울에 가까워질 때 불러온다.
