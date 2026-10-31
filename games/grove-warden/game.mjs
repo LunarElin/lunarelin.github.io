@@ -1,16 +1,16 @@
-import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, STAGES, FORMS, getStage, getCamp, isStageUnlocked, getFormOffer, buyFormUpgrade, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, getSkillOffer, learnSkill, respawnAtCamp, equipmentAction } from './rules.mjs';
+import { createGame, stepGame, setPaused, WORLD, UPGRADES, SKILLS, HUNT_ZONES, STAGES, FORMS, getStage, getCamp, isStageUnlocked, getFormOffer, buyFormUpgrade, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, getSkillOffer, learnSkill, respawnAtCamp, selectWeapon } from './rules.mjs';
 import { createRenderer } from './renderer.mjs';
 import { createGameAudio } from './audio.mjs';
-import { EQUIPMENT, TIERS, EQUIPMENT_MAX_LEVEL, EQUIPMENT_MAX_TIER, getEquipmentOffer, getStaffAttack } from './equipment.mjs';
+import { WEAPONS, activeWeapon, getWeaponAttack } from './equipment.mjs';
 
 const $ = id => document.getElementById(id);
 const lifetime = new AbortController();
 const listen = (element, type, handler, options = {}) => element.addEventListener(type, handler, { ...options, signal: lifetime.signal });
-const SAVE_KEY = 'grove-warden:v8';
+const SAVE_KEY = 'grove-warden:v9';
 let settings = { sound: true }, savedProgress = normalizeProgress(), storageFailed = false;
 try {
   let saved;
-  for (const key of [SAVE_KEY, 'grove-warden:v7', 'grove-warden:v6', 'grove-warden:v5', 'grove-warden:v4', 'grove-warden:v3', 'grove-warden:v2']) {
+  for (const key of [SAVE_KEY, 'grove-warden:v8', 'grove-warden:v7', 'grove-warden:v6', 'grove-warden:v5', 'grove-warden:v4', 'grove-warden:v3', 'grove-warden:v2']) {
     const raw = localStorage.getItem(key);
     if (!raw) continue;
     try {
@@ -29,7 +29,7 @@ try {
 
 let state = createGame((Date.now() ^ 73519) >>> 0, savedProgress), view, ready = false, stopped = false, frameId;
 let accumulator = 0, lastTime = performance.now(), lastPhase = '', lastHud = '', pauseKind = 'pause';
-let savedRevision = state.revision, lastSaveAt = 0, helpOrigin = 'menu', growthCategory = 'stats', renderedGrowthCategory = '', lastGrowth = '', statsPage = 'stats';
+let savedRevision = state.revision, lastSaveAt = 0, helpOrigin = 'menu', growthCategory = 'stats', renderedGrowthCategory = '', lastGrowth = '', selectedForm = 'wolf';
 function saveProgress(force = false) {
   if (!force && (state.revision === savedRevision || performance.now() - lastSaveAt < (storageFailed ? 2000 : 400))) return;
   lastSaveAt = performance.now();
@@ -56,25 +56,25 @@ for (const name of ['animationend', 'animationcancel']) listen(shell, name, e =>
   if (e.target instanceof Element) e.target.classList.remove('reward-pop', 'hurt-pop');
 });
 function presentEvent(event) {
-  sound(event.type === 'shoot' && ['burst', 'spread', 'explosive'].includes(event.weaponStyle) ? `staff-${event.weaponStyle}` : event.type);
+  sound(event.type === 'melee-attack' ? event.weaponId === 'axe' ? 'bear-slam' : 'wolf-swipe'
+    : event.type === 'shoot' && ['burst', 'spread', 'explosive'].includes(event.weaponStyle) ? `staff-${event.weaponStyle}` : event.type);
   if (event.type === 'player-hit') pulse('hp-value', 'hurt-pop');
   if (event.type === 'pickup') pulse('cargo-value');
   if (event.type === 'deposit') { pulse('gold-value'); pulse('cargo-value'); }
   if (event.type === 'level-up') {
     pulse('level-value'); pulse('hp-value'); pulse('xp-fill');
     const unlocked = FORMS.find(form => form.firstLevel === event.level);
-    if (unlocked) pulse(`growth-${unlocked.id}-btn`);
+    if (unlocked) pulse('growth-forms-btn');
   }
   if (event.type === 'kill' && event.bossId) pulse('quest-btn');
-  if (event.type === 'gear-pickup') { sound('pickup'); pulse('growth-stats-btn'); }
   if (event.type === 'field-discovery') sound('quest');
-  if (event.type === 'field-chest') { sound('quest'); pulse('growth-stats-btn'); }
+  if (event.type === 'field-chest') { sound('quest'); pulse('cargo-value'); }
   if (event.type === 'field-boon') { sound('upgrade'); pulse('hp-value'); }
   if (event.type === 'field-hazard' || event.type === 'staff-explosion') sound('burst');
   if (event.type === 'transform' && event.form !== 'druid') sound('transform');
   if (event.type === 'form-attack') sound(event.form === 'wolf' ? 'wolf-swipe' : event.form === 'bear' ? 'bear-slam' : 'dragon-fire');
   if (event.type === 'quest') { pulse('gold-value'); pulse('quest-btn'); }
-  if (event.type === 'upgrade') { pulse('growth-bank-value'); pulse('gold-value'); }
+  if (event.type === 'upgrade') { if (event.id === 'weapon') pulse('growth-weapons-btn'); else { pulse('growth-bank-value'); pulse('gold-value'); } }
 }
 function presentQueuedUIEvent() {
   const event = state.queuedEvents.at(-1);
@@ -125,7 +125,8 @@ function showHelp(origin) {
 const growthButtons = [...document.querySelectorAll('[data-growth]')];
 const formPreviews = Object.fromEntries(FORMS.map(form => [form.id, form]));
 const growthRows = new Map();
-const equipmentRows = new Map();
+const weaponRows = new Map();
+const formTabs = [...document.querySelectorAll('[data-form]')];
 function formatAmount(value) {
   if (value < 10000) return String(value);
   const divisor = value >= 100000000 ? 100000000 : 10000, amount = value / divisor;
@@ -137,87 +138,72 @@ function showAmount(id, value, label) {
   const element = $(id);
   element.textContent = formatAmount(value); element.setAttribute('aria-label', `${label} ${value}`); element.title = String(value);
 }
-function renderEquipment() {
-  showAmount('equipment-scrolls', state.progress.gear.scrolls, '강화 두루마리');
-  for (const definition of EQUIPMENT) {
-    let row = equipmentRows.get(definition.id);
+function weaponIcon(definition) {
+  const border = '#292537', light = '#f2e7c5', handle = '#b58b56';
+  const body = definition.id === 'sword'
+    ? `<path fill="${border}" d="M7 0h3v2h2v6h-2v2h3v2H9v4H6v-4H3v-2h3V3h1Z"/><path fill="currentColor" d="M8 1h1v2h2v4H9v2H7V4h1Z"/><path fill="${handle}" d="M4 10h8v1H4Zm3 2h1v3H7Z"/>`
+    : definition.id === 'axe'
+    ? `<path fill="${border}" d="M6 0h4v2h4v6h-4v8H6V9H1V2h5Z"/><path fill="currentColor" d="M2 3h4v5H2Zm8 0h3v4h-3Z"/><path fill="${handle}" d="M7 1h2v14H7Z"/>`
+    : definition.id === 'spear'
+    ? `<path fill="${border}" d="M7 0h2v1h1v2h1v3H9v10H6V6H4V3h1V1h2Z"/><path fill="currentColor" d="M7 1h1v1h1v3H6V3h1Z"/><path fill="${handle}" d="M7 6h1v9H7Z"/>`
+    : `<path d="M7 1h6v2h2v5h-2v2h-3v5H6v-4H4V9h3V7H5V3h2Z" fill="${border}"/><path d="M8 2h4v2h2v3h-2v2H8V7H6V4h2Z" fill="currentColor"/><path d="M8 10h2v4H8Z" fill="${handle}"/><path d="M8 3h3v1H8ZM7 4h1v2H7Z" fill="${light}"/>`;
+  return `<svg viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges">${body}</svg>`;
+}
+function renderWeapons() {
+  const selected = activeWeapon(state.progress).id;
+  for (const definition of WEAPONS) {
+    let row = weaponRows.get(definition.id);
     if (!row) {
-      const card = document.createElement('article'); card.className = 'equipment-card';
-      const heading = document.createElement('div'); heading.className = 'equipment-heading';
-      const icon = document.createElement('span'); icon.className = 'equipment-icon';
-      icon.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges"><path d="M7 1h6v2h2v5h-2v2h-3v5H6v-4H4V9h3V7H5V3h2Z" fill="#292537"/><path d="M8 2h4v2h2v3h-2v2H8V7H6V4h2Z" fill="currentColor"/><path d="M8 10h2v4H8Z" fill="#b58b56"/><path d="M8 3h3v1H8ZM7 4h1v2H7Z" fill="#f2e7c5"/></svg>';
-      icon.style.color = `#${definition.color.toString(16).padStart(6, '0')}`;
-      const name = document.createElement('strong'), details = document.createElement('span');
-      const title = document.createElement('div'); title.append(name, details); heading.append(icon, title);
-      const effect = document.createElement('p'); effect.className = 'equipment-effect';
-      const next = document.createElement('p'); next.className = 'equipment-next';
-      const actions = document.createElement('div'); actions.className = 'equipment-actions';
-      const buttons = {};
-      for (const action of ['equip', 'enhance', 'promote']) {
-        const button = document.createElement('button'); button.type = 'button';
-        button.dataset.equipmentId = definition.id; button.dataset.equipmentAction = action;
-        const label = document.createElement('span'), cost = document.createElement('small');
-        button.append(label, cost); actions.append(button); buttons[action] = { button, label, cost };
-      }
-      const condition = document.createElement('p'); condition.className = 'equipment-condition';
-      card.append(heading, effect, next, actions, condition); $('equipment-list').append(card);
-      row = { card, name, details, effect, next, condition, buttons }; equipmentRows.set(definition.id, row);
+      const card = document.createElement('article'); card.className = 'weapon-card';
+      const heading = document.createElement('div'); heading.className = 'weapon-heading';
+      const icon = document.createElement('span'); icon.className = 'weapon-icon'; icon.innerHTML = weaponIcon(definition);
+      icon.style.color = `#${(definition.color ?? 0xd6d5c8).toString(16).padStart(6, '0')}`;
+      const copy = document.createElement('div'), name = document.createElement('strong'), pattern = document.createElement('span');
+      copy.append(name, pattern); heading.append(icon, copy);
+      const values = document.createElement('p'); values.className = 'weapon-values';
+      const tradeoff = document.createElement('p'); tradeoff.className = 'weapon-tradeoff';
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'weapon-select';
+      button.setAttribute('data-weapon', definition.id);
+      card.append(heading, values, tradeoff, button); $('weapon-list').append(card);
+      row = { card, name, pattern, values, tradeoff, button }; weaponRows.set(definition.id, row);
     }
-    const offer = getEquipmentOffer(state.progress, definition.id);
-    row.card.classList.toggle('equipped', offer.equipped); row.card.classList.toggle('undiscovered', !offer.owned);
-    row.name.textContent = offer.name;
-    row.details.textContent = offer.owned ? `${offer.attackLabel} · ${TIERS[Math.min(3, offer.tier)]}\n강화 ${offer.level}/${EQUIPMENT_MAX_LEVEL}\n승급 ${offer.tier}/${EQUIPMENT_MAX_TIER}\n보유 ${offer.copies}개` : `${offer.attackLabel} · 기본형 무료`;
-    const attack = getStaffAttack(definition.id, { attackDamage: state.player.attackDamage - state.player.gearDamage + offer.damage, damageMult: state.player.damageMult });
-    const shots = attack.burstCount * attack.spreadAngles.length;
-    const damageLabel = attack.volleyHitLimit ? `${formatAmount(Math.round(attack.damage))} · ${shots}방향${attack.pierce ? ' 관통' : ''}` : `${formatAmount(Math.round(attack.damage))}${shots > 1 ? `×${shots}` : ''}`;
-    row.effect.textContent = `피해 ${damageLabel} · ${attack.interval}초 · ${attack.blastRadius ? `폭발 ${attack.blastRadius}m` : `${attack.range}m`}`;
-    row.effect.setAttribute('aria-label', `피해 ${Math.round(attack.damage)}, ${shots}발, ${attack.interval}초, 거리 ${attack.range}m`);
-    row.next.textContent = `${definition.targetLabel} · ${definition.tradeoff}\n${offer.maxed ? `최대 · 피해 +${offer.damage} · 생명 +${offer.health}` : `보너스 피해 +${offer.damage}→+${offer.nextDamage}\n생명 +${offer.health}→+${offer.nextHealth}`}`;
-    const { equip, enhance, promote } = row.buttons;
-    equip.label.textContent = !offer.owned ? '무료 받기' : offer.equipped ? '장착 중' : '장착'; equip.cost.textContent = '';
-    equip.button.dataset.equipmentAction = offer.owned ? 'equip' : 'unlock';
-    enhance.label.textContent = offer.maxed ? '최대' : '강화';
-    enhance.cost.textContent = offer.maxed ? '' : `${formatAmount(offer.enhanceCost)}G\n두루마리 ${offer.scrollCost}장`;
-    promote.label.textContent = offer.promotionMaxed ? '최대' : '승급';
-    promote.cost.textContent = offer.promotionMaxed ? '' : `${formatAmount(offer.promoteCost)}G\n두루마리 ${offer.promoteScrollCost}장\n장비 ${offer.promoteCopies}개`;
-    equip.button.disabled = !state.inCamp || offer.equipped;
-    enhance.button.disabled = !state.inCamp || !offer.canEnhance;
-    promote.button.disabled = !state.inCamp || !offer.canPromote;
-    equip.button.setAttribute('aria-label', `${offer.name} ${!offer.owned ? '기본형 무료 받기와 장착' : offer.equipped ? '장착 중' : '장착'}`);
-    enhance.button.setAttribute('aria-label', offer.maxed ? `${offer.name} 최대 강화` : `${offer.name} 강화, ${offer.enhanceCost} 골드와 두루마리 ${offer.scrollCost}장`);
-    promote.button.setAttribute('aria-label', offer.promotionMaxed ? `${offer.name} 최고 등급` : `${offer.name} 승급, ${offer.promoteCost} 골드와 두루마리 ${offer.promoteScrollCost}장, 같은 장비 2개`);
-    const condition = !offer.owned ? definition.description
-      : `${offer.maxed ? '최대 강화' : `강화 ${offer.level}/${EQUIPMENT_MAX_LEVEL}`} · ${offer.promotionMaxed ? '최고 등급' : `승급 ${offer.tier}/${EQUIPMENT_MAX_TIER}`}\n${offer.promotionMaxed ? '' : offer.copies >= 3 ? '장비 수량 충족' : `같은 장비 ${3 - offer.copies}개 더 필요`}`;
-    row.condition.textContent = state.inCamp ? condition : `거점에서 선택·성장\n${condition}`;
+    const attack = getWeaponAttack(definition.id, state.player), shots = (attack.burstCount ?? 1) * (attack.spreadAngles?.length ?? 1);
+    const damage = formatAmount(Math.round(attack.damage));
+    const damageLabel = attack.volleyHitLimit ? `${damage} · ${shots}방향` : `${damage}${shots > 1 ? `×${shots}` : ''}`;
+    row.name.textContent = definition.name; row.pattern.textContent = `${definition.attackLabel ?? ''}${attack.groundOnly ? ' · 지면' : ''}`;
+    row.values.textContent = `피해 ${damageLabel} · ${formatSeconds(attack.interval)}초\n거리 ${attack.range}m${attack.blastRadius ? ` · 폭발 ${attack.blastRadius}m` : ''}`;
+    row.values.setAttribute('aria-label', `피해 ${Math.round(attack.damage)}, ${attack.attackType === 'projectile' ? `${shots}발, ` : ''}${formatSeconds(attack.interval)}초, 거리 ${attack.range}m${attack.groundOnly ? ', 지면 공격' : ''}`);
+    row.tradeoff.textContent = [definition.targetLabel, definition.tradeoff].filter(Boolean).join('\n');
+    row.tradeoff.hidden = !row.tradeoff.textContent;
+    const equipped = selected === definition.id;
+    row.card.classList.toggle('selected', equipped); row.button.setAttribute('aria-pressed', String(equipped));
+    row.button.textContent = equipped ? '선택 중' : '선택';
+    row.button.disabled = !state.inCamp || equipped;
+    row.button.setAttribute('aria-label', `${definition.name} ${equipped ? '선택 중' : state.inCamp ? '무료 선택' : '거점에서 선택'}`);
   }
 }
 function updateNavigation() {
   const isGrowth = state.phase === 'paused' && pauseKind === 'growth';
   const enabled = ready && (state.phase === 'playing' || isGrowth) && $('help-menu').hidden;
   for (const button of growthButtons) {
-    const category = button.dataset.growth, form = formPreviews[category];
+    const category = button.dataset.growth;
     button.disabled = !enabled; button.setAttribute('aria-pressed', String(isGrowth && growthCategory === category));
-    button.classList.toggle('current-form', category === state.player.form && state.player.form !== 'druid');
-    if (form && state.player.level < form.firstLevel) {
-      button.dataset.unlockLevel = String(form.firstLevel);
-      button.setAttribute('aria-label', `${form.name} 성장, 레벨 ${form.firstLevel} 자동 해금`);
-    } else if (form) {
-      button.removeAttribute('data-unlock-level'); button.setAttribute('aria-label', `${form.name} 성장, 자동 변신 해금`);
-    }
+    button.classList.toggle('current-form', category === 'forms' && state.player.form !== 'druid');
   }
 }
 function openGrowth(category = 'stats') {
-  if (!['stats', 'druid', ...Object.keys(formPreviews)].includes(category) || !ready || !$('help-menu').hidden) return;
+  if (!['stats', 'druid', 'forms', 'weapons'].includes(category) || !ready || !$('help-menu').hidden) return;
   if (state.phase !== 'playing' && !(state.phase === 'paused' && pauseKind === 'growth')) return;
   clearInput(); growthCategory = category; lastGrowth = '';
   if (state.phase === 'playing') pauseGame('growth');
   else updateUI();
 }
 function buildGrowthRows() {
-  if (renderedGrowthCategory === growthCategory) return;
+  const rowKey = `${growthCategory}:${selectedForm}`;
+  if (renderedGrowthCategory === rowKey) return;
   $('growth-list').replaceChildren(); growthRows.clear();
-  const form = formPreviews[growthCategory];
-  const definitions = growthCategory === 'stats' ? UPGRADES : growthCategory === 'druid' ? SKILLS : [form];
+  const form = growthCategory === 'forms' ? formPreviews[selectedForm] : null;
+  const definitions = growthCategory === 'stats' ? UPGRADES : growthCategory === 'druid' ? SKILLS : form ? [form] : [];
   for (const definition of definitions) {
     const row = document.createElement('div'); row.className = 'upgrade-row';
     const copy = document.createElement('div'); copy.className = 'upgrade-copy';
@@ -228,33 +214,34 @@ function buildGrowthRows() {
     if (form) {
       row.classList.add('form-growth-row'); copy.classList.add('form-growth-copy');
       condition.className = 'form-growth-condition';
-      const emblem = $(`growth-${form.id}-btn`).querySelector('svg').cloneNode(true); emblem.classList.add('form-emblem'); copy.prepend(emblem);
+      const emblem = $(`form-${form.id}-tab`).querySelector('svg').cloneNode(true); emblem.classList.add('form-emblem'); copy.prepend(emblem);
     }
     $('growth-list').append(row); growthRows.set(definition.id, { row, title, detail, condition, buy, definition });
   }
-  renderedGrowthCategory = growthCategory;
+  renderedGrowthCategory = rowKey;
 }
 function renderGrowth() {
   if (state.phase !== 'paused' || pauseKind !== 'growth') return;
-  const signature = [growthCategory, statsPage, state.revision, state.player.level, state.progress.gold, state.inCamp].join(':');
+  const signature = [growthCategory, selectedForm, state.revision, state.player.level, state.progress.gold, state.inCamp].join(':');
   if (signature === lastGrowth) return;
   buildGrowthRows();
-  const form = formPreviews[growthCategory];
-  const equipmentPage = growthCategory === 'stats' && statsPage === 'equipment';
-  $('stats-pages').hidden = growthCategory !== 'stats';
-  $('equipment-panel').hidden = !equipmentPage; $('growth-list').hidden = equipmentPage;
-  $('growth-summary').hidden = equipmentPage;
-  for (const button of $('stats-pages').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.statsPage === statsPage));
-  $('growth-title').textContent = growthCategory === 'stats' ? '능력치' : growthCategory === 'druid' ? '드루이드' : `${form.name} 성장`;
-  showAmount('growth-bank-value', state.progress.gold, '보관 골드'); $('growth-level-value').textContent = `Lv.${state.player.level}`;
-  $('growth-summary').textContent = form
-    ? `${form.description}\n${state.player.level >= form.firstLevel ? form.id === 'wolf' ? '초원의 질주 초원에서 바로 써보세요.' : '상황에 맞춰 자동으로 변신해요.' : `Lv.${form.firstLevel}에 무료로 자동 해금돼요.`}`
-    : `${growthCategory === 'druid' ? '기술은 자동 사용' : state.inCamp ? '골드로 영구 성장' : '거점에서 영구 성장'}\n성장 한도 100단계`;
-  if (equipmentPage) {
-    $('growth-title').textContent = '장비';
-    $('growth-summary').textContent = state.inCamp ? '하나를 장착해 피해와 생명을 높이세요.' : '장착과 성장은 거점에서 할 수 있어요.';
-    renderEquipment(); lastGrowth = signature; return;
+  const form = growthCategory === 'forms' ? formPreviews[selectedForm] : null;
+  const weaponsPage = growthCategory === 'weapons';
+  $('form-tabs').hidden = growthCategory !== 'forms';
+  $('weapon-panel').hidden = !weaponsPage; $('growth-list').hidden = weaponsPage;
+  $('growth-resources').hidden = weaponsPage;
+  for (const tab of formTabs) {
+    const definition = formPreviews[tab.dataset.form], unlocked = state.player.level >= definition.firstLevel;
+    tab.setAttribute('aria-pressed', String(tab.dataset.form === selectedForm));
+    tab.setAttribute('aria-label', `${definition.name} 성장 보기${unlocked ? '' : `, 레벨 ${definition.firstLevel} 자동 해금`}`);
+    if (unlocked) tab.removeAttribute('data-unlock-level'); else tab.setAttribute('data-unlock-level', String(definition.firstLevel));
   }
+  $('growth-title').textContent = { stats: '능력', druid: '기술', forms: '변신', weapons: '무기' }[growthCategory];
+  showAmount('growth-bank-value', state.progress.gold, '보관 골드'); $('growth-level-value').textContent = `Lv.${state.player.level}`;
+  $('growth-summary').textContent = weaponsPage ? '거점에서 무료로 선택해요.' : form
+    ? `${form.description}\n${state.player.level >= form.firstLevel ? '상황에 맞춰 자동으로 변신해요.' : `Lv.${form.firstLevel}에 무료로 자동 해금돼요.`}`
+    : `${growthCategory === 'druid' ? '기술은 자동 사용' : state.inCamp ? '골드로 영구 성장' : '거점에서 영구 성장'}\n성장 한도 100단계`;
+  if (weaponsPage) { renderWeapons(); lastGrowth = signature; return; }
   for (const row of growthRows.values()) {
     if (form) {
       const offer = getFormOffer(state, form.id);
@@ -302,15 +289,14 @@ function renderGrowth() {
   }
   lastGrowth = signature;
 }
-listen($('stats-pages'), 'click', e => {
-  const button = e.target instanceof Element ? e.target.closest('button[data-stats-page]') : null;
-  if (!button || state.phase !== 'paused' || pauseKind !== 'growth' || growthCategory !== 'stats') return;
-  statsPage = button.dataset.statsPage; lastGrowth = ''; renderGrowth();
+for (const button of formTabs) listen(button, 'click', () => {
+  if (state.phase !== 'paused' || pauseKind !== 'growth' || growthCategory !== 'forms') return;
+  selectedForm = button.dataset.form; lastGrowth = ''; renderGrowth(); button.focus({ preventScroll: true });
 });
-listen($('equipment-list'), 'click', e => {
-  const button = e.target instanceof Element ? e.target.closest('button[data-equipment-action]') : null;
-  if (!button || button.disabled || state.phase !== 'paused' || pauseKind !== 'growth') return;
-  if (!equipmentAction(state, button.dataset.equipmentId, button.dataset.equipmentAction)) return;
+listen($('weapon-list'), 'click', e => {
+  const button = e.target instanceof Element ? e.target.closest('button[data-weapon]') : null;
+  if (!button || button.disabled || !$('weapon-list').contains(button) || state.phase !== 'paused' || pauseKind !== 'growth' || growthCategory !== 'weapons') return;
+  if (!selectWeapon(state, button.dataset.weapon)) return;
   wakeAudio(); presentQueuedUIEvent(); saveProgress(true); lastHud = ''; lastGrowth = ''; updateUI();
 });
 listen($('growth-list'), 'click', e => {
@@ -391,7 +377,7 @@ function directionTo(target) {
 function questGuide(quest) {
   if (quest.done) return '';
   if (quest.complete) return '보상을 받으면 다음 의뢰가 열려요.';
-  if (quest.id === 'attack' && state.inCamp) return '능력치에서 지팡이를 강화하세요.';
+  if (quest.id === 'attack' && state.inCamp) return '능력에서 공격을 강화하세요.';
   let target, label;
   if (quest.id === 'bank' && state.cargo === 0) { target = HUNT_ZONES.find(zone => zone.id === 'meadow-mushrooms'); label = target.name; }
   else if (quest.id === 'bank' || quest.id === 'attack') { target = getCamp(state); label = '거점'; }

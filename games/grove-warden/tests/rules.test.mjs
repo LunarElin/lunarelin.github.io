@@ -1,8 +1,8 @@
 import * as exportedRules from '../rules.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, stepGame, useSkill, setPaused, RULES, WORLD, STAGES, HUNT_ZONES, MONSTER_STATS, SKILLS, getSkillOffer, learnSkill, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, equipmentAction, respawnAtCamp, getStage, getCamp, getUnlockedMinZ, isStageUnlocked, isZoneUnlocked, getFormOffer, buyFormUpgrade } from '../rules.mjs';
-import { EQUIPMENT, normalizeGear, gearBonuses, getEquipmentOffer, getStaffAttack } from '../equipment.mjs';
+import { createGame, stepGame, useSkill, setPaused, RULES, WORLD, STAGES, HUNT_ZONES, MONSTER_STATS, SKILLS, getSkillOffer, learnSkill, normalizeProgress, exportProgress, getQuest, claimQuest, getUpgradeOffer, buyUpgrade, selectWeapon, respawnAtCamp, getStage, getCamp, getUnlockedMinZ, isStageUnlocked, isZoneUnlocked, getFormOffer, buyFormUpgrade } from '../rules.mjs';
+import { WEAPONS, getWeaponAttack } from '../equipment.mjs';
 
 function playing(seed = 11) {
   const state = createGame(seed, { skills: { owl: 0, roots: 1 } });
@@ -501,125 +501,92 @@ test('saved first boss kill records never suppress a new field boss or unlock a 
   const unlocked = createGame(403, { version: 4, questIndex: 4, bosses: records });
   for (const id of records) assert.equal(unlocked.enemies.filter(actor => actor.bossId === id).length, 1);
   assert.deepEqual(exportProgress(unlocked).bosses, records);
-  assert.equal(exportProgress(unlocked).version, 8);
+  assert.equal(exportProgress(unlocked).version, 9);
   const locked = createGame(403, { version: 4, questIndex: 3, bosses: records });
   assert.equal(locked.enemies.filter(actor => actor.bossId === records[0]).length, 1);
   assert.equal(locked.enemies.filter(actor => actor.bossId === records[1]).length, 0);
 });
 
-test('v4 progression gains a zero-bonus starter item without losing any existing purchase or record', () => {
+test('v4 progression gains a free starter weapon without losing any existing purchase or record', () => {
   const old = { version: 4, gold: 75, cargo: 33, xp: 720, upgrades: { attack: 2, health: 1, bag: 2 },
     skills: { owl: 2, roots: 1 }, questIndex: 4, totals: { kills: 30, mushrooms: 20, deepKills: 1, banked: 63 }, bosses: ['meadow-guardian'] };
   const progress = normalizeProgress(old), state = createGame(404, old);
-  assert.equal(progress.version, 8);
+  assert.equal(progress.version, 9);
   for (const key of ['gold', 'cargo', 'xp', 'upgrades', 'skills', 'questIndex', 'bosses']) assert.deepEqual(progress[key], old[key]);
   for (const [key, value] of Object.entries(old.totals)) assert.equal(progress.totals[key], value);
-  assert.deepEqual(gearBonuses(progress.gear), { damage: 0, health: 0 });
-  assert.deepEqual(progress.gear, normalizeGear());
+  assert.equal(progress.weapon, 'sprout'); assert.equal('gear' in progress, false);
   assert.equal(state.player.attackDamage, 16 + (state.player.level - 1) * 2);
   assert.equal(state.player.maxHp, 100 + (state.player.level - 1) * 10 + 20);
-  const saved = exportProgress(state); saved.gear.items.sprout.level = 20;
-  assert.equal(state.progress.gear.items.sprout.level, 0);
+  const saved = exportProgress(state); saved.weapon = 'axe'; saved.upgrades.attack = 99;
+  assert.equal(state.progress.weapon, 'sprout'); assert.equal(state.progress.upgrades.attack, 2);
 });
 
-test('equipment purchases require camp and apply real staff damage and maximum health', () => {
-  const state = createGame(405, { xp: 200, gold: 500, gear: { scrolls: 20, items: { thorn: { copies: 3, level: 1 } } } });
+test('every weapon is selected for free only at camp without altering character or learned skill stats', () => {
+  const state = createGame(405, { version: 9, xp: 60, gold: 0, upgrades: { attack: 1, health: 2 }, skills: { roots: 1, owl: 1 } });
   const original = exportProgress(state);
-  assert.equal(equipmentAction(state, 'sprout', 'enhance'), false);
-  assert.deepEqual(exportProgress(state), original);
+  assert.equal(selectWeapon(state, 'sword'), false); assert.deepEqual(exportProgress(state), original);
   state.phase = 'playing'; state.inCamp = false;
-  assert.equal(equipmentAction(state, 'sprout', 'enhance'), false);
+  assert.equal(selectWeapon(state, 'sword'), false); assert.deepEqual(exportProgress(state), original);
   state.inCamp = true; setPaused(state, true); state.player.hp = 100;
-  const before = { maxHp: state.player.maxHp, attack: state.player.attackDamage, gold: state.progress.gold, revision: state.revision };
-  const offer = getEquipmentOffer(state.progress, 'sprout');
-  assert.equal(equipmentAction(state, 'sprout', 'enhance'), true);
-  assert.equal(state.player.maxHp - before.maxHp, 3); assert.equal(state.player.hp, 103);
-  assert.equal(state.player.attackDamage - before.attack, 2);
-  assert.equal(state.progress.gold, before.gold - offer.enhanceCost); assert.equal(state.revision, before.revision + 1);
-  assert.equal(equipmentAction(state, 'thorn', 'equip'), true);
-  assert.equal(equipmentAction(state, 'thorn', 'promote'), true);
-  assert.equal(state.progress.gear.items.thorn.copies, 1);
-  assert.ok(state.queuedEvents.every(item => item.type === 'upgrade' && item.id === 'equipment' && typeof item.label === 'string'));
+  const stats = () => [state.player.attackDamage, state.player.maxHp, state.player.hp, state.player.damageMult, state.player.skillDamage, state.owl.damage];
+  const before = stats(), upgrades = structuredClone(state.progress.upgrades), skills = structuredClone(state.progress.skills);
+  for (const { id } of WEAPONS.slice(1)) {
+    const revision = state.revision;
+    assert.equal(selectWeapon(state, id), true); assert.equal(state.progress.weapon, id);
+    assert.deepEqual(stats(), before); assert.equal(state.progress.gold, 0);
+    assert.equal(state.revision, revision + 1); assert.equal(selectWeapon(state, id), false);
+  }
+  assert.deepEqual(state.progress.upgrades, upgrades); assert.deepEqual(state.progress.skills, skills);
+  assert.ok(state.queuedEvents.every(item => item.type === 'upgrade' && item.id === 'weapon' && typeof item.label === 'string'));
+  const selected = exportProgress(state); assert.equal(selectWeapon(state, '__proto__'), false); assert.deepEqual(exportProgress(state), selected);
+  assert.equal(exportedRules.equipmentAction, undefined); assert.equal('gear' in selected, false);
+  assert.equal(selectWeapon(state, 'thorn'), true);
   state.phase = 'playing'; state.player.x = 0; state.player.z = 0; state.inCamp = false;
-  state.enemies = []; state.spawners = []; state.player.attackCd = 0;
+  state.enemies = []; state.spawners = []; state.player.attackCd = 0; state.player.skillCd = 999; state.owl.fireCd = 999;
   const target = enemy(state, 0, 3, { hp: 10000, maxHp: 10000 });
-  const damage = getStaffAttack(state.progress.gear.equipped, state.player).damage;
-  stepGame(state, { manual: true }, 0.05);
+  const damage = getWeaponAttack(state.progress.weapon, state.player).damage;
+  stepGame(state, { manual: true }, .05);
   assert.equal(state.projectiles.find(bolt => bolt.source === 'staff').damage, damage);
-  advance(state, 0.15, { manual: true });
-  assert.equal(target.hp, 10000 - damage);
+  advance(state, .15, { manual: true }); assert.equal(target.hp, 10000 - damage);
 });
 
-test('equipped damage reaches staff roots and owl snapshots while inventory-only items add nothing', () => {
-  const common = { xp: 60, upgrades: { attack: 1 }, skills: { roots: 1, owl: 1 } };
-  const base = createGame(406, common);
-  const state = createGame(406, { ...common, gear: { equipped: 'moon', items: { moon: { copies: 1, level: 2, tier: 1 }, thorn: { copies: 5, level: 20, tier: 3 } } } });
-  const bonus = gearBonuses(state.progress.gear);
-  assert.equal(state.player.attackDamage - base.player.attackDamage, bonus.damage);
-  assert.equal(state.player.skillDamage - base.player.skillDamage, bonus.damage);
-  assert.equal(state.player.maxHp - base.player.maxHp, bonus.health);
-  assert.ok(Math.abs(state.owl.damage - base.owl.damage - bonus.damage * state.player.damageMult) < 1e-9);
-  state.phase = 'playing'; state.player.x = 0; state.player.z = 0; state.inCamp = false;
-  state.player.skillCd = 0; state.player.attackCd = 999; state.enemies = []; state.spawners = [];
-  const target = enemy(state, 0, 2, { hp: 10000, maxHp: 10000 });
-  assert.equal(useSkill(state, target), true);
-  const snapshot = state.pendingSkills[0].damage;
-  const hits = [];
-  for (let i = 0; i < 30; i++) { stepGame(state, { manual: true }); hits.push(...state.events.filter(item => item.type === 'hit')); }
-  assert.equal(hits.filter(item => item.source === 'roots').length, 1);
-  assert.equal(hits.find(item => item.source === 'roots').damage, snapshot);
-  for (const source of ['staff', 'owl']) {
-    state.projectiles.push({ id: state.nextId++, x: target.x, z: target.z, dx: 0, dz: 0, team: 'player', source, damage: 1, life: 1, radius: 0.2, hitIds: [], pierce: 0 });
-    stepGame(state, { manual: true });
-    assert.ok(state.events.some(item => item.type === 'hit' && item.source === source && item.targetId === target.id));
+test('version eight inventory converts to a one-time gold refund and never contributes removed gear stats', () => {
+  const old = { version: 8, gold: 75, cargo: 33, xp: 720, upgrades: { attack: 2, health: 1, bag: 2 },
+    skills: { owl: 2, roots: 1 }, questIndex: 4, bosses: ['meadow-guardian'],
+    gear: { equipped: 'moon', scrolls: 12, items: { sprout: { copies: 1, level: 20, tier: 3 },
+      moon: { copies: 5, level: 12, tier: 2 }, thorn: { copies: 0, level: 100, tier: 100 } } } };
+  const original = structuredClone(old), migrated = normalizeProgress(old), state = createGame(406, old);
+  assert.equal(migrated.version, 9); assert.equal(migrated.gold, 4325); assert.equal(migrated.weapon, 'moon');
+  assert.equal('gear' in migrated, false); assert.deepEqual(old, original);
+  for (const key of ['cargo', 'xp', 'upgrades', 'skills', 'questIndex', 'bosses']) assert.deepEqual(migrated[key], old[key]);
+  assert.equal(state.player.attackDamage, 16 + (state.player.level - 1) * 2);
+  assert.equal(state.player.maxHp, 100 + (state.player.level - 1) * 10 + 20);
+  assert.equal(state.player.skillDamage, 46 + (state.player.level - 1) * 3);
+  assert.deepEqual(normalizeProgress(migrated), migrated);
+  for (let reload = 0; reload < 3; reload++) {
+    const restored = createGame(407 + reload, exportProgress(state));
+    assert.deepEqual(exportProgress(restored), migrated); assert.equal(restored.progress.gold, 4325);
   }
+  assert.equal(normalizeProgress({ ...migrated, gear: old.gear }).gold, 4325, 'a v9 record cannot redeem the same legacy inventory again');
 });
 
-test('field equipment is collected by physical approach even with a full gold bag and survives death and reload', () => {
-  const state = playing(); state.player.skillCd = 999; state.cargo = state.progress.cargo = state.player.capacity;
-  state.fieldLoot.push({ id: 900, x: state.player.x + 3.2, z: state.player.z, kind: 'equipment', equipmentId: 'thorn', amount: 1, life: 180 },
-    { id: 901, x: state.player.x + 3.2, z: state.player.z, kind: 'scroll', amount: 3, life: 180 });
-  const origin = { x: state.player.x, z: state.player.z };
-  advance(state, 1);
-  assert.equal(state.player.x, origin.x); assert.equal(state.player.z, origin.z); assert.equal(state.fieldLoot.length, 2);
-  const pickups = [];
-  for (let i = 0; i < 45; i++) { stepGame(state, { moveX: 1, manual: true }); pickups.push(...state.events.filter(item => item.type === 'gear-pickup')); }
-  assert.equal(state.fieldLoot.length, 0); assert.equal(pickups.length, 2);
-  assert.equal(pickups.reduce((sum, item) => sum + item.copies, 0), 1); assert.equal(pickups.reduce((sum, item) => sum + item.scrolls, 0), 3);
-  assert.equal(state.progress.gear.items.thorn.copies, 1); assert.equal(state.progress.gear.scrolls, 3);
-  assert.equal(state.progress.gear.equipped, 'sprout'); assert.equal(state.cargo, state.player.capacity);
-  const gear = structuredClone(state.progress.gear);
-  state.player.hp = 1;
-  state.projectiles.push({ id: state.nextId++, x: state.player.x, z: state.player.z, dx: 0, dz: 0, team: 'enemy', damage: 2, life: 1, radius: 0.2, hitIds: [], pierce: 0 });
-  stepGame(state, { manual: true }); assert.equal(state.phase, 'down');
-  assert.deepEqual(state.progress.gear, gear); assert.equal(respawnAtCamp(state), true);
-  const restored = createGame(407, exportProgress(state));
-  assert.deepEqual(restored.progress.gear, gear); assert.equal(restored.fieldLoot.length, 0);
-});
-
-test('seeded normal drops vary while every boss drops equipment and scrolls within the field loot cap', () => {
+test('ordinary and boss kills only drop physical gold and never equipment or enhancement materials', () => {
   const state = playing(408); state.player.skillCd = 999;
-  const totals = { equipment: 0, scroll: 0 }, found = new Set();
-  const kill = type => {
+  state.fieldEvents.nextDiscovery = state.fieldEvents.nextHazard = Infinity;
+  for (let i = 0; i < 520; i++) {
+    const type = i < 500 ? 'mushroom' : 'boss';
     const target = enemy(state, 0, -4, { type, hp: 1, maxHp: 1 });
-    state.projectiles.push({ id: state.nextId++, x: target.x, z: target.z, dx: 0, dz: 0, team: 'player', damage: 2, life: 1, radius: 0.2, hitIds: [], pierce: 0 });
+    state.projectiles.push({ id: state.nextId++, x: target.x, z: target.z, dx: 0, dz: 0, team: 'player', damage: 2, life: 1, radius: .2, hitIds: [], pierce: 0 });
     stepGame(state, { manual: true });
-  };
-  for (let i = 0; i < 500; i++) {
-    kill('mushroom');
-    for (const item of state.fieldLoot) { totals[item.kind]++; if (item.equipmentId) found.add(item.equipmentId); }
-    state.fieldLoot = [];
+    assert.equal(state.enemies.some(item => item.id === target.id), false);
+    assert.equal(state.fieldLoot?.length ?? 0, 0);
+    assert.equal(state.events.some(item => item.type === 'gear-pickup'), false);
+    assert.ok(state.loot.length <= 100); assert.equal(state.loot.at(-1).value, MONSTER_STATS[type].loot);
+    assert.equal(state.loot.at(-1).life, type === 'boss' ? 600 : 180);
   }
-  assert.ok(totals.scroll > 65 && totals.scroll < 135); assert.ok(totals.equipment > 15 && totals.equipment < 65);
-  assert.equal(found.size, EQUIPMENT.length);
-  for (let i = 0; i < 20; i++) {
-    const previousIds = new Set(state.fieldLoot.map(item => item.id)); kill('boss');
-    const drops = state.fieldLoot.filter(item => !previousIds.has(item.id));
-    assert.equal(drops.find(item => item.kind === 'equipment').amount, 1);
-    assert.equal(drops.find(item => item.kind === 'scroll').amount, 3);
-    assert.ok(drops.every(item => item.life === 180)); assert.ok(state.fieldLoot.length <= 30);
-  }
-  assert.equal(state.fieldLoot.length, 30); assert.equal(state.progress.totals.kills, 520);
+  assert.equal(state.loot.length, 100); assert.equal(state.progress.totals.kills, 520);
+  assert.equal(state.progress.gold, 0); assert.equal(state.cargo, 0);
+  const saved = exportProgress(state); assert.equal('gear' in saved, false); assert.equal('fieldLoot' in saved, false);
 });
 
 test('a discovered treasure requires approach and its gold obeys the physical bag limit', () => {
@@ -630,25 +597,24 @@ test('a discovered treasure requires approach and its gold obeys the physical ba
   const chest = state.fieldEvents.items[0]; assert.equal(chest.kind, 'chest');
   assert.ok(Math.hypot(chest.x - state.player.x, chest.z - state.player.z) >= 2.6);
   assert.deepEqual({ x: state.player.x, z: state.player.z }, origin);
-  const previousCopies = state.progress.gear.items[chest.equipmentId].copies;
+  const weapon = state.progress.weapon;
   let opened;
   for (let i = 0; i < 200 && !opened; i++) {
     stepGame(state, { moveX: chest.x - state.player.x, moveZ: chest.z - state.player.z, manual: true });
     opened = state.events.find(item => item.type === 'field-chest');
   }
-  assert.ok(opened); assert.equal(opened.equipmentId, chest.equipmentId);
-  assert.equal(opened.copies, 1); assert.equal(opened.scrolls, 2);
-  assert.equal(state.progress.gear.items[chest.equipmentId].copies, previousCopies + 1);
-  assert.equal(state.progress.gear.scrolls, 2); assert.equal(state.progress.gold, 0);
+  assert.ok(opened); assert.ok(opened.gold > 0);
+  for (const key of ['equipmentId', 'copies', 'scrolls']) assert.equal(key in opened, false);
+  assert.equal(state.progress.weapon, weapon); assert.equal('gear' in state.progress, false); assert.equal(state.progress.gold, 0);
   assert.equal(state.cargo, 0); assert.equal(state.loot.length, 1); assert.equal(state.loot[0].value, opened.gold);
   stepGame(state, { manual: true });
   assert.equal(state.cargo, opened.gold); assert.equal(state.progress.gold, 0); assert.equal(state.loot.length, 0);
   state.cargo = state.progress.cargo = state.player.capacity;
-  state.fieldEvents.items.push({ id: 999, x: state.player.x, z: state.player.z, kind: 'chest', life: 45, equipmentId: 'moon', scrolls: 2, gold: 30 });
+  state.fieldEvents.items.push({ id: 999, x: state.player.x, z: state.player.z, kind: 'chest', life: 45, gold: 30 });
   stepGame(state, { manual: true }); stepGame(state, { manual: true });
   assert.equal(state.cargo, state.player.capacity); assert.equal(state.progress.gold, 0);
   assert.equal(state.loot.length, 1); assert.equal(state.loot[0].value, 30);
-  assert.equal(state.progress.gear.scrolls, 4);
+  assert.equal(state.progress.weapon, weapon); assert.equal('gear' in state.progress, false);
   assert.equal('fieldEvents' in exportProgress(state), false); assert.equal('fieldLoot' in exportProgress(state), false);
 });
 
@@ -674,7 +640,7 @@ test('a fatal field hazard clears temporary combat and blocks staff and owl fire
   state.phase = 'playing'; state.player.x = 0; state.player.z = 1; state.player.hp = 1; state.inCamp = false;
   state.player.attackCd = 0; state.player.skillCd = 999; state.enemies = []; state.spawners = [];
   enemy(state, 0, 3, { hp: 1000, maxHp: 1000 });
-  state.fieldEvents.items.push({ id: 2, kind: 'chest', x: 10, z: 1, life: 45, equipmentId: 'thorn', scrolls: 2, gold: 8 });
+  state.fieldEvents.items.push({ id: 2, kind: 'chest', x: 10, z: 1, life: 45, gold: 8 });
   state.fieldEvents.hazards.push({ id: 1, pattern: 'spores', x: 0, z: 1, centers: [{ x: 0, z: 1, radius: 1.45 }],
     phase: 'warning', time: 0.01, warnTime: 1.15, blastTime: 0.35, damage: 4, resolved: false });
   stepGame(state, { manual: true });
@@ -687,7 +653,7 @@ test('a fatal field hazard clears temporary combat and blocks staff and owl fire
   assert.equal(respawnAtCamp(state), true); assert.equal(state.fieldEvents.items.length, 1);
 });
 
-test('a field blessing heals over active time without changing equipment damage or surviving death', () => {
+test('a field blessing heals over active time without changing character damage or surviving death', () => {
   const state = playing(412); state.player.hp = 20; state.player.skillCd = 999;
   const damage = [state.player.attackDamage, state.player.skillDamage, state.player.damageMult];
   state.fieldEvents.items.push({ id: 1, kind: 'blessing', x: state.player.x, z: state.player.z, life: 45 });
@@ -795,11 +761,11 @@ test('gold of any category never attracts automatic movement even at low health'
   assert.equal(state.loot[0].id, 901);
 });
 
-test('v2 progression migrates to v7 with no lost gold, cargo, ranks, quests or bosses', () => {
+test('v2 progression migrates to v9 with no lost gold, cargo, ranks, quests or bosses', () => {
   const old = { version: 2, gold: 215, cargo: 33, xp: 150, upgrades: { attack: 2, health: 1, bag: 2 }, questIndex: 4,
     totals: { kills: 19, mushrooms: 12, deepKills: 3, banked: 70 }, bosses: ['meadow-guardian'], unlockedDeep: true };
   const migrated = normalizeProgress(old);
-  assert.equal(migrated.version, 8);
+  assert.equal(migrated.version, 9);
   for (const key of ['gold', 'cargo', 'xp', 'questIndex', 'unlockedDeep']) assert.equal(migrated[key], old[key]);
   for (const key of ['upgrades', 'bosses']) assert.deepEqual(migrated[key], old[key]);
   for (const [key, value] of Object.entries(old.totals)) assert.equal(migrated.totals[key], value);
@@ -1136,12 +1102,12 @@ test('camp healing and cargo banking require the player to physically enter the 
 test('each web archetype spawns with its configured durability, danger, movement and rewards', () => {
   const state = createGame(31, { questIndex: 4 });
   const cases = [
-    ['meadow-mushrooms', 48, 2, 0.88, 2, 2],
-    ['meadow-boars', 228, 8, 1.76, 8, 22],
-    ['deep-boars', 228, 8, 1.76, 8, 22],
-    ['deep-casters', 68, 4, 1.76, 6, 18],
-    ['meadow-boss', 252, 12, 2.64, 20, 42],
-    ['deep-boss', 1024, 36, 2.64, 200, 188],
+    ['meadow-mushrooms', 64, 4, 1.3, 2, 2],
+    ['meadow-boars', 280, 14, 2.2, 8, 22],
+    ['deep-boars', 512, 22, 2.6, 8, 22],
+    ['deep-casters', 260, 18, 2.2, 6, 18],
+    ['meadow-boss', 480, 24, 2.64, 20, 42],
+    ['deep-boss', 1800, 48, 2.9, 200, 188],
   ];
   for (const [zoneId, hp, damage, speed, xp, loot] of cases) {
     const members = state.enemies.filter(item => item.zoneId === zoneId);
@@ -1376,7 +1342,7 @@ test('v3 learned movement ranks become an owl without losing purchases or existi
     const old = { version: 3, gold: 73, cargo: 33, xp: 720, upgrades: { attack: 2, health: 1, bag: 2 },
       skills: { dodge: rank, roots: 2 }, questIndex: 4, totals: { kills: 31, mushrooms: 20, deepKills: 2, banked: 89 }, bosses: ['meadow-guardian'] };
     const migrated = normalizeProgress(old);
-    assert.equal(migrated.version, 8);
+    assert.equal(migrated.version, 9);
     assert.deepEqual(migrated.skills, { owl: rank, roots: 2 });
     for (const key of ['gold', 'cargo', 'xp', 'questIndex']) assert.equal(migrated[key], old[key]);
     for (const key of ['upgrades', 'bosses']) assert.deepEqual(migrated[key], old[key]);

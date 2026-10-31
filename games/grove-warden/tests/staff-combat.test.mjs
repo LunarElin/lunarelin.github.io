@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, stepGame, setPaused, equipmentAction, exportProgress, RULES } from '../rules.mjs';
-import { getStaffAttack } from '../equipment.mjs';
+import { createGame, stepGame, setPaused, selectWeapon, exportProgress, RULES } from '../rules.mjs';
+import { getWeaponAttack } from '../equipment.mjs';
 
 function field(weaponId = 'sprout', saved = {}) {
-  const state = createGame(2461, { gear: { equipped: weaponId, items: { [weaponId]: { copies: 1 } } }, ...saved });
+  const state = createGame(2461, { weapon: weaponId, ...saved });
   state.phase = 'playing'; state.player.x = 0; state.player.z = 0; state.inCamp = false;
   state.enemies = []; state.spawners = []; state.player.attackCd = 0; state.player.skillCd = 999;
   state.fieldEvents.nextDiscovery = state.fieldEvents.nextHazard = 1e9;
@@ -24,7 +24,7 @@ function tick(state, frames, input = { manual: true }, dt = 0.05) {
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} differs from ${expected}`);
 
 test('sprout fires one finite single bolt and reports its real style on shooting and impact', () => {
-  const state = field(), target = enemy(state, 3.5), profile = getStaffAttack('sprout', state.player);
+  const state = field(), target = enemy(state, 3.5), profile = getWeaponAttack('sprout', state.player);
   const events = tick(state, 1), bolt = state.projectiles.find(item => item.source === 'staff');
   assert.ok(bolt); assert.equal(state.projectiles.length, 1); assert.equal(state.pendingStaffShots.length, 0);
   assert.equal(bolt.weaponId, 'sprout'); assert.equal(bolt.weaponStyle, 'single'); assert.equal(bolt.blastRadius, 0);
@@ -38,7 +38,7 @@ test('sprout fires one finite single bolt and reports its real style on shooting
 });
 
 test('thorn fires three real shots from the current moving position with one original damage snapshot', () => {
-  const state = field('thorn'), target = enemy(state, 3.4), profile = getStaffAttack('thorn', state.player), damage = profile.damage;
+  const state = field('thorn'), target = enemy(state, 3.4), profile = getWeaponAttack('thorn', state.player), damage = profile.damage;
   const events = tick(state, 1); assert.equal(state.pendingStaffShots.length, 2);
   state.player.attackCd = 999; state.player.attackDamage = 100; state.player.damageMult = 5;
   for (let i = 0; i < 8; i++) {
@@ -73,7 +73,7 @@ test('remaining burst shots reacquire a living in-range target or stop when no r
 });
 
 test('moon launches five distinct spread directions but only one volley sound event', () => {
-  const state = field('moon'), target = enemy(state, 3), profile = getStaffAttack('moon', state.player);
+  const state = field('moon'), target = enemy(state, 3), profile = getWeaponAttack('moon', state.player);
   const events = tick(state, 1), bolts = state.projectiles.filter(bolt => bolt.source === 'staff');
   assert.equal(bolts.length, 5); assert.equal(state.pendingStaffShots.length, 0);
   assert.equal(events.filter(event => event.type === 'shoot').length, 1);
@@ -89,7 +89,7 @@ test('moon launches five distinct spread directions but only one volley sound ev
 test('ember explodes at the first swept contact and snapshots one hit per ground or air victim across a level-up', () => {
   const state = field('ember'), far = enemy(state, 4), primary = enemy(state, 2, 0, { hp: 1, maxHp: 1, xp: 1000 });
   const fast = enemy(state, 2, 1.5, { type: 'runner', trait: 'fast' }), air = enemy(state, 2, -1.6, { type: 'flyer', trait: 'airborne' });
-  const outside = enemy(state, 2, 3), damage = getStaffAttack('ember', state.player).damage, initialLevel = state.player.level;
+  const outside = enemy(state, 2, 3), damage = getWeaponAttack('ember', state.player).damage, initialLevel = state.player.level;
   const events = tick(state, 1); assert.equal(state.projectiles[0].maxLife, 0.65); state.player.attackCd = 999; events.push(...tick(state, 12));
   const blasts = events.filter(event => event.type === 'staff-explosion'), hits = events.filter(event => event.type === 'hit');
   assert.equal(blasts.length, 1); assert.equal(blasts[0].radius, 2);
@@ -109,7 +109,7 @@ test('pause freezes scheduled bursts while camp transformation and death cancel 
   setPaused(paused, false); assert.equal(tick(paused, 5).filter(event => event.type === 'shoot').length, 2);
   for (const mode of ['camp', 'transform', 'death']) {
     const state = field('thorn', mode === 'transform' ? { xp: 120 } : {}), target = enemy(state, 3.4);
-    const damage = getStaffAttack('thorn', state.player).damage; tick(state, 1); state.player.attackCd = 999;
+    const damage = getWeaponAttack('thorn', state.player).damage; tick(state, 1); state.player.attackCd = 999;
     const firedId = state.projectiles[0].id;
     if (mode === 'camp') { state.player.x = 0; state.player.z = 16; }
     if (mode === 'transform') enemy(state, 0, 3, { type: 'runner', trait: 'fast' });
@@ -145,7 +145,7 @@ test('partial volleys and adversarial burst requests respect shared projectile a
 test('local pursuit uses the selected staff range and stops without manual input taking a back seat', () => {
   for (const weaponId of ['sprout', 'moon']) {
     const state = field(weaponId); state.player.x = -6; state.player.z = 4; state.player.attackCd = 999;
-    enemy(state, -2, 4); const origin = state.player.x, range = getStaffAttack(weaponId, state.player).range;
+    enemy(state, -2, 4); const origin = state.player.x, range = getWeaponAttack(weaponId, state.player).range;
     tick(state, 10, {});
     if (weaponId === 'sprout') close(state.player.x, origin);
     else {
@@ -158,27 +158,15 @@ test('local pursuit uses the selected staff range and stops without manual input
   }
 });
 
-test('camp selection unlocks ember once and version-eight saves preserve old gear and progression', () => {
-  const old = { version: 6, xp: 120, questIndex: 4, gold: 37, cargo: 10, checkpoint: 'deep', forms: { wolf: 1 },
-    skills: { owl: 1, roots: 1 }, gear: { equipped: 'thorn', scrolls: 4, items: {
-      sprout: { copies: 3, level: 2, tier: 1 }, thorn: { copies: 2, level: 3, tier: 1 }, moon: { copies: 5, level: 4, tier: 2 },
-    } } };
-  const state = createGame(2462, old), before = exportProgress(state);
-  assert.equal(before.version, 8); assert.equal(before.gear.items.ember.copies, 0);
-  for (const id of ['sprout', 'thorn', 'moon']) assert.deepEqual(before.gear.items[id], old.gear.items[id]);
-  assert.equal(before.gear.scrolls, old.gear.scrolls); assert.equal(before.forms.wolf, old.forms.wolf);
-  assert.deepEqual(before.skills, old.skills); assert.equal(before.cargo, old.cargo); assert.equal(before.checkpoint, 'deep');
-  assert.equal(equipmentAction(state, 'ember', 'unlock'), false); assert.deepEqual(exportProgress(state), before);
-  state.phase = 'playing'; state.inCamp = false;
-  assert.equal(equipmentAction(state, 'ember', 'unlock'), false); assert.deepEqual(exportProgress(state), before);
-  state.inCamp = true; setPaused(state, true); const revision = state.revision;
-  assert.equal(equipmentAction(state, 'ember', 'unlock'), true);
-  assert.equal(state.progress.gear.equipped, 'ember'); assert.equal(state.progress.gear.items.ember.copies, 1);
-  assert.equal(state.progress.gold, 37); assert.equal(state.revision, revision + 1);
-  for (const id of ['sprout', 'thorn', 'moon']) assert.deepEqual(state.progress.gear.items[id], old.gear.items[id]);
-  assert.equal(getStaffAttack(state.progress.gear.equipped, state.player).weaponStyle, 'explosive');
-  const saved = exportProgress(state); assert.equal(equipmentAction(state, 'ember', 'unlock'), false);
-  assert.deepEqual(exportProgress(state), saved); assert.equal('pendingStaffShots' in saved, false);
-  const restored = createGame(2463, saved);
-  assert.deepEqual(exportProgress(restored), saved); assert.equal(restored.pendingStaffShots.length, 0);
+test('camp weapon changes cancel a queued burst, cost no resources and survive v9 saves', () => {
+  const state = field('thorn'); enemy(state, 3.4); tick(state, 1);
+  assert.equal(state.pendingStaffShots.length, 2);
+  const before = exportProgress(state);
+  assert.equal(selectWeapon(state, 'sword'), false); assert.deepEqual(exportProgress(state), before);
+  state.player.x = 0; state.player.z = 16; state.inCamp = true; setPaused(state, true);
+  assert.equal(selectWeapon(state, 'sword'), true); assert.equal(state.pendingStaffShots.length, 0);
+  assert.equal(state.progress.gold, before.gold); assert.equal(state.progress.weapon, 'sword');
+  const saved = exportProgress(state); assert.equal(saved.version, 9); assert.equal('gear' in saved, false);
+  assert.equal('pendingStaffShots' in saved, false);
+  const restored = createGame(2463, saved); assert.deepEqual(exportProgress(restored), saved);
 });

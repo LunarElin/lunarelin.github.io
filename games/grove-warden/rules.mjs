@@ -1,4 +1,4 @@
-import { EQUIPMENT, normalizeGear, gearBonuses, applyEquipmentAction, grantEquipment, getStaffAttack } from './equipment.mjs';
+import { WEAPONS, normalizeWeapon, legacyEquipmentRefund, getWeaponAttack } from './equipment.mjs';
 import { createFieldState, advanceFieldEvents, clearFieldCombat } from './field-events.mjs';
 import { FORMS, normalizeForms, formRank, getFormDefinition, getFormOffer, applyFormUpgrade, chooseForm } from './forms.mjs';
 
@@ -17,7 +17,7 @@ export const RULES = Object.freeze({
   skillAimRange: 4.8,
 });
 export const UPGRADES = Object.freeze([
-  Object.freeze({ id: 'attack', name: '지팡이 강화', description: '공격 피해 +18%', baseCost: 30, maxLevel: 100, icon: '✦' }),
+  Object.freeze({ id: 'attack', name: '공격 강화', description: '공격 피해 +18%', baseCost: 30, maxLevel: 100, icon: '✦' }),
   Object.freeze({ id: 'health', name: '생명 강화', description: '최대 생명 +20', baseCost: 35, maxLevel: 100, icon: '♥' }),
   Object.freeze({ id: 'bag', name: '가방 확장', description: '운반 한도 +16', baseCost: 25, maxLevel: 100, icon: '▣' }),
 ]);
@@ -27,31 +27,31 @@ export const SKILLS = Object.freeze([
 ]);
 // 웹 전투용 수치. 시전 시간과 피해 판정은 전투 규칙에서 별도로 처리한다.
 export const MONSTER_STATS = Object.freeze({
-  mushroom: Object.freeze({ level: 1, hp: 48, speed: 0.88, radius: 0.46, damage: 2, xp: 2, loot: 2 }),
-  boar: Object.freeze({ level: 5, hp: 228, speed: 1.76, radius: 0.62, damage: 8, xp: 8, loot: 22 }),
-  caster: Object.freeze({ level: 4, hp: 68, speed: 1.76, radius: 0.46, damage: 4, xp: 6, loot: 18 }),
-  boss: Object.freeze({ level: 3, hp: 252, speed: 2.64, radius: 1.05, damage: 12, xp: 20, loot: 42 }),
-  deepBoss: Object.freeze({ level: 8, hp: 1024, speed: 2.64, radius: 1.05, damage: 36, xp: 200, loot: 188 }),
-  runner: Object.freeze({ level: 8, hp: 220, speed: 4.9, radius: 0.48, damage: 10, xp: 12, loot: 16 }),
-  swarm: Object.freeze({ level: 8, hp: 55, speed: 1.4, radius: 0.3, damage: 3, xp: 4, loot: 4 }),
-  flyer: Object.freeze({ level: 12, hp: 300, speed: 2.5, radius: 0.52, damage: 12, xp: 18, loot: 24 }),
-  ancientBoss: Object.freeze({ level: 10, hp: 1600, speed: 2.64, radius: 1.05, damage: 20, xp: 260, loot: 220 }),
-  skyBoss: Object.freeze({ level: 14, hp: 2600, speed: 2.64, radius: 1.05, damage: 26, xp: 400, loot: 320 }),
+  mushroom: Object.freeze({ level: 1, hp: 64, speed: 1.3, radius: 0.46, damage: 4, xp: 2, loot: 2 }),
+  boar: Object.freeze({ level: 5, hp: 280, speed: 2.2, radius: 0.62, damage: 14, xp: 8, loot: 22 }),
+  caster: Object.freeze({ level: 9, hp: 260, speed: 2.2, radius: 0.46, damage: 18, xp: 6, loot: 18 }),
+  boss: Object.freeze({ level: 3, hp: 480, speed: 2.64, radius: 1.05, damage: 24, xp: 20, loot: 42 }),
+  deepBoss: Object.freeze({ level: 8, hp: 1800, speed: 2.9, radius: 1.05, damage: 48, xp: 200, loot: 188 }),
+  runner: Object.freeze({ level: 8, hp: 650, speed: 5.1, radius: 0.48, damage: 30, xp: 12, loot: 16 }),
+  swarm: Object.freeze({ level: 8, hp: 180, speed: 1.8, radius: 0.3, damage: 10, xp: 4, loot: 4 }),
+  flyer: Object.freeze({ level: 12, hp: 1100, speed: 2.8, radius: 0.52, damage: 42, xp: 18, loot: 24 }),
+  ancientBoss: Object.freeze({ level: 10, hp: 4000, speed: 3.1, radius: 1.05, damage: 72, xp: 260, loot: 220 }),
+  skyBoss: Object.freeze({ level: 14, hp: 7500, speed: 3.3, radius: 1.05, damage: 104, xp: 400, loot: 320 }),
 });
 export const HUNT_ZONES = Object.freeze([
   { id: 'meadow-mushrooms', name: '버섯 군락', x: -6, z: 4, radius: 5.5, type: 'mushroom', count: 9, respawnSeconds: 15 },
   { id: 'meadow-boars', name: '멧돼지 숲', x: 6, z: -3, radius: 5, type: 'boar', count: 6, respawnSeconds: 8 },
   { id: 'meadow-boss', name: '초원 수문장', x: -6, z: -8, radius: 3.8, type: 'boss', count: 1, bossId: 'meadow-guardian', hp: MONSTER_STATS.boss.hp, damage: MONSTER_STATS.boss.damage, xp: MONSTER_STATS.boss.xp, loot: MONSTER_STATS.boss.loot, speed: MONSTER_STATS.boss.speed, respawnSeconds: 30 },
   { id: 'meadow-runners', name: '질주 초원', x: 7, z: 7, radius: 4.2, type: 'runner', trait: 'fast', stageId: 'meadow', unlockLevel: 4,
-    count: 4, level: 4, hp: 90, damage: 4, xp: 4, loot: 6, speed: 4.9, respawnSeconds: 8 },
-  { id: 'deep-boars', name: '깊은 멧돼지 숲', x: -7, z: -24, radius: 5, type: 'boar', count: 6, respawnSeconds: 8, deep: true },
+    count: 4, level: 4, hp: 180, damage: 10, xp: 4, loot: 6, speed: 4.9, respawnSeconds: 8 },
+  { id: 'deep-boars', name: '깊은 멧돼지 숲', x: -7, z: -24, radius: 5, type: 'boar', count: 6, level: 9, hp: 512, damage: 22, speed: 2.6, respawnSeconds: 8, deep: true },
   { id: 'deep-casters', name: '석상 터', x: 6, z: -27, radius: 5, type: 'caster', count: 6, respawnSeconds: 8, deep: true },
   { id: 'deep-boss', name: '깊은 수문장', x: 0, z: -37, radius: 3.8, type: 'boss', count: 1, bossId: 'deep-guardian', hp: MONSTER_STATS.deepBoss.hp, damage: MONSTER_STATS.deepBoss.damage, xp: MONSTER_STATS.deepBoss.xp, loot: MONSTER_STATS.deepBoss.loot, speed: MONSTER_STATS.deepBoss.speed, respawnSeconds: 60, deep: true },
   { id: 'ancient-runners', name: '질주 숲', x: -6, z: -50, radius: 5, type: 'runner', count: 6, respawnSeconds: 8, stageId: 'ancient', trait: 'fast' },
   { id: 'ancient-swarm', name: '작은 군체', x: 6, z: -57, radius: 5.5, type: 'swarm', count: 12, respawnSeconds: 8, stageId: 'ancient', trait: 'swarm' },
   { id: 'ancient-boss', name: '고대 수호자', x: 0, z: -65, type: 'boss', count: 1, bossId: 'ancient-guardian', ...MONSTER_STATS.ancientBoss, radius: 3.8, respawnSeconds: 60, stageId: 'ancient', variant: 'ancient' },
   { id: 'sky-flyers', name: '비행 군락', x: -6, z: -80, radius: 5, type: 'flyer', count: 6, respawnSeconds: 10, stageId: 'sky', trait: 'airborne' },
-  { id: 'sky-runners', name: '능선 질주 숲', x: 6, z: -85, radius: 5, type: 'runner', count: 6, hp: 320, damage: 14, level: 13, respawnSeconds: 8, stageId: 'sky', trait: 'fast' },
+  { id: 'sky-runners', name: '능선 질주 숲', x: 6, z: -85, radius: 5, type: 'runner', count: 6, hp: 1200, damage: 46, level: 13, respawnSeconds: 8, stageId: 'sky', trait: 'fast' },
   { id: 'sky-boss', name: '천공 수호자', x: 0, z: -93, type: 'boss', count: 1, bossId: 'sky-guardian', ...MONSTER_STATS.skyBoss, radius: 3.8, respawnSeconds: 60, stageId: 'sky', trait: 'airborne', variant: 'sky' },
 ].map(zone => Object.freeze({ ...zone, unlockLevel: zone.unlockLevel ?? 1, stageId: zone.stageId || (zone.deep ? 'deep' : 'meadow'), trait: zone.trait || 'normal',
   level: zone.level ?? MONSTER_STATS[zone.id === 'deep-boss' ? 'deepBoss' : zone.type].level, title: zone.name, enemyType: zone.type })));
@@ -68,7 +68,7 @@ const SPAWNS = HUNT_ZONES.flatMap(zone => Array.from({ length: zone.count }, (_,
 const QUESTS = [
   { id: 'mushrooms', title: '버섯 5마리 사냥', target: 5, rewardGold: 20 },
   { id: 'bank', title: '야영지에 금화 20 운반', target: 20, rewardGold: 20 },
-  { id: 'attack', title: '지팡이 1회 강화', target: 1, rewardGold: 25 },
+  { id: 'attack', title: '공격 1회 강화', target: 1, rewardGold: 25 },
   { id: 'meadow-boss', title: '초원 수문장 처치', target: 1, rewardGold: 65 },
   { id: 'deep', title: '깊은 숲 적 6마리 사냥', target: 6, rewardGold: 70 },
   { id: 'deep-boss', title: '깊은 숲 수문장 처치', target: 1, rewardGold: 120 },
@@ -118,7 +118,7 @@ function skillInterval(id, rank) {
   // reaching a zero/negative timer or producing unbounded projectile bursts.
   return base / (1 + Math.max(0, effective - 3) * (id === 'roots' ? .025 : .02));
 }
-const owlDamage = (state, rank) => (10 + state.player.level - 1 + 4 * (Math.max(1, rank) - 1) + (state.player.gearDamage || 0)) * state.player.damageMult;
+const owlDamage = (state, rank) => (10 + state.player.level - 1 + 4 * (Math.max(1, rank) - 1)) * state.player.damageMult;
 const xpThreshold = level => 10 * (level - 1) * level;
 function levelFromXp(xp) { return Math.min(50, Math.floor((1 + Math.sqrt(1 + xp * 0.4)) / 2)); }
 
@@ -169,8 +169,8 @@ export function normalizeProgress(raw) {
   for (const key of ['kills', 'mushrooms', 'deepKills', 'banked', 'ancientRunners', 'swarms', 'flyers', 'ancientKills', 'skyKills']) totals[key] = integer(source.totals?.[key]);
   const questIndex = integer(source.questIndex, QUESTS.length);
   const progress = {
-    version: 8, gold: integer(source.gold), cargo: integer(source.cargo, 24 + upgrades.bag * 16),
-    xp, level: levelFromXp(xp), upgrades, skills, gear: normalizeGear(source.gear), forms: normalizeForms(source.forms), questIndex, totals,
+    version: 9, gold: integer(integer(source.gold) + (source.version === 9 ? 0 : legacyEquipmentRefund(source.gear))), cargo: integer(source.cargo, 24 + upgrades.bag * 16),
+    xp, level: levelFromXp(xp), upgrades, skills, weapon: normalizeWeapon(source.weapon, source.gear), forms: normalizeForms(source.forms), questIndex, totals,
     bosses: BOSS_IDS.filter(id => Array.isArray(source.bosses) && source.bosses.includes(id)),
     unlockedDeep: questIndex >= 4, checkpoint: 'meadow',
   };
@@ -182,16 +182,14 @@ export function exportProgress(state) { return normalizeProgress({ ...state.prog
 
 function syncStats(state, healIncrease = false) {
   const p = state.progress, player = state.player, previousMax = player.maxHp;
-  const gear = gearBonuses(p.gear);
   p.level = levelFromXp(p.xp);
-  player.maxHp = 100 + (p.level - 1) * 10 + p.upgrades.health * 20 + gear.health;
+  player.maxHp = 100 + (p.level - 1) * 10 + p.upgrades.health * 20;
   player.level = p.level;
   player.xp = Math.max(0, p.xp - xpThreshold(p.level));
   player.xpToNext = 20 * p.level;
   player.capacity = 24 + p.upgrades.bag * 16;
-  player.gearDamage = gear.damage;
-  player.attackDamage = 16 + (p.level - 1) * 2 + gear.damage;
-  player.skillDamage = 46 + (p.level - 1) * 3 + gear.damage;
+  player.attackDamage = 16 + (p.level - 1) * 2;
+  player.skillDamage = 46 + (p.level - 1) * 3;
   player.damageMult = 1 + p.upgrades.attack * 0.18;
   player.skillCooldown = skillInterval('roots', p.skills.roots);
   player.hp = Math.min(player.maxHp, player.hp + (healIncrease ? Math.max(0, player.maxHp - previousMax) : 0));
@@ -284,11 +282,13 @@ export function learnSkill(state, id) {
   return true;
 }
 
-export function equipmentAction(state, id, action) {
-  if (!state.inCamp || !['playing', 'paused'].includes(state.phase) || !applyEquipmentAction(state.progress, id, action)) return false;
-  syncStats(state, true);
+export function selectWeapon(state, id) {
+  if (!state.inCamp || !['playing', 'paused'].includes(state.phase) || !WEAPONS.some(item => item.id === id) || state.progress.weapon === id) return false;
+  state.progress.weapon = id;
+  state.pendingStaffShots.length = 0;
+  state.player.attackCd = Math.max(.15, state.player.attackCd);
   state.revision++;
-  state.queuedEvents.push({ type: 'upgrade', x: state.player.x, z: state.player.z, id: 'equipment', label: EQUIPMENT.find(item => item.id === id).name });
+  state.queuedEvents.push({ type: 'upgrade', x: state.player.x, z: state.player.z, id: 'weapon', label: WEAPONS.find(item => item.id === id).name });
   return true;
 }
 
@@ -424,13 +424,6 @@ function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff', weaponSty
     const value = enemy.loot ?? data.loot;
     if (state.loot.length >= 100) state.loot.shift();
     state.loot.push({ id: state.nextId++, zoneId: enemy.zoneId, enemyType: enemy.type, x: enemy.x, z: enemy.z, value, life: enemy.type === 'boss' ? 600 : 180 });
-    if (enemy.type === 'boss') {
-      addFieldLoot(state, enemy.x, enemy.z, 'equipment', 1, EQUIPMENT[Math.floor(random(state) * EQUIPMENT.length)].id);
-      addFieldLoot(state, enemy.x, enemy.z, 'scroll', 3);
-    } else {
-      if (random(state) < 0.2) addFieldLoot(state, enemy.x, enemy.z, 'scroll', 1);
-      if (random(state) < 0.08) addFieldLoot(state, enemy.x, enemy.z, 'equipment', 1, EQUIPMENT[Math.floor(random(state) * EQUIPMENT.length)].id);
-    }
     state.revision++;
     effect(state, 'death', enemy.x, enemy.z, 0.55, enemy.radius * 1.6);
     event(state, 'kill', enemy.x, enemy.z, { targetId: enemy.id, enemyType: enemy.type, bossId: enemy.bossId });
@@ -440,20 +433,14 @@ function hurtEnemy(state, enemy, damage, rooted = 0, source = 'staff', weaponSty
   }
 }
 
-function addFieldLoot(state, x, z, kind, amount, equipmentId) {
-  if (state.fieldLoot.length >= 30) state.fieldLoot.shift();
-  state.fieldLoot.push({ id: state.nextId++, x, z, kind, amount, life: 180, ...(equipmentId ? { equipmentId } : {}) });
-}
-
 function openTreasure(state, item) {
-  const actual = grantEquipment(state.progress.gear, item.equipmentId ?? null, item.equipmentId ? 1 : 0, item.scrolls);
   const gold = integer(item.gold, 1000000);
   if (gold > 0) {
     if (state.loot.length >= 100) state.loot.shift();
     state.loot.push({ id: state.nextId++, x: item.x, z: item.z, value: gold, life: 180 });
   }
   state.revision++;
-  return { equipmentId: item.equipmentId, copies: actual.copies, scrolls: actual.scrolls, gold };
+  return { gold };
 }
 
 function updateSpawns(state, dt) {
@@ -801,17 +788,6 @@ function updateLootAndCamp(state, dt) {
     }
   }
   state.loot = state.loot.filter(coin => coin.value > 0 && coin.life > 0);
-  for (const item of state.fieldLoot) {
-    item.life -= dt;
-    if (distance(item, player) > 1.5) continue;
-    const actual = grantEquipment(state.progress.gear, item.equipmentId ?? null, item.kind === 'equipment' ? item.amount : 0, item.kind === 'scroll' ? item.amount : 0);
-    item.amount -= item.kind === 'equipment' ? actual.copies : actual.scrolls;
-    if (actual.copies > 0 || actual.scrolls > 0) {
-      state.revision++;
-      event(state, 'gear-pickup', item.x, item.z, { ...(item.equipmentId ? { equipmentId: item.equipmentId } : {}), copies: actual.copies, scrolls: actual.scrolls });
-    }
-  }
-  state.fieldLoot = state.fieldLoot.filter(item => item.amount > 0 && item.life > 0);
   if (!state.inCamp) return;
   if (state.progress.checkpoint !== camp.stageId) { state.progress.checkpoint = camp.stageId; state.revision++; }
   if (state.cargo > 0) {
@@ -874,7 +850,7 @@ function autoMovement(state) {
 
 function attackProfile(state) {
   const player = state.player;
-  return getFormDefinition(player.form, formRank(state.progress, player.form), player) || getStaffAttack(state.progress.gear.equipped, player);
+  return getFormDefinition(player.form, formRank(state.progress, player.form), player) || getWeaponAttack(state.progress.weapon, player);
 }
 
 function changeForm(state, form, reason) {
@@ -906,7 +882,22 @@ function playerAttack(state, target) {
   const player = state.player, profile = attackProfile(state);
   const aim = direction(target.x - player.x, target.z - player.z);
   if (profile.id === 'druid') {
-    if (profile.weaponStyle === 'spread') {
+    if (profile.melee) {
+      const damage = profile.damage;
+      for (const enemy of state.enemies) {
+        if (enemy.hp <= 0 || enemy.trait === 'airborne') continue;
+        const dx = enemy.x - player.x, dz = enemy.z - player.z, dist = Math.hypot(dx, dz);
+        if (dist > profile.range) continue;
+        const along = dx * aim.x + dz * aim.z;
+        const across = Math.abs(dx * aim.z - dz * aim.x);
+        const inside = profile.attackType === 'thrust'
+          ? along >= 0 && across <= profile.width / 2 + enemy.radius
+          : dist < .0001 || along / dist >= Math.cos(profile.arc / 2);
+        if (inside) hurtEnemy(state, enemy, damage, 0, 'melee', profile.weaponStyle);
+      }
+      event(state, 'melee-attack', player.x, player.z, { weaponId: profile.weaponId, attackType: profile.attackType,
+        aimX: aim.x, aimZ: aim.z, angle: Math.atan2(aim.x, aim.z), range: profile.range, arc: profile.arc, width: profile.width });
+    } else if (profile.weaponStyle === 'spread') {
       let fired = 0;
       const volley = { id: state.nextId++, hitIds: [] };
       for (const angle of profile.spreadAngles) if (launchStaffShot(state, profile, target, angle, false, volley)) fired++;

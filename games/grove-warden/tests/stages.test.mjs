@@ -25,18 +25,18 @@ function kill(state, type, stageId, options = {}) {
   return enemy;
 }
 
-test('v5 completion extends naturally into new quests while all owned progress is preserved in v8', () => {
+test('v5 completion extends into new quests while v9 preserves purchases and refunds removed inventory once', () => {
   const old = { version: 5, gold: 247, cargo: 17, xp: 560, questIndex: 6,
     upgrades: { attack: 2, health: 1, bag: 1 }, skills: { owl: 2, roots: 1 },
     gear: { equipped: 'moon', scrolls: 12, items: { sprout: { copies: 1, level: 2, tier: 1 }, moon: { copies: 2, level: 3, tier: 1 } } },
     totals: { kills: 90, mushrooms: 50, deepKills: 20, banked: 160 }, bosses: ['meadow-guardian', 'deep-guardian'] };
   const progress = normalizeProgress(old), state = createGame(7092, old);
-  assert.equal(progress.version, 8); assert.equal(progress.checkpoint, 'meadow');
+  assert.equal(progress.version, 9); assert.equal(progress.checkpoint, 'meadow');
   assert.deepEqual(progress.forms, { wolf: 0, bear: 0, dragon: 0 });
-  for (const key of ['gold', 'cargo', 'xp', 'questIndex', 'upgrades', 'skills', 'bosses']) assert.deepEqual(progress[key], old[key]);
+  for (const key of ['cargo', 'xp', 'questIndex', 'upgrades', 'skills', 'bosses']) assert.deepEqual(progress[key], old[key]);
+  assert.equal(progress.gold, 542);
   for (const [key, value] of Object.entries(old.totals)) assert.equal(progress.totals[key], value);
-  assert.equal(progress.gear.equipped, 'moon'); assert.equal(progress.gear.items.moon.level, 3);
-  assert.equal(progress.gear.items.moon.copies, 2); assert.equal(progress.gear.scrolls, 12);
+  assert.equal(progress.weapon, 'moon'); assert.equal('gear' in progress, false);
   assert.equal(getQuest(state).id, 'ancient-runners'); assert.equal(getQuest(state).complete, false);
   assert.equal(getQuest(state).zoneId, 'ancient-runners');
   assert.deepEqual(exportProgress(createGame(7093, exportProgress(state))), exportProgress(state));
@@ -79,9 +79,9 @@ test('every unlocked region contains its intended bounded species and trait popu
   assert.equal(state.enemies.filter(enemy => enemy.trait === 'fast').length, 16);
   assert.equal(state.enemies.filter(enemy => enemy.trait === 'airborne').length, 7);
   const skyRunner = state.enemies.find(enemy => enemy.zoneId === 'sky-runners');
-  assert.deepEqual([skyRunner.hp, skyRunner.damage, skyRunner.level, skyRunner.speed], [320, 14, 13, 4.9]);
+  assert.deepEqual([skyRunner.hp, skyRunner.damage, skyRunner.level, skyRunner.speed], [1200, 46, 13, 5.1]);
   const skyBoss = state.enemies.find(enemy => enemy.bossId === 'sky-guardian');
-  assert.deepEqual([skyBoss.hp, skyBoss.damage, skyBoss.xp, skyBoss.variant], [2600, 26, 400, 'sky']);
+  assert.deepEqual([skyBoss.hp, skyBoss.damage, skyBoss.xp, skyBoss.variant], [7500, 104, 400, 'sky']);
 });
 
 test('physically entering any unlocked camp banks cargo and saves that camp for reload and death recovery', () => {
@@ -186,13 +186,13 @@ test('the optional meadow runners spawn on the exact level-four gain frame witho
   assert.equal(runners.length, 4); assert.equal(isZoneUnlocked(state.progress, zone), true);
   for (const enemy of runners) {
     assert.deepEqual([enemy.type, enemy.trait, enemy.stageId, enemy.unlockLevel, enemy.level], ['runner', 'fast', 'meadow', 4, 4]);
-    assert.deepEqual([enemy.hp, enemy.damage, enemy.speed, enemy.xp, enemy.loot], [90, 4, 4.9, 4, 6]);
+    assert.deepEqual([enemy.hp, enemy.damage, enemy.speed, enemy.xp, enemy.loot], [180, 10, 4.9, 4, 6]);
   }
   assert.equal(state.progress.questIndex, 0); assert.equal(getQuest(state).id, 'mushrooms');
   assert.equal(getUnlockedMinZ(state.progress), -14); assert.equal(state.progress.unlockedDeep, false);
   assert.equal(state.spawners.find(spawn => spawn.id === mushroom.spawnId).remaining, 15);
   assert.ok(state.spawners.filter(spawn => spawn.zoneId === zone.id).every(spawn => spawn.unlockLevel === 4));
-  assert.equal(MONSTER_STATS.runner.hp, 220); assert.equal(MONSTER_STATS.runner.damage, 10);
+  assert.equal(MONSTER_STATS.runner.hp, 650); assert.equal(MONSTER_STATS.runner.damage, 30);
 });
 
 test('under-level hunters cannot retain the optional zone or discover field rewards and hazards there', () => {
@@ -237,7 +237,7 @@ test('meadow runner homes and idle movement remain clear of camp safety and all 
   assert.equal(state.player.hp, state.player.maxHp); assert.equal(state.inCamp, true);
 });
 
-test('the meadow variant uses its eight-second active respawn and retains level eligibility in the same v7 save', () => {
+test('the meadow variant uses its eight-second active respawn and retains level eligibility in a v9 save', () => {
   const state = createGame(7102, { xp: 120, questIndex: 0 }); state.phase = 'playing';
   const target = state.enemies.find(enemy => enemy.zoneId === 'meadow-runners');
   state.enemies = [target]; state.spawners = state.spawners.filter(spawn => spawn.id === target.spawnId);
@@ -253,9 +253,9 @@ test('the meadow variant uses its eight-second active respawn and retains level 
   setPaused(state, false); advance(state, 0.25);
   assert.equal(state.enemies.length, 1); assert.equal(state.enemies[0].spawnId, target.spawnId);
   assert.notEqual(state.enemies[0].id, target.id);
-  assert.deepEqual([state.enemies[0].hp, state.enemies[0].damage, state.enemies[0].xp, state.enemies[0].loot], [90, 4, 4, 6]);
+  assert.deepEqual([state.enemies[0].hp, state.enemies[0].damage, state.enemies[0].xp, state.enemies[0].loot], [180, 10, 4, 6]);
   const saved = exportProgress(state), restored = createGame(7103, saved);
-  assert.equal(saved.version, 8); assert.deepEqual(exportProgress(restored), saved);
+  assert.equal(saved.version, 9); assert.deepEqual(exportProgress(restored), saved);
   assert.equal(restored.enemies.filter(enemy => enemy.zoneId === 'meadow-runners').length, 4);
   assert.equal(restored.progress.questIndex, 0); assert.equal(getUnlockedMinZ(restored.progress), -14);
 });

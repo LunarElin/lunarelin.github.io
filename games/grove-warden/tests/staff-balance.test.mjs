@@ -1,14 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, stepGame } from '../rules.mjs';
-import { getEquipmentOffer } from '../equipment.mjs';
+import { getWeaponAttack } from '../equipment.mjs';
 
 const WEAPONS = ['sprout', 'thorn', 'moon', 'ember'];
 const GROWTH = [
-  { level: 3, itemLevel: 0, tier: 0 },
-  { level: 10, itemLevel: 20, tier: 3 },
-  { level: 12, itemLevel: 5, tier: 1 },
-  { level: 20, itemLevel: 20, tier: 3 },
+  { level: 3, attack: 0 }, { level: 10, attack: 5 },
+  { level: 12, attack: 10 }, { level: 20, attack: 20 },
 ];
 const SECONDS = 10, STEP = 1 / 60, CACHE = new Map();
 const ring = count => Array.from({ length: count }, (_, index) => [3 * Math.cos(index * Math.PI * 2 / count), 3 * Math.sin(index * Math.PI * 2 / count), 0.46]);
@@ -23,10 +21,10 @@ const LAYOUTS = {
 
 // Stationary high-life bodies isolate offensive roles; these are not live boss difficulty measurements.
 function measure(growth, layout, weaponId) {
-  const key = `${growth.level}:${growth.itemLevel}:${growth.tier}:${layout}:${weaponId}`;
+  const key = `${growth.level}:${growth.attack}:${layout}:${weaponId}`;
   if (CACHE.has(key)) return CACHE.get(key);
   const state = createGame(3621, { xp: 10 * (growth.level - 1) * growth.level,
-    gear: { equipped: weaponId, items: { [weaponId]: { copies: 1, level: growth.itemLevel, tier: growth.tier } } } });
+    weapon: weaponId, upgrades: { attack: growth.attack } });
   state.phase = 'playing'; state.player.x = 0; state.player.z = 0; state.inCamp = false;
   state.enemies = []; state.spawners = [];
   state.fieldEvents.nextDiscovery = state.fieldEvents.nextHazard = 1e9;
@@ -45,7 +43,7 @@ function measure(growth, layout, weaponId) {
   const damage = bodies.reduce((sum, actor) => sum + actor.maxHp - actor.hp, 0);
   const result = { damage, dps: damage / SECONDS, hits, shots, events,
     targets: new Set(hits.map(hit => hit.targetId)), level: state.player.level,
-    item: { ...state.progress.gear.items[weaponId] }, equipped: state.progress.gear.equipped,
+    attack: state.progress.upgrades.attack, equipped: state.progress.weapon,
     player: { x: state.player.x, z: state.player.z, hp: state.player.hp, maxHp: state.player.maxHp, form: state.player.form },
     kills: state.progress.totals.kills, bodies };
   CACHE.set(key, result); return result;
@@ -119,14 +117,10 @@ test('the long-range band grants actual damage only to the single staff without 
 });
 
 test('the comparison preserves equal growth and valid body spacing and measures only actual staff damage', () => {
-  const beforeMaximum = { level: 9, gold: 10000, gear: { scrolls: 1000, items: { moon: { copies: 1, level: 19, tier: 3 } } } };
-  assert.equal(getEquipmentOffer(beforeMaximum, 'moon').requiredLevel, 1);
-  assert.equal(getEquipmentOffer(beforeMaximum, 'moon').canEnhance, true);
-  assert.equal(getEquipmentOffer({ ...beforeMaximum, level: 10 }, 'moon').canEnhance, true);
   for (const growth of GROWTH) for (const layout of Object.keys(LAYOUTS)) for (const id of WEAPONS) {
     const result = measure(growth, layout, id);
     assert.equal(result.level, growth.level); assert.equal(result.equipped, id);
-    assert.equal(result.item.level, growth.itemLevel); assert.equal(result.item.tier, growth.tier);
+    assert.equal(result.attack, growth.attack); assert.ok(getWeaponAttack(id).range > 0);
     assert.equal(result.player.form, 'druid'); assert.equal(result.player.hp, result.player.maxHp); assert.equal(result.kills, 0);
     assert.deepEqual([result.player.x, result.player.z], [0, 0]);
     assert.equal(result.events.has('owl-shoot') || result.events.has('skill') || result.events.has('form-attack'), false);

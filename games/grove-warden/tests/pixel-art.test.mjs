@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPixelArt } from '../pixel-art.mjs';
 
-const ACTORS = { druid: 32, npc: 32, wolf: 32, bear: 48, dragon: 48, owl: 24,
+const ACTORS = { druid: 32, druidSword: 32, druidAxe: 32, druidSpear: 32, npc: 32, wolf: 32, bear: 48, dragon: 48, owl: 24,
   mushroom: 24, boar: 24, caster: 24, runner: 24, flyer: 24, swarm: 16, boss: 48, ancientBoss: 48, skyBoss: 48 };
 const PROPS = { tree: [64, 80], pine: [48, 80], rock: [24, 24], flower: [16, 16], campfire: [32, 32],
   chest: [32, 32], forge: [48, 64], gate: [64, 64], groundGrass: [16, 16], groundDirt: [16, 16],
@@ -13,7 +13,7 @@ const ART = buildPixelArt();
 test('the native sprite inventory contains every actor and field prop at its intended resolution', () => {
   const expected = [...Object.keys(ACTORS), ...Object.keys(PROPS)].sort();
   assert.deepEqual(Object.keys(ART.sprites).sort(), expected);
-  assert.equal(Object.keys(ART.sprites).length, 31);
+  assert.equal(Object.keys(ART.sprites).length, 34);
   for (const [id, size] of Object.entries(ACTORS)) assert.deepEqual([ART.sprites[id].width, ART.sprites[id].height], [size, size]);
   for (const [id, size] of Object.entries(PROPS)) assert.deepEqual([ART.sprites[id].width, ART.sprites[id].height], size);
 });
@@ -69,4 +69,19 @@ test('integer foot anchors are shared by every frame and terrain anchors remain 
 
 test('rebuilding original art produces the same palette and native animation data', () => {
   assert.deepEqual(buildPixelArt(), ART);
+});
+
+test('melee variants preserve the druid body and baseline while giving each weapon a distinct native silhouette', () => {
+  const ids = ['druidSword', 'druidAxe', 'druidSpear'];
+  for (const direction of DIRECTIONS) for (let frame = 0; frame < 3; frame++) {
+    const base = ART.sprites.druid.frames[direction][frame];
+    for (const id of ids) {
+      const variant = ART.sprites[id], pixels = variant.frames[direction][frame];
+      assert.deepEqual([variant.anchorX, variant.anchorY], [16, 30]);
+      assert.notDeepEqual(pixels, base);
+      const bodyMin = direction === 'left' ? 11 : 7, bodyMax = direction === 'left' ? 24 : 20;
+      for (let y = 0; y < 32; y++) for (let x = bodyMin; x <= bodyMax; x++) assert.equal(pixels[y * 32 + x], base[y * 32 + x]);
+    }
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) assert.notDeepEqual(ART.sprites[ids[i]].frames[direction][frame], ART.sprites[ids[j]].frames[direction][frame]);
+  }
 });

@@ -137,14 +137,13 @@ test('native sprite conversion contains only transparent or opaque alpha and pre
   } finally { f.close(); }
 });
 
-test('all player forms and upgraded equipment draw without mutating any simulation data', async () => {
+test('all player forms and selected weapons draw without mutating any simulation data', async () => {
   const f = await fixture();
   try {
     const state = stateForDraw();
     for (const [index, form] of ['druid', 'wolf', 'bear', 'dragon'].entries()) {
       state.player.form = form; state.player.formRank = form === 'druid' ? 0 : 3; state.owl.active = form === 'druid';
-      state.progress.gear.equipped = ['sprout', 'thorn', 'moon', 'ember'][index];
-      state.progress.gear.items[state.progress.gear.equipped] = { copies: 1, level: 20, tier: 3 };
+      state.progress.weapon = ['sprout', 'sword', 'axe', 'spear'][index];
       const before = structuredClone(state); f.view.draw(state, 0.1, index + 1); assert.deepEqual(state, before);
     }
     const stats = f.view.stats(), art = buildPixelArt(); assert.ok(stats && typeof stats === 'object');
@@ -152,6 +151,56 @@ test('all player forms and upgraded equipment draw without mutating any simulati
     assert.equal(stats.sourceFrames, Object.values(art.sprites).reduce((sum, sprite) => sum + Object.values(sprite.frames).reduce((count, frames) => count + frames.length, 0), 0));
     assert.equal(stats.scale, 2); assert.ok(stats.frames > 0 && stats.drawCalls > 0);
     for (const value of Object.values(stats)) if (typeof value === 'number') assert.ok(Number.isFinite(value) && value >= 0);
+  } finally { f.close(); }
+});
+
+test('selected melee weapons replace the held staff with distinct native sprites in every facing direction', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(); state.enemies = []; state.projectiles = []; state.owl.active = false; state.player.form = 'druid';
+    const actor = () => {
+      const viewport = f.module.computePixelViewport(f.bounds.width, f.bounds.height);
+      const p = f.module.projectPixel(state.player.x, state.player.z, Math.round(state.player.x * 12), Math.round(state.player.z * 12), viewport);
+      const call = f.view.canvas.context.calls.find(item => item[0] === 'drawImage' && f.canvases[item[1]].width === 32 && f.canvases[item[1]].height === 32 && item[2] === p.x - 16 && item[3] === p.y - 30);
+      assert.ok(call); return call[1];
+    };
+    for (const [x, z] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      state.player.facingX = x; state.player.facingZ = z;
+      const sprites = [];
+      for (const weapon of ['sprout', 'sword', 'axe', 'spear']) { state.progress.weapon = weapon; drawSignature(f.view, state, 0); sprites.push(actor()); }
+      assert.equal(new Set(sprites).size, 4);
+      state.player.form = 'bear'; state.progress.weapon = 'spear'; drawSignature(f.view, state, 0);
+      assert.ok(f.view.canvas.context.calls.some(item => item[0] === 'drawImage' && f.canvases[item[1]].width === 48));
+      state.player.form = 'druid';
+    }
+  } finally { f.close(); }
+});
+
+test('melee sweeps and thrusts remain native pixels, bounded, direction-aware, and frozen while paused', async () => {
+  const f = await fixture();
+  try {
+    const state = stateForDraw(); state.player.x = state.player.z = 0; state.enemies = []; state.projectiles = []; state.effects = []; state.loot = []; state.fieldLoot = []; state.owl.active = false; state.fieldEvents = { items: [], hazards: [] };
+    state.events = []; drawSignature(f.view, state, 0); const base = f.view.canvas.context.calls.length;
+    const shapes = [];
+    for (const [weaponId, attackType] of [['sword', 'slash'], ['axe', 'cleave'], ['spear', 'thrust']]) {
+      for (const aimX of [1, -1]) {
+        state.events = [{ type: 'melee-attack', x: 0, z: 0, weaponId, attackType, aimX, aimZ: 0, range: 2.4, arc: 1.8 }];
+        const before = structuredClone(state); drawSignature(f.view, state, 0); assert.deepEqual(state, before);
+        assert.equal(f.view.stats().effects, 1); const extra = f.view.canvas.context.calls.slice(base); assert.ok(extra.length > 15);
+        shapes.push(JSON.stringify(extra));
+        const center = Math.floor(f.view.canvas.width / 2), cream = extra.filter(item => item[0] === 'fillRect' && item[5] === '#f2e7c5');
+        assert.ok(cream.length > 0); assert.ok(cream.every(item => aimX > 0 ? item[1] > center : item[1] < center));
+        state.events = []; state.phase = 'paused'; const frozen = drawSignature(f.view, state, .05), clock = f.view.stats().clock;
+        assert.equal(drawSignature(f.view, state, 10), frozen); assert.equal(f.view.stats().clock, clock);
+        state.phase = 'playing'; for (let frame = 0; frame < 9; frame++) drawSignature(f.view, state, .05);
+        assert.equal(f.view.stats().effects, 0);
+      }
+    }
+    assert.equal(new Set(shapes).size, 6);
+    state.events = Array.from({ length: 80 }, () => ({ type: 'melee-attack', x: 0, z: 0, weaponId: 'axe', attackType: 'cleave', aimX: 1, aimZ: 0, range: 2 }));
+    drawSignature(f.view, state, 0); assert.equal(f.view.stats().effects, 8);
+    state.events = []; state.phase = 'playing'; for (let frame = 0; frame < 9; frame++) drawSignature(f.view, state, .05);
+    assert.equal(f.view.stats().effects, 0);
   } finally { f.close(); }
 });
 

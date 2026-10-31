@@ -11,7 +11,7 @@ function fixture() {
     zones: [{ id: 'field', x: 0, z: 0, radius: 6, type: 'mushroom' }, { id: 'locked', x: 0, z: -25, radius: 5, deep: true }],
     random(current) { current.rng = (Math.imul(current.rng, 1664525) + 1013904223) >>> 0; return current.rng / 4294967296; },
     hurtPlayer(current, damage) { if (!current.inCamp) { current.hurts++; current.player.hp -= damage; } },
-    openTreasure(current, item) { current.opened++; return { copies: 1, scrolls: item.scrolls, gold: item.gold, equipmentId: item.equipmentId }; },
+    openTreasure(current, item) { current.opened++; return { gold: item.gold }; },
   };
   const tick = seconds => { for (let remaining = seconds; remaining > 1e-8; remaining -= .05) advanceFieldEvents(state, Math.min(.05, remaining), context); };
   return { state, context, tick };

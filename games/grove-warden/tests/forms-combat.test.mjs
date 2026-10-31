@@ -177,11 +177,11 @@ test('the level-four wolf buys 100 ranks with gold alone and preserves its actua
   assert.equal(hit.targetId, target.id); close(hit.damage, damage);
 });
 
-test('v7 paid forms migrate to v8 and all three maximum ranks survive save death and recovery without extra charges', () => {
+test('v7 paid forms migrate to v9 and all three maximum ranks survive save death and recovery without extra charges', () => {
   const legacy = { version: 7, xp: 1320, questIndex: 11, gold: 1_000_000, cargo: 17,
     forms: { wolf: 2, bear: 1, dragon: 0 }, skills: { owl: 2, roots: 3 }, upgrades: { attack: 2, health: 1, bag: 1 } };
   const state = createGame(1745, legacy);
-  assert.equal(state.progress.version, 8);
+  assert.equal(state.progress.version, 9);
   assert.deepEqual(state.progress.forms, legacy.forms);
   assert.deepEqual(state.progress.skills, legacy.skills);
   assert.deepEqual(state.progress.upgrades, legacy.upgrades);
@@ -199,7 +199,7 @@ test('v7 paid forms migrate to v8 and all three maximum ranks survive save death
   }
   assert.equal(state.progress.gold, legacy.gold - paid);
   const saved = exportProgress(state);
-  assert.equal(saved.version, 8); assert.deepEqual(saved.forms, { wolf: 99, bear: 99, dragon: 99 });
+  assert.equal(saved.version, 9); assert.deepEqual(saved.forms, { wolf: 99, bear: 99, dragon: 99 });
   const restored = createGame(1746, saved);
   assert.deepEqual(exportProgress(restored), saved);
   for (const id of ['wolf', 'bear', 'dragon']) assert.equal(getFormOffer(restored, id).rank, 100);
@@ -252,7 +252,7 @@ test('the level-four meadow runner territory provides a free wolf hunt and manua
   assert.equal(state.player.level, 4); assert.equal(members.length, 4);
   assert.equal(state.progress.forms.wolf, 0);
   const target = members.reduce((rightmost, actor) => actor.x > rightmost.x ? actor : rightmost);
-  assert.deepEqual([target.type, target.trait, target.maxHp, target.damage, target.speed, target.xp, target.loot], ['runner', 'fast', 90, 4, 4.9, 4, 6]);
+  assert.deepEqual([target.type, target.trait, target.maxHp, target.damage, target.speed, target.xp, target.loot], ['runner', 'fast', 180, 10, 4.9, 4, 6]);
   state.enemies = [target]; state.spawners = state.spawners.filter(spawn => spawn.id === target.spawnId);
   // Hold this body's intent still so ranged stopping and manual pickup are separate from its melee approach.
   target.phase = 'stunned'; target.phaseTime = 999; target.attackCd = 999;

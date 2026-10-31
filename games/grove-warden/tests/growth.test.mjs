@@ -71,19 +71,19 @@ test('rank 100 automatic skills deal actual damage within shared object caps and
   assert.deepEqual(state.projectiles, before.projectiles); assert.equal(target.hp, before.enemies[0].hp);
 });
 
-test('version eight preserves previous progression and accepts all new rank-100 bounds without saving runtime state', () => {
+test('version nine preserves previous progression and accepts all new rank-100 bounds without saving runtime state', () => {
   const legacy = { version: 7, gold: 812, xp: 2400, cargo: 12, checkpoint: 'ancient', questIndex: 9,
     upgrades: { attack: 8, health: 6, bag: 6 }, skills: { owl: 3, roots: 3 }, forms: { wolf: 2, bear: 2, dragon: 2 },
     gear: { equipped: 'moon', scrolls: 17, items: { moon: { copies: 5, level: 20, tier: 3 } } } };
   const migrated = normalizeProgress(legacy);
-  assert.equal(migrated.version, 8);
-  for (const key of ['gold', 'xp', 'cargo', 'checkpoint', 'questIndex', 'upgrades', 'skills', 'forms']) assert.deepEqual(migrated[key], legacy[key]);
-  assert.deepEqual(migrated.gear.items.moon, legacy.gear.items.moon);
+  assert.equal(migrated.version, 9);
+  for (const key of ['xp', 'cargo', 'checkpoint', 'questIndex', 'upgrades', 'skills', 'forms']) assert.deepEqual(migrated[key], legacy[key]);
+  assert.equal(migrated.weapon, 'moon'); assert.ok(migrated.gold > legacy.gold); assert.equal('gear' in migrated, false);
   const capped = normalizeProgress({ ...legacy, upgrades: { attack: 1000, health: 100, bag: 100 }, skills: { owl: 100, roots: 1000 },
     forms: { wolf: 1000, bear: 99, dragon: 99 }, gear: { equipped: 'moon', scrolls: 17, items: { moon: { copies: 5, level: 1000, tier: 1000 } } } });
   assert.deepEqual(capped.upgrades, { attack: 100, health: 100, bag: 100 });
   assert.deepEqual(capped.skills, { owl: 100, roots: 100 }); assert.deepEqual(capped.forms, { wolf: 99, bear: 99, dragon: 99 });
-  assert.equal(capped.gear.items.moon.level, 100); assert.equal(capped.gear.items.moon.tier, 100);
+  assert.equal(capped.weapon, 'moon'); assert.equal('gear' in capped, false);
   const state = createGame(815, capped); assert.deepEqual(exportProgress(state), capped);
   assert.equal('player' in exportProgress(state), false); assert.equal(state.player.form, 'druid');
 });

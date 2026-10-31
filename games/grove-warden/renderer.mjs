@@ -13,6 +13,7 @@ export function projectPixel(worldX, worldZ, cameraX, cameraZ, viewport) {
 const C = { ink: '#292537', shade: '#393b50', forest: '#2e5142', green: '#638b4c', leaf: '#91ad5b', cream: '#f2e7c5', gold: '#f6d57b', red: '#bc6262', orange: '#e79a4e', blue: '#9cb8d1', teal: '#4f8b85', dirt: '#946841' };
 const STAFF = { sprout: C.leaf, thorn: C.red, moon: C.blue, ember: C.orange };
 const STYLE = { single: C.leaf, burst: C.red, spread: C.blue, explosive: C.orange };
+const MELEE_SPRITES = { sword: 'druidSword', axe: 'druidAxe', spear: 'druidSpear' };
 const DIGITS = ['11111100011000110001100011000111111', '00100011000010000100001000010001110', '11111000010000111111100001000011111', '11111000010000101111000010000111111', '10001100011000111111000010000100001', '11111100001000011111000010000111111', '11111100001000011111100011000111111', '11111000010001000100010000100001000', '11111100011000111111100011000111111', '11111100011000111111000010000111111'];
 const ROAD = [[0, 23], [0, 16], [0, 9], [-1, 3], [1, -5], [0, -14], [0, -17], [-1, -28], [0, -42], [0, -44], [-1, -56], [0, -70], [0, -72], [1, -84], [0, -98]];
 function roadX(z) {
@@ -119,7 +120,13 @@ export async function createRenderer(container) {
       if (particles.length >= 96) particles.shift(); const a = i * 2.39996; particles.push({ x, z, vx: Math.cos(a) * (1 + i % 3), vz: Math.sin(a) * (1 + i % 3), age: 0, life: .3 + i % 3 * .1, color });
     }
     if (['transform', 'level-up', 'deposit', 'field-boon'].includes(event.type)) { if (pulses.length >= 4) pulses.shift(); pulses.push({ x, z, age: 0, life: .65, color: event.type === 'transform' ? C.blue : C.gold }); }
-    if (event.type === 'form-attack' || event.type === 'staff-explosion') { if (attacks.length >= 8) attacks.shift(); attacks.push({ ...event, x: event.targetX ?? x, z: event.targetZ ?? z, age: 0, life: .4, color: event.type === 'staff-explosion' ? C.orange : C.gold }); }
+    if (event.type === 'form-attack' || event.type === 'staff-explosion' || event.type === 'melee-attack') {
+      if (attacks.length >= 8) attacks.shift();
+      const melee = event.type === 'melee-attack';
+      attacks.push({ ...event, x: melee ? x : event.targetX ?? x, z: melee ? z : event.targetZ ?? z, age: 0,
+        life: melee ? event.attackType === 'cleave' ? .36 : .28 : .4,
+        color: event.type === 'staff-explosion' || event.weaponId === 'axe' ? C.orange : event.weaponId === 'spear' ? C.blue : C.gold });
+    }
   }
   function advance(dt) {
     for (const list of [particles, impacts, pulses, labels, attacks]) for (let i = list.length - 1; i >= 0; i--) { list[i].age += dt; if (list[i].age >= list[i].life) list.splice(i, 1); }
@@ -128,6 +135,25 @@ export async function createRenderer(container) {
   function number(value, x, y, color) {
     const text = String(Math.max(0, Math.min(999999, value))), start = Math.round(x - (text.length * 12 - 2) / 2);
     for (const [outline, dx, dy] of [[true, -1, 0], [true, 1, 0], [true, 0, -1], [true, 0, 1], [false, 0, 0]]) for (let c = 0; c < text.length; c++) for (let bit = 0; bit < 35; bit++) if (DIGITS[Number(text[c])][bit] === '1') rect(start + c * 12 + bit % 5 * 2 + dx, y + Math.floor(bit / 5) * 2 + dy, 2, 2, outline ? C.ink : color);
+  }
+  function meleeAttack(a, p, t) {
+    const angle = Number.isFinite(a.aimX) && Number.isFinite(a.aimZ) ? Math.atan2(a.aimZ, a.aimX) : a.angle || 0;
+    const reach = Math.max(1, Math.min(6, a.range || 2)) * 12;
+    const at = (radius, offset = 0) => ({ x: p.x + Math.cos(angle + offset) * radius, y: p.y - 9 + Math.sin(angle + offset) * radius });
+    if (a.attackType === 'thrust') {
+      const tip = at(reach * (.55 + Math.sin(t * Math.PI) * .45)), start = at(4), back = at(Math.max(4, reach * .45));
+      line(start.x, start.y, tip.x, tip.y, C.ink, 5); line(start.x, start.y, tip.x, tip.y, a.color, 3); line(back.x, back.y, tip.x, tip.y, C.cream);
+      const left = { x: tip.x - Math.cos(angle - .65) * 7, y: tip.y - Math.sin(angle - .65) * 7 }, right = { x: tip.x - Math.cos(angle + .65) * 7, y: tip.y - Math.sin(angle + .65) * 7 };
+      line(left.x, left.y, tip.x, tip.y, C.cream); line(right.x, right.y, tip.x, tip.y, C.cream);
+    } else {
+      const arc = Math.max(.25, Math.min(Math.PI * 1.8, a.arc || (a.attackType === 'cleave' ? 2.5 : 1.7))), head = -arc / 2 + arc * (.45 + .55 * Math.min(1, t * 1.4)), tail = Math.max(-arc / 2, head - arc * .45);
+      // Sample the sweep as integer Bresenham segments. No rotated or rescaled sprites.
+      for (const [radius, color, size] of [[reach, C.ink, 4], [reach - 1, a.color, 2], [reach - 3, C.cream, 1]]) {
+        let prev = at(radius, tail);
+        for (let i = 1; i <= 10; i++) { const next = at(radius, tail + (head - tail) * i / 10); line(prev.x, prev.y, next.x, next.y, color, size); prev = next; }
+      }
+      if (a.attackType === 'cleave') { const tip = at(reach, head), inside = at(reach * .4, head); line(inside.x, inside.y, tip.x, tip.y, a.color, 3); }
+    }
   }
   function draw(state, dt = 0) {
     if (disposed || !state?.player) return;
@@ -142,7 +168,6 @@ export async function createRenderer(container) {
     for (const hazard of state.fieldEvents?.hazards || []) for (const c of hazard.centers || []) warning(c.x, c.z, c.radius, hazard.phase === 'warning' ? 1 - hazard.time / hazard.warnTime : 1);
     for (const e of state.effects || []) if (e.type === 'root-warning') { const p = point(e.x, e.z); ring(p.x, p.y, e.radius * 12, C.leaf, true); }
     for (const coin of state.loot || []) { const p = point(coin.x, coin.z); if (visible(p)) stamp('coin', p.x, p.y); }
-    for (const drop of state.fieldLoot || []) { const p = point(drop.x, drop.z); if (visible(p)) stamp(drop.kind === 'scroll' ? 'scroll' : 'staff', p.x, p.y); }
     const sorted = [];
     for (const prop of props) { const p = point(prop.x, prop.z); if (visible(p)) sorted.push({ ...prop, p }); }
     for (const stage of STAGES.slice(1)) if (!isStageUnlocked(state.progress, stage.id)) { const p = point(0, stage.maxZ); if (visible(p)) { sorted.push({ id: 'gate', x: 0, z: stage.maxZ, p }); line(0, p.y, viewport.width, p.y, C.shade, 3); } }
@@ -159,7 +184,8 @@ export async function createRenderer(container) {
     }
     for (const id of positions.keys()) if (!liveIds.has(id)) positions.delete(id);
     const pp = point(player.x, player.z), pdir = direction(player.facingX || 0, player.facingZ ?? 1);
-    sorted.push({ id: player.form || 'druid', x: player.x, z: player.z, p: pp, actor: player, dir: pdir, moving: Math.abs(player.movingX || 0) + Math.abs(player.movingZ || 0) > .001, key: player.id, player: true });
+    const form = player.form || 'druid', playerSprite = form === 'druid' ? MELEE_SPRITES[state.progress.weapon] || 'druid' : form;
+    sorted.push({ id: playerSprite, x: player.x, z: player.z, p: pp, actor: player, dir: pdir, moving: Math.abs(player.movingX || 0) + Math.abs(player.movingZ || 0) > .001, key: player.id, player: true });
     if (state.owl?.active && (!player.form || player.form === 'druid')) { const p = point(state.owl.x, state.owl.z); sorted.push({ id: 'owl', x: state.owl.x, z: state.owl.z, p, dir: pdir, moving: true }); }
     sorted.sort((a, b) => a.z - b.z || (a.player ? 1 : -1));
     for (const entry of sorted) {
@@ -169,7 +195,7 @@ export async function createRenderer(container) {
       const overlaps = entry.tree && p.y > pp.y && Math.abs(p.x - pp.x) < s.width / 2 + 8 && p.y - s.height < pp.y - 12;
       const flash = entry.player ? player.invuln > 0 && Math.floor(clock * 16) % 2 === 0 : hitTimes.has(entry.key);
       stamp(entry.id, p.x, p.y, entry.dir || 'down', frame, flash, overlaps ? .22 : 1);
-      if (entry.player && entry.id === 'druid' && s.wandTips) { const tip = s.wandTips[pdir], color = STAFF[state.progress.gear?.equipped] || C.leaf; if (tip) { rect(p.x - s.anchorX + tip[0] - 2, p.y - s.anchorY + tip[1] - 2, 5, 5, C.ink); rect(p.x - s.anchorX + tip[0] - 1, p.y - s.anchorY + tip[1] - 1, 3, 3, color); rect(p.x - s.anchorX + tip[0] - 1, p.y - s.anchorY + tip[1] - 1, 1, 1, C.cream); } }
+      if (entry.player && entry.id === 'druid' && s.wandTips) { const tip = s.wandTips[pdir], color = STAFF[state.progress.weapon] || C.leaf; if (tip) { rect(p.x - s.anchorX + tip[0] - 2, p.y - s.anchorY + tip[1] - 2, 5, 5, C.ink); rect(p.x - s.anchorX + tip[0] - 1, p.y - s.anchorY + tip[1] - 1, 3, 3, color); rect(p.x - s.anchorX + tip[0] - 1, p.y - s.anchorY + tip[1] - 1, 1, 1, C.cream); } }
     }
     for (const e of state.effects || []) {
       const p = point(e.x, e.z); if (!visible(p)) continue;
@@ -181,7 +207,7 @@ export async function createRenderer(container) {
       const color = b.team === 'enemy' ? C.red : b.source === 'owl' ? C.blue : b.source === 'dragon' ? C.orange : STYLE[b.weaponStyle] || C.leaf, size = b.weaponStyle === 'explosive' || b.source === 'dragon' ? 3 : 2;
       line(p.x - dx * 8, p.y - dy * 8 - 9, p.x, p.y - 9, C.ink, size + 2); line(p.x - dx * 6, p.y - dy * 6 - 9, p.x, p.y - 9, color, size); rect(p.x, p.y - 9, size, size, C.cream);
     }
-    for (const a of attacks) { const p = point(a.x, a.z), t = a.age / a.life; if (a.form === 'wolf') for (let i = -1; i <= 1; i++) line(p.x - 10 + i * 4, p.y - 24, p.x + 5 + i * 4, p.y - 9, C.cream, 2); else { ring(p.x, p.y, (a.radius || 2) * 12 * t, a.color); ring(p.x, p.y, (a.radius || 2) * 12 * t - 2, C.cream); } }
+    for (const a of attacks) { const p = point(a.x, a.z), t = a.age / a.life; if (a.type === 'melee-attack') meleeAttack(a, p, t); else if (a.form === 'wolf') for (let i = -1; i <= 1; i++) line(p.x - 10 + i * 4, p.y - 24, p.x + 5 + i * 4, p.y - 9, C.cream, 2); else { ring(p.x, p.y, (a.radius || 2) * 12 * t, a.color); ring(p.x, p.y, (a.radius || 2) * 12 * t - 2, C.cream); } }
     for (const impact of impacts) { const p = point(impact.x, impact.z), r = Math.round(4 + impact.age * 25), y = p.y - 12; line(p.x - r, y, p.x + r, y, C.ink, 3); line(p.x, y - r, p.x, y + r, C.ink, 3); line(p.x - r, y, p.x + r, y, impact.color); line(p.x, y - r, p.x, y + r, impact.color); rect(p.x - 2, y - 2, 5, 5, C.cream); }
     for (const pulse of pulses) { const p = point(pulse.x, pulse.z); ring(p.x, p.y, 6 + pulse.age * 38, pulse.color); }
     for (const p of particles) { const q = point(p.x + p.vx * p.age, p.z + p.vz * p.age); rect(q.x, q.y - 6 - Math.sin(p.age / p.life * Math.PI) * 9, 2, 2, p.color); }

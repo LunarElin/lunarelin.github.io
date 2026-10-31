@@ -35,7 +35,11 @@ class Controller {
 class Element extends EventTarget {
   constructor(tagName, document) {
     super(); this.tagName = tagName; this.ownerDocument = document; this.children = []; this.attrs = {};
-    this.dataset = {}; this.style = {}; this.hidden = false; this.disabled = false; this.captures = new Set(); this.text = '';
+    this.dataset = new Proxy({}, {
+      set: (target, key, value) => { target[key] = String(value); this.attrs[`data-${key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`] = String(value); return true; },
+      deleteProperty: (target, key) => { delete target[key]; delete this.attrs[`data-${key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`]; return true; },
+    });
+    this.style = {}; this.hidden = false; this.disabled = false; this.captures = new Set(); this.text = '';
     this.classList = {
       contains: name => this.className.split(/\s+/).includes(name),
       add: (...names) => { this.className = [...new Set([...this.className.split(/\s+/).filter(Boolean), ...names])].join(' '); },
@@ -140,7 +144,7 @@ async function boot(saved = [], { failWrites = false } = {}) {
 const envelope = progress => JSON.stringify({ progress, sound: false });
 
 test('play starts without central guidance cards while numeric HUD and quest icon remain', async () => {
-  const app = await boot([['grove-warden:v8', envelope({ xp: 120, skills: { owl: 1, roots: 1 } })]]);
+  const app = await boot([['grove-warden:v9', envelope({ xp: 120, skills: { owl: 1, roots: 1 } })]]);
   try {
     app.$('start-btn').click(); app.tick();
     assert.equal(app.state.phase, 'playing');
@@ -177,7 +181,7 @@ test('quest dialog pauses touch play, blocks movement, and resumes without stale
 
 test('completed boss quest claims once while paused, opens deep forest, and saves before closing', async () => {
   const bossId = rules.HUNT_ZONES.find(zone => zone.id === 'meadow-boss').bossId;
-  const app = await boot([['grove-warden:v8', envelope({ questIndex: 3, bosses: [bossId], gold: 10 })]]);
+  const app = await boot([['grove-warden:v9', envelope({ questIndex: 3, bosses: [bossId], gold: 10 })]]);
   try {
     app.$('start-btn').click(); const before = app.state.progress.gold;
     assert.equal(rules.isStageUnlocked(app.state.progress, 'deep'), false);
@@ -191,31 +195,109 @@ test('completed boss quest claims once while paused, opens deep forest, and save
     const after = structuredClone(app.state.progress);
     app.$('claim-btn').click(); app.tick();
     assert.deepEqual(app.state.progress, after); assert.equal(app.sounds.filter(name => name === 'quest').length, 1);
-    const saved = JSON.parse(app.values.get('grove-warden:v8')).progress;
+    const saved = JSON.parse(app.values.get('grove-warden:v9')).progress;
     assert.equal(saved.questIndex, 4); assert.equal(saved.gold, before + 65); assert.equal(saved.unlockedDeep, true);
     app.$('quest-close-btn').click(); app.tick();
     assert.equal(app.state.phase, 'playing'); assert.equal(app.sounds.filter(name => name === 'quest').length, 1, 'queued UI acknowledgement prevents reward replay');
   } finally { app.dispose(); }
 });
 
-test('client retains v8 precedence, lossless v7 fallback and safe play when storage writes fail', async () => {
-  const legacy = { version: 7, gold: 812, xp: 2400, cargo: 12, checkpoint: 'ancient', questIndex: 9,
+test('client prefers v9, preserves old saves and applies the v8 inventory migration once', async () => {
+  const legacy = { version: 8, gold: 812, xp: 2400, cargo: 12, checkpoint: 'ancient', questIndex: 9,
     upgrades: { attack: 8, health: 6, bag: 6 }, skills: { owl: 3, roots: 3 }, forms: { wolf: 2, bear: 2, dragon: 2 },
     gear: { equipped: 'moon', scrolls: 17, items: { moon: { copies: 5, level: 20, tier: 3 } } } };
+  const legacySeven = { ...legacy, version: 7 };
+  const modern = { ...rules.normalizeProgress(legacy), gold: 999, weapon: 'axe', skills: { owl: 100, roots: 100 } };
   for (const [entries, expected] of [
-    [[['grove-warden:v7', envelope(legacy)]], legacy],
-    [[['grove-warden:v8', 'broken'], ['grove-warden:v7', envelope(legacy)]], legacy],
-    [[['grove-warden:v8', envelope({ ...legacy, gold: 999, skills: { owl: 100, roots: 100 } })], ['grove-warden:v7', envelope(legacy)]], { ...legacy, gold: 999, skills: { owl: 100, roots: 100 } }],
+    [[['grove-warden:v8', envelope(legacy)]], legacy],
+    [[['grove-warden:v9', 'broken'], ['grove-warden:v8', envelope(legacy)]], legacy],
+    [[['grove-warden:v7', envelope(legacySeven)]], legacySeven],
+    [[['grove-warden:v9', envelope(modern)], ['grove-warden:v8', envelope(legacy)]], modern],
   ]) {
     const app = await boot(entries);
     try {
       assert.deepEqual(rules.exportProgress(app.state), rules.normalizeProgress(expected));
-      app.$('start-btn').click(); assert.ok(app.writes.every(key => key === 'grove-warden:v8'));
-      assert.equal(app.values.get('grove-warden:v7'), envelope(legacy));
-      assert.equal(JSON.parse(app.values.get('grove-warden:v8')).progress.version, 8);
+      app.$('start-btn').click(); assert.ok(app.writes.every(key => key === 'grove-warden:v9'));
+      for (const [key, value] of entries.filter(([key]) => key !== 'grove-warden:v9')) assert.equal(app.values.get(key), value);
+      const saved = JSON.parse(app.values.get('grove-warden:v9')).progress;
+      assert.equal(saved.version, 9); assert.equal(saved.gear, undefined);
+      const reloaded = await boot([...app.values]);
+      try { assert.deepEqual(rules.exportProgress(reloaded.state), saved, 'v9 reload neither loses progress nor repeats the old inventory refund'); }
+      finally { reloaded.dispose(); }
     } finally { app.dispose(); }
   }
   const app = await boot([], { failWrites: true });
   try { app.$('start-btn').click(); app.tick(); assert.equal(app.state.phase, 'playing'); assert.equal(app.$('save-warning').hidden, false); assert.equal(app.$('save-indicator').hidden, false); assert.ok(app.drawCount > 0); }
   finally { app.dispose(); }
+});
+
+test('four growth menus keep animal tabs informational and purchase only the viewed form', async () => {
+  const app = await boot([['grove-warden:v9', envelope({ xp: 120, gold: 500 })]]);
+  try {
+    app.$('start-btn').click();
+    assert.deepEqual(app.document.querySelectorAll('[data-growth]').map(button => button.dataset.growth), ['stats', 'druid', 'forms', 'weapons']);
+    for (const id of ['growth-wolf-btn', 'growth-bear-btn', 'growth-dragon-btn', 'stats-pages', 'equipment-panel', 'equipment-list', 'equipment-scrolls']) assert.equal(app.document.getElementById(id), null);
+    app.$('growth-forms-btn').click();
+    assert.equal(app.state.phase, 'paused'); assert.equal(app.$('growth-title').textContent, '변신');
+    assert.equal(app.$('form-tabs').hidden, false); assert.equal(app.$('weapon-panel').hidden, true);
+    const progress = structuredClone(app.state.progress), player = structuredClone(app.state.player);
+    app.$('form-bear-tab').click(); app.$('form-dragon-tab').click();
+    assert.deepEqual(app.state.progress, progress); assert.deepEqual(app.state.player, player);
+    assert.equal(app.document.activeElement, app.$('form-dragon-tab'));
+    assert.equal(app.$('form-dragon-tab').getAttribute('aria-pressed'), 'true');
+    assert.match(app.$('growth-list').textContent, /용/);
+    assert.equal(app.$('growth-list').querySelector('button').disabled, true, 'locked forms remain viewable without becoming available');
+    app.$('form-wolf-tab').click();
+    const offer = rules.getFormOffer(app.state, 'wolf');
+    app.$('growth-list').querySelector('button').click();
+    assert.equal(app.state.progress.forms.wolf, 1); assert.equal(app.state.progress.forms.bear, 0); assert.equal(app.state.progress.forms.dragon, 0);
+    assert.equal(app.state.progress.gold, progress.gold - offer.cost); assert.equal(app.state.player.form, 'druid');
+    assert.match(app.$('growth-list').textContent, /2\/100/);
+  } finally { app.dispose(); }
+});
+
+test('all seven free weapons select once at camp, save immediately, and reject field selection', async () => {
+  const app = await boot([['grove-warden:v9', envelope({ xp: 120, gold: 1000 })]]);
+  try {
+    app.$('start-btn').click(); app.$('growth-weapons-btn').click();
+    assert.equal(app.state.phase, 'paused'); assert.equal(app.$('growth-title').textContent, '무기');
+    assert.equal(app.$('growth-resources').hidden, true); assert.equal(app.$('form-tabs').hidden, true);
+    const buttons = app.$('weapon-list').querySelectorAll('button[data-weapon]');
+    assert.deepEqual(buttons.map(button => button.dataset.weapon), equipment.WEAPONS.map(weapon => weapon.id));
+    assert.equal(buttons.length, 7); assert.match(app.$('weapon-list').textContent, /숲의 검/); assert.match(app.$('weapon-list').textContent, /숲의 도끼/); assert.match(app.$('weapon-list').textContent, /숲의 창/);
+    assert.doesNotMatch(app.$('weapon-list').textContent, /두루마리|승급|보유|강화/);
+    const before = structuredClone(app.state.progress), revision = app.state.revision;
+    const axe = buttons.find(button => button.dataset.weapon === 'axe'); axe.click();
+    assert.equal(app.state.progress.weapon, 'axe'); assert.equal(app.state.progress.gold, before.gold);
+    assert.equal(app.state.revision, revision + 1); assert.equal(app.state.player.form, 'druid');
+    assert.equal(axe.disabled, true); assert.equal(axe.getAttribute('aria-pressed'), 'true');
+    const selected = structuredClone(app.state.progress); axe.click(); assert.deepEqual(app.state.progress, selected);
+    assert.equal(app.sounds.filter(name => name === 'upgrade').length, 1);
+    assert.equal(JSON.parse(app.values.get('grove-warden:v9')).progress.weapon, 'axe');
+    app.$('growth-close-btn').click(); app.tick();
+    assert.equal(app.sounds.filter(name => name === 'upgrade').length, 1, 'queued selection feedback is acknowledged once');
+    app.state.player.x = 0; app.state.player.z = 0; app.state.enemies = []; app.state.spawners = []; app.tick();
+    assert.equal(app.state.inCamp, false); app.$('growth-weapons-btn').click();
+    const sword = app.$('weapon-list').querySelectorAll('button').find(button => button.dataset.weapon === 'sword');
+    assert.equal(sword.disabled, true); sword.dispatch('click');
+    assert.equal(app.state.progress.weapon, 'axe'); assert.equal(app.state.progress.gold, before.gold);
+  } finally { app.dispose(); }
+});
+
+test('actual melee swings use the existing light or heavy sound once per attack event', async () => {
+  for (const weapon of ['sword', 'axe', 'spear']) {
+    const app = await boot([['grove-warden:v9', envelope({ weapon })]]);
+    try {
+      app.$('start-btn').click();
+      app.state.player.x = 0; app.state.player.z = 0; app.state.player.attackCd = 0;
+      app.state.spawners = [];
+      app.state.fieldEvents.nextDiscovery = app.state.fieldEvents.nextHazard = 1e9;
+      app.state.enemies = [{ id: app.state.nextId++, type: 'mushroom', trait: 'normal', stageId: 'meadow', zoneId: 'meadow-mushrooms',
+        x: 1, z: 0, homeX: 1, homeZ: 0, hp: 1000, maxHp: 1000, radius: .4, speed: 0, damage: 0, attackCd: 999, phase: 'stunned', phaseTime: 999 }];
+      app.tick(50);
+      assert.ok(app.state.enemies[0].hp < 1000);
+      assert.equal(app.sounds.filter(name => name === (weapon === 'axe' ? 'bear-slam' : 'wolf-swipe')).length, 1);
+      assert.equal(app.sounds.includes('melee-attack'), false);
+    } finally { app.dispose(); }
+  }
 });

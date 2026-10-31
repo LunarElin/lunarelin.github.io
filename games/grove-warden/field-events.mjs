@@ -1,5 +1,3 @@
-import { EQUIPMENT } from './equipment.mjs';
-
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const safeCamps = (state, context) => context.camps?.(state) ?? [context.world.camp];
@@ -36,8 +34,7 @@ function spawnDiscovery(state, context, zone) {
   const kind = field.discoveries === 0 || context.random(state) < .55 ? 'chest' : 'blessing';
   const item = { id: field.nextId++, ...point, kind, zoneId: zone.id, enemyType: zone.type, life: 45 };
   if (kind === 'chest') {
-    item.equipmentId = EQUIPMENT[Math.min(EQUIPMENT.length - 1, Math.floor(context.random(state) * EQUIPMENT.length))].id;
-    item.scrolls = 2; item.gold = 6 + Math.min(24, state.player.level * 2);
+    item.gold = 12 + Math.min(36, state.player.level * 3);
   }
   field.items.push(item); field.discoveries++;
   field.nextDiscovery = 18 + context.random(state) * 8;

@@ -55,7 +55,7 @@ export function buildPixelArt() {
     sprites[id] = { width, height, anchorX, anchorY, frames };
   }
   const gait = step => step === 1 ? [-1, 1] : step === 2 ? [1, -1] : [0, 0];
-  function druid(g, direction, step, villager = false) {
+  function druid(g, direction, step, villager = false, weapon = 'staff') {
     const { r, p, poly, line } = g, [a, b] = gait(step), side = direction === 'right', back = direction === 'up';
     r(10, 26 + a, 5, 4, C.woodDark); r(17, 26 + b, 5, 4, C.woodDark); r(10, 28 + a, 4, 1, C.woodLight); r(17, 28 + b, 4, 1, C.wood);
     poly([[10, 17], [21, 17], [23, 26], [19, 28], [15, 27], [8, 28]], villager ? C.wood : C.green);
@@ -69,11 +69,26 @@ export function buildPixelArt() {
     else if (side) { r(17, 11, 5, 7, C.skin); r(18, 10, 3, 3, C.cream); r(16, 12, 2, 5, C.linen); r(21, 14, 2, 3, C.skinShade); p(21, 13, C.ink); p(22, 17, C.woodDark); }
     else { r(11, 11, 9, 7, C.skin); r(10, 10, 11, 3, C.cream); r(10, 12, 2, 5, C.linen); r(19, 12, 2, 5, C.linen); r(12, 12, 2, 2, C.cream); p(13, 14, C.ink); p(18, 14, C.ink); r(14, 17, 3, 1, C.skinShade); }
     r(side ? 21 : 22, 19, 3, 5, C.skinShade); r(side ? 21 : 22, 19, 2, 3, C.skin);
-    line(25, 9, 25, 29, C.woodDark); line(26, 10, 26, 28, C.woodLight); poly([[23, 8], [25, 5], [28, 8], [26, 12]], villager ? C.gold : C.mint); p(25, 7, C.cream); p(25, 11, C.deepTeal); r(24, 13, 4, 1, C.linen);
+    if (weapon === 'sword') {
+      poly([[25, 6], [27, 9], [27, 19], [24, 19], [24, 9]], C.stoneLight);
+      line(25, 9, 25, 18, C.cream); line(27, 10, 27, 18, C.blue);
+      r(22, 20, 7, 2, C.gold); r(25, 22, 2, 5, C.woodDark); p(25, 24, C.woodLight); r(24, 27, 4, 2, C.gold);
+    } else if (weapon === 'axe') {
+      line(26, 8, 26, 29, C.woodDark); line(27, 11, 27, 28, C.woodLight);
+      poly([[21, 7], [27, 6], [29, 9], [29, 14], [24, 16], [22, 13]], C.stone);
+      line(21, 8, 22, 12, C.cream); line(23, 14, 26, 14, C.stoneLight); r(26, 9, 3, 2, C.gold); p(27, 10, C.cream);
+    } else if (weapon === 'spear') {
+      line(25, 8, 25, 29, C.woodDark); line(26, 9, 26, 29, C.woodLight);
+      poly([[25, 2], [28, 7], [26, 10], [23, 7]], C.stoneLight); line(25, 4, 25, 8, C.cream); p(26, 7, C.blue);
+      r(24, 11, 4, 2, C.linen); r(24, 28, 4, 2, C.gold);
+    } else {
+      line(25, 9, 25, 29, C.woodDark); line(26, 10, 26, 28, C.woodLight); poly([[23, 8], [25, 5], [28, 8], [26, 12]], villager ? C.gold : C.mint); p(25, 7, C.cream); p(25, 11, C.deepTeal); r(24, 13, 4, 1, C.linen);
+    }
     if (villager) { r(8, 10, 15, 2, C.woodDark); r(10, 7, 10, 3, C.woodLight); r(17, 21, 4, 5, C.linen); p(19, 22, C.wood); }
   }
   actor('druid', 32, 32, 30, druid);
   sprites.druid.wandTips = { down: [25, 8], up: [25, 8], right: [25, 8], left: [6, 8] };
+  for (const [id, weapon] of [['druidSword', 'sword'], ['druidAxe', 'axe'], ['druidSpear', 'spear']]) actor(id, 32, 32, 30, (g, d, s) => druid(g, d, s, false, weapon));
   actor('npc', 32, 32, 30, (g, d, s) => druid(g, d, s, true));
   actor('wolf', 32, 32, 29, (g, d, step) => {
     const { r, p, poly, line } = g, [a, b] = gait(step), side = d === 'right', back = d === 'up';
