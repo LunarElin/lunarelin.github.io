@@ -18,6 +18,7 @@ Burger Please!의 실제 본체 APK 31.6.0과 플레이 영상을 대조해 생�
 - `source-meshes.mjs`, `assets/burger-source/`: 선택 원본 정점·면·복원 가중치와 변환·출처
 - `action-zones.mjs`, `action-zone-visuals.mjs`: 실제 작업·수금·강화·건설·청소 원의 공통 좌표와 표시
 - `zone-entry.mjs`: 강화 원 정지 진입과 메뉴 재열림 방지
+- `floating-stick.mjs`: 터치한 자리에서 나타나는 원형 이동 패드·포인터 소유·해제·버튼 탭 구분
 - `stock-layout.mjs`: 실제 선반 위 재고와 운반 비행의 공통 층 좌표
 - `product-visuals.mjs`: 운반·진열품의 공유 geometry와 인스턴스 재사용
 - `cargo-layout.mjs`: 품목별 적재 높이·층 간격과 운반 포물선의 공통 기준
@@ -46,13 +47,13 @@ node games/runehaven/tests/serve.mjs
 
 ## 조작과 핵심 규칙
 
-휴대폰에서는 바닥·작업장 표식을 누르거나 화면 조이스틱으로 이동한다. 흰 작업 원(반경 0.48) 안에서 0.4초 정지하면 0.22초 간격으로 물건을 하나씩 싣거나 내린다. 이동 중에는 상하차하지 않으며 운반물은 캐릭터 머리 위 스택으로 표시한다. 판매·식사 매출은 소지금에 바로 들어가지 않고 해당 가게의 현금 더미에 쌓인다. 초록 수금 원(반경 0.5) 안에 멈추면 직접 회수한다. 움직이며 지나가는 동안에는 회수하지 않는다. 방어 승리 보상은 소지금에 바로 지급한다. 이 거리·시간은 이 웹게임에 맞춰 별도로 정한 규칙이다.
+휴대폰에서는 플레이 영역 아무 곳이나 누른 채 끌어 이동한다. 누른 자리에만 흐릿한 원형 패드가 나타나며 손을 떼면 패드가 사라지고 바로 멈춘다. 고정된 왼쪽 하단 패드는 없다. 8 CSS px 원형 데드존·드래그 임계와 44px 최대 반경을 사용하고 대각 입력도 최대 속도 1로 제한한다. 일반 바닥의 짧은 탭은 목적지 자동 이동을 만들지 않으며, 작업장·수금·강화 표식의 짧은 탭은 기존 자동 이동을 유지한다. 같은 표식 위에서 끌면 이동 패드로 전환해 표식 클릭을 실행하지 않는다. 흰 작업 원(반경 0.48) 안에서 0.4초 정지하면 0.22초 간격으로 물건을 하나씩 싣거나 내린다. 이동 중에는 상하차하지 않으며 운반물은 캐릭터 머리 위 스택으로 표시한다. 판매·식사 매출은 소지금에 바로 들어가지 않고 해당 가게의 현금 더미에 쌓인다. 초록 수금 원(반경 0.5) 안에 멈추면 직접 회수한다. 움직이며 지나가는 동안에는 회수하지 않는다. 방어 승리 보상은 소지금에 바로 지급한다. 이 거리·시간은 이 웹게임에 맞춰 별도로 정한 규칙이다.
 
 운반량 게이지는 현재 짐과 강화된 최대 용량을 표시한다. 작업 중에는 별도 진행 게이지로 쌓기·내려놓기·자리 정리를 보여 주며, 맨 앞 손님의 주문 말풍선은 품목·받은 수/전체 수·전달 진행 또는 대기 이유를 표시한다. 머리 위 스택과 고객 손 앞의 물건 묶음은 받은 실제 수량을 따른다. 물건은 출발 스택의 해당 층에서 목적지의 다음 층으로 포물선을 그리며 이동하고, 비행 중인 물건이 도착 스택에 중복 나타나지 않게 한다. 음식 층 간격 0.16·작은 물약 0.31과 비행 시간 0.18초는 웹 표현값이다. 원작의 모든 게이지 용도나 정확한 상하차 시간을 복원한 값은 아니다.
 
 각 시설의 흰 작업 원은 몸체 밖에 있으며 `getStationApproach()`와 실제 작업 판정·바닥 링·이동 버튼이 같은 `getWorkZone()` 좌표를 사용한다. 무기·물약 진열대는 뒤쪽, 생산 시설은 앞쪽에서 작업해 손님 앞줄과 분리한다. 몸체와 작업 원을 따로 추정하지 않는다. 각 원의 반경과 접근 거리는 웹게임 값이며 실제 원본 메시 외곽·의자·다른 행동 원과 겹치지 않는지 10개 지역에서 검사한다.
 
-작업장·수금·식탁 표식과 바닥 탭은 빈 바닥에서 목표까지 직선으로 이동하고, 고정 시설의 작은 몸체가 막는 구간만 돌아간다. 조수와 손님도 같은 고정 몸체를 피하며, 조이스틱은 몸체 경계에서 막히거나 미끄러진다. 손님은 공통 입구 줄에서 순서대로 들어와 분기점을 지난 뒤 각 진열대의 짧은 줄로 향한다. 영업 중 인물끼리 겹치는 것은 허용하고 손님 줄을 장애물로 삼거나 조수 자리를 분산·밀어내는 계산은 사용하지 않는다. 넓은 작업 감지 영역과 작은 시설 몸체를 나눈 APK 구조를 참고했으며 웹의 치수·경로 계산은 새 구현이다. 전투의 기존 같은 편 분리 규칙은 유지한다.
+작업장·수금·식탁 표식을 짧게 누르면 빈 바닥에서 목표까지 직선으로 이동하고, 고정 시설의 작은 몸체가 막는 구간만 돌아간다. 조수와 손님도 같은 고정 몸체를 피하며, 조이스틱은 몸체 경계에서 막히거나 미끄러진다. 손님은 공통 입구 줄에서 순서대로 들어와 분기점을 지난 뒤 각 진열대의 짧은 줄로 향한다. 영업 중 인물끼리 겹치는 것은 허용하고 손님 줄을 장애물로 삼거나 조수 자리를 분산·밀어내는 계산은 사용하지 않는다. 넓은 작업 감지 영역과 작은 시설 몸체를 나눈 APK 구조를 참고했으며 웹의 치수·경로 계산은 새 구현이다. 전투의 기존 같은 편 분리 규칙은 유지한다.
 
 일반 상품·음식 주문은 식탁 0~1개에서 1개, 2~3개에서 1~2개, 4개에서 2~3개다. 무기·물약은 카운터 단계의 2 / 1.5 / 0.9초로 첫 물건 전달을 준비하고 같은 주문의 나머지는 0.22초마다 한 개씩 준다. 주문을 모두 전달한 뒤 수량×첫 전달 시 확정한 단가로 매출을 적립하고 판매 횟수·단골 등록은 주문당 한 번만 증가한다. 일부 전달분은 완료 전까지 매출·단골을 만들지 않는다. 원작의 일반 주문 후보 범위를 판타지 품목에 적용했으며 원작 튜토리얼·VIP·전화 주문의 모든 분기와 품목 배분을 그대로 옮긴 것은 아니다.
 
@@ -64,7 +65,7 @@ node games/runehaven/tests/serve.mjs
 
 식사 시간·기본 매출 24·단계별 보너스는 여관에 적용한 기존 시설 수치를 재사용한다. 개별 식탁 개방·2좌석·식탁별 현금·일반 주문 후보·최대 조수 5명은 APK와 영상 근거를 반영했다. 음식 운반과 조수 직무, 정리 시간, 회복·충성도 연결은 웹게임의 해석이다. 원작의 전체 주문 분배와 정확한 조리·상하차·정리 상수는 미확정이다.
 
-정리할 자리가 여러 개면 가장 가까운 한 자리에 `정리` 표식을 표시한다. 다른 자리도 바닥을 직접 눌러 이동할 수 있으며 가까이 멈추면 같은 방식으로 정리한다. 식사 중인 손님과 좌석별 음식, 사용 후 빈 그릇을 장면 안에서 구분한다.
+정리할 자리가 여러 개면 가장 가까운 한 자리에 `정리` 표식을 표시한다. 다른 자리의 정리 원도 패드를 끌어 직접 이동할 수 있으며 원에 멈추면 같은 방식으로 정리한다. 식사 중인 손님과 좌석별 음식, 사용 후 빈 그릇을 장면 안에서 구분한다.
 
 플레이어·시설·조수 강화와 고용·건설·식탁 개방은 해당 파란 바닥 원(반경 0.55) 안에 정지해야 지불할 수 있다. 화면 메뉴는 원 밖에서 즉시 구매하지 않고 해당 원으로 안내한다. 조이스틱으로 직접 들어가 0.25초 멈춰도 메뉴가 열리며, 닫은 메뉴는 원 밖 0.12 여유까지 벗어날 때까지 다시 열리지 않는다. 조수 업무 지정은 무료다. 순간이동·일시 정지·재시작은 기존 버튼을 사용한다. PC에서는 화면 조작과 키보드 이동을 함께 제공한다. 자세한 화면별 안내는 게임 안 도움말을 기준으로 한다.
 
@@ -82,11 +83,11 @@ node games/runehaven/tests/serve.mjs
 
 상품 줄이 가득 찼을 때 이미 뽑힌 손님의 직업을 다른 직업으로 다시 뽑지 않는다. 입장 가능한 자리가 생길 때까지 그 선택을 유지해 무기 줄 포화가 마법사 위주 유입으로 이어지지 않게 한다. 대기 목표는 최대 24명이지만 직업 선택과 상품별 16자리 제한에 따라 무재고 상태의 실제 대기는 20~24명일 수 있다.
 
-주인공은 보라 모자·앞치마, 일반 고객은 파랑 단색 몸, 조수는 노랑, 수호대는 초록, 적은 진한 자주색으로 구분한다. 원본 손님은 얼굴 장식 없는 196 triangles, 주인공·조수 등은 원본 몸과 앞치마를 합친 1,840 triangles·8 bones·1 draw다. 이전 요정 얼굴·하트·머리방울은 제거했다. 원본 T 자세의 팔과 가중치를 웹 관절에 연결하며 실제 원작 애니메이션 클립·셰이더를 복제한 것은 아니다. 기존 몸 높이 1.3과 역할별 배율·전투 확대율을 유지한다.
+주인공은 선명한 주황빨강 모자·앞치마, 일반 고객은 진한 파랑 단색 몸, 조수는 노랑, 수호대는 초록, 적은 진한 자주색으로 구분한다. 원본 손님은 얼굴 장식 없는 196 triangles, 주인공·조수 등은 원본 몸과 앞치마를 합친 1,840 triangles·8 bones·1 draw다. 이전 요정 얼굴·하트·머리방울은 제거했다. 원본 T 자세의 팔과 가중치를 웹 관절에 연결하며 실제 원작 애니메이션 클립·셰이더를 복제한 것은 아니다. 기존 몸 높이 1.3과 역할별 배율·전투 확대율을 유지한다.
 
 상품은 원본 버거·컵, 음식은 다른 색 버거, 식사 후 남은 것은 원본 빈 포장지다. 바닥 대금과 수금 이동도 원본 지폐 형상이다. 원본 시설에 맞춰 선반을 배치하고, 선반 위 실제 지지면과 재고·비행 출발/도착점을 함께 검사한다. 새 외부 이미지 파일은 추가하지 않았으며 선택 메시·재질·인스턴스 버퍼를 공유한다.
 
-바닥은 촘촘한 타일 대신 큰 단색 판과 낮은 대비의 색면 최대 2개, 지역 장식은 대표 실루엣 2개로 줄였다. 시설과 식탁·의자는 선택 원본 메시로 표현하고 출력 선반은 원본 식탁을 조합한다. 금테·기둥 장식·룬·야외 디딤돌·계속 떠오르는 화덕 불꽃과 추가 포인트 조명을 제거했다. 머리 위 물건·바닥 대금·입구 줄과 분기, 음식·사용한 식탁 상태는 유지한다.
+바닥은 분홍·민트 혼합을 제거한 중간 밝기 중립색 판과 색면 최대 2개, 지역 장식은 대표 실루엣 2개로 줄였다. 시설과 식탁·의자는 선택 원본 메시로 표현하고 출력 선반은 원본 식탁을 조합한다. 금테·기둥 장식·룬·야외 디딤돌·계속 떠오르는 화덕 불꽃과 추가 포인트 조명을 제거했다. 머리 위 물건·바닥 대금·입구 줄과 분기, 음식·사용한 식탁 상태는 유지한다.
 
 모바일에서는 렌더 해상도 배율을 최대 1.25, 그림자 맵을 512px, 그림자 갱신을 최대 30회/초로 제한한다. 주인공 애니메이션은 렌더 프레임을 따르고 일반 손님은 최대 15회/초, 다른 화면 안 인물은 최대 30회/초로 갱신한다. 화면 밖 인물의 애니메이션은 생략하지만 이동·구매·전투 시뮬레이션은 유지한다. 직업 장식·스택 geometry를 공유하고, 체력바·직업 링은 두 인스턴스 묶음으로 그린다. 이 정책은 실제 휴대폰 자동 벤치마크 결과가 아닌 명시적인 모바일 렌더 예산이다.
 
@@ -137,6 +138,7 @@ node --check games/runehaven/shop-navigation.mjs
 node --check games/runehaven/action-zones.mjs
 node --check games/runehaven/action-zone-visuals.mjs
 node --check games/runehaven/zone-entry.mjs
+node --check games/runehaven/floating-stick.mjs
 node --check games/runehaven/stock-layout.mjs
 node --check games/runehaven/source-meshes.mjs
 node --check games/runehaven/actor-markers.mjs
@@ -144,7 +146,7 @@ node --check games/runehaven/actor-appearance.mjs
 node --check games/runehaven/asset-loader.mjs
 node --check games/runehaven/game.mjs
 node --check games/runehaven/tests/scenarios.mjs
-node --test games/runehaven/tests/rules.test.mjs games/runehaven/tests/scenarios.test.mjs games/runehaven/tests/customers.test.mjs games/runehaven/tests/combat-balance.test.mjs games/runehaven/tests/traffic-workflow.test.mjs games/runehaven/tests/dining.test.mjs games/runehaven/tests/dining-orders.test.mjs games/runehaven/tests/worker-jobs.test.mjs games/runehaven/tests/dining-visuals.test.mjs games/runehaven/tests/maps.test.mjs games/runehaven/tests/camera.test.mjs games/runehaven/tests/camera-transition.test.mjs games/runehaven/tests/product-visuals.test.mjs games/runehaven/tests/actor-markers.test.mjs games/runehaven/tests/actor-appearance.test.mjs games/runehaven/tests/simple-actors.test.mjs games/runehaven/tests/battlefield.test.mjs games/runehaven/tests/battle-transition.test.mjs games/runehaven/tests/combat-motion.test.mjs games/runehaven/tests/service-progression.test.mjs games/runehaven/tests/shop-navigation.test.mjs games/runehaven/tests/action-zones.test.mjs games/runehaven/tests/action-zone-visuals.test.mjs games/runehaven/tests/zone-entry.test.mjs games/runehaven/tests/source-meshes.test.mjs games/runehaven/tests/stock-layout.test.mjs
+node --test games/runehaven/tests/rules.test.mjs games/runehaven/tests/scenarios.test.mjs games/runehaven/tests/customers.test.mjs games/runehaven/tests/combat-balance.test.mjs games/runehaven/tests/traffic-workflow.test.mjs games/runehaven/tests/dining.test.mjs games/runehaven/tests/dining-orders.test.mjs games/runehaven/tests/worker-jobs.test.mjs games/runehaven/tests/dining-visuals.test.mjs games/runehaven/tests/maps.test.mjs games/runehaven/tests/camera.test.mjs games/runehaven/tests/camera-transition.test.mjs games/runehaven/tests/product-visuals.test.mjs games/runehaven/tests/actor-markers.test.mjs games/runehaven/tests/actor-appearance.test.mjs games/runehaven/tests/simple-actors.test.mjs games/runehaven/tests/battlefield.test.mjs games/runehaven/tests/battle-transition.test.mjs games/runehaven/tests/combat-motion.test.mjs games/runehaven/tests/service-progression.test.mjs games/runehaven/tests/shop-navigation.test.mjs games/runehaven/tests/action-zones.test.mjs games/runehaven/tests/action-zone-visuals.test.mjs games/runehaven/tests/zone-entry.test.mjs games/runehaven/tests/source-meshes.test.mjs games/runehaven/tests/stock-layout.test.mjs games/runehaven/tests/floating-stick.test.mjs
 git diff --check -- games/runehaven
 ```
 
@@ -152,7 +154,27 @@ git diff --check -- games/runehaven
 
 `data/verification.json`은 선택 수치의 기존 대조 검사 기록이다. 게임 규칙 이해를 위한 참고와 실제 브라우저·플레이 검증은 구분하며, 게임 실행은 외부 조사 폴더에 의존하지 않는다. 현재 식탁·조수 규칙과 v1 호환은 위 설명 및 `data/APK_SERVICE_REVIEW.md`를 기준으로 한다.
 
-### 최신 원본 메시·바닥 원·24×24 매장 — 2026-10-31
+### 최신 선명한 색상·터치 위치 이동 패드 — 2026-10-31
+
+분홍·민트가 섞이던 바닥과 장식의 파스텔 혼합을 없애고 중간 밝기의 중립 바닥, 진한 시설 몸체와 밝은 상판을 사용한다. 주인공은 주황빨강, 손님은 진한 파랑, 조수는 노랑, 수호대는 초록, 적은 진자주로 구분한다. 상품의 빵/속층·컵, 음식과 빈 포장지 색도 분리했다. 바닥 원은 흰 작업/초록 수금/파랑 강화의 뜻과 반경을 유지하면서 어두운 테두리를 같은 geometry에 합쳐 기존 4배치를 유지한다. 광원은 hemisphere 1.25·directional 1.35·exposure 0.95로 낮춰 색이 지나치게 밝아지는 현상을 줄였다. HUD·하단 버튼·적재량·주문 말풍선도 밝은 글자/어두운 바탕 또는 어두운 글자/밝은 바탕으로 정리했다. 원본 메시·치수·성장·충돌·식사·전투 규칙은 바꾸지 않았다.
+
+이동 패드는 플레이 영역에서 누른 자리에만 나타나는 반투명 원형이다. 클라이언트 CSS 좌표에서 world의 실제 화면 위치를 빼 표시하고 DPR을 곱하거나 가장자리에서 논리 원점을 옮기지 않는다. 손을 떼거나 pointercancel/실제 캡처 손실, 창 비활성, 메뉴·출전, 화면 크기 변경, 페이지 숨김·종료 때 이동값·이전 자동 목적지·캡처·패드를 함께 해제한다. 첫 포인터만 소유하고 다른 손가락으로 교체/해제하지 않는다. 작업/수금/강화 버튼의 짧은 탭은 유지하고 8px 이상 드래그한 뒤 발생하는 클릭은 억제한다. 자식 캔버스/버튼의 암묵적 캡처가 world로 옮겨질 때 생기는 자식 lostpointercapture를 무시해 첫 드래그 취소를 막았다. 점멸 선택은 짧은 바닥 탭으로만 확정하며 드래그 후에는 오발하지 않는다.
+
+27개 지정 파일의 **240개 테스트**와 변경 JS/MJS **11개 구문 검사**, 대상 diff 검사가 통과했다. 입력 10개 회귀는 Node EventTarget으로 좌표·원형 데드존·대각 한도·pointerId=0·다중 포인터·해제·취소·blur·메뉴 초기화·AbortSignal·버튼 탭/드래그·암묵적 캡처 이전을 검사한다. 이는 실제 브라우저나 실물 터치 검증이 아니다. 320×356·390×604 플레이 영역의 정적 CPU 도형 투영으로 새 바닥·시설·인물·상품·원 색 분리를 확인했으며 실제 WebGL 출력/DOM/패드 캡처로 보고하지 않는다. 기존 기하·재고·저장·캠페인·320/390px 카메라 투영 회귀도 유지한다.
+
+이번에도 연결 도구가 **Work 설정의 로컬 브라우저 비활성화**를 반환해 320px·390px·PC 직접 플레이, 실제 글꼴·HUD 잘림·GPU 색 출력·iOS/Android 터치와 FPS/발열은 미검증이다. 이전 버전의 브라우저 기록을 이번 검증으로 재사용하지 않는다. 최우선은 브라우저 연결 복구 후 화면 양쪽/가장자리와 작업 원에서 패드를 드래그해 색 구분·조작·손 떼기·메뉴 복귀를 확인하는 것이다.
+
+| 항목 | 잠정 점수 | 근거와 한계 |
+| --- | ---: | --- |
+| 코어 플레이와 완성도 | 23/25 | 기존 운영/전투 회귀와 입력 취소 검증. 실제 새 조작 플레이 미검증. |
+| 모바일 웹 실행과 조작 | 15/20 | 위치 패드·소유 포인터·터치 취소·버튼 구분 회귀. 실물/브라우저 터치 미검증. |
+| 모바일 게임 UI와 시각 품질 | 16/20 | 중립 바닥·진한 역할색·원 테두리·HUD 대비. GPU 색·글꼴·가림 직접 확인 필요. |
+| 게임성 설계와 피드백 | 12/15 | 손 떼기 정지·작업 버튼 탭/드래그 구분. 패드 체감은 설계/입력 검사 수준. |
+| 성능과 리소스 최적화 | 8/10 | 추가 이미지·조명·매프레임 DOM 없음, 원 4배치·모델 공유 유지. 실기기 프레임 미측정. |
+| 검증·저장·유지관리 | 9/10 | 전용 입력 회귀·리스너/캡처 정리·저장 형식 유지·현재/이전 검증 분리. |
+| 합계 | **83/100 · 잠정** | 자동/정적 검증과 직접 플레이를 구분한다. |
+
+### 이전 원본 메시·바닥 원·24×24 매장 — 2026-10-31
 
 원본 APK의 실제 메시 11종을 선별하여 색상·웹 좌표·관절 연결을 변환해 사용한다. 얼굴 없는 손님·모자와 앞치마·카운터·그릴·식탁·의자·버거·컵·포장지·지폐의 원본 면 연결을 검증했다. 원본 T 자세·22본의 압축 가중치는 웹의 8본에 묶었고 원작 클립·셰이더·모든 GameObject 배치를 그대로 옮기지 않았다. 파일별 SHA와 변환 과정은 assets/burger-source/에 있다. 데이터 모듈은 243,710바이트이며 원본 자산과 Kenney CC0를 구분한다.
 

@@ -7,11 +7,11 @@ function palette(key, body, trim, clothUv, trimUv) {
 // UVs select existing Mini Dungeon colormap stripes: u, first v, v range.
 // The source atlas and the source geometry remain shared and unchanged.
 export const ACTOR_PALETTES = Object.freeze({
-  player: palette('player', '#8261bc', '#fff4ce', [.34375, .4, .075], [.46875, .55, .15]),
-  customer: palette('customer', '#4b91c8', '#dceefd', [.09375, .285, .14], [.09375, .31, .14]),
-  staff: palette('staff', '#e9b044', '#fff4ce', [.71875, .55, .15], [.46875, .55, .15]),
-  ally: palette('ally', '#4eac8b', '#ddf5e9', [.59375, .55, .15], [.21875, .285, .14]),
-  enemy: palette('enemy', '#b94968', '#ead2ef', [.90625, .55, .15], [.46875, .775, .2]),
+  player: palette('player', '#df3f1c', '#ffe1a1', [.34375, .4, .075], [.46875, .55, .15]),
+  customer: palette('customer', '#1766b5', '#d5e7fa', [.09375, .285, .14], [.09375, .31, .14]),
+  staff: palette('staff', '#e5a400', '#fff0b0', [.71875, .55, .15], [.46875, .55, .15]),
+  ally: palette('ally', '#00856a', '#b9ecd6', [.59375, .55, .15], [.21875, .285, .14]),
+  enemy: palette('enemy', '#8f174b', '#eeb4cb', [.90625, .55, .15], [.46875, .775, .2]),
 });
 
 export function getActorPalette({ id = '', kind = '' } = {}) {

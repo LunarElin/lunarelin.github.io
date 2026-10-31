@@ -5,9 +5,9 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
     const g = new THREE.Group(); g.name = 'regional-silhouette'; group.add(g);
     g.position.set(Math.sign(item.x) * (region.dimensions.width / 2 + 1), 0, item.z * 1.45);
     g.rotation.y = item.rotation || 0; g.scale.setScalar(item.scale || 1);
-    const color = `#${new THREE.Color(item.color || region.accentColor).lerp(new THREE.Color('#d9c4e6'), .58).getHexString()}`;
+    const color = `#${new THREE.Color(item.color || region.accentColor).multiplyScalar(.72).getHexString()}`;
     if (item.type === 'tree') {
-      cylinder(.12, .16, .8, '#bf9bb5', 0, .35, 0, g);
+      cylinder(.12, .16, .8, '#684b2c', 0, .35, 0, g);
       const crown = orb(.72, color, 0, 1.35, 0, g); crown.scale.y = 1.1;
     } else if (item.type === 'crystal') {
       const crystal = mesh(new THREE.OctahedronGeometry(.5, 0), color, g);
@@ -22,17 +22,17 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
       cylinder(.3, .3, item.type === 'ruin' ? .9 : 1.7, color, 0, item.type === 'ruin' ? .45 : .85, 0, g, 6);
     } else if (item.type === 'well') {
       cylinder(.65, .65, .5, color, 0, .25, 0, g, 8);
-      cylinder(.48, .48, .02, '#92d6df', 0, .51, 0, g, 8);
+      cylinder(.48, .48, .02, '#168ab7', 0, .51, 0, g, 8);
     } else if (item.type === 'banner') {
-      cylinder(.05, .05, 1.8, '#b4a083', 0, .9, 0, g, 6);
+      cylinder(.05, .05, 1.8, '#694b2e', 0, .9, 0, g, 6);
       box(.8, 1, .05, color, .35, 1.25, 0, g);
     }
   }
   function apply(region) {
     emptyGroup(group);
-    scene.background?.set(new THREE.Color(region.groundColor).lerp(new THREE.Color('#e6f3eb'), .68));
-    const floorColor = `#${new THREE.Color(region.floorColor).lerp(new THREE.Color('#efb6cf'), .72).getHexString()}`;
-    const wallColor = `#${new THREE.Color(region.wallColor).lerp(new THREE.Color('#e8cfe2'), .75).getHexString()}`;
+    scene.background?.set(new THREE.Color(region.groundColor).multiplyScalar(.72));
+    const floorColor = `#${new THREE.Color(region.floorColor).lerp(new THREE.Color('#97998a'), .55).getHexString()}`;
+    const wallColor = `#${new THREE.Color(region.wallColor).multiplyScalar(.38).getHexString()}`;
     const { width, depth } = region.dimensions;
     box(width, .3, depth, wallColor, 0, -.23, 0, group);
     const floor = box(width, .12, depth, floorColor, 0, -.055, 0, group); floor.name = 'shop-solid-floor';
@@ -49,14 +49,14 @@ export function createMapScenery({ THREE, scene, box, cylinder, orb, mesh, empty
     }
     box(width + .2, .5, .2, wallColor, 0, .2, -depth / 2 + .1, group);
     for (const side of [-1, 1]) box(.2, .2, depth, wallColor, side * (width / 2 + .03), .05, 0, group);
-    const laneColor = '#d8b9d0';
+    const laneColor = '#766d52';
     const stations = region.stations, fork = { x: stations.gate.x, z: stations.gate.z - 1.25 };
     for (const key of ['counter', 'potionCounter']) {
       const target = stations[key], dx = target.x - fork.x, dz = target.z + .95 - fork.z;
       const path = box(Math.hypot(dx, dz), .018, .12, laneColor, (fork.x + target.x) / 2, .05, (fork.z + target.z + .95) / 2, group);
       path.name = 'customer-branch-line'; path.rotation.y = -Math.atan2(dz, dx); path.castShadow = false;
     }
-    const rugColors = { forge: '#f2d8e5', counter: '#f4e4c8', alchemy: '#d6eee2', potionCounter: '#d9eef0', inn: '#e8dbf3' };
+    const rugColors = { forge: '#6d6655', counter: '#7a7765', alchemy: '#617462', potionCounter: '#65766b', inn: '#817153' };
     for (const [kind, p] of Object.entries(stations)) {
       if (kind === 'gate') continue;
       const w = kind === 'inn' ? 2.7 : kind === 'forge' || kind === 'alchemy' ? 2.8 : 2.6;

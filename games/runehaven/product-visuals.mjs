@@ -56,13 +56,13 @@ export function setCarryStackCount(stack, count) {
 export function createProductVisuals(material) {
   const products = {
     gear: {
-      base: createSourceGeometry('burger', { size: [.52, .16, .52], vertexColor: point => point.y > .105 ? '#c6a6df' : point.y > .06 ? '#72509c' : '#e0cbef' }),
+      base: createSourceGeometry('burger', { size: [.52, .16, .52], vertexColor: point => point.y > .105 ? '#bd35db' : point.y > .06 ? '#35204f' : '#a021b4' }),
       detail: new THREE.BufferGeometry(),
       baseMaterial: new THREE.MeshLambertMaterial({ vertexColors: true }),
       detailMaterial: material('#d9e8ed'),
     },
     potion: {
-      base: createSourceGeometry('cup', { size: [.28, .30, .28], vertexColor: point => point.y > .24 ? '#e0f1e5' : '#65b99d' }),
+      base: createSourceGeometry('cup', { size: [.28, .30, .28], vertexColor: point => point.y > .24 ? '#fff0a6' : '#008d52' }),
       detail: new THREE.BufferGeometry(),
       baseMaterial: new THREE.MeshLambertMaterial({ vertexColors: true }),
       detailMaterial: material('#d4b478'),

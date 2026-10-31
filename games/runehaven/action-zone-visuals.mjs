@@ -1,4 +1,5 @@
 import * as THREE from './vendor/three.module.js';
+import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
 import { getActionZones, isStandingInActionZone } from './action-zones.mjs';
 
 // The ring radius is the gameplay radius, with no screen-space repositioning.
@@ -6,23 +7,35 @@ import { getActionZones, isStandingInActionZone } from './action-zones.mjs';
 export function createActionZoneVisuals(parent) {
   const group = new THREE.Group(); group.name = 'shop-action-circles'; parent.add(group);
   const geometries = [], materials = [], batches = {};
-  const ring = new THREE.RingGeometry(.91, 1, 40); ring.rotateX(-Math.PI / 2); geometries.push(ring);
+  function painted(geometry, value) {
+    const colors = new Float32Array(geometry.attributes.position.count * 3); colors.fill(value);
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3)); return geometry;
+  }
+  function layered(back, front) {
+    painted(back, .012); painted(front, 1); front.translate(0, 0, .002);
+    const result = mergeGeometries([back, front]); back.dispose(); front.dispose();
+    result.rotateX(-Math.PI / 2); geometries.push(result); return result;
+  }
+  // The dark rim ends at radius 1, keeping the visible edge on the exact
+  // gameplay boundary. Both rim and color share one draw and one instance.
+  const ring = layered(new THREE.RingGeometry(.82, 1, 40), new THREE.RingGeometry(.88, .96, 40));
   function glyph(kind) {
     const shape = new THREE.Shape();
     const points = kind === 'work' ? [[-.09,.26],[.09,.26],[.09,-.02],[.26,-.02],[0,-.29],[-.26,-.02],[-.09,-.02]]
       : kind === 'upgrade' ? [[-.075,.28],[.075,.28],[.075,.075],[.28,.075],[.28,-.075],[.075,-.075],[.075,-.28],[-.075,-.28],[-.075,-.075],[-.28,-.075],[-.28,.075],[-.075,.075]]
         : [[-.24,-.22],[-.11,-.29],[.24,.21],[.11,.29]];
     shape.moveTo(...points[0]); for (const point of points.slice(1)) shape.lineTo(...point); shape.closePath();
-    const geometry = new THREE.ShapeGeometry(shape); geometry.rotateX(-Math.PI / 2); geometries.push(geometry); return geometry;
+    const geometry = new THREE.ShapeGeometry(shape);
+    return layered(geometry.clone().scale(1.2, 1.2, 1), geometry);
   }
   function batch(name, geometry) {
-    const material = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .95, depthWrite: false }); materials.push(material);
+    const material = new THREE.MeshBasicMaterial({ color: '#ffffff', vertexColors: true, transparent: true, opacity: .98, depthWrite: false }); materials.push(material);
     const mesh = new THREE.InstancedMesh(geometry, material, 64); mesh.name = `action-circle-${name}`;
     mesh.frustumCulled = false; mesh.renderOrder = 1; mesh.count = 0; group.add(mesh); batches[name] = mesh; return mesh;
   }
   batch('rings', ring); for (const kind of ['work', 'upgrade', 'clean']) batch(kind, glyph(kind));
   const matrix = new THREE.Matrix4(), color = new THREE.Color();
-  const colors = { work: '#fff3bb', cash: '#6bdc8b', upgrade: '#77cbff', clean: '#e7bdff' };
+  const colors = { work: '#ffffff', cash: '#00bd5f', upgrade: '#087ff5', clean: '#aa27df' };
   let zones = [];
   function update(state) {
     group.visible = state.raid.location !== 'outside' && state.raid.phase !== 'departure';

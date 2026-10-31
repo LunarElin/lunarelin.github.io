@@ -1,6 +1,6 @@
 import { THREE } from './asset-loader.mjs';
 import { BALANCE } from './balance.mjs';
-import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getStationApproach, getTableUnlockInfo, getHireInfo } from './rules.mjs';
+import { BOUNDS, createGame, step, act, serialize, restore, getUpgradeInfo, getStageInfo, getMoneyPiles, getFacilityUpgradeInfo, getWorkerUpgradeInfo, getCustomerQueueSlots, getCustomerEntrySlots, getCustomerBranchPoint, getTableUnlockInfo, getHireInfo } from './rules.mjs';
 import { REGIONS, getRegion, getStations } from './maps.mjs';
 import { createMapScenery } from './map-scene.mjs';
 import { CAMERA_OFFSET, CAMERA_RIGHT, CAMERA_DOWN, CAMERA_Y, carryHeight, cameraFraming, cameraFocus, battleCamera, followCamera, followBattleCamera } from './camera.mjs';
@@ -11,6 +11,7 @@ import { projectShopTarget, getShopObstacles, SHOP_RADIUS } from './shop-navigat
 import { getActionZones, getActionZone, getWorkZone, getUpgradeZone, getUnlockZone, getTableUnlockZone, isStandingInActionZone } from './action-zones.mjs';
 import { createActionZoneVisuals } from './action-zone-visuals.mjs';
 import { createZoneEntryGate } from './zone-entry.mjs';
+import { bindFloatingStick } from './floating-stick.mjs';
 import { getStockItemPoint, STOCK_LAYOUT } from './stock-layout.mjs';
 import { createSourceGeometry } from './source-meshes.mjs';
 import { createActorMarkers } from './actor-markers.mjs';
@@ -78,6 +79,7 @@ let lastRaidPhase = state.raid?.phase;
 let currentRegionId = '';
 let transitionTimer = 0;
 const move = { x: 0, z: 0 };
+let floatingStick = null;
 const keys = new Set();
 const seenEffects = new Set();
 let audioContext;
@@ -149,7 +151,7 @@ try {
 }
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = .95;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false;
@@ -171,8 +173,8 @@ scene.background = new THREE.Color('#bdcfb2');
 const camera = new THREE.OrthographicCamera(-9, 9, 12, -12, .1, 100);
 camera.position.set(CAMERA_OFFSET.x, CAMERA_OFFSET.y, CAMERA_OFFSET.z);
 camera.lookAt(0, 0, 0);
-scene.add(new THREE.HemisphereLight('#ffffff', '#c3c9d0', 2.2));
-const sunlight = new THREE.DirectionalLight('#ffffff', 1.8);
+scene.add(new THREE.HemisphereLight('#ffffff', '#52646d', 1.25));
+const sunlight = new THREE.DirectionalLight('#ffffff', 1.35);
 sunlight.position.set(-6, 13, 7); sunlight.castShadow = true;
 sunlight.shadow.mapSize.set(1024, 1024);
 Object.assign(sunlight.shadow.camera, { left: -11, right: 11, top: 10, bottom: -10, near: .1, far: 40 });
@@ -230,7 +232,7 @@ queueMarks.receiveShadow = false; shopScene.add(queueMarks);
 const fixtures = createShopFixtures(shopScene);
 const { forge: forgeGroup, alchemy: alchemyGroup, inn: innGroup, counter: counterGroup, potionCounter: potionGroup } = fixtures;
 const actionCircles = createActionZoneVisuals(shopScene);
-const destination = ring(.35, '#fff0a5', 0, 0, .04, scene); destination.visible = false;
+const destination = ring(.35, '#ffcb25', 0, 0, .04, scene); destination.visible = false;
 const playerRing = ring(.42, '#e2d7ff', 0, 0, .025, scene);
 const stockVisuals = { forge: new THREE.Group(), gear: new THREE.Group(), alchemy: new THREE.Group(), potion: new THREE.Group() };
 for (const g of Object.values(stockVisuals)) shopScene.add(g);
@@ -510,6 +512,7 @@ function inspectCombatWeapon() {
   if (left < 24 - .001 || right < 24 - .001 || top < 38 - .001 || bottom < 42 - .001) stats.weaponViolations = (stats.weaponViolations || 0) + 1;
 }
 function resize() {
+  floatingStick?.reset('resize');
   const rect = $('world').getBoundingClientRect();
   if (!rect.width || !rect.height) return;
   viewport.width = rect.width; viewport.height = rect.height;
@@ -592,7 +595,7 @@ function updateCashVisuals() {
     if (visual.group.userData.count !== count) {
       emptyGroup(visual.group); visual.group.userData.count = count;
       if (count) {
-        const geometry = createSourceGeometry('cash', { size: [.38, .07, .22], color: '#73b78c' }); geometries.add(geometry);
+        const geometry = createSourceGeometry('cash', { size: [.38, .07, .22], color: '#268f4d' }); geometries.add(geometry);
         const coins = new THREE.InstancedMesh(geometry, material('#ffffff', { vertexColors: true }), count); coins.castShadow = true;
         const matrix = new THREE.Matrix4();
         for (let i = 0; i < count; i++) {
@@ -736,7 +739,7 @@ function flyAttack(effect) {
 function flyProduct(effect) {
   if (flights.length > 35) return;
   const node = new THREE.Group();
-  if (effect.type === 'cash-collect') mesh(createSourceGeometry('cash', { size: [.38, .07, .22], color: '#73b78c' }), '#ffffff', node, { vertexColors: true });
+  if (effect.type === 'cash-collect') mesh(createSourceGeometry('cash', { size: [.38, .07, .22], color: '#268f4d' }), '#ffffff', node, { vertexColors: true });
   else if (effect.product === 'food') diningVisuals?.setFoodStack(node, 1);
   else productInstances(node, 1, effect.product || 'gear');
   const actor = effect.actorId === 'player' || !effect.actorId ? state.player : state.staff.find(h => h.id === effect.actorId);
@@ -935,10 +938,10 @@ function updateHud() {
   const outside = raid.location === 'outside', travelling = raid.phase === 'departure';
   document.querySelector('.actions').hidden = outside || travelling;
   $('battle-status').hidden = !outside && !travelling;
-  $('joystick').hidden = outside || travelling;
+  $('joystick').hidden = outside || travelling || paused || blinkAim || !floatingStick?.state.active;
   $('magic').hidden = outside || travelling;
   document.querySelector('.carry-hud').hidden = outside || travelling;
-  $('world').setAttribute('aria-label', outside ? '상점 밖 마당에서 펼쳐지는 단골 수호대 방어전' : '상점. 바닥을 누르면 이동합니다.');
+  $('world').setAttribute('aria-label', outside ? '상점 밖 마당에서 펼쳐지는 단골 수호대 방어전' : '상점. 아무 곳이나 누르고 끌어 이동하고, 손을 떼면 멈춥니다.');
   document.querySelector('.quest-hud').classList.toggle('in-raid', inRaid);
   $('raid-health').hidden = !inRaid;
   $('health-fill').style.width = `${Math.max(0, state.shopHp / state.shopMaxHp * 100)}%`;
@@ -1032,7 +1035,7 @@ function updateHud() {
   if (activeSheet === 'upgrades') updateUpgradeButtons();
 }
 
-function stopInput() { move.x = 0; move.z = 0; keys.clear(); clearDestination(); $('stick').style.transform = ''; }
+function stopInput() { floatingStick?.reset('stop'); move.x = 0; move.z = 0; keys.clear(); clearDestination(); $('joystick').hidden = true; $('stick').style.transform = ''; }
 function openSheet(title, content, name, canClose = true) {
   paused = true; renderDirty = true; stopInput(); activeSheet = name;
   $('sheet-title').textContent = title; $('sheet-content').innerHTML = content;
@@ -1044,11 +1047,11 @@ function closeSheet() {
   $('sheet').close(); activeSheet = ''; paused = false; renderDirty = true; lastTime = performance.now();
 }
 function openIntro() {
-  openSheet('룬빛 상회', `<div class="intro"><img class="intro-rune" src="icon.svg" alt=""><h2>오늘의 손님이<br>내일의 영웅으로.</h2><p>작은 대장간에서 시작하는<br>당신만의 마법 상회.</p><div class="intro-steps"><div><b>⚒</b><span>만들고</span></div><div><b>♜</b><span>가게를 키우고</span></div><div><b>⚔</b><span>함께 지켜요</span></div></div><button class="gold-button full" data-command="start">${stored ? '상회로 돌아가기' : '가게 열기'}</button><button class="secondary-button full danger" data-command="reset-confirm">진행 초기화</button><p class="muted">화면을 누르면 이동 · 멈추면 물건을 옮겨요</p></div>`, 'intro', false);
+  openSheet('룬빛 상회', `<div class="intro"><img class="intro-rune" src="icon.svg" alt=""><h2>오늘의 손님이<br>내일의 영웅으로.</h2><p>작은 대장간에서 시작하는<br>당신만의 마법 상회.</p><div class="intro-steps"><div><b>⚒</b><span>만들고</span></div><div><b>♜</b><span>가게를 키우고</span></div><div><b>⚔</b><span>함께 지켜요</span></div></div><button class="gold-button full" data-command="start">${stored ? '상회로 돌아가기' : '가게 열기'}</button><button class="secondary-button full danger" data-command="reset-confirm">진행 초기화</button><p class="muted">아무 곳이나 누르고 끌어 이동 · 떼면 정지</p></div>`, 'intro', false);
 }
 function visitZone(zone, onArrival) {
   if (!zone?.enabled || !started || state.raid.location === 'outside') return;
-  closeSheet();
+  stopInput(); closeSheet();
   setDestination(zone);
   pendingVisit = { zone, onArrival };
   toast(`${zone.label} 바닥 원으로 이동해요`);
@@ -1128,6 +1131,7 @@ function openRegions() {
   openSheet('열 곳의 상권', '<p class="sheet-description">방어에 성공하면 다음 상권으로 떠나요.<br>시설 배치와 풍경이 모두 달라집니다.<br>강화·물건·미회수 대금은 함께 옮겨요.</p><div class="region-list">' + regions + '</div><p class="muted">10개 지역을 지나면 다음 방어 차수로 순환합니다.</p><button class="gold-button full" data-command="resume">상회로</button>', 'regions');
 }
 function openMagic() {
+  stopInput();
   if ((state.player.speedLevel || 1) >= BALANCE.magic.teleportAtLevel) {
     closeSheet(); blinkAim = !blinkAim;
     toast(blinkAim ? '이동할 바닥을 누르세요 · 최대 3.5 거리' : '순간이동 선택 취소'); return;
@@ -1140,7 +1144,7 @@ function openMenu() {
 function cancelReset() { if (resetReturn === 'intro') openIntro(); else openMenu(); }
 function dismissSheet() { if (activeSheet === 'confirm') cancelReset(); else closeSheet(); }
 function openHelp() {
-  openSheet('놀이 방법', `<ol class="help-list"><li>조이스틱을 움직이거나 작업장 표식·바닥을 누르세요. 대장간 앞에서 멈추면 무기가 머리 위에 하나씩 쌓여요.</li><li>진열대 앞에서 멈추면 물건을 하나씩 내려놓아요. 이동 중에는 상하차하지 않아요.</li><li>손님이 낸 돈은 바닥에 쌓여요. 초록 수금 원으로 이동해 멈춰야 내 골드가 돼요.</li><li>시설에서 제작·결제·식사를 강화하고 고용에서 모든 조수를 훈련하세요. 판매가 늘면 공방과 여관이 열려요.</li><li>여관 주방에서 음식을 머리 위에 쌓고 배식대 뒤에서 내려놓으세요. 손님이 먹고 떠난 식탁 옆에서 멈추면 정리해요. 식탁마다 두 명이 앉아요. 주문 말풍선의 수량을 모두 받아야 식사해요. 시설에서 식탁을 늘리고, 식사 대금은 각 식탁 옆에서 주워요. 고용에서 최대 5명 조수에게 음식 운반·식탁 정리를 맡길 수 있어요.</li><li>물건을 산 검사·궁수·마법사가 습격 때 돌아와요. 방어에 성공하면 배치와 풍경이 다른 다음 지역으로 옮겨요.</li><li>흰 작업 원에 멈추면 싣고 내려요. 초록 수금 원에 멈추면 대금을 주워요. 파란 강화·고용 원에 서야 비용을 지불할 수 있어요. 메뉴에서 원으로 이동을 누르면 안내합니다.</li><li>이동 수련 21단계! 순간이동을 누른 뒤 가까운 바닥을 선택하세요. 재사용 4초.</li></ol><p class="muted">화면을 벗어나면 시간이 멈춥니다.<br>${saveFailed ? '현재 브라우저 저장을 사용할 수 없습니다.' : '진행은 이 브라우저에 자동으로 저장됩니다.'}</p><button class="gold-button full" data-command="resume">알겠어요</button>`, 'help');
+  openSheet('놀이 방법', `<ol class="help-list"><li>화면 아무 곳이나 누른 채 끌면 원형 패드로 이동해요. 손을 떼면 바로 멈춰요. 작업장 표식은 짧게 눌러 이동할 수 있어요. 대장간 앞에서 멈추면 무기가 머리 위에 하나씩 쌓여요.</li><li>진열대 앞에서 멈추면 물건을 하나씩 내려놓아요. 이동 중에는 상하차하지 않아요.</li><li>손님이 낸 돈은 바닥에 쌓여요. 초록 수금 원으로 이동해 멈춰야 내 골드가 돼요.</li><li>시설에서 제작·결제·식사를 강화하고 고용에서 모든 조수를 훈련하세요. 판매가 늘면 공방과 여관이 열려요.</li><li>여관 주방에서 음식을 머리 위에 쌓고 배식대 뒤에서 내려놓으세요. 손님이 먹고 떠난 식탁 옆에서 멈추면 정리해요. 식탁마다 두 명이 앉아요. 주문 말풍선의 수량을 모두 받아야 식사해요. 시설에서 식탁을 늘리고, 식사 대금은 각 식탁 옆에서 주워요. 고용에서 최대 5명 조수에게 음식 운반·식탁 정리를 맡길 수 있어요.</li><li>물건을 산 검사·궁수·마법사가 습격 때 돌아와요. 방어에 성공하면 배치와 풍경이 다른 다음 지역으로 옮겨요.</li><li>흰 작업 원에 멈추면 싣고 내려요. 초록 수금 원에 멈추면 대금을 주워요. 파란 강화·고용 원에 서야 비용을 지불할 수 있어요. 메뉴에서 원으로 이동을 누르면 안내합니다.</li><li>이동 수련 21단계! 순간이동을 누른 뒤 가까운 바닥을 선택하세요. 재사용 4초.</li></ol><p class="muted">화면을 벗어나면 시간이 멈춥니다.<br>${saveFailed ? '현재 브라우저 저장을 사용할 수 없습니다.' : '진행은 이 브라우저에 자동으로 저장됩니다.'}</p><button class="gold-button full" data-command="resume">알겠어요</button>`, 'help');
 }
 function openLedger() {
   const count = (kind) => state.patrons.filter((p) => p.kind === kind).length;
@@ -1207,56 +1211,43 @@ function worldPoint(event) {
   if (!p) return null;
   return { x: Math.max(BOUNDS.minX, Math.min(BOUNDS.maxX, p.x)), z: Math.max(BOUNDS.minZ, Math.min(BOUNDS.maxZ, p.z)) };
 }
-let canvasDown = null;
-listen(canvas, 'pointerdown', (e) => { if (!started || paused) return; canvasDown = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
-listen(canvas, 'pointerup', (e) => {
-  if (!canvasDown || canvasDown.id !== e.pointerId || paused || state.raid.location === 'outside' || state.raid.phase === 'departure') return;
-  const distance = Math.hypot(e.clientX - canvasDown.x, e.clientY - canvasDown.y); canvasDown = null;
-  if (distance > 22) return;
-  const point = worldPoint(e); if (!point) return;
-  if (blinkAim) { action('blink', point); blinkAim = false; clearDestination(); return; }
-  pendingVisit = null;
-  const zone = getActionZones(state).filter(zone => zone.enabled && Math.hypot(point.x - zone.x, point.z - zone.z) <= zone.radius + .18)
-    .sort((a, b) => Math.hypot(point.x - a.x, point.z - a.z) - Math.hypot(point.x - b.x, point.z - b.z))[0];
-  if (zone) {
-    if (zone.kind === 'upgrade') {
-      visitZone(zone, zone.stationKey === 'player' ? openUpgrades : zone.stationKey === 'worker' ? openWorkers : openBuild); return;
+let stickPointer = null, stickRect;
+const shortcutTarget = event => event.target?.closest?.('.station-label,.cash-label,.zone-label');
+floatingStick = bindFloatingStick($('world'), {
+  signal: controller.signal,
+  canStart: event => started && !paused && state.raid.location !== 'outside' && state.raid.phase !== 'departure'
+    && (event.type !== 'pointerdown' || !event.target?.closest?.('button,a') || Boolean(shortcutTarget(event))),
+  isShortcut: event => Boolean(shortcutTarget(event)),
+  onChange: stick => {
+    if (stick.active && stickPointer !== stick.pointerId) {
+      stickPointer = stick.pointerId; stickRect = $('world').getBoundingClientRect();
+      clearDestination(); keys.clear();
     }
-    Object.assign(point, zone);
-  } else {
-    for (const [key, station] of Object.entries(getStations(state))) {
-      if (key === 'gate') continue;
-      if (Math.hypot(point.x - station.x, point.z - station.z) < 1.1) { Object.assign(point, getStationApproach(state, key)); break; }
+    if (!stick.active) stickPointer = null;
+    const visible = stick.active && !blinkAim && !paused;
+    $('joystick').hidden = !visible;
+    if (visible) {
+      $('joystick').style.left = (stick.originX - stickRect.left) + 'px';
+      $('joystick').style.top = (stick.originY - stickRect.top) + 'px';
     }
-  }
-  setDestination(point);
+    $('stick').style.transform = 'translate(' + stick.knobX * 30 / 44 + 'px,' + stick.knobY * 30 / 44 + 'px)';
+    move.x = blinkAim ? 0 : stick.x * CAMERA_RIGHT.x + stick.y * CAMERA_DOWN.x;
+    move.z = blinkAim ? 0 : stick.x * CAMERA_RIGHT.z + stick.y * CAMERA_DOWN.z;
+  },
+  onStop: () => { move.x = move.z = 0; clearDestination(); },
+  onTap: event => {
+    if (!blinkAim || paused || !started) return;
+    const point = worldPoint(event); if (!point) return;
+    action('blink', point); blinkAim = false; clearDestination();
+  },
 });
-listen(canvas, 'pointercancel', () => { canvasDown = null; });
-let joystickId = null;
-function joystickMove(e) {
-  if (joystickId !== e.pointerId) return;
-  const rect = $('joystick').getBoundingClientRect();
-  let x = (e.clientX - rect.left - rect.width / 2) / (rect.width * .36);
-  let z = (e.clientY - rect.top - rect.height / 2) / (rect.height * .36);
-  const len = Math.hypot(x, z); if (len > 1) { x /= len; z /= len; }
-  if (len < .12) x = z = 0;
-  $('stick').style.transform = `translate(${x * 22}px,${z * 22}px)`;
-  move.x = x * CAMERA_RIGHT.x + z * CAMERA_DOWN.x; move.z = x * CAMERA_RIGHT.z + z * CAMERA_DOWN.z; clearDestination();
-}
-listen($('joystick'), 'pointerdown', (e) => {
-  if (paused || !started) return;
-  e.preventDefault(); joystickId = e.pointerId; $('joystick').setPointerCapture(e.pointerId); joystickMove(e);
-});
-listen($('joystick'), 'pointermove', joystickMove);
-function releaseJoystick(e) { if (e.pointerId !== joystickId) return; joystickId = null; move.x = move.z = 0; $('stick').style.transform = ''; }
-listen($('joystick'), 'pointerup', releaseJoystick); listen($('joystick'), 'pointercancel', releaseJoystick);
 listen(window, 'keydown', (event) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
   if (event.key === 'Escape' && started && !$('sheet').open) openMenu();
   keys.add(event.key.toLowerCase());
 });
 listen(window, 'keyup', (event) => keys.delete(event.key.toLowerCase()));
-listen(window, 'blur', () => { move.x = move.z = 0; keys.clear(); joystickId = null; $('stick').style.transform = ''; });
+listen(window, 'blur', stopInput);
 listen(document, 'visibilitychange', () => {
   if (document.hidden) { paused = true; stopInput(); save(); audioContext?.suspend().catch(() => {}); }
   else { lastTime = performance.now(); if (started && !$('sheet').open) openMenu(); }

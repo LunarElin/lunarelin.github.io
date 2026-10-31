@@ -26,7 +26,7 @@ function bodyGeometry(appearance, customer) {
     }
     parts.push(geometry);
   } else {
-    const skinColor = appearance.key === 'enemy' ? appearance.body : '#fff4dd';
+    const skinColor = appearance.key === 'enemy' ? appearance.body : '#f1bd82';
     const body = createSourceGeometry('player', { color: skinColor, skin: true });
     const apron = createSourceGeometry('apron', { color: appearance.body, skin: true });
     body.scale(scale, scale, scale); apron.scale(scale, scale, scale);

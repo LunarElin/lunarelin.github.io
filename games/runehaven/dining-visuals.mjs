@@ -10,7 +10,7 @@ const STACK_CAPACITY = 60;
 function dishGeometry(dirty) {
   return createSourceGeometry(dirty ? 'emptyDish' : 'burger', {
     size: [.46, dirty ? .03 : .143, .46],
-    vertexColor: point => dirty ? '#a19c9e' : point.y > .1 ? '#edc081' : point.y > .075 ? '#87bba0' : point.y > .045 ? '#a16d69' : '#edc081',
+    vertexColor: point => dirty ? '#705344' : point.y > .1 ? '#e89b22' : point.y > .075 ? '#238b2e' : point.y > .045 ? '#5c281d' : '#e89b22',
   });
 }
 
@@ -21,18 +21,18 @@ export async function createDiningVisuals(scene) {
   const mealGeometry = dishGeometry(false), dirtyGeometry = dishGeometry(true);
   const furnitureGeometries = new Set();
   function furnitureGeometry(key, size) {
-    const geometry = createSourceGeometry(key, { size }); furnitureGeometries.add(geometry); return geometry;
+    const geometry = createSourceGeometry(key, { size, vertexColor: point => key === 'table' && point.y < size[1] * .8 ? '#2b3f49' : '#ffffff' }); furnitureGeometries.add(geometry); return geometry;
   }
   const chairGeometry = furnitureGeometry('chair', [.5, .65, .5]);
   const furnitureMaterials = new Map();
   function material(color) {
     if (!furnitureMaterials.has(color)) {
-      const result = new THREE.MeshLambertMaterial({ color }); result.userData.diningShared = true;
+      const result = new THREE.MeshLambertMaterial({ color, vertexColors: true }); result.userData.diningShared = true;
       furnitureMaterials.set(color, result);
     }
     return furnitureMaterials.get(color);
   }
-  const cleanTable = material('#ebdfc6'), dirtyTable = material('#aaa29c');
+  const cleanTable = material('#ead2a0'), dirtyTable = material('#82664e');
   const diningTableGeometry = furnitureGeometry('table', [1.6, .65, 1.1]);
   function table(name, height, width = 1.6, depth = 1.1) {
     const result = new THREE.Group(); result.name = name;
@@ -41,15 +41,15 @@ export async function createDiningVisuals(scene) {
     return { object: result, top };
   }
   function chair(name) {
-    const result = new THREE.Mesh(chairGeometry, material('#91b5c1')); result.name = name;
+    const result = new THREE.Mesh(chairGeometry, material('#254c72')); result.name = name;
     result.castShadow = true; return result;
   }
   const counter = new THREE.Group(), kitchen = new THREE.Group();
   counter.name = 'dining-counter'; kitchen.name = 'dining-kitchen'; group.add(counter, kitchen);
-  const servingTable = new THREE.Mesh(furnitureGeometry('table', [1.9, .71, 1.3]), material('#91b5c1'));
+  const servingTable = new THREE.Mesh(furnitureGeometry('table', [1.9, .71, 1.3]), material('#e5d09b'));
   servingTable.castShadow = servingTable.receiveShadow = true; counter.add(servingTable);
-  const stove = new THREE.Mesh(createSourceGeometry('grill', { bounds: { minX: -.95, maxX: -.1, minY: 0, maxY: 1.08, minZ: -.65, maxZ: .65 } }), material('#a68db7'));
-  const kitchenOutput = new THREE.Mesh(createSourceGeometry('table', { bounds: { minX: -.1, maxX: .95, minY: 0, maxY: .71, minZ: -.65, maxZ: .65 } }), material('#d1b9a0'));
+  const stove = new THREE.Mesh(createSourceGeometry('grill', { bounds: { minX: -.95, maxX: -.1, minY: 0, maxY: 1.08, minZ: -.65, maxZ: .65 } }), material('#34495b'));
+  const kitchenOutput = new THREE.Mesh(createSourceGeometry('table', { bounds: { minX: -.1, maxX: .95, minY: 0, maxY: .71, minZ: -.65, maxZ: .65 }, vertexColor: point => point.y > .56 ? '#ffffff' : '#2b3f49' }), material('#e5d09b'));
   for (const mesh of [stove, kitchenOutput]) { furnitureGeometries.add(mesh.geometry); mesh.castShadow = mesh.receiveShadow = true; kitchen.add(mesh); }
   const foodMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
   foodMaterial.userData.diningShared = true;

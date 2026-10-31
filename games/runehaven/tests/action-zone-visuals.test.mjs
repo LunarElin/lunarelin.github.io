@@ -9,6 +9,15 @@ import { expandDining, setSeatState } from './dining-fixtures.mjs';
 test('rendered floor circles use the exact gameplay center and radius above the floor pads in every region', () => {
   const scene = new THREE.Group(), visuals = createActionZoneVisuals(scene), matrix = new THREE.Matrix4();
   try {
+    const ring = visuals.group.getObjectByName('action-circle-rings');
+    const positions = ring.geometry.attributes.position, colors = ring.geometry.attributes.color;
+    let outer = 0, dark = false, light = false;
+    for (let i = 0; i < positions.count; i++) {
+      outer = Math.max(outer, Math.hypot(positions.getX(i), positions.getZ(i)));
+      dark ||= colors.getX(i) < .02; light ||= colors.getX(i) > .99;
+    }
+    assert.ok(Math.abs(outer - 1) < 1e-6, 'the contrast rim must end exactly on the gameplay radius');
+    assert.ok(dark && light && ring.material.vertexColors, 'dark rim and bright action color share one batch');
     for (let stage = 1; stage <= 10; stage++) {
       const state = createGame(42); state.stage = stage; state.unlocks.alchemy = state.unlocks.inn = true; expandDining(state);
       setSeatState(state, 0, 0, 'dirty');
