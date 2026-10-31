@@ -1,0 +1,30 @@
+/* The woodland palette uses broad brown contours and simple color regions. */
+:root{--ink:#583f21;color:var(--ink);background:#5e6c42}
+svg{stroke:#583f21;stroke-width:3}
+.game-shell{background:#cfd99a}
+.vignette{box-shadow:inset 0 0 30px #4e563814}
+.hero-medallion{border-color:#fff0c6;background:#c5d495;box-shadow:0 5px #705237,0 7px 12px #4e563833}
+.coin-counter{border-color:#80623e;background:#fff0cf;box-shadow:inset 0 2px #fff8df,0 3px #6a5a3e40}
+.material-counter{border-color:#879959;background:#e8edc2}
+.party-count{color:#60723f}
+.wave-hud{border-color:#9c9b67;background:#fff0cf}
+.round-button{background:linear-gradient(#fff1cf,#e9d5a2)}
+.bottom-hud{background:linear-gradient(#fff1cf,#e6d5aa);border-top-color:#fff6d9;box-shadow:0 -3px #9a7b4f,0 -9px 20px #4e563822}
+.upgrade{border-color:#9d7b4e;background:#fff0d0;box-shadow:inset 0 2px #fff8e3,0 4px #8e7048}
+.upgrade-level{color:#886b42}
+.upgrade-cost{background:#a4bf78;border-color:#829954;color:#4b3b24;text-shadow:none}
+.upgrade.unaffordable .upgrade-cost{background:#c9b894;border-color:#b7a27b;color:#59442b}
+.party-member .member-level{background:#edcf86;border-color:#9c7a48;color:#583f21}
+.party-lock{color:#665136;background:#e4d6afe8}
+.skill-button{background:linear-gradient(#f4d47c,#dfb35b);border-color:#fff0b6;box-shadow:inset 0 2px #fff4c4,0 6px #8c6638,0 9px 14px #4e563833}
+.auto-button.active{background:#e2eac0;color:#52753e;border-color:#83995b}
+.overlay{background:#3f482e75}
+.dialog,.dialog.start-dialog{background:linear-gradient(#fff2d4,#e8d9b0);border-color:#fff8df}
+.menu-action.primary{background:linear-gradient(#bbd38d,#8eaf65);border-color:#e3ebad}
+.load-indicator{background:#cfd99a}
+.load-indicator>div{background:#8eaa62}
+.load-indicator i{background:#ead08b}
+.encounter-heart{color:#c87865}
+.growth-info{background:#e4d8af}
+.growth-info small{color:#7c694a}
+@media(min-width:600px){.game-shell{border-inline-color:#6f8053}}

@@ -3,52 +3,50 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#eadcf7">
-  <meta name="description" content="다람쥐와 네 친구가 각자의 방법으로 채집하고 성장하는 파스텔 숲 방치형 게임. 화면을 드래그하면 직접 이동합니다.">
+  <meta name="theme-color" content="#cfd99a">
+  <meta name="description" content="다람쥐와 네 친구가 각자의 방법으로 채집하고 성장하는 숲길 방치형 채집 게임. 화면을 드래그하면 직접 이동합니다.">
   <title>도토리 원정대</title>
-  <link rel="icon" href="icon.svg?v=pastel-20261030-v2" type="image/svg+xml">
+  <link rel="icon" href="icon.svg?v=outlined-20261031-v1" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="pastel-theme.css?v=pastel-20261030-v2">
+  <link rel="stylesheet" href="forest-theme.css?v=outlined-20261031-v1">
 </head>
 <body>
   <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
-      <linearGradient id="paint-gold" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#fff9cf"/><stop offset=".45" stop-color="#ffe4a0"/><stop offset="1" stop-color="#e5ba82"/></linearGradient>
-      <linearGradient id="paint-cap" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f9e4c6"/><stop offset="1" stop-color="#c99dab"/></linearGradient>
-      <symbol id="i-acorn" viewBox="0 0 48 48"><path d="M14 20c-8 15 2 23 10 25 8-2 18-10 10-25" fill="url(#paint-gold)"/><path d="M13 23c-3-2-4-4-2-7 5-7 21-7 26 0 2 3 1 5-2 7Z" fill="url(#paint-cap)"/><path d="m22 10 4-6 5 1" fill="none"/><path d="m17 16 5 5 6-7 5 6" fill="none" stroke="#c6a0b2" stroke-width="2"/><path d="M17 28q0 7 5 10" fill="none" stroke="#fff5db" stroke-width="3"/></symbol>
-      <symbol id="i-coin" viewBox="0 0 48 48"><ellipse cx="24" cy="26" rx="18" ry="19" fill="#cda1aa"/><circle cx="24" cy="22" r="18" fill="url(#paint-gold)"/><circle cx="24" cy="22" r="12" fill="#ffdfa2" stroke="#e2b68c" stroke-width="2"/><path d="m24 12 3 7 7 1-5 5 1 8-6-4-7 4 2-8-6-5 8-1Z" fill="#fff6d5" stroke="none"/></symbol>
-      <symbol id="i-heart" viewBox="0 0 48 48"><path d="M24 41S4 29 4 16C4 4 20 2 24 13 28 2 44 4 44 16c0 13-20 25-20 25Z" fill="#ee9fc3"/><path d="M11 16q0-5 6-5" stroke="#fff1ec" fill="none" stroke-width="3"/></symbol>
-      <symbol id="i-bolt" viewBox="0 0 48 48"><path d="m27 3-20 25h15l-2 17 21-27H26Z" fill="#ffe4a8"/></symbol>
-      <symbol id="i-paw" viewBox="0 0 48 48"><path d="M10 34c0-7 9-16 14-16s14 9 14 16c0 10-10 4-14 4s-14 6-14-4Z" fill="#e9bea8"/><ellipse cx="9" cy="17" rx="5" ry="7" transform="rotate(-25 9 17)" fill="#e9bea8"/><ellipse cx="20" cy="10" rx="5" ry="7" fill="#e9bea8"/><ellipse cx="32" cy="11" rx="5" ry="7" fill="#e9bea8"/><ellipse cx="41" cy="21" rx="5" ry="7" transform="rotate(25 41 21)" fill="#e9bea8"/></symbol>
-      <symbol id="i-feather" viewBox="0 0 48 48"><path d="M10 37C4 21 17 1 37 5c7 19-7 34-22 31" fill="#b4e4d2"/><path d="m7 44 26-31M17 33l-2-12m10 3 11-1" fill="none"/></symbol>
-      <symbol id="i-sword" viewBox="0 0 48 48"><path d="m19 30 1-14L39 3l5 5-14 20-12 2" fill="#f0f5ff"/><path d="m16 28 9 9M21 33l-9 10-7-7 10-9" fill="#efcf9f"/><path d="m23 25 13-14" stroke="#bbdcca"/></symbol>
-      <symbol id="i-leaf" viewBox="0 0 48 48"><path d="M8 34C-1 12 21 3 42 5c-1 24-10 41-31 31" fill="#aedbc3"/><path d="m5 44 27-28M16 33l-1-13m9 5h11" fill="none"/></symbol>
-      <symbol id="i-home" viewBox="0 0 48 48"><path d="M7 22 24 6l17 16v20H29V28H19v14H7Z" fill="#f4d1e1"/><path d="M3 23 24 3l21 20" fill="none"/></symbol>
+      <symbol id="i-acorn" viewBox="0 0 48 48"><path d="M14 20c-8 15 2 23 10 25 8-2 18-10 10-25" fill="#f2ca6d"/><path d="M13 23c-3-2-4-4-2-7 5-7 21-7 26 0 2 3 1 5-2 7Z" fill="#a77a48"/><path d="m22 10 4-6 5 1" fill="none"/><path d="m17 16 5 5 6-7 5 6" fill="none" stroke="#755234" stroke-width="2"/><path d="M17 28q0 7 5 10" fill="none" stroke="#ffe7a1" stroke-width="3"/></symbol>
+      <symbol id="i-coin" viewBox="0 0 48 48"><ellipse cx="24" cy="26" rx="18" ry="19" fill="#ad7d3c"/><circle cx="24" cy="22" r="18" fill="#f2ca6d"/><circle cx="24" cy="22" r="12" fill="#efbd4e" stroke="#bb893f" stroke-width="2"/><path d="m24 12 3 7 7 1-5 5 1 8-6-4-7 4 2-8-6-5 8-1Z" fill="#fff6d5" stroke="none"/></symbol>
+      <symbol id="i-heart" viewBox="0 0 48 48"><path d="M24 41S4 29 4 16C4 4 20 2 24 13 28 2 44 4 44 16c0 13-20 25-20 25Z" fill="#d98678"/><path d="M11 16q0-5 6-5" stroke="#fff1ec" fill="none" stroke-width="3"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 48 48"><path d="m27 3-20 25h15l-2 17 21-27H26Z" fill="#f8d266"/></symbol>
+      <symbol id="i-paw" viewBox="0 0 48 48"><path d="M10 34c0-7 9-16 14-16s14 9 14 16c0 10-10 4-14 4s-14 6-14-4Z" fill="#b88a54"/><ellipse cx="9" cy="17" rx="5" ry="7" transform="rotate(-25 9 17)" fill="#b88a54"/><ellipse cx="20" cy="10" rx="5" ry="7" fill="#b88a54"/><ellipse cx="32" cy="11" rx="5" ry="7" fill="#b88a54"/><ellipse cx="41" cy="21" rx="5" ry="7" transform="rotate(25 41 21)" fill="#b88a54"/></symbol>
+      <symbol id="i-feather" viewBox="0 0 48 48"><path d="M10 37C4 21 17 1 37 5c7 19-7 34-22 31" fill="#96b474"/><path d="m7 44 26-31M17 33l-2-12m10 3 11-1" fill="none"/></symbol>
+      <symbol id="i-sword" viewBox="0 0 48 48"><path d="m19 30 1-14L39 3l5 5-14 20-12 2" fill="#e5e6ca"/><path d="m16 28 9 9M21 33l-9 10-7-7 10-9" fill="#bd9259"/><path d="m23 25 13-14" stroke="#93ac78"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 48 48"><path d="M8 34C-1 12 21 3 42 5c-1 24-10 41-31 31" fill="#91ac70"/><path d="m5 44 27-28M16 33l-1-13m9 5h11" fill="none"/></symbol>
+      <symbol id="i-home" viewBox="0 0 48 48"><path d="M7 22 24 6l17 16v20H29V28H19v14H7Z" fill="#d4b07b"/><path d="M3 23 24 3l21 20" fill="none"/></symbol>
       <symbol id="i-pause" viewBox="0 0 48 48"><path d="M13 10h7v29h-7zm15 0h7v29h-7Z" fill="currentColor" stroke="none"/></symbol>
       <symbol id="i-play" viewBox="0 0 48 48"><path d="m16 7 25 17-25 17Z" fill="currentColor" stroke="none"/></symbol>
       <symbol id="i-restart" viewBox="0 0 48 48"><path d="M10 16A17 17 0 1 1 8 29" fill="none" stroke="currentColor" stroke-width="5"/><path d="m7 5-3 17 17-3" fill="currentColor" stroke="none"/></symbol>
       <symbol id="i-close" viewBox="0 0 48 48"><path d="m13 13 22 22m0-22L13 35" fill="none" stroke="currentColor" stroke-width="5"/></symbol>
       <symbol id="i-sound" viewBox="0 0 48 48"><path d="M5 18h9L27 7v34L14 30H5Z" fill="currentColor" stroke="none"/><path d="M34 15q10 9 0 18m5-27q18 18 0 36" stroke="currentColor" fill="none" stroke-width="3"/></symbol>
-      <symbol id="i-gift" viewBox="0 0 48 48"><path d="M7 20h34v23H7ZM4 13h40v10H4Z" fill="#edc9d6"/><path d="M20 13C4 15 11-4 21 6l3 7c15-20 23 5 3 0M24 15v27" fill="none" stroke="#b28ab9" stroke-width="5"/></symbol>
-      <symbol id="i-crown" viewBox="0 0 48 48"><path d="m6 13 11 9L24 5l8 17 10-9-5 26H11Z" fill="#ffe4a2"/><path d="M12 34h24" stroke="#d8b68c"/></symbol>
+      <symbol id="i-gift" viewBox="0 0 48 48"><path d="M7 20h34v23H7ZM4 13h40v10H4Z" fill="#e5bd72"/><path d="M20 13C4 15 11-4 21 6l3 7c15-20 23 5 3 0M24 15v27" fill="none" stroke="#768e51" stroke-width="5"/></symbol>
+      <symbol id="i-crown" viewBox="0 0 48 48"><path d="m6 13 11 9L24 5l8 17 10-9-5 26H11Z" fill="#edc966"/><path d="M12 34h24" stroke="#aa803e"/></symbol>
       <symbol id="i-infinity" viewBox="0 0 48 48"><path d="M24 24C2-5-4 48 24 24c28-24 22 29 0 0Z" fill="none" stroke="currentColor" stroke-width="5"/></symbol>
       <symbol id="i-up" viewBox="0 0 48 48"><path d="m8 26 16-17 16 17H30v16H18V26Z" fill="currentColor" stroke="none"/></symbol>
       <symbol id="i-arrow" viewBox="0 0 48 48"><path d="m10 31 14-16 14 16Z" fill="currentColor" stroke="none"/></symbol>
-      <symbol id="i-shield" viewBox="0 0 48 48"><path d="m24 4 17 6-2 19-15 15L9 29 7 10Z" fill="#b8e4d4"/><path d="m15 23 7 7 12-15" fill="none" stroke="#fff8df" stroke-width="5"/></symbol>
-      <symbol id="i-tree" viewBox="0 0 48 48"><path d="M20 28h9v16h-9Z" fill="#d4a7ba"/><path d="M10 30C0 26 4 15 12 14 9 3 27-1 31 10c13-3 20 18 7 21Z" fill="#c0e7cf"/><path d="m23 34 1-16m0 9 8-6" fill="none" stroke="#9dc8b0"/></symbol>
-      <symbol id="i-rapid" viewBox="0 0 48 48"><path d="M3 13h10M1 23h9M4 33h9" fill="none" stroke="#a0cbb8" stroke-width="3"/><path d="M19 16c-9 3-9 17 0 20l10-10Z" fill="#f7d5a1"/><path d="m22 12 12 11-6 7-12-11Z" fill="#c9a4b4"/><path d="m31 13 7 10-7 10m8-20 7 10-7 10" fill="none" stroke="#9bc8b1" stroke-width="3"/></symbol>
-      <symbol id="i-wood" viewBox="0 0 48 48"><path d="m11 11 27 3 3 24-26-3Z" fill="#d8b0c3"/><ellipse cx="13" cy="23" rx="10" ry="14" fill="#f3d6b7"/><ellipse cx="13" cy="23" rx="5" ry="8" fill="none" stroke="#c6a0b6"/><path d="m23 16 14 2m-13 7 14 2m-13 5 12 2" stroke="#a58aae"/></symbol>
-      <symbol id="i-berries" viewBox="0 0 48 48"><path d="M23 19c-14 1-15-12-11-14 10 0 14 4 11 14m1 0C24 5 35 4 40 6c0 10-6 15-16 13" fill="#abd6bf"/><circle cx="15" cy="28" r="10" fill="#f1abc9"/><circle cx="33" cy="28" r="10" fill="#f7b9cf"/><circle cx="24" cy="36" r="10" fill="#e597bc"/><path d="m12 24 3-2m15 1 3-1m-12 11 3-1" stroke="#ffe3ec"/></symbol>
-      <symbol id="i-bamboo" viewBox="0 0 48 48"><path d="m16 43 3-38h10l-3 38Z" fill="#b8dfcd"/><path d="m18 15 10 1m-11 13 10 1M29 21c0-12 8-13 13-12-1 10-5 13-13 12M17 30C4 32 3 23 4 18c10 0 14 5 13 12" fill="#9fceb8"/><path d="m20 7 1 34" stroke="#e9fff3" stroke-width="2"/></symbol>
-      <symbol id="i-grain" viewBox="0 0 48 48"><path d="m21 45 4-40m-1 34C8 39 7 32 7 27c10-1 17 3 17 12m0-11C9 28 9 21 10 17c10 0 15 3 14 11m1-10C14 18 13 11 15 7c8 0 11 4 10 11m1 20c14 0 17-9 15-13-9-1-15 4-15 13m0-12c13 0 15-8 13-12-8 0-13 5-13 12" fill="#f7d5a8"/><path d="M25 5v35" stroke="#b394b0" stroke-width="2"/></symbol>
-      <symbol id="i-combo" viewBox="0 0 48 48"><path d="m8 12 12 8-9 12m12-20 13 8-10 12" fill="none" stroke="#b498c3" stroke-width="6"/><path d="m9 40 29-2" stroke="#ead1af" stroke-width="4"/></symbol>
-      <symbol id="i-ring" viewBox="0 0 48 48"><ellipse cx="24" cy="30" rx="20" ry="10" fill="#ecd5eb"/><ellipse cx="24" cy="28" rx="11" ry="5" fill="#c7e4d5"/><path d="m24 5-5 18h10ZM8 8l5 10m27-10-5 10" fill="#f5d6a8"/></symbol>
-      <symbol id="i-rare" viewBox="0 0 48 48"><path d="m24 3 6 14 15 7-15 6-6 15-6-15-15-6 15-7Z" fill="#ffdfac"/><path d="m24 15 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" fill="#fff9df" stroke="none"/></symbol>
-      <symbol id="i-basket" viewBox="0 0 48 48"><path d="M7 20h34l-6 23H13Z" fill="#e3bdd2"/><path d="M14 20C9-2 39-2 34 20" fill="none" stroke="#b395bb" stroke-width="5"/><path d="M5 20h38M13 29h22M15 36h18M20 23v17m9-17v17" stroke="#bda0c3" stroke-width="2"/></symbol>
-      <symbol id="i-sweep" viewBox="0 0 48 48"><path d="M5 37C7 12 30 4 43 12M8 36c9-15 18-19 31-15" fill="none" stroke="#a8d6c0" stroke-width="6"/><path d="m34 4 11 8-12 7" fill="#f0e6c5"/><path d="M15 44 28 21" stroke="#c3a2bd" stroke-width="5"/></symbol>
-      <symbol id="i-beak" viewBox="0 0 48 48"><circle cx="20" cy="21" r="16" fill="#c5b9e9"/><path d="m30 14 15 9-15 6" fill="#f7d69f"/><circle cx="22" cy="17" r="3" fill="#78638d" stroke="none"/><path d="m35 36 4 7m-15-3 2 5" stroke="#e2c2a3" stroke-width="4"/></symbol>
-      <symbol id="i-double" viewBox="0 0 48 48"><path d="m8 7 16 10-16 9Zm17 14 17 10-17 10Z" fill="#f3d3ab"/><path d="m4 34 8 6m24-33 7 6" stroke="#bda3c0" stroke-width="3"/></symbol>
-      <symbol id="i-lock" viewBox="0 0 48 48"><path d="M13 22V13a11 11 0 0 1 22 0v9" fill="none" stroke="#baa6c8" stroke-width="5"/><rect x="8" y="20" width="32" height="24" rx="7" fill="#d9c8e4"/><path d="M24 28v8" stroke="#ac93bc" stroke-width="4"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 48 48"><path d="m24 4 17 6-2 19-15 15L9 29 7 10Z" fill="#93ad78"/><path d="m15 23 7 7 12-15" fill="none" stroke="#fff1c0" stroke-width="5"/></symbol>
+      <symbol id="i-tree" viewBox="0 0 48 48"><path d="M20 28h9v16h-9Z" fill="#9e734c"/><path d="M10 30C0 26 4 15 12 14 9 3 27-1 31 10c13-3 20 18 7 21Z" fill="#81a855"/><path d="m23 34 1-16m0 9 8-6" fill="none" stroke="#58713c"/></symbol>
+      <symbol id="i-rapid" viewBox="0 0 48 48"><path d="M3 13h10M1 23h9M4 33h9" fill="none" stroke="#81a855" stroke-width="3"/><path d="M19 16c-9 3-9 17 0 20l10-10Z" fill="#d6ad65"/><path d="m22 12 12 11-6 7-12-11Z" fill="#a77a48"/><path d="m31 13 7 10-7 10m8-20 7 10-7 10" fill="none" stroke="#718e51" stroke-width="3"/></symbol>
+      <symbol id="i-wood" viewBox="0 0 48 48"><path d="m11 11 27 3 3 24-26-3Z" fill="#a57a52"/><ellipse cx="13" cy="23" rx="10" ry="14" fill="#dfbe89"/><ellipse cx="13" cy="23" rx="5" ry="8" fill="none" stroke="#94704c"/><path d="m23 16 14 2m-13 7 14 2m-13 5 12 2" stroke="#745537"/></symbol>
+      <symbol id="i-berries" viewBox="0 0 48 48"><path d="M23 19c-14 1-15-12-11-14 10 0 14 4 11 14m1 0C24 5 35 4 40 6c0 10-6 15-16 13" fill="#7f9c59"/><circle cx="15" cy="28" r="10" fill="#ce7461"/><circle cx="33" cy="28" r="10" fill="#df8c72"/><circle cx="24" cy="36" r="10" fill="#ba6756"/><path d="m12 24 3-2m15 1 3-1m-12 11 3-1" stroke="#f5c59b"/></symbol>
+      <symbol id="i-bamboo" viewBox="0 0 48 48"><path d="m16 43 3-38h10l-3 38Z" fill="#a0b66d"/><path d="m18 15 10 1m-11 13 10 1M29 21c0-12 8-13 13-12-1 10-5 13-13 12M17 30C4 32 3 23 4 18c10 0 14 5 13 12" fill="#7b9955"/><path d="m20 7 1 34" stroke="#c6d58c" stroke-width="2"/></symbol>
+      <symbol id="i-grain" viewBox="0 0 48 48"><path d="m21 45 4-40m-1 34C8 39 7 32 7 27c10-1 17 3 17 12m0-11C9 28 9 21 10 17c10 0 15 3 14 11m1-10C14 18 13 11 15 7c8 0 11 4 10 11m1 20c14 0 17-9 15-13-9-1-15 4-15 13m0-12c13 0 15-8 13-12-8 0-13 5-13 12" fill="#dfbd72"/><path d="M25 5v35" stroke="#8b7145" stroke-width="2"/></symbol>
+      <symbol id="i-combo" viewBox="0 0 48 48"><path d="m8 12 12 8-9 12m12-20 13 8-10 12" fill="none" stroke="#ad8454" stroke-width="6"/><path d="m9 40 29-2" stroke="#e7cd92" stroke-width="4"/></symbol>
+      <symbol id="i-ring" viewBox="0 0 48 48"><ellipse cx="24" cy="30" rx="20" ry="10" fill="#cab689"/><ellipse cx="24" cy="28" rx="11" ry="5" fill="#9bb875"/><path d="m24 5-5 18h10ZM8 8l5 10m27-10-5 10" fill="#e6bf6c"/></symbol>
+      <symbol id="i-rare" viewBox="0 0 48 48"><path d="m24 3 6 14 15 7-15 6-6 15-6-15-15-6 15-7Z" fill="#f2cf72"/><path d="m24 15 2 7 7 2-7 2-2 7-2-7-7-2 7-2Z" fill="#fff0b4" stroke="none"/></symbol>
+      <symbol id="i-basket" viewBox="0 0 48 48"><path d="M7 20h34l-6 23H13Z" fill="#b9915b"/><path d="M14 20C9-2 39-2 34 20" fill="none" stroke="#7f5c39" stroke-width="5"/><path d="M5 20h38M13 29h22M15 36h18M20 23v17m9-17v17" stroke="#997346" stroke-width="2"/></symbol>
+      <symbol id="i-sweep" viewBox="0 0 48 48"><path d="M5 37C7 12 30 4 43 12M8 36c9-15 18-19 31-15" fill="none" stroke="#8aab63" stroke-width="6"/><path d="m34 4 11 8-12 7" fill="#e7dba1"/><path d="M15 44 28 21" stroke="#997346" stroke-width="5"/></symbol>
+      <symbol id="i-beak" viewBox="0 0 48 48"><circle cx="20" cy="21" r="16" fill="#b69b72"/><path d="m30 14 15 9-15 6" fill="#d5a751"/><circle cx="22" cy="17" r="3" fill="#583f21" stroke="none"/><path d="m35 36 4 7m-15-3 2 5" stroke="#af854e" stroke-width="4"/></symbol>
+      <symbol id="i-double" viewBox="0 0 48 48"><path d="m8 7 16 10-16 9Zm17 14 17 10-17 10Z" fill="#dbb57d"/><path d="m4 34 8 6m24-33 7 6" stroke="#9b7a52" stroke-width="3"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 48 48"><path d="M13 22V13a11 11 0 0 1 22 0v9" fill="none" stroke="#88714e" stroke-width="5"/><rect x="8" y="20" width="32" height="24" rx="7" fill="#c0ad82"/><path d="M24 28v8" stroke="#7b6243" stroke-width="4"/></symbol>
     </defs>
   </svg>
   <main id="game" class="game-shell" aria-label="도토리 원정대 게임">
@@ -79,6 +77,6 @@
     <div id="load-indicator" class="load-indicator" aria-label="리소스 불러오는 중"><svg><use href="#i-acorn"/></svg><div><i></i></div></div>
     <span id="announcer" class="sr-only" aria-live="polite"></span>
   </main>
-  <script type="module" src="game.mjs?v=pastel-20261030-v2"></script>
+  <script type="module" src="game.mjs?v=outlined-20261031-v1"></script>
 </body>
 </html>

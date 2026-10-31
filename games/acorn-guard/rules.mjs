@@ -5,11 +5,11 @@ export const LEGACY_STORAGE_KEY = 'acorn-guard:v2';
 export const WORLD = Object.freeze({ width: 900, height: 700, margin: 38 });
 export const RECRUIT_THRESHOLDS = Object.freeze({ bear: 8, fox: 25, redpanda: 50, sparrow: 85 });
 export const HEROES = Object.freeze([
-  { id: 'squirrel', name: '다람쥐', resource: 'acorn', damage: 17, rate: 1.9, speed: 160, yield: 1.2, color: '#f4c6a3', trait: '도토리를 발사해 나무를 수확' },
-  { id: 'bear', name: '곰', resource: 'wood', damage: 36, rate: 1.05, speed: 172, yield: 1, color: '#f0d5ae', trait: '나무에 다가가 앞발로 내려쳐 목재 수확' },
-  { id: 'fox', name: '여우', resource: 'berries', damage: 20, rate: 1.5, speed: 220, yield: 1, color: '#f0b5ac', trait: '열매를 찾아 달려가 직접 따기' },
-  { id: 'redpanda', name: '래서판다', resource: 'bamboo', damage: 24, rate: 1.35, speed: 178, yield: 1, color: '#dfb3c6', trait: '가까운 대나무를 넓게 베어 수확' },
-  { id: 'sparrow', name: '참새', resource: 'grain', damage: 12, rate: 2.2, speed: 235, yield: 1, color: '#c3b9e8', trait: '짧게 걸어가 곡식을 쪼아 수확' },
+  { id: 'squirrel', name: '다람쥐', resource: 'acorn', damage: 17, rate: 1.9, speed: 160, yield: 1.2, color: '#e2bc80', trait: '도토리를 발사해 나무를 수확' },
+  { id: 'bear', name: '곰', resource: 'wood', damage: 36, rate: 1.05, speed: 172, yield: 1, color: '#c5a077', trait: '나무에 다가가 앞발로 내려쳐 목재 수확' },
+  { id: 'fox', name: '여우', resource: 'berries', damage: 20, rate: 1.5, speed: 220, yield: 1, color: '#e4a373', trait: '열매를 찾아 달려가 직접 따기' },
+  { id: 'redpanda', name: '래서판다', resource: 'bamboo', damage: 24, rate: 1.35, speed: 178, yield: 1, color: '#d39570', trait: '가까운 대나무를 넓게 베어 수확' },
+  { id: 'sparrow', name: '참새', resource: 'grain', damage: 12, rate: 2.2, speed: 235, yield: 1, color: '#cfb68a', trait: '짧게 걸어가 곡식을 쪼아 수확' },
 ]);
 const HERO_BY_ID = new Map(HEROES.map(hero => [hero.id, hero]));
 const ORDER = HEROES.map(hero => hero.id), START_Y = WORLD.height * .65;
@@ -230,7 +230,7 @@ function award(state, node, worker, rng) {
   const member = state.members[worker.id];
   let materials = worker.id === 'squirrel' ? 2 + Math.floor(member.upgrades.bounty / 3) : worker.id === 'bear' ? 3 : worker.id === 'fox' ? worker.basket : 2;
   let bonus = 0;
-  if (worker.id === 'fox' && random(rng) < worker.rareChance) { materials += 3; bonus = 15; effect(state, 'rare', node.x, node.y, 3, '#efb7f5', .9, worker.id, 'berries'); }
+  if (worker.id === 'fox' && random(rng) < worker.rareChance) { materials += 3; bonus = 15; effect(state, 'rare', node.x, node.y, 3, '#e6b57a', .9, worker.id, 'berries'); }
   if (worker.id === 'sparrow' && random(rng) < worker.seedChance) { materials += 2; effect(state, 'rare', node.x, node.y, 2, '#f5e693', .9, worker.id, 'grain'); }
   member.materials = Math.min(MAX_COINS, member.materials + materials);
   const earned = Math.round((TREE_KINDS.has(node.kind) ? node.kind === 'golden' ? 45 : 20 + (state.tier - 1) * 2 : 12) * worker.yield) + bonus;
@@ -243,7 +243,7 @@ function award(state, node, worker, rng) {
   if (member.level === 100) member.xp = Math.min(member.xp, xpForLevel(member.level) - 1);
   effect(state, 'coin', node.x, node.y - 12, earned, '#ffe18a', 1, worker.id);
   effect(state, 'material', node.x, node.y - 25, materials, HERO_BY_ID.get(worker.id).color, 1.2, worker.id, HERO_BY_ID.get(worker.id).resource);
-  effect(state, TREE_KINDS.has(node.kind) ? 'chop' : 'gather', node.x, node.y, 0, '#c6ecd9', .65, worker.id);
+  effect(state, TREE_KINDS.has(node.kind) ? 'chop' : 'gather', node.x, node.y, 0, '#afc777', .65, worker.id);
   if (worker.id === 'redpanda' && random(rng) < worker.regrowthChance && state.regrowth.length < 10) state.regrowth.push({ x: node.x, y: node.y, time: 2.5 });
   if (TREE_KINDS.has(node.kind)) {
     state.treesHarvested++; state.groveHarvested++;

@@ -53,7 +53,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 0.990741,
+              "renderScale": 0.979167,
               "frames": [
                 {
                   "x": 0,
@@ -102,7 +102,7 @@
             "attack": {
               "fps": 10,
               "loop": false,
-              "renderScale": 0.990741,
+              "renderScale": 0.921569,
               "frames": [
                 {
                   "x": 0,
@@ -161,7 +161,7 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 1.028846,
+          "renderScale": 0.949495,
           "animations": {
             "idle": {
               "fps": 5,
@@ -201,7 +201,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 0.954128,
+              "renderScale": 0.916667,
               "frames": [
                 {
                   "x": 0,
@@ -250,7 +250,7 @@
             "attack": {
               "fps": 10,
               "loop": false,
-              "renderScale": 0.945455,
+              "renderScale": 0.970588,
               "frames": [
                 {
                   "x": 0,
@@ -309,7 +309,7 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 0.981651,
+          "renderScale": 1.05618,
           "animations": {
             "idle": {
               "fps": 5,
@@ -349,7 +349,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.028302,
+              "renderScale": 0.936842,
               "frames": [
                 {
                   "x": 0,
@@ -398,7 +398,7 @@
             "attack": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.058252,
+              "renderScale": 1.059524,
               "frames": [
                 {
                   "x": 0,
@@ -457,7 +457,7 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 0.981651,
+          "renderScale": 1.0,
           "animations": {
             "idle": {
               "fps": 5,
@@ -497,7 +497,7 @@
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.058252,
+              "renderScale": 1.021739,
               "frames": [
                 {
                   "x": 0,
@@ -546,7 +546,7 @@
             "attack": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.038095,
+              "renderScale": 1.068182,
               "frames": [
                 {
                   "x": 0,
@@ -609,144 +609,144 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 1.0,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
-              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 128,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 256,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 384,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 }
-              ]
+              ],
+              "renderScale": 1.0
             },
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 0.972477,
               "frames": [
                 {
                   "x": 0,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 128,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 256,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 384,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 512,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 640,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 }
-              ]
+              ],
+              "renderScale": 0.972727
             },
             "harvest": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 128,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 256,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 384,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 512,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 640,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 }
               ],
               "impactFrame": 3,
-              "contactMs": 330
+              "contactMs": 330,
+              "renderScale": 0.990741
             }
-          }
+          },
+          "renderScale": 1.0
         },
         "back": {
           "image": "bear-back.webp",
@@ -757,144 +757,144 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 0.972477,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
-              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 128,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 256,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 384,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 }
-              ]
+              ],
+              "renderScale": 1.0
             },
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.018692,
               "frames": [
                 {
                   "x": 0,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 128,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 256,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 384,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 512,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 640,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 }
-              ]
+              ],
+              "renderScale": 0.981481
             },
             "harvest": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.028302,
               "frames": [
                 {
                   "x": 0,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 128,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 256,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 384,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 512,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 640,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 }
               ],
               "impactFrame": 3,
-              "contactMs": 330
+              "contactMs": 330,
+              "renderScale": 0.981481
             }
-          }
+          },
+          "renderScale": 1.009434
         },
         "right": {
           "image": "bear-right.webp",
@@ -905,144 +905,144 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 0.963636,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
-              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 128,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 256,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 384,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 }
-              ]
+              ],
+              "renderScale": 1.0
             },
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.009174,
               "frames": [
                 {
                   "x": 0,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 128,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 256,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 384,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 512,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 640,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 }
-              ]
+              ],
+              "renderScale": 0.981818
             },
             "harvest": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.028037,
               "frames": [
                 {
                   "x": 0,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 128,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 256,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 384,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 512,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 640,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 }
               ],
               "impactFrame": 3,
-              "contactMs": 330
+              "contactMs": 330,
+              "renderScale": 1.009346
             }
-          }
+          },
+          "renderScale": 0.990741
         },
         "left": {
           "image": "bear-left.webp",
@@ -1053,144 +1053,144 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 0.972477,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
-              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 128,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 256,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 },
                 {
                   "x": 384,
                   "y": 0,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 200
+                  "duration_ms": 200.0
                 }
-              ]
+              ],
+              "renderScale": 1.0
             },
             "run": {
               "fps": 10,
               "loop": true,
-              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 128,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 256,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 384,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 512,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 640,
                   "y": 128,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 }
-              ]
+              ],
+              "renderScale": 0.990826
             },
             "harvest": {
               "fps": 10,
               "loop": false,
-              "renderScale": 1.038095,
               "frames": [
                 {
                   "x": 0,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 128,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 256,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 384,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 512,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 },
                 {
                   "x": 640,
                   "y": 256,
                   "w": 128,
                   "h": 128,
-                  "duration_ms": 100
+                  "duration_ms": 100.0
                 }
               ],
               "impactFrame": 3,
-              "contactMs": 330
+              "contactMs": 330,
+              "renderScale": 1.028571
             }
-          }
+          },
+          "renderScale": 0.990741
         }
       }
     },
@@ -1288,7 +1288,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.009346
+              "renderScale": 0.954128
             },
             "harvest": {
               "fps": 10,
@@ -1339,7 +1339,7 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 0.981818
+              "renderScale": 0.945455
             }
           },
           "renderScale": 1.0
@@ -1436,154 +1436,6 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.018692
-            },
-            "harvest": {
-              "fps": 10,
-              "loop": false,
-              "frames": [
-                {
-                  "x": 0,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 128,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 256,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 384,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 512,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 640,
-                  "y": 256,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                }
-              ],
-              "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 1.058252
-            }
-          },
-          "renderScale": 0.990826
-        },
-        "left": {
-          "image": "fox-left.webp",
-          "cellSize": 128,
-          "anchor": {
-            "x": 0.5,
-            "y": 0.9296875
-          },
-          "generated": true,
-          "mirrored": false,
-          "animations": {
-            "idle": {
-              "fps": 5,
-              "loop": true,
-              "frames": [
-                {
-                  "x": 0,
-                  "y": 0,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 200.0
-                },
-                {
-                  "x": 128,
-                  "y": 0,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 200.0
-                },
-                {
-                  "x": 256,
-                  "y": 0,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 200.0
-                },
-                {
-                  "x": 384,
-                  "y": 0,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 200.0
-                }
-              ],
-              "renderScale": 1.0
-            },
-            "run": {
-              "fps": 10,
-              "loop": true,
-              "frames": [
-                {
-                  "x": 0,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 128,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 256,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 384,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 512,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                },
-                {
-                  "x": 640,
-                  "y": 128,
-                  "w": 128,
-                  "h": 128,
-                  "duration_ms": 100.0
-                }
-              ],
               "renderScale": 1.009174
             },
             "harvest": {
@@ -1638,7 +1490,7 @@
               "renderScale": 1.0
             }
           },
-          "renderScale": 0.981818
+          "renderScale": 0.945455
         },
         "back": {
           "image": "fox-back.webp",
@@ -1732,7 +1584,7 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.028571
+              "renderScale": 1.019048
             },
             "harvest": {
               "fps": 10,
@@ -1783,10 +1635,158 @@
               ],
               "impactFrame": 3,
               "contactMs": 330,
-              "renderScale": 1.0
+              "renderScale": 0.981651
             }
           },
-          "renderScale": 1.0
+          "renderScale": 0.971963
+        },
+        "left": {
+          "image": "fox-left.webp",
+          "cellSize": 128,
+          "anchor": {
+            "x": 0.5,
+            "y": 0.9296875
+          },
+          "generated": true,
+          "mirrored": false,
+          "animations": {
+            "idle": {
+              "fps": 5,
+              "loop": true,
+              "frames": [
+                {
+                  "x": 0,
+                  "y": 0,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 200.0
+                },
+                {
+                  "x": 128,
+                  "y": 0,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 200.0
+                },
+                {
+                  "x": 256,
+                  "y": 0,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 200.0
+                },
+                {
+                  "x": 384,
+                  "y": 0,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 200.0
+                }
+              ],
+              "renderScale": 1.0
+            },
+            "run": {
+              "fps": 10,
+              "loop": true,
+              "frames": [
+                {
+                  "x": 0,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 128,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 256,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 384,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 512,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 640,
+                  "y": 128,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                }
+              ],
+              "renderScale": 1.0
+            },
+            "harvest": {
+              "fps": 10,
+              "loop": false,
+              "frames": [
+                {
+                  "x": 0,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 128,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 256,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 384,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 512,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                },
+                {
+                  "x": 640,
+                  "y": 256,
+                  "w": 128,
+                  "h": 128,
+                  "duration_ms": 100.0
+                }
+              ],
+              "impactFrame": 3,
+              "contactMs": 330,
+              "renderScale": 1.057692
+            }
+          },
+          "renderScale": 0.945455
         }
       }
     },
@@ -1801,10 +1801,12 @@
           },
           "generated": true,
           "mirrored": false,
+          "renderScale": 1.0,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -1834,12 +1836,12 @@
                   "h": 128,
                   "duration_ms": 200.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "run": {
               "fps": 10,
               "loop": true,
+              "renderScale": 1.020408,
               "frames": [
                 {
                   "x": 0,
@@ -1883,12 +1885,12 @@
                   "h": 128,
                   "duration_ms": 100.0
                 }
-              ],
-              "renderScale": 0.972477
+              ]
             },
             "harvest": {
               "fps": 10,
               "loop": false,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -1934,11 +1936,9 @@
                 }
               ],
               "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 0.963636
+              "contactMs": 330
             }
-          },
-          "renderScale": 1.0
+          }
         },
         "back": {
           "image": "redpanda-back.webp",
@@ -1949,10 +1949,12 @@
           },
           "generated": true,
           "mirrored": false,
+          "renderScale": 0.961538,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -1982,12 +1984,12 @@
                   "h": 128,
                   "duration_ms": 200.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "run": {
               "fps": 10,
               "loop": true,
+              "renderScale": 0.962963,
               "frames": [
                 {
                   "x": 0,
@@ -2031,12 +2033,12 @@
                   "h": 128,
                   "duration_ms": 100.0
                 }
-              ],
-              "renderScale": 0.981818
+              ]
             },
             "harvest": {
               "fps": 10,
               "loop": false,
+              "renderScale": 0.962963,
               "frames": [
                 {
                   "x": 0,
@@ -2082,11 +2084,9 @@
                 }
               ],
               "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 1.038462
+              "contactMs": 330
             }
-          },
-          "renderScale": 0.981481
+          }
         },
         "right": {
           "image": "redpanda-right.webp",
@@ -2097,10 +2097,12 @@
           },
           "generated": true,
           "mirrored": false,
+          "renderScale": 0.952381,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -2130,12 +2132,12 @@
                   "h": 128,
                   "duration_ms": 200.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "run": {
               "fps": 10,
               "loop": true,
+              "renderScale": 1.05,
               "frames": [
                 {
                   "x": 0,
@@ -2179,12 +2181,12 @@
                   "h": 128,
                   "duration_ms": 100.0
                 }
-              ],
-              "renderScale": 0.990909
+              ]
             },
             "harvest": {
               "fps": 10,
               "loop": false,
+              "renderScale": 1.029412,
               "frames": [
                 {
                   "x": 0,
@@ -2230,11 +2232,9 @@
                 }
               ],
               "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 1.135417
+              "contactMs": 330
             }
-          },
-          "renderScale": 0.972477
+          }
         },
         "left": {
           "image": "redpanda-left.webp",
@@ -2245,10 +2245,12 @@
           },
           "generated": true,
           "mirrored": false,
+          "renderScale": 1.010101,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -2278,12 +2280,12 @@
                   "h": 128,
                   "duration_ms": 200.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "run": {
               "fps": 10,
               "loop": true,
+              "renderScale": 1.03125,
               "frames": [
                 {
                   "x": 0,
@@ -2327,12 +2329,12 @@
                   "h": 128,
                   "duration_ms": 100.0
                 }
-              ],
-              "renderScale": 1.018519
+              ]
             },
             "harvest": {
               "fps": 10,
               "loop": false,
+              "renderScale": 0.970588,
               "frames": [
                 {
                   "x": 0,
@@ -2378,11 +2380,9 @@
                 }
               ],
               "impactFrame": 3,
-              "contactMs": 330,
-              "renderScale": 1.122449
+              "contactMs": 330
             }
-          },
-          "renderScale": 0.963636
+          }
         }
       }
     },
@@ -2402,6 +2402,7 @@
             "idle": {
               "fps": 5,
               "loop": true,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -2417,12 +2418,12 @@
                   "h": 128,
                   "duration_ms": 200.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "run": {
               "fps": 10,
               "loop": true,
+              "renderScale": 1.028037,
               "frames": [
                 {
                   "x": 0,
@@ -2466,12 +2467,12 @@
                   "h": 128,
                   "duration_ms": 100.0
                 }
-              ],
-              "renderScale": 1.018519
+              ]
             },
             "harvest": {
               "fps": 10,
               "loop": false,
+              "renderScale": 1.170213,
               "frames": [
                 {
                   "x": 0,
@@ -2516,7 +2517,6 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.0,
               "impactFrame": 3,
               "contactMs": 330
             }
@@ -2536,6 +2536,7 @@
             "idle": {
               "fps": 5,
               "loop": true,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -2551,12 +2552,12 @@
                   "h": 128,
                   "duration_ms": 200.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "run": {
               "fps": 10,
               "loop": true,
+              "renderScale": 1.028037,
               "frames": [
                 {
                   "x": 0,
@@ -2600,12 +2601,12 @@
                   "h": 128,
                   "duration_ms": 100.0
                 }
-              ],
-              "renderScale": 1.009174
+              ]
             },
             "harvest": {
               "fps": 10,
               "loop": false,
+              "renderScale": 1.089109,
               "frames": [
                 {
                   "x": 0,
@@ -2650,7 +2651,6 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.0,
               "impactFrame": 3,
               "contactMs": 330
             }
@@ -2665,11 +2665,12 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 1.0,
+          "renderScale": 1.009174,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -2685,12 +2686,12 @@
                   "h": 128,
                   "duration_ms": 200.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "run": {
               "fps": 10,
               "loop": true,
+              "renderScale": 1.009259,
               "frames": [
                 {
                   "x": 0,
@@ -2734,12 +2735,12 @@
                   "h": 128,
                   "duration_ms": 100.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "harvest": {
               "fps": 10,
               "loop": false,
+              "renderScale": 1.345679,
               "frames": [
                 {
                   "x": 0,
@@ -2784,7 +2785,6 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.028037,
               "impactFrame": 3,
               "contactMs": 330
             }
@@ -2799,11 +2799,12 @@
           },
           "generated": true,
           "mirrored": false,
-          "renderScale": 1.0,
+          "renderScale": 1.028037,
           "animations": {
             "idle": {
               "fps": 5,
               "loop": true,
+              "renderScale": 1.0,
               "frames": [
                 {
                   "x": 0,
@@ -2819,12 +2820,12 @@
                   "h": 128,
                   "duration_ms": 200.0
                 }
-              ],
-              "renderScale": 1.0
+              ]
             },
             "run": {
               "fps": 10,
               "loop": true,
+              "renderScale": 0.990741,
               "frames": [
                 {
                   "x": 0,
@@ -2868,12 +2869,12 @@
                   "h": 128,
                   "duration_ms": 100.0
                 }
-              ],
-              "renderScale": 1.009174
+              ]
             },
             "harvest": {
               "fps": 10,
               "loop": false,
+              "renderScale": 1.35443,
               "frames": [
                 {
                   "x": 0,
@@ -2918,7 +2919,6 @@
                   "duration_ms": 100.0
                 }
               ],
-              "renderScale": 1.057692,
               "impactFrame": 3,
               "contactMs": 330
             }
@@ -3026,18 +3026,20 @@
       "height": 192
     }
   },
-  "artRevision": "pastel-20261030-v2",
+  "artRevision": "outlined-20261031-v1",
   "artDirection": {
-    "id": "pastel-3d-forest-fairies",
-    "medium": "AI-generated raster sprites with soft 3D-toy shading",
+    "id": "outlined-woodland",
+    "medium": "AI-generated2D cartoon raster sprites with broad brown contours and simple color regions",
     "palette": [
-      "apricot",
-      "ivory",
-      "mint",
-      "lilac",
-      "pearl-pink"
+      "#583f21",
+      "#c99b66",
+      "#f3dcac",
+      "#81a855",
+      "#cfd99a",
+      "#816046"
     ],
-    "light": "soft upper-left",
-    "commonAccessory": "mint scarf and golden star brooch"
+    "eyes": "small solid brown dots",
+    "detail": "low, rounded silhouettes, short limbs",
+    "costume": "none; fox carries one berry basket"
   }
 }

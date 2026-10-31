@@ -1,38 +1,43 @@
 {
-  "scope": "pastel 3D-look forest-fairy art update",
-  "date": "2026-10-30",
-  "artRevision": "pastel-20261030-v2",
-  "environment": "Desktop Chromium-based in-app browser; portrait viewport emulation, not a physical mobile device",
-  "viewports": [
-    [
-      320,
-      740
-    ],
-    [
-      390,
-      844
-    ],
-    [
-      1280,
-      720
-    ]
-  ],
-  "observed": [
-    "Five species use20 new independently generated directional atlases; all5 were sequentially recruited during normal play",
-    "New animal silhouettes, tree/plant materials, ground and pearl UI reviewed at game display scale",
-    "Manual front/back/left/right movement and species harvesting observed with the new artwork",
-    "Temporary drag pad hid after release; automatic movement restored",
-    "Start, pause, growth-preserving restart, game-to-home and home-to-game navigation checked",
-    "Re-entry retained5 recruits, selected personal growth and stage progress",
-    "No console warnings or errors in final local review"
-  ],
-  "layout": {
-    "horizontalOverflow": false,
-    "fontLoaded": true,
-    "primaryNumberSizeAt320": "28px",
-    "minimumReviewedMainTouchTarget": "44 CSS px",
-    "upgradeCostText": "dark plum over pastel mint/lilac;16px"
+  "scope": "Original outlined2D woodland art replacement",
+  "date": "2026-10-31",
+  "artRevision": "outlined-20261031-v1",
+  "environment": "Asset contact-sheet/native-frame inspection and Node tests. Current in-app-browser access disabled by Work settings.",
+  "currentBrowserReview": {
+    "completed": false,
+    "reason": "Local browser use is disabled in Work settings",
+    "userAskedToEnable": true,
+    "gameplayObservedThisRevision": false
   },
+  "previousLayoutReview": {
+    "date": "2026-10-30",
+    "viewports": [
+      [
+        320,
+        740
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        1280,
+        720
+      ]
+    ],
+    "primaryNumberSizeAt320": "28px",
+    "mainTouchTargetMinimum": "44 CSS px",
+    "note": "Previous artwork revision only. This change preserves geometry and font sizes, but these screenshots are not evidence of the new revision."
+  },
+  "observed": [
+    "Five animal species,20 independently drawn front/back/right/left atlases and312 unique frames inspected.",
+    "Broad warm brown contours, dot eyes and simple earth/sage color regions match the woodland art brief; costume/star/gloss features removed.",
+    "Independent per-frame review checked source clipping, anatomy, facing, basket handedness and work preparation/contact/recovery.",
+    "Squirrel profile throwing rows regenerated to remove a clipped muzzle and inconsistent paw colors.",
+    "Fox duplicate basket, tail clipping and incorrect left work facing regenerated before export.",
+    "Canonical native tree/plant/ground previews checked;2x2 ground repeat has no sharp seam.",
+    "Canvas cliff/grass geometry exercised with a stub at320/390/510/800 and worldY±1000000; coordinates finite. This is not browser rendering verification."
+  ],
   "automatedTests": {
     "rules": 25,
     "motion": 7,
@@ -42,33 +47,41 @@
   "assetReview": {
     "animalViews": 20,
     "animalFrames": 312,
-    "animalAtlasBytes": 3388554,
-    "environmentImageBytes": 363720,
-    "assetFolderApproxMB": 4.2,
+    "animalAtlasBytes": 2870594,
+    "environmentImageBytes": 132098,
+    "assetFolderBytes": 3447446,
     "allFramesDistinctAndInsideAlphaMargins": true,
+    "groundTiling": "pass",
     "sourceWarnings": [
-      "Ground canonical quilt has a soft internal color-difference review warning; no sharp repeat-edge seam observed.",
-      "Static stump has the expected one-frame low-motion warning."
+      "Static stump is an intentional one-frame end state."
     ],
     "smallVisualLimits": [
-      "Redpanda left harvest has tiny star/low-leaf differences in source frames; visually small at native game size.",
-      "Bear eye highlights can appear warmer across some rows."
+      "Generated frame-to-frame head/foot/tail shape differences remain small in native contact sheets.",
+      "Minor low-amplitude color variation remains in animal/plant source art."
     ]
   },
   "provisionalScore": {
     "core": 24,
-    "mobile": 17,
-    "visual": 19,
-    "feedback": 13,
+    "mobile": 14,
+    "visual": 17,
+    "feedback": 12,
     "performance": 8,
     "maintenance": 9,
-    "total": 90
+    "total": 84
+  },
+  "scoreBasis": {
+    "core": "Rules and32motion/logic tests pass; unchanged mechanics, no current live play.",
+    "mobile": "Touch geometry/font size preserved from prior review; current browser and physical devices unverified.",
+    "visual": "All animal/environment families and native frames visually reviewed; current game composition unverified.",
+    "feedback": "Contactframe3/330ms contract verified, gestures independently inspected; runtime temporal feel unverified.",
+    "performance": "Local lossless assets below6MB and existing runtime caps retained; no real hardware profile.",
+    "maintenance": "38targeted tests, separate art cache version, v3 saves preserved and provenance updated."
   },
   "limits": [
-    "Physical iOS Safari and Android Chrome touch/address-bar/notch behavior unverified",
-    "Sustained frame rate, battery and thermal behavior on real mobile hardware unmeasured",
-    "Six-frame cycles retain minor source-shape and ornament variation; exact same-foot transition contact unverified",
-    "No independent human enjoyment playtest"
+    "Current PC/mobile browser composition, input, restart/navigation and tab resume not rechecked because browser access is disabled.",
+    "Physical iOS Safari/Android Chrome touch, address bar, safe areas and sustained frame/battery/thermal behavior unverified.",
+    "Six-frame cycles retain small source-shape changes; exact same-foot stride transitions unverified.",
+    "No independent human enjoyment playtest; game-feel assessment is based on design and frame review only."
   ],
-  "nextPriority": "Test real phones, then refine small ornament and foot-contact changes if they stand out during longer play."
+  "nextPriority": "Enable browser access and play this revision at320/390portrait andPC, then test physical phones and refine any visible foot/shape transitions."
 }

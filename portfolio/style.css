@@ -167,9 +167,9 @@ details[open] > summary .detail-toggle::after { transform: rotate(0); }
 .game-ark .game-visual { background: #183c43; color: #9ee9d3; }
 .game-wild-oath .game-visual { background: radial-gradient(ellipse at 35% 35%, #fff8df, #b9ebc0 65%, #8dd5e8); color: #234c52; }
 .game-wild-oath .visual-title b { color: #187b88; }
-.game-acorn .game-visual { background: radial-gradient(ellipse at 30% 35%, #fff7ec, #f4d8e8 60%, #d7c7ec); color: #75608f; }
-.game-acorn .visual-title b { color: #ae7b9e; }
-.game-acorn .visual-plus { color: #c5a575; }
+.game-acorn .game-visual { background: radial-gradient(ellipse at 30% 35%, #e1e6b6, #cfd99a 60%, #96ad73); color: #58412a; }
+.game-acorn .visual-title b { color: #6e884c; }
+.game-acorn .visual-plus { color: #8d6b3e; }
 .game-ark .visual-title b { color: #d5ffb8; }
 .visual-orbit { position: absolute; width: 300px; height: 190px; border: 1px solid #75bfb84a; left: -34px; top: 80px; border-radius: 50%; transform: rotate(-35deg); }
 .visual-orbit::after { content: ""; position: absolute; border: 1px dashed #6eb5b13a; border-radius: 50%; inset: -25px; }
