@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { seasonPalette, shelterLayout, drawSeasonDetails, drawSeasonAtmosphere, drawShelter, drawTrailCabin } from '../season-render.mjs';
+import { seasonPalette, winterTreeBlend, drawWinterTreeBlend, shelterLayout, drawSeasonDetails, drawSeasonAtmosphere, drawShelter, drawTrailCabin } from '../season-render.mjs';
 
 function canvasRecorder() {
   const calls = [], stack = [];
@@ -25,6 +25,57 @@ test('season colors remain continuous across summer and autumn boundaries and en
   assert.deepEqual(seasonPalette(-100), seasonPalette(0));assert.deepEqual(seasonPalette(100), seasonPalette(3));
   assert.deepEqual(seasonPalette(Number.NaN), seasonPalette(0));
   assert.notEqual(seasonPalette(0).ground, seasonPalette(1).ground);assert.notEqual(seasonPalette(1).ground, seasonPalette(2).ground);
+});
+
+test('late autumn loses its canopy before snow starts and keeps warm ground through harvest90', () => {
+  const autumn = seasonPalette(2);
+  for (const harvests of [72, 84, 89, 90]) {
+    const palette = seasonPalette(harvests / 36);
+    for (const key of ['ground', 'plateau', 'cliffs', 'tuft', 'background', 'leaf']) assert.deepEqual(palette[key], autumn[key]);
+    assert.equal(palette.autumn, 1);assert.equal(palette.snow, 0);
+    assert.equal(winterTreeBlend(harvests / 36), 0);
+  }
+  assert.ok(Math.abs(winterTreeBlend(93 / 36) - .5) < .000001);
+  assert.equal(winterTreeBlend(96 / 36), 1);assert.equal(winterTreeBlend(3), 1);
+  assert.equal(seasonPalette(96 / 36).snow, 0);
+  assert.ok(seasonPalette(97 / 36).snow > 0);assert.equal(seasonPalette(3).snow, 1);
+  assert.notEqual(seasonPalette(93 / 36).ground, autumn.ground);
+  for (const boundary of [2.5, 8 / 3]) {
+    const before = seasonPalette(boundary - .00001), after = seasonPalette(boundary + .00001);
+    assert.ok(rgb(before.ground).every((channel, index) => Math.abs(channel - rgb(after.ground)[index]) <= 1));
+    assert.ok(Math.abs(before.autumn - after.autumn) < .001 && Math.abs(before.snow - after.snow) < .001);
+  }
+});
+
+test('winter atlas composition keeps the shared trunk opaque and fully removes the old canopy', () => {
+  const autumn = { pixels: [[.4, .2, .1, 1], [.7, .5, .2, 1]] };
+  const winter = { pixels: [[.4, .2, .1, 1], [0, 0, 0, 0]] };
+  const pixels = [[1, 0, 0, 1], [1, 0, 0, 1]], stack = [];
+  const ctx = {
+    canvas: { width: 2, height: 1 }, globalAlpha: .58, globalCompositeOperation: 'multiply', filter: 'sepia(1)',
+    save() { stack.push({ globalAlpha: this.globalAlpha, globalCompositeOperation: this.globalCompositeOperation, filter: this.filter }); },
+    restore() { Object.assign(this, stack.pop()); },
+    setTransform(...values) { assert.deepEqual(values, [1, 0, 0, 1, 0, 0]); },
+    clearRect(...values) { assert.deepEqual(values, [0, 0, 2, 1]);pixels.forEach(pixel => pixel.fill(0)); },
+    drawImage(image, ...rectangle) {
+      assert.deepEqual(rectangle, [0, 0, 2, 1]);assert.equal(this.filter, 'none');
+      assert.ok(['source-over', 'lighter'].includes(this.globalCompositeOperation));
+      image.pixels.forEach((source, index) => {
+        const alpha = source[3] * this.globalAlpha;
+        const premultiplied = [...source.slice(0, 3).map(channel => channel * alpha), alpha];
+        for (let channel = 0; channel < 4; channel++) pixels[index][channel] = this.globalCompositeOperation === 'lighter'
+          ? Math.min(1, premultiplied[channel] + pixels[index][channel])
+          : premultiplied[channel] + pixels[index][channel] * (1 - alpha);
+      });
+    },
+  };
+  for (const amount of [0, .25, .5, .75, 1]) {
+    drawWinterTreeBlend(ctx, autumn, winter, amount);
+    assert.deepEqual(pixels[0], [.4, .2, .1, 1], 'same trunk stays opaque throughout the transition');
+    assert.ok(Math.abs(pixels[1][3] - (1 - amount)) < .000001, 'old canopy alpha follows its outgoing weight');
+    assert.equal(ctx.globalAlpha, .58);assert.equal(ctx.globalCompositeOperation, 'multiply');assert.equal(ctx.filter, 'sepia(1)');assert.equal(stack.length, 0);
+  }
+  assert.deepEqual(pixels[1], [0, 0, 0, 0], 'winter canopy holes expose the background, never the autumn canopy');
 });
 
 test('winter room and all six furnishing touch targets fit narrow, tall and short play areas', () => {

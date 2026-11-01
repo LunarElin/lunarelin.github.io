@@ -1,7 +1,7 @@
 {
-  "scope": "Seasonal map atmosphere and seasonal resource density, retaining existing sprites",
+  "scope": "Leafless winter trees and seasonal absence of harvest plants",
   "date": "2026-11-01",
-  "artRevision": "year-cycle-20261031-v1",
+  "artRevision": "bare-winter-20261101-v1",
   "currentBrowserReview": {
     "completed": true,
     "browser": "Chromium in-app browser, local static server",
@@ -11,33 +11,33 @@
       "320x740",
       "1280x900"
     ],
-    "input": "Mouse click and drag in mobile-size viewports; physical touch not tested"
+    "input": "Mouse-operated Chromium at mobile-size and desktop viewports; physical touch not tested"
   },
   "verificationEnvironment": {
     "logic": "Node24.19 built-in test runner",
     "DOM": "jsdom26.1.0, actual game.mjs/HTML/module graph, manual RAF and seeded ordinary gameplay; Canvas/Image/layout/clock are stubs",
     "renderer": "Canvas coordinate/state call tests, not pixel output",
     "assetArt": "Native source and furniture images visually inspected, canonical RGBA/hash/alpha/season-palette validation",
-    "browser": "Real Chromium Canvas rendering and local images at 320/390 portrait and desktop; existing progressed local profile with all five companions"
+    "browser": "Real Chromium: ordinary existing-profile journey to winterhome; temporary isolated in-memory saves at harvest93/102 for native mid-blend and winter pixels. Review fixture removed and no real stored profile changed."
   },
   "observed": [
-    "Actual browser gameplay showed spring flowers/greenery, summer light pools, autumn leaf litter, winter frost/snowbanks and the arrival cabin; seasons changed through ordinary automatic gathering.",
-    "Actual browser reached the winter home, crafted a nest and departed into year2spring while retaining all5companions and personal progress. Later post-fix gameplay again showed summer/autumn/winter approach.",
-    "320x740 and390x844 portrait and1280x900desktop displayed without horizontal overflow; year and food computed at28px. Main buttons and party controls measured at least44px.",
-    "Mouse drag on the play area moved the leader and the temporary directionpad was inactive after release. Pause and resume worked. No console errors or warnings observed.",
-    "Actual production UI also completed a fresh first-year journey in DOM simulation, recruited all5animals, reached108harvests, crafted the first nest and kept progress on nextspring.",
-    "Resource tests inspected actual27/30/33node forests and per-zone9/10/11mixes, preserved a pending job through the seasonboundary, generated the next seasonal zone, and restored every seasonal save.",
-    "Renderer tests verified worldanchoring, HUD-excluded airlayer clipping, bounded draw work, static reduced-motion details and invisible particle wraps. Raster asset files and all image/frame/anchor descriptors are unchanged."
+    "Ordinary browser journey displayed autumn without snow at90harvests and reached the winterhome with all5companions. Existing real personal growth and the year loop remained usable.",
+    "Native Canvas at harvest93 showed weighted autumn-canopy to bare-branch blending without errors. At102, only actual leafless brown trees remained; no berry, bamboo or grain patches were displayed.",
+    "Latewinter placement was reduced to5trees perzone and15initial targets, preventing the earlier dense branchfence. The90..95tree groups use3depthrows.",
+    "Final native winter scene inspected at390x844,320x740and1280x900; no horizontaloverflow, major yearnumber28px, character/tree grounding and front-object transparency remain legible.",
+    "Temporary in-memory review profiles kept winter visible for inspection. Those were native rendering checks, not a claim of fresh-player balance or physicaldevice play.",
+    "79automated tests passed including fresh firstyear UI recruitment/craft/nextspring, cutoff96, cancelled plantjobs, blocked bamboo regrowth and forced late-recruit plants,3seed natural-year material availability, and originalv4save compatibility.",
+    "New winter atlas has2idle+2hit distinct GPTdrawings, the exact original stump, baseline180px, no white/green/cyanpixels, and only2..3percent idle/hit height variation. Other animals, seasons and plantimagefiles are unchanged."
   ],
   "automatedTests": {
     "rules": 25,
     "yearCycle": 13,
-    "seasonResources": 5,
+    "seasonResources": 11,
     "motion": 7,
-    "assets": 8,
-    "renderer": 9,
+    "assets": 9,
+    "renderer": 11,
     "DOMIntegration": 3,
-    "passed": 70
+    "passed": 79
   },
   "layoutReview": {
     "mode": "Actual browser screenshots and DOM geometry, plus renderer tests",
@@ -49,14 +49,16 @@
   "assetReview": {
     "animalFrames": 312,
     "newSeasonAndHomeImages": 12,
-    "newImageBytes": 797628,
-    "assetFolderBytes": 4257699,
+    "newImageBytes": 829042,
+    "assetFolderBytes": 4297551,
     "assetBudgetBytes": 6000000,
     "notes": [
-      "No raster image or manifest descriptors changed for this update.",
-      "Seasonal details are procedural Canvas shapes matching the existing warm outline and muted woodland colors.",
-      "The existing directional animal cycles retain minor generated frame-shape variation."
-    ]
+      "Winter tree regenerated through GPT base and GPT single-row animation pipeline; no snowcanopy or recolor.",
+      "Berries,bamboo andgrain keep their original images and retire before snowfall.",
+      "384x576weightedblend Canvas is reused and quantized into128steps; no per-treeCanvas allocation.",
+      "Existing animal cycles retain minor generated shapevariation."
+    ],
+    "winterReplacementBytes": 78582
   },
   "provisionalScore": {
     "core": 24,
@@ -68,19 +70,19 @@
     "total": 88
   },
   "scoreBasis": {
-    "core": "70focused tests plus ordinary browser gathering through winter and nextspring; no progressionblocker observed.",
-    "mobile": "320/390portrait measured and mouse-operated, controls44px+ and mainnumbers28px; physicaltouch/safearea stillunverified.",
-    "visual": "Actual composite inspected at mobile/desktop sizes, seasonal flowers/light/leaves/snow change while sprites remain unchanged.",
-    "feedback": "Browser winterarrival/pause/nextspring observed, timedparticleloop fade tested; enjoyment assessed by limited observation and design.",
-    "performance": "No new downloads; fixed100ground/50airanchor scans and existing4.26MBassets; physicaldevice frame/battery/thermal unmeasured.",
-    "maintenance": "Existingv4save/inventory/home retained; newdistributionrestore and fullUIroundtrip tested; scopedREADME updated."
+    "core": "79focused tests, normal browser journey to winter and fresh DOM year/home/spring; cutoff does not grant phantom rewards or lose earnedmaterials.",
+    "mobile": "Finalwinter scene at320/390portraitandPC, nooverflow; physicaltouch/safearea remainsunverified.",
+    "visual": "Actual native93/102scenes show autumnleaves disappearing, barebranches and no off-seasonplants, sourceframesbaseline/volume verified.",
+    "feedback": "Contacttiming, safe plantjobcancellation and nextspring retained; humanfeel assessment is limited observation/design.",
+    "performance": "4.3MBassets and one reused0.85MBnativeblendCanvas, boundedexistingparticles; no device frame/battery/thermal profile.",
+    "maintenance": "v4unchanged, seasonal late-recruit/regrowth/cancellation tests and newart hash/alpha/pose evidence; scopedREADME/provenance updated."
   },
   "limits": [
     "Actual iOS Safari and Android Chrome touch, dynamicaddressbar/notch/safearea and realdevice tabreturn were not tested.",
-    "Sustainedmobilefps,thermal,battery and a hardware performance profile remain unmeasured.",
-    "Freshfirstyear recruitment and scarcity coverage use a seeded DOM simulation; browser gameplay used an existing progressed roster.",
-    "Reducedmotion and particlewrap continuity were tested in renderer calls, not physicaldevice animationcapture."
+    "Sustainedmobilefps,thermal,battery and hardwareprofiling remain unmeasured.",
+    "Winter compositing screenshots use isolated review saves; freshfirstyear recruitment/material availability is covered by3seed rules simulations and actualUI DOM tests.",
+    "Generated animal cycles and baretree poses retain small shapevariations."
   ],
-  "nextPriority": "Check physicalphone touch/safeareas and profile seasonal Canvas draw cost during longplay; tune particle density if smallscreen readability or frame time suffers.",
-  "clientRevision": "season-map-20261101-v1"
+  "nextPriority": "Check physicalphone touch/safeareas and long-run framecost of the short autumn-to-bare transition; tune tree spacing on real mobile screens if visibility suffers.",
+  "clientRevision": "bare-winter-20261101-v1"
 }

@@ -1,6 +1,6 @@
-import { HEROES, WORLD, RECRUIT_THRESHOLDS, SEASONS, DECORATIONS, seasonStatus, decorationCost, craftDecoration, cycleDecorationStyle, toggleDecoration, homeComfort, beginSpring, createGame, stepGame, xpForLevel, upgrade, upgradeCost, upgradeDefinitions, upgradeValue, recruitFriend, selectHero, useSkill, restartRun, loadProfile, saveProfile } from './rules.mjs?v=season-map-20261101-v1';
+import { HEROES, WORLD, RECRUIT_THRESHOLDS, SEASONS, DECORATIONS, seasonStatus, resourcePlantVisibility, decorationCost, craftDecoration, cycleDecorationStyle, toggleDecoration, homeComfort, beginSpring, createGame, stepGame, xpForLevel, upgrade, upgradeCost, upgradeDefinitions, upgradeValue, recruitFriend, selectHero, useSkill, restartRun, loadProfile, saveProfile } from './rules.mjs?v=bare-winter-20261101-v1';
 import { projectWorldVector, screenInputToWorld, createPoseMemory, actorPose, frameAt } from './motion.mjs';
-import { seasonPalette, drawSeasonDetails, drawSeasonAtmosphere, drawShelter, drawTrailCabin } from './season-render.mjs?v=season-map-20261101-v1';
+import { seasonPalette, winterTreeBlend, drawWinterTreeBlend, drawSeasonDetails, drawSeasonAtmosphere, drawShelter, drawTrailCabin } from './season-render.mjs?v=bare-winter-20261101-v1';
 
 const $ = selector => document.querySelector(selector);
 const canvas = $('#world'), ctx = canvas.getContext('2d', { alpha: false });
@@ -19,7 +19,8 @@ let menu = 'start', previousFocus = null, toastTimer, sound = false, audio, gift
 let terrain, groundPattern, touch = null, assetsReady = false;
 let visualSeason=seasonStatus(state).position, ambientTime=0, arrivalTime=0, sceneFade=0, shelterHits=[], selectedDecoration='nest', homeSignature='';
 let palette=seasonPalette(visualSeason);
-let runtimeManifest=null,assetRevision='year-cycle-20261031-v1',shelterPromise=null;
+let runtimeManifest=null,assetRevision='bare-winter-20261101-v1',shelterPromise=null,winterTreeAtlas=null;
+const winterTreeCache={canvas:null,context:null,autumn:null,winter:null,amount:-1};
 const atHome=()=>state.journey.phase==='home';
 const stumps = [], coins = [], keys = new Set(), uiCache = new Map();
 const poses = new Map();
@@ -235,6 +236,19 @@ function acorn(x, y, size, rotation = 0, bright = false) {
 function coversWorker(point,size){
   return state.workers.some(worker=>{const p=position(worker);return p.y<point.y+3&&p.y>point.y-size*.8&&Math.abs(p.x-point.x)<size*.4;});
 }
+function prepareWinterTreeAtlas(){
+  const autumn=assets.seasonTrees[2]||assets.tree?.bitmap,winter=assets.seasonTrees[3];
+  if(!autumn||!winter)return autumn||null;
+  const amount=Math.round(winterTreeBlend(visualSeason)*128)/128;
+  if(amount===0)return autumn;
+  if(amount===1)return winter;
+  if(!winterTreeCache.canvas){winterTreeCache.canvas=document.createElement('canvas');winterTreeCache.canvas.width=autumn.naturalWidth||autumn.width;winterTreeCache.canvas.height=autumn.naturalHeight||autumn.height;winterTreeCache.context=winterTreeCache.canvas.getContext('2d');}
+  if(winterTreeCache.amount!==amount||winterTreeCache.autumn!==autumn||winterTreeCache.winter!==winter){
+    drawWinterTreeBlend(winterTreeCache.context,autumn,winter,amount);
+    Object.assign(winterTreeCache,{autumn,winter,amount});
+  }
+  return winterTreeCache.canvas;
+}
 function drawTree(tree,stump=false){
   const isTree=['oak','pine','golden'].includes(tree.kind);
   if(!isTree&&!stump){drawPatch(tree);return;}
@@ -253,12 +267,15 @@ function drawTree(tree,stump=false){
     const frame=animation.frames[Math.min(animation.frames.length-1,Math.floor(time*(animation.fps||3))%animation.frames.length)];
     const scale=stump?(animation.renderScale||1):1;
     if(tree.kind==='golden')ctx.filter='sepia(.35) saturate(1.25)';
-    const first=Math.min(3,Math.floor(visualSeason)),next=Math.min(3,first+1),blend=visualSeason-first;
-    const covered=ctx.globalAlpha<1;
-    const firstBitmap=assets.seasonTrees[covered&&blend>=.5?next:first]||data.bitmap,nextBitmap=assets.seasonTrees[next];
     const renderTree=bitmap=>ctx.drawImage(bitmap,frame.x,frame.y,frame.w,frame.h,-size*(data.anchor?.x??.5)*scale,-size*(data.anchor?.y??.92)*scale,size*scale,size*scale);
-    renderTree(firstBitmap);
-    if(nextBitmap&&next!==first&&blend>0&&!stump&&!covered){ctx.globalAlpha=blend;renderTree(nextBitmap);ctx.globalAlpha=1;}
+    if(!stump&&winterTreeAtlas)renderTree(winterTreeAtlas);
+    else{
+      const first=Math.min(3,Math.floor(visualSeason)),next=Math.min(3,first+1),blend=visualSeason-first;
+      const covered=ctx.globalAlpha<1;
+      const firstBitmap=assets.seasonTrees[covered&&blend>=.5?next:first]||data.bitmap,nextBitmap=assets.seasonTrees[next];
+      renderTree(firstBitmap);
+      if(nextBitmap&&next!==first&&blend>0&&!stump&&!covered){ctx.globalAlpha=blend;renderTree(nextBitmap);ctx.globalAlpha=1;}
+    }
     ctx.filter='none';
   }else{
     if(stump)roundRect(-13,-10,26,12,6,'#b58a5c','#583f21');
@@ -276,10 +293,13 @@ function drawTree(tree,stump=false){
   }
 }
 function drawPatch(node){
+  const visibility=resourcePlantVisibility(state,node.kind);
+  if(visibility<=0)return;
   const p=position(node),data=assets.resources[node.kind],sizes={berry:72,bamboo:92,grain:65},size=(sizes[node.kind]||72)*width/390;
   if(p.x<-size||p.x>width+size||p.y<-size||p.y>height+size)return;
+  ctx.save();ctx.globalAlpha=visibility;
   ellipse(p.x,p.y+2,size*.32,size*.11,'#4e56383b');
-  ctx.save();if(coversWorker(p,size))ctx.globalAlpha=.58;
+  ctx.save();if(coversWorker(p,size))ctx.globalAlpha*=.58;
   const shake=reduceMotion?0:node.hurtTimer>0?Math.sin(node.hurtTimer*75)*2:0;
   if(data?.bitmap){const anchor=data.anchor||{x:.5,y:.9};ctx.drawImage(data.bitmap,p.x-size*anchor.x+shake,p.y-size*anchor.y,size,size);}
   else if(node.kind==='berry'){
@@ -289,6 +309,7 @@ function drawPatch(node){
   }else{for(let i=0;i<5;i++){const x=p.x-20+i*9;ctx.strokeStyle='#a38b54';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,p.y);ctx.lineTo(x+3,p.y-30-seeded(i)*14);ctx.stroke();ellipse(x+3,p.y-30-seeded(i)*14,4,9,'#e0bd72','#79613b');}}
   ctx.restore();
   if(node.hp<node.maxHp){roundRect(p.x-15,p.y-size*.8,30,5,3,'#655337');roundRect(p.x-14,p.y-size*.8+1,Math.max(0,28*node.hp/node.maxHp),3,2,'#c3d37c');}
+  ctx.restore();
 }
 function drawCoins(){
   for(const c of coins){
@@ -393,6 +414,7 @@ function draw() {
     if(sceneFade>0){ctx.save();ctx.globalAlpha=sceneFade/.6;ctx.fillStyle='#fff1d5';ctx.fillRect(0,0,width,height);ctx.restore();}
     return;
   }
+  winterTreeAtlas=visualSeason>=2?prepareWinterTreeAtlas():null;
   shelterHits=[];drawBackground();
   const approaching=state.journey.harvests>=90;
   const cabin=approaching?position({x:WORLD.width*.55,y:state.hero.y-140-Math.max(0,108-state.journey.harvests)*28}):null;
@@ -612,7 +634,7 @@ async function ensureShelter(){
 }
 async function loadAssets() {
   try{
-    const response=await fetch(new URL('assets/runtime-assets.json?v=year-cycle-20261031-v1',import.meta.url));
+    const response=await fetch(new URL('assets/runtime-assets.json?v=bare-winter-20261101-v1',import.meta.url));
     if(!response.ok)throw new Error('asset manifest unavailable');
     const manifest=await response.json();runtimeManifest=manifest;assetRevision=manifest.artRevision||assetRevision;
     const imageURL=assetURL;

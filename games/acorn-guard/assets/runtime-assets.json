@@ -3026,7 +3026,7 @@
       "height": 192
     }
   },
-  "artRevision": "year-cycle-20261031-v1",
+  "artRevision": "bare-winter-20261101-v1",
   "artDirection": {
     "id": "outlined-woodland",
     "medium": "AI-generated2D cartoon raster sprites with broad brown contours and simple color regions",
@@ -3053,7 +3053,8 @@
       "tree": "oak-autumn.webp"
     },
     "winter": {
-      "tree": "oak-winter.webp"
+      "tree": "oak-winter.webp",
+      "foliage": "leafless"
     }
   },
   "shelter": {

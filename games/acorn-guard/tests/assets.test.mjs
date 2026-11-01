@@ -163,6 +163,27 @@ test('all four seasonal tree images are distinct transparent atlases compatible 
   assert.equal(digests.size, 4, 'The seasons do not silently share identical artwork');
 });
 
+test('the shipped winter tree is the validated leafless atlas with stable poses and the original stump', async () => {
+  const report = JSON.parse(await readFile(path.join(assetRoot, 'art-validation.json'), 'utf8'));
+  const winter = report.seasonTrees.variants.winter, validation = winter.validation;
+  const bytes = await readFile(localAsset(manifest.seasons.winter.tree));
+  assert.equal(manifest.seasons.winter.foliage, 'leafless');assert.equal(winter.foliage, 'leafless');
+  assert.equal(winter.sha256, createHash('sha256').update(bytes).digest('hex'));
+  assert.equal(winter.bytes, bytes.length);assert.equal(validation.sha256, winter.sha256);
+  assert.equal(winter.stumpExact, true);assert.equal(validation.stumpRGBAExactToOriginal, true);
+  assert.equal(validation.realTransparency, true);assert.equal(validation.losslessWebPRGBAExact, true);
+  const idle = validation.rows.idle, hit = validation.rows.hit;
+  assert.equal(idle.length, 2);assert.equal(hit.length, 2);
+  for (const frame of [...idle, ...hit]) {
+    assert.equal(frame.whitePixels, 0);assert.equal(frame.greenPixels, 0);assert.equal(frame.cyanResiduePixels, 0);
+    assert.equal(frame.alphaBounds[3], 180, 'all poses share the ground line');
+    assert.ok(frame.opaquePixels < 192 * 192 * .35, 'branches leave the canopy area transparent');
+  }
+  const idleHeight = Math.max(...idle.map(frame => frame.alphaBounds[3] - frame.alphaBounds[1]));
+  assert.ok(hit.every(frame => Math.abs((frame.alphaBounds[3] - frame.alphaBounds[1]) / idleHeight - 1) < .1), 'hit poses retain tree volume');
+  assert.equal(new Set([...idle, ...hit].map(frame => frame.rgbaSHA256)).size, 4, 'four independent drawings');
+});
+
 test('winter room, arrival cabin and every craftable decoration have complete images with usable anchors', async () => {
   const shelter = manifest.shelter;
   assert.ok(shelter?.room && shelter.cabin && shelter.decor);

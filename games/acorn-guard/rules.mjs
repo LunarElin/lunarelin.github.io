@@ -34,6 +34,8 @@ const RESOURCE_PLANS = Object.freeze([
   Object.freeze({ season: 'autumn', tree: 5, berry: 2, bamboo: 1, grain: 3, total: 11 }),
   Object.freeze({ season: 'winter', tree: 0, berry: 0, bamboo: 0, grain: 0, total: 0 }),
 ]);
+const LATE_AUTUMN_PLAN = Object.freeze({ season: 'autumn', tree: 8, berry: 0, bamboo: 0, grain: 2, total: 10 });
+const BARE_TRAIL_PLAN = Object.freeze({ season: 'autumn', tree: 5, berry: 0, bamboo: 0, grain: 0, total: 5 });
 const FOOD_RESOURCES = ['acorn', 'berries', 'grain'];
 const RESOURCE_OWNER = { acorn: 'squirrel', wood: 'bear', berries: 'fox', bamboo: 'redpanda', grain: 'sparrow' };
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -127,7 +129,15 @@ export function seasonStatus(state) {
   return { year: journey.year, index: Math.floor(position), position, progress: journey.harvests / YEAR_HARVESTS,
     harvests: journey.harvests, food: journey.food, foodGoal: 120, atHome: journey.phase === 'home' };
 }
-export function seasonResourcePlan(state) { return RESOURCE_PLANS[seasonStatus(state).index]; }
+export function seasonResourcePlan(state) {
+  const season = seasonStatus(state);
+  if (season.index === 2 && season.harvests >= 96) return BARE_TRAIL_PLAN;
+  if (season.index === 2 && season.harvests >= 90) return LATE_AUTUMN_PLAN;
+  return RESOURCE_PLANS[season.index];
+}
+export function resourcePlantVisibility(state, kind) {
+  return TREE_KINDS.has(kind) ? 1 : clamp((96 - state.journey.harvests) / 6, 0, 1);
+}
 export function decorationCost(state, id) {
   const definition = DECORATIONS.find(item => item.id === id), decoration = state.homestead.decorations[id];
   if (!definition || !decoration || decoration.level >= definition.maxLevel) return null;
@@ -223,10 +233,33 @@ function recordYearHarvest(state, resource, amount) {
     journey.foodByType[resource] = Math.min(MAX_COINS, journey.foodByType[resource] + amount);
     journey.food = Math.min(MAX_COINS, FOOD_RESOURCES.reduce((sum, id) => sum + journey.foodByType[id], 0));
   }
+  retireWinterPlants(state);
   if (journey.harvests >= YEAR_HARVESTS) { journey.phase = 'home'; restAtHome(state); }
 }
+function canSpawnKind(state, kind) {
+  const plan = seasonResourcePlan(state);
+  return (TREE_KINDS.has(kind) ? plan.tree : plan[kind]) > 0;
+}
+function retireWinterPlants(state) {
+  if (state.journey.harvests >= 90) state.regrowth = [];
+  if (state.journey.harvests < 96) return;
+  const retired = new Set(state.targets.filter(node => !TREE_KINDS.has(node.kind)).map(node => {
+    node.claimedBy = null;
+    return node.id;
+  }));
+  if (!retired.size) return;
+  state.targets = state.targets.filter(node => !retired.has(node.id));
+  if (retired.has(state.targetId)) state.targetId = null;
+  for (const worker of state.workers) {
+    if (!retired.has(worker.targetId) && !retired.has(worker.pendingAction?.targetId) && !retired.has(worker.pendingThrow?.targetId)) continue;
+    worker.pendingAction = null; worker.pendingThrow = null; worker.targetId = null;
+    worker.actionDuration = 0; worker.actionTimer = 0; worker.actionFlash = 0;
+    worker.attackTimer = 0; worker.attackFlash = 0; worker.actionCancelled = true;
+    worker.moveDX = 0; worker.moveDY = 0; worker.moving = false; worker.mode = 'follow';
+  }
+}
 function spawnNode(state, kind, x, y, rng) {
-  if (state.targets.length >= MAX_NODES) return;
+  if (state.targets.length >= MAX_NODES || !canSpawnKind(state, kind)) return;
   const baseHp = kind === 'golden' ? 58 : kind === 'pine' ? 40 : kind === 'berry' ? 18 : kind === 'bamboo' ? 42 : kind === 'grain' ? 11 : 30;
   const maxHp = Math.round(baseHp * (1 + (state.tier - 1) * .09));
   state.targets.push({ id: state.nextId++, kind, x: clamp(x, 60, WORLD.width - 60), y, hp: maxHp, maxHp,
@@ -240,7 +273,10 @@ function fillGrove(state, rng) {
   while (state.targets.length + plan.total <= preparedLimit && state.nextRowY > state.hero.y - 930) {
     for (let index = 0; index < plan.tree; index++) {
       const kind = (state.rowIndex + index) % 11 === 7 ? 'golden' : (state.rowIndex + index) % 3 === 1 ? 'pine' : 'oak';
-      spawnNode(state, kind, 145 + index * 590 / (plan.tree - 1) + (random(rng) - .5) * 45, state.nextRowY + (random(rng) - .5) * 45, rng);
+      const dense = plan.tree > 5;
+      const x = dense ? 145 + index % 3 * 295 + (random(rng) - .5) * 32 : 145 + index * 590 / (plan.tree - 1) + (random(rng) - .5) * 45;
+      const y = state.nextRowY + (dense ? (Math.floor(index / 3) - 1) * 80 + (random(rng) - .5) * 16 : (random(rng) - .5) * 45);
+      spawnNode(state, kind, x, y, rng);
     }
     for (const [index, kind] of ['berry', 'bamboo', 'grain'].entries()) {
       const x = 210 + ((index + state.rowIndex) % 3) * 245;
@@ -296,10 +332,12 @@ export function recruitFriend(state, id) {
   const worker = makeWorker(state, id, state.workers.length);
   worker.x = encounter.x; worker.y = encounter.y; state.workers.push(worker);
   state.encounter = null;
-  // Every recruit has an immediately reachable first job and needs no recruitment materials.
+  // Give recruits a reachable first job only while their resource is in season.
   const kind = id === 'bear' ? 'oak' : id === 'fox' ? 'berry' : id === 'redpanda' ? 'bamboo' : 'grain';
-  if (state.targets.length >= MAX_NODES) state.targets.pop();
-  spawnNode(state, kind, worker.x + 55, worker.y - 30, () => .5);
+  if (canSpawnKind(state, kind)) {
+    if (state.targets.length >= MAX_NODES) state.targets.pop();
+    spawnNode(state, kind, worker.x + 55, worker.y - 30, () => .5);
+  }
   effect(state, 'recruit', worker.x, worker.y, 0, HERO_BY_ID.get(id).color, 1.5, id);
   syncState(state); return true;
 }
@@ -353,7 +391,7 @@ function award(state, node, worker, rng) {
   recordYearHarvest(state, HERO_BY_ID.get(worker.id).resource, materials);
 }
 function damageNode(state, node, amount, worker, rng) {
-  if (state.journey.phase === 'home' || node.hp <= 0 || !eligible(worker.id, node) || (node.claimedBy && node.claimedBy !== worker.id)) return false;
+  if (state.journey.phase === 'home' || node.hp <= 0 || resourcePlantVisibility(state, node.kind) <= 0 || !eligible(worker.id, node) || (node.claimedBy && node.claimedBy !== worker.id)) return false;
   node.hp -= amount; node.hurtTimer = .25; state.hitCount++;
   effect(state, 'damage', node.x, node.y - 30, amount, '#fff9d4', .6, worker.id);
   if (node.hp <= 0) award(state, node, worker, rng);
@@ -451,6 +489,7 @@ export function stepGame(state, delta, input = {}, rng = Math.random) {
     worker.attackFlash = Math.max(0, worker.attackFlash - dt); worker.skillCooldown = Math.max(0, worker.skillCooldown - dt);
   }
   if (state.journey.phase === 'home') return state;
+  retireWinterPlants(state);
   for (const node of state.targets) {
     node.hurtTimer = Math.max(0, node.hurtTimer - dt); node.animTime += dt;
     if (node.claimedBy && !state.workers.some(w => w.id === node.claimedBy && w.targetId === node.id && distance(w, state.hero) <= 420)) node.claimedBy = null;

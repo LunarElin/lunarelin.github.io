@@ -19,7 +19,8 @@ function mixColor(a, b, amount) {
 
 export function seasonPalette(position = 0) {
   const progress = clamp(position, 0, 3), index = Math.min(2, Math.floor(progress));
-  const amount = smooth(progress - index), a = PALETTES[index], b = PALETTES[index + 1];
+  const amount = smooth(index === 2 ? clamp((progress - 2.5) * 2, 0, 1) : progress - index);
+  const a = PALETTES[index], b = PALETTES[index + 1];
   const filters = [
     [-8, .82, 1.08, 0], [0, 1.05, 1, 0], [-48, .94, 1.08, 0], [-48, .42, 1.40, .65],
   ];
@@ -31,8 +32,26 @@ export function seasonPalette(position = 0) {
     leaf: mixColor(a.leaf, b.leaf, amount), outline: INK,
     treeFilter: `hue-rotate(${filter[0].toFixed(2)}deg) saturate(${filter[1].toFixed(3)}) brightness(${filter[2].toFixed(3)}) grayscale(${filter[3].toFixed(3)})`,
     spring: clamp(1 - progress, 0, 1), summer: clamp(1 - Math.abs(progress - 1), 0, 1),
-    autumn: clamp(1 - Math.abs(progress - 2), 0, 1), snow: smooth(clamp(progress - 2, 0, 1)),
+    autumn: progress <= 2 ? clamp(1 - Math.abs(progress - 2), 0, 1) : 1 - amount,
+    snow: smooth(clamp((progress - 8 / 3) * 3, 0, 1)),
   };
+}
+
+export function winterTreeBlend(position = 0) {
+  return smooth(clamp((clamp(position, 0, 3) - 2.5) * 6, 0, 1));
+}
+
+// A leafless atlas has different alpha: blend premultiplied pixels in a reusable
+// transparent canvas so the old canopy vanishes and overlapping trunks stay solid.
+export function drawWinterTreeBlend(ctx, autumn, winter, amount = 0) {
+  const blend = clamp(amount, 0, 1), { width, height } = ctx.canvas;
+  ctx.save();ctx.setTransform(1, 0, 0, 1, 0, 0);ctx.filter = 'none';
+  ctx.clearRect(0, 0, width, height);
+  ctx.globalCompositeOperation = 'source-over';ctx.globalAlpha = 1 - blend;
+  if (blend < 1) ctx.drawImage(autumn, 0, 0, width, height);
+  ctx.globalCompositeOperation = 'lighter';ctx.globalAlpha = blend;
+  if (blend > 0) ctx.drawImage(winter, 0, 0, width, height);
+  ctx.restore();
 }
 
 function oval(ctx, x, y, rx, ry, fill, stroke = '') {

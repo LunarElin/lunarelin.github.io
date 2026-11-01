@@ -1,6 +1,6 @@
 {
-  "version": 7,
-  "artRevision": "year-cycle-20261031-v1",
+  "version": 8,
+  "artRevision": "bare-winter-20261101-v1",
   "generator": "sprite-gen3.7.0 / codex GPT images and GPT image rows",
   "runtimeGenerationRequired": false,
   "runtimeManifestVersion": 2,
@@ -3004,9 +3004,9 @@
   },
   "totalAnimalFrames": 312,
   "totalAnimalAtlasBytes": 2870594,
-  "totalRuntimeAssetBytesExcludingReport": 4176206,
+  "totalRuntimeAssetBytesExcludingReport": 4208650,
   "seasonTrees": {
-    "method": "Canonical sprite-gen recolor tolerance22; green canopy palette centers measured from existing oak; geometry and alpha unchanged",
+    "method": "Spring/summer/autumn: canonical sprite-gen canopy recolor, unchanged geometry and alpha. Winter: new GPT leafless base + distinct idle2/hit2 rows, original stump retained; no recolor.",
     "source": "oak.webp",
     "sourcePalette": [
       "#568359",
@@ -3052,12 +3052,225 @@
         "image": "oak-winter.webp",
         "width": 384,
         "height": 576,
-        "bytes": 47168,
-        "sha256": "513444fe67cfca361c4acc752cf40ef37e5b12d0c402986297c4518b1ddfc64e",
-        "alphaExact": true,
+        "bytes": 78582,
+        "sha256": "06c2647e87bd9a978e7b6cb87f0419c66ff7f090b1135e2c2442685a09fa5a74",
+        "foliage": "leafless",
+        "generated": true,
+        "alphaExact": false,
+        "brownOutlineAndTrunkExact": false,
         "stumpExact": true,
-        "brownOutlineAndTrunkExact": true,
-        "changedRGBPixels": 42242
+        "validation": {
+          "version": 2,
+          "date": "2026-11-01",
+          "kind": "bare-winter-tree-validation",
+          "image": "oak-winter.webp",
+          "width": 384,
+          "height": 576,
+          "bytes": 78582,
+          "sha256": "06c2647e87bd9a978e7b6cb87f0419c66ff7f090b1135e2c2442685a09fa5a74",
+          "anchor": {
+            "x": 0.5,
+            "y": 0.9375
+          },
+          "cellSize": 192,
+          "rows": {
+            "idle": [
+              {
+                "rect": [
+                  0,
+                  0,
+                  192,
+                  192
+                ],
+                "alphaBounds": [
+                  12,
+                  28,
+                  175,
+                  180
+                ],
+                "opaquePixels": 8389,
+                "coverage": 0.22757,
+                "rootBoundsY165to180": [
+                  60,
+                  0,
+                  131,
+                  15
+                ],
+                "rootCenterX": 95.5,
+                "rootWidth": 71,
+                "whitePixels": 0,
+                "greenPixels": 0,
+                "cyanResiduePixels": 0,
+                "rgbaSHA256": "dbbedf6105d90589e839763711dcf9ce95e29231ab3be70910763c7f3872279a"
+              },
+              {
+                "rect": [
+                  192,
+                  0,
+                  192,
+                  192
+                ],
+                "alphaBounds": [
+                  12,
+                  28,
+                  179,
+                  180
+                ],
+                "opaquePixels": 8736,
+                "coverage": 0.23698,
+                "rootBoundsY165to180": [
+                  60,
+                  0,
+                  131,
+                  15
+                ],
+                "rootCenterX": 95.5,
+                "rootWidth": 71,
+                "whitePixels": 0,
+                "greenPixels": 0,
+                "cyanResiduePixels": 0,
+                "rgbaSHA256": "cab628d73935b9918d77e9052e62a9e3372f90ee7665380f835fd65ee86d9752"
+              }
+            ],
+            "hit": [
+              {
+                "rect": [
+                  0,
+                  192,
+                  192,
+                  192
+                ],
+                "alphaBounds": [
+                  12,
+                  25,
+                  178,
+                  180
+                ],
+                "opaquePixels": 9826,
+                "coverage": 0.26655,
+                "rootBoundsY165to180": [
+                  58,
+                  0,
+                  133,
+                  15
+                ],
+                "rootCenterX": 95.5,
+                "rootWidth": 75,
+                "whitePixels": 0,
+                "greenPixels": 0,
+                "cyanResiduePixels": 0,
+                "rgbaSHA256": "1f29332505bbe2db79c52a0a44108c695d23edd085475f041e5fc627f1a29b86"
+              },
+              {
+                "rect": [
+                  192,
+                  192,
+                  192,
+                  192
+                ],
+                "alphaBounds": [
+                  12,
+                  23,
+                  179,
+                  180
+                ],
+                "opaquePixels": 9855,
+                "coverage": 0.26733,
+                "rootBoundsY165to180": [
+                  58,
+                  0,
+                  133,
+                  15
+                ],
+                "rootCenterX": 95.5,
+                "rootWidth": 75,
+                "whitePixels": 0,
+                "greenPixels": 0,
+                "cyanResiduePixels": 0,
+                "rgbaSHA256": "b683f8ce3a768451a7fd821560231eb74c4e1ab2021be3f34658cd851027e799"
+              }
+            ],
+            "stump": [
+              {
+                "rect": [
+                  0,
+                  384,
+                  192,
+                  192
+                ],
+                "alphaBounds": [
+                  12,
+                  53,
+                  173,
+                  180
+                ],
+                "opaquePixels": 13278,
+                "coverage": 0.36019,
+                "rootBoundsY165to180": [
+                  19,
+                  0,
+                  166,
+                  15
+                ],
+                "rootCenterX": 92.5,
+                "rootWidth": 147,
+                "whitePixels": 0,
+                "greenPixels": 0,
+                "cyanResiduePixels": 0,
+                "rgbaSHA256": "e5ea59e6a20d4bb8d600b84bdb2d4da236e81eb061ee113e9837c4e93f0e3076"
+              }
+            ]
+          },
+          "realTransparency": true,
+          "stumpRGBAExactToOriginal": true,
+          "losslessWebPRGBAExact": true,
+          "pipeline": {
+            "provider": "codex image_gen via existing ChatGPT subscription",
+            "base": "sprite-gen gen --provider codex, original oak192cell used as style/edit reference",
+            "idle": "sprite-gen prepare / gen-set --provider codex (idle2) / extract / compose-atlas / export-pngs",
+            "hit": "same pipeline with accepted idle-frame-0 as direct identityreference and hit2; stable-volume retake replaced the rejected compressed hit row",
+            "stump": "sprite-gen unpack-atlas with original manifest, export-pngs stump",
+            "assembly": "sprite-gen unpack-atlas --pngs-dir / canonical request order+timing under publish_guard / compose-atlas",
+            "postprocess": "lossless WebP encoding only; no recolor, custom painting, frame duplication or runtime mirroring"
+          },
+          "motion": {
+            "idleFPS": 2,
+            "hitFPS": 8,
+            "idleDistinctFrames": 2,
+            "hitDistinctFrames": 2,
+            "stumpFrames": 1
+          },
+          "QA": {
+            "spriteInspectErrors": [],
+            "intentionalWarnings": [
+              "stump motion presence is zero because the original stump has one still frame"
+            ],
+            "acceptedVariance": {
+              "idleRootWidth": 71,
+              "originalIdleRootWidth": 56,
+              "rootWidthDecision": "Broader winter trunk is an accepted property of the newly generated tree; no overall shrink applied.",
+              "hitRelativeHeightToIdle": [
+                1.0197,
+                1.0329
+              ],
+              "hitRelativeWidthToIdle": [
+                1.0184,
+                1.0
+              ],
+              "rootCenterRange": [
+                95.5,
+                95.5
+              ]
+            },
+            "notes": [
+              "Native atlas inspected: chunky tan branches with dark warm-brown outlines, no foliage/snow/green.",
+              "All roots remain at baseline180 and center95.5; idle/hit preserve the original frame layout.",
+              "Retake keeps volume within about3percent and avoids the first candidate hit17percent compression.",
+              "Original stump retained exactly; fixed native timings2fpsidle,8fpshit,1fpsstump.",
+              "Final composed game appearance is root integration responsibility."
+            ]
+          }
+        }
       }
     }
   },
