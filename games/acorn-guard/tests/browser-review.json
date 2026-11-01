@@ -1,40 +1,50 @@
 {
-  "scope": "Annual seasons, winter home decoration and next-spring loop",
-  "date": "2026-10-31",
+  "scope": "Seasonal map atmosphere and seasonal resource density, retaining existing sprites",
+  "date": "2026-11-01",
   "artRevision": "year-cycle-20261031-v1",
   "currentBrowserReview": {
-    "completed": false,
-    "reason": "Local browser use is disabled in Work settings",
-    "gameplayObservedInBrowser": false
+    "completed": true,
+    "browser": "Chromium in-app browser, local static server",
+    "gameplayObservedInBrowser": true,
+    "viewports": [
+      "390x844",
+      "320x740",
+      "1280x900"
+    ],
+    "input": "Mouse click and drag in mobile-size viewports; physical touch not tested"
   },
   "verificationEnvironment": {
     "logic": "Node24.19 built-in test runner",
     "DOM": "jsdom26.1.0, actual game.mjs/HTML/module graph, manual RAF and seeded ordinary gameplay; Canvas/Image/layout/clock are stubs",
     "renderer": "Canvas coordinate/state call tests, not pixel output",
-    "assetArt": "Native source and furniture images visually inspected, canonical RGBA/hash/alpha/season-palette validation"
+    "assetArt": "Native source and furniture images visually inspected, canonical RGBA/hash/alpha/season-palette validation",
+    "browser": "Real Chromium Canvas rendering and local images at 320/390 portrait and desktop; existing progressed local profile with all five companions"
   },
   "observed": [
-    "Actual UI code completed a fresh first-year journey in DOM simulation, recruited all5animals, showed spring/summer/autumn, stopped exactly at108harvests, walked through the2.4second arrival then opened winter home.",
-    "Actual UI nest craft deducted wood12andgrain2 from existing personalmaterials; styles/placement persisted and nextspring retained growth, inventory and decor.",
-    "Pause/restart preserved current year/home; restored winter stayed at home without gathering or replaying arrival; real UI migrated a v3roster/inventory to first spring.",
-    "Four season tree atlases preserve original trunk/outline/stump and alpha; room/cabin/sixfurnishings inspected in isolation at native size.",
-    "Season colors, worldanchoring, Canvas save/restore balance, six furniture hit targets at320/390/shortPC validated with renderer tests.",
-    "House/furniture images loaded lazily near winter and on restoredwinter, confirmed by DOM image request log."
+    "Actual browser gameplay showed spring flowers/greenery, summer light pools, autumn leaf litter, winter frost/snowbanks and the arrival cabin; seasons changed through ordinary automatic gathering.",
+    "Actual browser reached the winter home, crafted a nest and departed into year2spring while retaining all5companions and personal progress. Later post-fix gameplay again showed summer/autumn/winter approach.",
+    "320x740 and390x844 portrait and1280x900desktop displayed without horizontal overflow; year and food computed at28px. Main buttons and party controls measured at least44px.",
+    "Mouse drag on the play area moved the leader and the temporary directionpad was inactive after release. Pause and resume worked. No console errors or warnings observed.",
+    "Actual production UI also completed a fresh first-year journey in DOM simulation, recruited all5animals, reached108harvests, crafted the first nest and kept progress on nextspring.",
+    "Resource tests inspected actual27/30/33node forests and per-zone9/10/11mixes, preserved a pending job through the seasonboundary, generated the next seasonal zone, and restored every seasonal save.",
+    "Renderer tests verified worldanchoring, HUD-excluded airlayer clipping, bounded draw work, static reduced-motion details and invisible particle wraps. Raster asset files and all image/frame/anchor descriptors are unchanged."
   ],
   "automatedTests": {
     "rules": 25,
     "yearCycle": 13,
+    "seasonResources": 5,
     "motion": 7,
     "assets": 8,
-    "renderer": 5,
+    "renderer": 9,
     "DOMIntegration": 3,
-    "passed": 61
+    "passed": 70
   },
   "layoutReview": {
-    "mode": "Static CSS sizing and computed renderer geometry only",
-    "minimumMainTouchTarget": "44 CSS px",
-    "primaryYearAndFoodFont": "28px CSS rule, actual browser rendering unverified",
-    "yearHUDContentFit": "82px desktop/portrait and73px compact landscape; minimum font sizes retained"
+    "mode": "Actual browser screenshots and DOM geometry, plus renderer tests",
+    "minimumMainTouchTarget": "44 CSS px; observed pause48px, skill73px, party53px high at320portrait",
+    "primaryYearAndFoodFont": "28px computed in real browser",
+    "horizontalOverflow": false,
+    "yearHUDContentFit": "Observed at320/390portrait and1280desktop"
   },
   "assetReview": {
     "animalFrames": 312,
@@ -43,33 +53,34 @@
     "assetFolderBytes": 4257699,
     "assetBudgetBytes": 6000000,
     "notes": [
-      "Room/cabin/furniture match broad brown outlines and warm simple color regions.",
-      "Seasonal tree recolor changes green canopy only; brown trunk/stump and alpha are exact.",
-      "Minor frame-shape variation remains from existing six-frame animal cycles."
+      "No raster image or manifest descriptors changed for this update.",
+      "Seasonal details are procedural Canvas shapes matching the existing warm outline and muted woodland colors.",
+      "The existing directional animal cycles retain minor generated frame-shape variation."
     ]
   },
   "provisionalScore": {
     "core": 24,
-    "mobile": 13,
-    "visual": 17,
+    "mobile": 16,
+    "visual": 18,
     "feedback": 13,
     "performance": 8,
     "maintenance": 9,
-    "total": 84
+    "total": 88
   },
   "scoreBasis": {
-    "core": "Annual/home/nextspring and expenses verified by rules plus actual UI DOM simulation; no live browser play.",
-    "mobile": "44px controls and320/390renderer targets checked; real CSS layout/touch unverified.",
-    "visual": "New assets inspected, cohesive seasonal palettes and room scene geometry checked; final composited pixels unverified.",
-    "feedback": "Contacttiming and2.4second arrival/menu chain tested; human feel remains design/simulation assessment.",
-    "performance": "4.3MBasset budget, lazywinterart, boundedworld effects retained; realdevice frame/battery/thermal unmeasured.",
-    "maintenance": "61focused checks, v4migration/roundtrip, localassetprovenance and isolated locked test-onlydependency."
+    "core": "70focused tests plus ordinary browser gathering through winter and nextspring; no progressionblocker observed.",
+    "mobile": "320/390portrait measured and mouse-operated, controls44px+ and mainnumbers28px; physicaltouch/safearea stillunverified.",
+    "visual": "Actual composite inspected at mobile/desktop sizes, seasonal flowers/light/leaves/snow change while sprites remain unchanged.",
+    "feedback": "Browser winterarrival/pause/nextspring observed, timedparticleloop fade tested; enjoyment assessed by limited observation and design.",
+    "performance": "No new downloads; fixed100ground/50airanchor scans and existing4.26MBassets; physicaldevice frame/battery/thermal unmeasured.",
+    "maintenance": "Existingv4save/inventory/home retained; newdistributionrestore and fullUIroundtrip tested; scopedREADME updated."
   },
   "limits": [
-    "PC/320/390 browser screenshots, real input, navigation, safearea/addressbar and tabreturn not rechecked because localbrowser access is disabled.",
-    "Actual mobile sustainedfps, thermal andbattery unmeasured.",
-    "DOM simulation and Canvas stubs do not validate raster composition, visual overlap or human enjoyment.",
-    "Generated animal cycles retain small head/foot/tail shape differences."
+    "Actual iOS Safari and Android Chrome touch, dynamicaddressbar/notch/safearea and realdevice tabreturn were not tested.",
+    "Sustainedmobilefps,thermal,battery and a hardware performance profile remain unmeasured.",
+    "Freshfirstyear recruitment and scarcity coverage use a seeded DOM simulation; browser gameplay used an existing progressed roster.",
+    "Reducedmotion and particlewrap continuity were tested in renderer calls, not physicaldevice animationcapture."
   ],
-  "nextPriority": "Enable localbrowser and play a full year at320/390portrait andPC; check furniture overlap, touch, pause/resume and second spring, then profile physical phones."
+  "nextPriority": "Check physicalphone touch/safeareas and profile seasonal Canvas draw cost during longplay; tune particle density if smallscreen readability or frame time suffers.",
+  "clientRevision": "season-map-20261101-v1"
 }

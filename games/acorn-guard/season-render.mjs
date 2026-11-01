@@ -53,65 +53,126 @@ function leaf(ctx, x, y, size, angle, fill) {
   ctx.restore();
 }
 
-export function drawSeasonDetails(ctx, options = {}) {
-  const { project, camera = { y: 0 }, reduceMotion = false } = options;
-  if (typeof project !== 'function') return;
+function seasonScene(options) {
   const width = Math.max(1, options.width || 390), height = Math.max(1, options.height || 844);
-  const scale = clamp(typeof options.groundScale === 'function' ? options.groundScale() : options.groundScale || width / 690, .15, 3);
-  const time = reduceMotion ? 0 : (Number.isFinite(options.time) ? options.time : 0);
-  const palette = seasonPalette(options.position), worldWidth = Math.max(220, options.worldWidth || 900);
-  const first = Math.floor((camera.y || 0) / 160) - 12;
+  return { width, height, scale: clamp(typeof options.groundScale === 'function' ? options.groundScale() : options.groundScale || width / 690, .15, 3),
+    time: options.reduceMotion ? 0 : (Number.isFinite(options.time) ? options.time : 0),
+    palette: seasonPalette(options.position), worldWidth: Math.max(220, options.worldWidth || 900),
+    first: Math.floor((options.camera?.y || 0) / 160) - 12 };
+}
+
+function flower(ctx, x, y, size, cream) {
+  ctx.strokeStyle = '#809958';ctx.beginPath();ctx.moveTo(x, y + size);ctx.lineTo(x, y - size);ctx.stroke();
+  for (let i = 0; i < 5; i++) {
+    const angle = i / 5 * Math.PI * 2;
+    oval(ctx, x + Math.cos(angle) * size * .75, y + Math.sin(angle) * size * .55 - size, size * .62, size * .43, cream ? '#fff0c9' : '#edc6bb');
+  }
+  oval(ctx, x, y - size, size * .35, size * .27, '#b9994e');
+}
+
+export function drawSeasonDetails(ctx, options = {}) {
+  const { project } = options;
+  if (typeof project !== 'function') return;
+  const { width, height, scale, palette, worldWidth, first } = seasonScene(options);
   ctx.save();ctx.beginPath();ctx.rect(0, 0, width, height);ctx.clip();
   ctx.lineCap = 'round';ctx.lineWidth = Math.max(1.1, scale * 2.2);
   for (let row = first; row < first + 25; row++) {
-    for (let column = 0; column < 3; column++) {
+    for (let column = 0; column < 4; column++) {
       const key = row * 13 + column * 31;
       const x = 100 + seeded(key + 904) * (worldWidth - 200), y = row * 160 + seeded(key + 240) * 95;
       const point = project({ x, y });
       if (!point || !Number.isFinite(point.x + point.y) || point.x < -12 || point.x > width + 12 || point.y < -15 || point.y > height + 15) continue;
-      const size = 4 * scale;
+      const size = 5.5 * scale;
       ctx.globalAlpha = 1 - palette.snow * .64;
       ctx.strokeStyle = palette.tuft;ctx.beginPath();
       ctx.moveTo(point.x - size, point.y);ctx.lineTo(point.x - size * 1.2, point.y - size * .7);
       ctx.moveTo(point.x, point.y);ctx.lineTo(point.x, point.y - size);
       ctx.moveTo(point.x + size, point.y);ctx.lineTo(point.x + size * 1.3, point.y - size * .65);ctx.stroke();
-      if (palette.spring > .05 && seeded(key + 91) > .65) {
-        ctx.globalAlpha = palette.spring * .85;
-        for (let i = 0; i < 4; i++) {
-          const angle = i / 4 * Math.PI * 2;
-          oval(ctx, point.x + Math.cos(angle) * size, point.y + Math.sin(angle) * size * .62 - size, size * .62, size * .42, i % 2 ? '#f3ead0' : '#e7c4b2');
-        }
-        oval(ctx, point.x, point.y - size, size * .38, size * .3, '#b9994e');
+      if (palette.spring > .02 && seeded(key + 91) > .3) {
+        ctx.globalAlpha = palette.spring * .24;
+        oval(ctx, point.x, point.y + size, size * 5, size * 1.4, '#b6cd83');
+        ctx.globalAlpha = palette.spring * .95;
+        for (let i = 0; i < 3; i++) flower(ctx, point.x + (i - 1) * size * 2.3, point.y + (i % 2) * size, size * (i === 1 ? 1 : .8), (key + i) % 2 === 0);
+        leaf(ctx, point.x - size * 3.5, point.y, size * 1.2, -.7, '#90af60');
+        leaf(ctx, point.x - size * 3.5, point.y, size, .8, '#a7bf73');
       }
-      if (palette.autumn > .05 && seeded(key + 48) > .36) {
-        ctx.globalAlpha = palette.autumn * .85;
-        leaf(ctx, point.x - size, point.y + size * .5, size * 1.25, seeded(key + 90) * Math.PI, palette.leaf);
-        leaf(ctx, point.x + size * 2, point.y - size, size, -.6, '#d7aa59');
+      if (palette.summer > .02) {
+        ctx.globalAlpha = palette.summer * .19;
+        oval(ctx, point.x - size * 3, point.y - size, size * 9, size * 3, '#fff2b5');
+        oval(ctx, point.x + size * 5, point.y + size * 2, size * 4, size * 1.6, '#fff7cf');
+        ctx.globalAlpha = palette.summer * .64;
+        for (let i = 0; i < 3; i++) leaf(ctx, point.x + (i - 1) * size * 2.4, point.y, size * 1.3, -.8 + i * .5, i % 2 ? '#9bb769' : '#8eaa5f');
+      }
+      if (palette.autumn > .02 && seeded(key + 48) > .18) {
+        ctx.globalAlpha = palette.autumn * .16;
+        oval(ctx, point.x, point.y + size, size * 6.5, size * 2, '#a5733f');
+        ctx.globalAlpha = palette.autumn * .9;
+        for (let i = 0; i < 5; i++) leaf(ctx, point.x + (seeded(key + i * 9) - .5) * size * 9, point.y + (seeded(key + i * 7) - .5) * size * 3, size * (1 + seeded(key + i) * .5), seeded(key + i + 90) * Math.PI, ['#b97b48', '#d7aa59', '#c59459'][i % 3]);
       }
       if (palette.snow > .02) {
-        ctx.globalAlpha = palette.snow * .8;
-        oval(ctx, point.x, point.y, size * 3.5, size * 1.05, '#f9faee');
-      }
-      if (palette.summer > .08 && seeded(key + 44) > .9) {
-        const float = Math.sin(time * 1.5 + key) * size * 2;
-        ctx.globalAlpha = palette.summer * .7;
-        oval(ctx, point.x - size * .8, point.y - size * 5 + float, size * .7, size, '#efd28a');
-        oval(ctx, point.x + size * .8, point.y - size * 5 + float, size * .7, size, '#efd28a');
-        ctx.strokeStyle = '#927b49';ctx.beginPath();ctx.moveTo(point.x, point.y - size * 6 + float);ctx.lineTo(point.x, point.y - size * 4 + float);ctx.stroke();
+        ctx.globalAlpha = palette.snow * .52;
+        oval(ctx, point.x, point.y + size, size * 7, size * 2.2, '#b6c8c5');
+        ctx.globalAlpha = palette.snow * .93;
+        oval(ctx, point.x - size, point.y, size * 6, size * 1.8, '#f8faef');
+        oval(ctx, point.x + size * 3, point.y - size * .7, size * 3.6, size, '#fffdf2');
+        ctx.globalAlpha = palette.snow * .7;ctx.strokeStyle = '#f9fbf1';
+        ctx.beginPath();ctx.moveTo(point.x - size * 7, point.y);ctx.lineTo(point.x - size * 8, point.y - size * 1.3);ctx.moveTo(point.x - size * 7, point.y);ctx.lineTo(point.x - size * 6.3, point.y - size * 1.6);ctx.stroke();
       }
     }
   }
-  if (palette.snow > .05 || palette.autumn > .3) {
-    const snowing = palette.snow > .12, amount = snowing ? palette.snow : palette.autumn * .65;
-    for (let row = first; row < first + 25; row++) {
-      if (seeded(row + 829) > .72) continue;
-      const x = 110 + seeded(row * 51 + 49) * (worldWidth - 220);
-      const y = row * 160 + (time * (snowing ? 22 : 15) + seeded(row + 777) * 160) % 160;
-      const point = project({ x: x + Math.sin(time * .7 + row) * 12, y });
-      if (!point || !Number.isFinite(point.x + point.y) || point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
-      ctx.globalAlpha = amount * .7;
-      if (snowing) oval(ctx, point.x, point.y - 16, Math.max(1.3, scale * 2.4), Math.max(1.3, scale * 2.4), '#fffdf2');
-      else leaf(ctx, point.x, point.y - 16, scale * 5, time * .35 + row, row % 2 ? '#b87a49' : '#d6a45b');
+  ctx.restore();
+}
+
+// Airborne details sit above sprites; their anchors remain in the scrolling world.
+export function drawSeasonAtmosphere(ctx, options = {}) {
+  const { project } = options;
+  if (typeof project !== 'function') return;
+  const { width, height, scale, time, palette, worldWidth, first } = seasonScene(options);
+  const top = clamp(options.top ?? 0, 0, height), bottom = clamp(options.bottom ?? height, top, height);
+  if (bottom <= top) return;
+  ctx.save();ctx.beginPath();ctx.rect(0, top, width, bottom - top);ctx.clip();
+  ctx.lineWidth = Math.max(1, scale * 1.8);ctx.lineCap = 'round';
+  for (let row = first; row < first + 25; row++) {
+    for (let column = 0; column < 2; column++) {
+      const key = row * 37 + column * 103, phase = seeded(key + 777) * 160;
+      const fall = ((phase + time * 18) % 160 + 160) % 160;
+      // Hide the respawn at each world-row edge rather than teleporting a visible leaf.
+      const streamAlpha = options.reduceMotion ? 1 : smooth(clamp(Math.min(fall / 20, (160 - fall) / 20), 0, 1));
+      const x = 110 + seeded(key + 49) * (worldWidth - 220);
+      const point = project({ x: x + Math.sin(time * .55 + key) * 15, y: row * 160 + fall });
+      if (!point || !Number.isFinite(point.x + point.y) || point.x < -20 || point.x > width + 20 || point.y < top - 60 || point.y > bottom + 80) continue;
+      const lift = (25 + seeded(key + 31) * 65) * scale, y = point.y - lift, size = Math.max(1.6, 5.4 * scale);
+      if (palette.spring > .02) {
+        ctx.globalAlpha = palette.spring * .72 * streamAlpha;
+        leaf(ctx, point.x, y, size * .8, Math.sin(time * .7 + key) * .7 + .4, key % 2 ? '#edc6bb' : '#fff0d8');
+      }
+      if (palette.summer > .02) {
+        if (seeded(key + 44) > .74) {
+          const flutter = options.reduceMotion ? .8 : .45 + Math.abs(Math.sin(time * 5 + key)) * .5;
+          const bob = Math.sin(time * 1.6 + key) * size * 1.5;
+          ctx.globalAlpha = palette.summer * .82 * streamAlpha;
+          oval(ctx, point.x - size * .7 * flutter, y + bob, size * .8 * flutter, size * 1.05, '#eacb7f', '#927344');
+          oval(ctx, point.x + size * .7 * flutter, y + bob, size * .8 * flutter, size * 1.05, '#f5df9d', '#927344');
+          ctx.strokeStyle = '#755734';ctx.beginPath();ctx.moveTo(point.x, y + bob - size);ctx.lineTo(point.x, y + bob + size);ctx.stroke();
+        } else {
+          ctx.globalAlpha = palette.summer * .48 * streamAlpha;
+          oval(ctx, point.x, y, size * .36, size * .36, '#fff5c9');
+        }
+      }
+      if (palette.autumn > .02) {
+        ctx.globalAlpha = palette.autumn * .75 * streamAlpha;
+        leaf(ctx, point.x, y, size, time * .65 + key, key % 2 ? '#b87a49' : '#d6a45b');
+        if (column === 0 && seeded(key + 20) > .62) {
+          ctx.globalAlpha = palette.autumn * .22 * streamAlpha;ctx.strokeStyle = '#f5e3b8';
+          ctx.beginPath();ctx.moveTo(point.x - size * 7, y + size * 2);ctx.quadraticCurveTo(point.x - size * 3, y - size * 2, point.x + size * 2, y);ctx.stroke();
+        }
+      }
+      if (palette.snow > .02) {
+        ctx.globalAlpha = palette.snow * .86 * streamAlpha;
+        oval(ctx, point.x, y, size * .48, size * .48, '#fffdf2');
+        ctx.globalAlpha = palette.snow * .45 * streamAlpha;
+        oval(ctx, point.x + size * 4, y - size * 5, size * .27, size * .27, '#f5faf4');
+      }
     }
   }
   ctx.restore();

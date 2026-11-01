@@ -28,6 +28,12 @@ const HERO_BY_ID = new Map(HEROES.map(hero => [hero.id, hero]));
 const ORDER = HEROES.map(hero => hero.id), START_Y = WORLD.height * .65;
 const MAX_COINS = 999999999, MAX_OFFLINE_MS = 8 * 60 * 60 * 1000, MAX_NODES = 36;
 const TREE_KINDS = new Set(['oak', 'pine', 'golden']);
+const RESOURCE_PLANS = Object.freeze([
+  Object.freeze({ season: 'spring', tree: 4, berry: 1, bamboo: 3, grain: 1, total: 9 }),
+  Object.freeze({ season: 'summer', tree: 3, berry: 3, bamboo: 2, grain: 2, total: 10 }),
+  Object.freeze({ season: 'autumn', tree: 5, berry: 2, bamboo: 1, grain: 3, total: 11 }),
+  Object.freeze({ season: 'winter', tree: 0, berry: 0, bamboo: 0, grain: 0, total: 0 }),
+]);
 const FOOD_RESOURCES = ['acorn', 'berries', 'grain'];
 const RESOURCE_OWNER = { acorn: 'squirrel', wood: 'bear', berries: 'fox', bamboo: 'redpanda', grain: 'sparrow' };
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -121,6 +127,7 @@ export function seasonStatus(state) {
   return { year: journey.year, index: Math.floor(position), position, progress: journey.harvests / YEAR_HARVESTS,
     harvests: journey.harvests, food: journey.food, foodGoal: 120, atHome: journey.phase === 'home' };
 }
+export function seasonResourcePlan(state) { return RESOURCE_PLANS[seasonStatus(state).index]; }
 export function decorationCost(state, id) {
   const definition = DECORATIONS.find(item => item.id === id), decoration = state.homestead.decorations[id];
   if (!definition || !decoration || decoration.level >= definition.maxLevel) return null;
@@ -226,23 +233,21 @@ function spawnNode(state, kind, x, y, rng) {
     radius: TREE_KINDS.has(kind) ? 28 : 21, size: kind === 'pine' ? 1.12 : 1, hurtTimer: 0, animTime: random(rng) * 2, claimedBy: null });
 }
 function fillGrove(state, rng) {
-  while (state.targets.length < MAX_NODES && state.nextRowY > state.hero.y - 930) {
-    for (let index = 0; index < 3; index++) {
+  const plan = seasonResourcePlan(state);
+  if (!plan.total || state.journey.phase === 'home') return;
+  // Keep complete three-zone buffers. Existing jobs stay in place as the next season grows ahead.
+  const preparedLimit = Math.min(MAX_NODES, plan.total * 3);
+  while (state.targets.length + plan.total <= preparedLimit && state.nextRowY > state.hero.y - 930) {
+    for (let index = 0; index < plan.tree; index++) {
       const kind = (state.rowIndex + index) % 11 === 7 ? 'golden' : (state.rowIndex + index) % 3 === 1 ? 'pine' : 'oak';
-      spawnNode(state, kind, 155 + index * 295 + (random(rng) - .5) * 65, state.nextRowY + (random(rng) - .5) * 45, rng);
+      spawnNode(state, kind, 145 + index * 590 / (plan.tree - 1) + (random(rng) - .5) * 45, state.nextRowY + (random(rng) - .5) * 45, rng);
     }
-    if (state.rowIndex % 2 === 0) spawnNode(state, 'oak', 203, state.nextRowY + 8, rng);
     for (const [index, kind] of ['berry', 'bamboo', 'grain'].entries()) {
       const x = 210 + ((index + state.rowIndex) % 3) * 245;
       const y = state.nextRowY + 70 + index * 14;
-      spawnNode(state, kind, x + (random(rng) - .5) * 60, y, rng);
-      if (kind === 'bamboo') {
-        spawnNode(state, kind, x + 38, y - 12, rng);
-        spawnNode(state, kind, x + 91, y + 16, rng);
-      }
-      if (kind === 'grain') {
-        spawnNode(state, kind, x + 18, y + 13, rng);
-        spawnNode(state, kind, x - 20, y + 10, rng);
+      for (let count = 0; count < plan[kind]; count++) {
+        const offsetX = [0, 38, -38][count], offsetY = [0, -12, 16][count];
+        spawnNode(state, kind, x + offsetX + (random(rng) - .5) * 20, y + offsetY, rng);
       }
     }
     state.rowIndex++; state.nextRowY -= 230;

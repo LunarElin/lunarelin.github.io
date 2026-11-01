@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { seasonPalette, shelterLayout, drawSeasonDetails, drawShelter, drawTrailCabin } from '../season-render.mjs';
+import { seasonPalette, shelterLayout, drawSeasonDetails, drawSeasonAtmosphere, drawShelter, drawTrailCabin } from '../season-render.mjs';
 
 function canvasRecorder() {
   const calls = [], stack = [];
@@ -9,7 +9,7 @@ function canvasRecorder() {
     restore() { assert.ok(stack.length, 'unbalanced restore');Object.assign(this, stack.pop()); },
   };
   for (const name of ['beginPath', 'closePath', 'fill', 'stroke', 'clip', 'setLineDash', 'rect', 'roundRect', 'ellipse', 'moveTo', 'lineTo', 'quadraticCurveTo', 'fillRect', 'translate', 'rotate', 'drawImage']) {
-    context[name] = (...args) => { for (const value of args) if (typeof value === 'number') assert.ok(Number.isFinite(value), `${name} finite coordinate`);calls.push({ name, args, alpha: context.globalAlpha }); };
+    context[name] = (...args) => { for (const value of args) if (typeof value === 'number') assert.ok(Number.isFinite(value), `${name} finite coordinate`);calls.push({ name, args, alpha: context.globalAlpha, fill: context.fillStyle }); };
   }
   return { context, calls, stack };
 }
@@ -52,6 +52,62 @@ test('season details keep the same world patches when scrolling crosses a genera
   const shared = after.filter(point => previous.has(key(point)));
   assert.ok(shared.length > after.length * .85, 'moving camera must retain world-anchored grass and snow positions');
   assert.ok(after.every(point => point.x >= 80 && point.x <= 820));
+});
+
+test('grounded seasonal patches never drift with animation time and preserve Canvas state', () => {
+  const signature = (position, time) => {
+    const { context, calls, stack } = canvasRecorder();
+    drawSeasonDetails(context, { position, time, width: 390, height: 844, camera: { y: 159 }, project: point => ({ x: point.x / 3, y: 400 + (point.y - 159) / 4 }) });
+    assert.equal(stack.length, 0);assert.equal(context.globalAlpha, 1);
+    return calls;
+  };
+  for (const position of [0, 1, 2, 2.8, 3]) assert.deepEqual(signature(position, 0), signature(position, 19));
+  assert.ok(signature(0, 0).some(call => call.name === 'fill' && call.fill === '#edc6bb'), 'spring flowers');
+  assert.ok(signature(1, 0).some(call => call.name === 'fill' && call.fill === '#fff2b5'), 'summer sun pools');
+  assert.ok(signature(2, 0).some(call => call.name === 'fill' && call.fill === '#b97b48'), 'autumn leaf beds');
+  assert.ok(signature(3, 0).some(call => call.name === 'fill' && call.fill === '#f8faef'), 'winter snowbanks');
+});
+
+test('airborne seasons clip to the play area, animate without accumulation and freeze for reduced motion', () => {
+  function render(position, time, reduceMotion = false) {
+    const { context, calls, stack } = canvasRecorder();
+    drawSeasonAtmosphere(context, { width: 320, height: 740, top: 160, bottom: 520, position, time, reduceMotion, camera: { y: 159 }, project: point => ({ x: point.x / 3, y: 350 + (point.y - 159) / 4 }) });
+    assert.equal(stack.length, 0);assert.equal(context.globalAlpha, 1);
+    assert.deepEqual(calls.find(call => call.name === 'rect').args, [0, 160, 320, 360]);
+    assert.ok(calls.length < 1800, 'air layer has a fixed 50-anchor budget');
+    assert.ok(calls.every(call => call.alpha >= 0 && call.alpha <= 1));
+    return calls;
+  }
+  for (const position of [0, 1, 2, 2.5, 3]) {
+    assert.deepEqual(render(position, 0, true), render(position, 10000, true));
+    assert.notDeepEqual(render(position, 0), render(position, 1));
+    assert.ok(render(position, 10000).length < 1800);
+  }
+});
+
+test('airborne anchors remain world based when the camera crosses a generation row', () => {
+  function anchors(cameraY) {
+    const points = [], { context } = canvasRecorder();
+    drawSeasonAtmosphere(context, { position: 2.6, time: 30, camera: { y: cameraY }, project(point) { points.push(point);return { x: point.x / 3, y: 400 + (point.y - cameraY) / 4 }; } });
+    return points.map(point => `${point.x.toFixed(6)},${point.y.toFixed(6)}`);
+  }
+  const previous = new Set(anchors(159)), next = anchors(161);
+  assert.ok(next.filter(point => previous.has(point)).length / next.length >= .95);
+});
+
+test('airborne loops fade out before respawning and reduced motion keeps full static opacity', () => {
+  function render(time, reduceMotion = false) {
+    const points = [], { context, calls } = canvasRecorder();
+    drawSeasonAtmosphere(context, { position: 0, time, reduceMotion, project(point) { points.push(point);return { x: 160, y: 350 }; } });
+    return { firstWorldY: points[0].y, firstAlpha: calls.find(call => call.name === 'translate').alpha };
+  }
+  const first = render(0), phase = ((first.firstWorldY % 160) + 160) % 160;
+  const wrapTime = (160 - phase) / 18;
+  const before = render(wrapTime - .0001), after = render(wrapTime + .0001);
+  assert.ok(before.firstWorldY - after.firstWorldY > 159, 'exercise an actual row respawn');
+  assert.ok(before.firstAlpha < .000001 && after.firstAlpha < .000001, 'both sides of the position reset must be invisible');
+  assert.ok(render(wrapTime + 80 / 18).firstAlpha > .7, 'particles regain their normal opacity between row edges');
+  assert.equal(render(wrapTime, true).firstAlpha, .72, 'reduced motion keeps a visible static petal');
 });
 
 test('shelter draws every recruited friend once, keeps hit zones for hidden pieces and restores Canvas state', () => {

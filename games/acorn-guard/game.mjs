@@ -1,6 +1,6 @@
-import { HEROES, WORLD, RECRUIT_THRESHOLDS, SEASONS, DECORATIONS, seasonStatus, decorationCost, craftDecoration, cycleDecorationStyle, toggleDecoration, homeComfort, beginSpring, createGame, stepGame, xpForLevel, upgrade, upgradeCost, upgradeDefinitions, upgradeValue, recruitFriend, selectHero, useSkill, restartRun, loadProfile, saveProfile } from './rules.mjs?v=year-cycle-20261031-v1';
+import { HEROES, WORLD, RECRUIT_THRESHOLDS, SEASONS, DECORATIONS, seasonStatus, decorationCost, craftDecoration, cycleDecorationStyle, toggleDecoration, homeComfort, beginSpring, createGame, stepGame, xpForLevel, upgrade, upgradeCost, upgradeDefinitions, upgradeValue, recruitFriend, selectHero, useSkill, restartRun, loadProfile, saveProfile } from './rules.mjs?v=season-map-20261101-v1';
 import { projectWorldVector, screenInputToWorld, createPoseMemory, actorPose, frameAt } from './motion.mjs';
-import { seasonPalette, drawSeasonDetails, drawShelter, drawTrailCabin } from './season-render.mjs?v=year-cycle-20261031-v1';
+import { seasonPalette, drawSeasonDetails, drawSeasonAtmosphere, drawShelter, drawTrailCabin } from './season-render.mjs?v=season-map-20261101-v1';
 
 const $ = selector => document.querySelector(selector);
 const canvas = $('#world'), ctx = canvas.getContext('2d', { alpha: false });
@@ -414,6 +414,7 @@ function draw() {
     acorn(point.x,point.y-lift,projectile.skill?12:10,Math.atan2(velocity.y,velocity.x)+age*8,projectile.skill);
   }
   drawCoins();drawEffects();
+  drawSeasonAtmosphere(ctx,{width,height,position:visualSeason,time:ambientTime,camera,groundScale:groundScale(),project:position,reduceMotion,top:playTop,bottom:playTop+playHeight,worldWidth:WORLD.width});
   if(arrivalTime>0&&cabin){
     const progress=1-arrivalTime/2.4,ease=progress*progress*(3-2*progress);
     state.workers.forEach((worker,i)=>{const start=position(worker),end={x:cabin.x+(i-2)*4,y:cabin.y-8+i*2},x=start.x+(end.x-start.x)*ease,y=start.y+(end.y-start.y)*ease,view=Math.abs(end.x-start.x)>Math.abs(end.y-start.y)*1.2?(end.x>start.x?'right':'left'):'back';drawHeroImage(ctx,worker.id,x,y,spriteSize()*(1-ease*.24),'run',ambientTime,view);});
