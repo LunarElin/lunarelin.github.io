@@ -6,7 +6,7 @@
 
 ## 구성
 
-- `index.html`: 프로토타입 우선의 포트폴리오 메인, 대표 사례와 경력·소개
+- `index.html`: 프로토타입 우선의 포트폴리오 메인, 대표 사례와 경력·소개. 경력 프로젝트 상세는 처음부터 모두 펼쳐 표시합니다.
 - `portfolio/block-bloom.html`: 블록 블룸의 설계 의도·Codex 협업·검증 근거와 후속 검증 제안
 - `portfolio/prototypes.html`: 최근 프로토타입 5개의 현재 구조·설계 선택·후속 확인 질문
 - `portfolio/prototypes.css`: 최근 제작 노트 페이지 디자인
@@ -36,7 +36,7 @@
 
 첫 화면 이미지 외의 이미지는 지연 로딩하며, 영상은 클릭 시 YouTube로 이동합니다. 외부 글꼴·게임 코드·영상 플레이어는 홈페이지에서 미리 로드하지 않습니다. 본문은 운영체제의 한글 지원 글꼴을 사용합니다.
 
-홈페이지 수정 후 `node --check portfolio/main.js`와 `git diff --check -- index.html portfolio README.md`를 실행하고, 실제 브라우저에서 320px·390px·PC 배치와 세부 경력 펼치기, 게임 진입·홈 복귀를 확인합니다.
+홈페이지 수정 후 `node --check portfolio/main.js`와 `git diff --check -- index.html portfolio README.md`를 실행하고, 실제 브라우저에서 320px·390px·PC 배치와 경력 상세의 기본 펼침 상태, 게임 진입·홈 복귀를 확인합니다.
 
 2026년 10월 31일 갱신은 Work 설정에서 로컬 브라우저 사용이 비활성화되어 새 스크린샷·PC/320px/390px 화면·터치 조작을 직접 확인하지 못했습니다. 이번 확인은 정적 링크·앵커·이미지 메타데이터·문서 구조·JavaScript 구문과 배포 파일 대조로 제한하며, 이전 브라우저 확인을 이번 화면 검증으로 간주하지 않습니다.
 
