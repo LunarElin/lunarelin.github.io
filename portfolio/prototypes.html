@@ -7,9 +7,9 @@
   <meta name="description" content="정우용의 최근 게임 프로토타입 제작 노트. 도토리 원정대, 숲의 수호자, 야생의 서약, 룬빛 상회, 오빗 골프의 현재 구조와 구현 선택을 소개합니다.">
   <title>최근 프로토타입 제작 노트 · 정우용</title>
   <link rel="icon" href="mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=portfolio-20261031">
-  <link rel="stylesheet" href="case-study.css">
-  <link rel="stylesheet" href="prototypes.css">
+  <link rel="stylesheet" href="style.css?v=case-first-20261102">
+  <link rel="stylesheet" href="case-study.css?v=case-first-20261102">
+  <link rel="stylesheet" href="prototypes.css?v=case-first-20261102">
 </head>
 <body id="top" class="prototype-notes">
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
@@ -21,8 +21,8 @@
   <main id="main" class="case-page wrap prototypes-page">
     <section class="case-intro notes-intro" aria-labelledby="notes-title">
       <a class="case-back" href="../#play">← 게임 목록으로</a>
-      <p class="eyebrow">최근 프로토타입 제작 노트</p>
-      <h1 id="notes-title">무엇을 바꾸고,<br><span>어떤 플레이를 만들었는가.</span></h1>
+
+      <h1 id="notes-title">최근 프로토타입,<br><span>설계와 개선의 기록.</span></h1>
       <p class="case-lead">각 게임의 현재 구조와 구현 결정을 정리했습니다. 다음 확인 질문은 앞으로 플레이어의 반응을 살펴볼 가설이며, 확인된 사용자 성과를 뜻하지 않습니다.</p>
       <p class="notes-date">기준일 <time datetime="2026-10-31">2026.10.31</time></p>
       <nav class="prototype-index" aria-label="프로토타입 목차">
@@ -33,7 +33,7 @@
 
     <section class="case-section prototype-note" id="acorn-guard" aria-labelledby="acorn-title">
       <div class="note-heading">
-        <div class="note-heading-copy"><p class="eyebrow">01 · 사계절 채집과 겨울 집</p><h2 id="acorn-title">도토리 원정대</h2><p class="note-description">다람쥐 한 마리로 시작해 동료를 만나고, 최대 다섯 동물이 함께 먹이와 재료를 모으는 방치형 채집 게임입니다. 봄·여름·가을의 숲길을 지나 겨울 집을 꾸민 뒤 다음 봄으로 떠납니다. 동료·개인 성장·남은 재료·집 꾸미기는 해가 바뀌어도 이어집니다.</p></div>
+        <div class="note-heading-copy"><h2 id="acorn-title">도토리 원정대</h2><p class="note-description">다람쥐 한 마리로 시작해 동료를 만나고, 최대 다섯 동물이 함께 먹이와 재료를 모으는 방치형 채집 게임입니다. 봄·여름·가을의 숲길을 지나 겨울 집을 꾸민 뒤 다음 봄으로 떠납니다. 동료·개인 성장·남은 재료·집 꾸미기는 해가 바뀌어도 이어집니다.</p></div>
         <figure class="note-art art-acorn"><img src="../games/acorn-guard/icon.svg?v=outlined-20261031-v1" alt="도토리 원정대 게임 아이콘 아트" width="128" height="128" loading="lazy"><figcaption>아이콘 아트 미리보기</figcaption></figure>
       </div>
       <div class="note-decisions" aria-label="도토리 원정대 구현 결정">
@@ -46,7 +46,7 @@
 
     <section class="case-section prototype-note" id="grove-warden" aria-labelledby="grove-title">
       <div class="note-heading">
-        <div class="note-heading-copy"><p class="eyebrow">02 · 필드 사냥과 거점 성장</p><h2 id="grove-title">숲의 수호자</h2><p class="note-description">Canvas 2D 도트 화면에서 네 지역을 직접 이동하고, 자동 공격으로 사냥한 전리품을 거점에 운반하는 액션 RPG입니다. 전리품 입금과 회복은 거점에 직접 들어가 처리하며, 공통 영구 성장과 상황에 맞는 자동 변신으로 더 깊은 사냥터에 도전합니다.</p></div>
+        <div class="note-heading-copy"><h2 id="grove-title">숲의 수호자</h2><p class="note-description">Canvas 2D 도트 화면에서 네 지역을 직접 이동하고, 자동 공격으로 사냥한 전리품을 거점에 운반하는 액션 RPG입니다. 전리품 입금과 회복은 거점에 직접 들어가 처리하며, 공통 영구 성장과 상황에 맞는 자동 변신으로 더 깊은 사냥터에 도전합니다.</p></div>
         <figure class="note-art art-grove"><img src="../games/grove-warden/icon.svg" alt="숲의 수호자 게임 아이콘 아트" width="128" height="128" loading="lazy"><figcaption>아이콘 아트 미리보기</figcaption></figure>
       </div>
       <div class="note-decisions" aria-label="숲의 수호자 구현 결정">
@@ -59,7 +59,7 @@
 
     <section class="case-section prototype-note" id="wild-oath" aria-labelledby="wild-title">
       <div class="note-heading">
-        <div class="note-heading-copy"><p class="eyebrow">03 · 덱 빌딩과 자동 전투</p><h2 id="wild-title">야생의 서약</h2><p class="note-description">무작위로 제시되는 카드 세 장 중 하나씩 여덟 번 골라 첫 덱을 만들고, 탐험과 야영지를 거쳐 다섯 시련에 도전하는 로그라이크 덱 빌딩 오토배틀입니다. 전투에서는 기력이 허용하는 만큼 덱 순서대로 카드를 자동 사용합니다. 현행 화면은 보석 눈의 둥근 마스코트와 보석·캔디 재질의 UI를 사용합니다.</p></div>
+        <div class="note-heading-copy"><h2 id="wild-title">야생의 서약</h2><p class="note-description">무작위로 제시되는 카드 세 장 중 하나씩 여덟 번 골라 첫 덱을 만들고, 탐험과 야영지를 거쳐 다섯 시련에 도전하는 로그라이크 덱 빌딩 오토배틀입니다. 전투에서는 기력이 허용하는 만큼 덱 순서대로 카드를 자동 사용합니다. 현행 화면은 보석 눈의 둥근 마스코트와 보석·캔디 재질의 UI를 사용합니다.</p></div>
         <figure class="note-art art-wild"><img class="note-illustration" src="../games/wild-oath/assets/gem-v5/forms/wolf.webp" alt="야생의 서약의 보석 눈 늑대 변신 카드 삽화" width="320" height="160" loading="lazy"><figcaption>변신 카드 아트 미리보기</figcaption></figure>
       </div>
       <div class="note-decisions" aria-label="야생의 서약 구현 결정">
@@ -72,7 +72,7 @@
 
     <section class="case-section prototype-note" id="runehaven" aria-labelledby="rune-title">
       <div class="note-heading">
-        <div class="note-heading-copy"><p class="eyebrow">04 · 운반 동선과 상회 운영</p><h2 id="rune-title">룬빛 상회</h2><p class="note-description">무기·물약·음식을 직접 나르고 여러 개 주문을 채우며 상회를 키우는 판타지 경영 게임입니다. 여관에서는 손님의 식사·좌석별 정리·식탁별 대금 수거를 관리하고, 최대 다섯 조수에게 운반과 정리 업무를 맡깁니다. 구매한 단골은 상회 방어에도 합류합니다.</p></div>
+        <div class="note-heading-copy"><h2 id="rune-title">룬빛 상회</h2><p class="note-description">무기·물약·음식을 직접 나르고 여러 개 주문을 채우며 상회를 키우는 판타지 경영 게임입니다. 여관에서는 손님의 식사·좌석별 정리·식탁별 대금 수거를 관리하고, 최대 다섯 조수에게 운반과 정리 업무를 맡깁니다. 구매한 단골은 상회 방어에도 합류합니다.</p></div>
         <figure class="note-art art-rune"><img src="../games/runehaven/icon.svg" alt="룬빛 상회 게임 아이콘 아트" width="128" height="128" loading="lazy"><figcaption>아이콘 아트 미리보기</figcaption></figure>
       </div>
       <div class="note-decisions" aria-label="룬빛 상회 구현 결정">
@@ -85,7 +85,7 @@
 
     <section class="case-section prototype-note" id="orbit-golf" aria-labelledby="orbit-title">
       <div class="note-heading">
-        <div class="note-heading-copy"><p class="eyebrow">05 · 비거리 성장과 연쇄 조준</p><h2 id="orbit-title">오빗 골프</h2><p class="note-description">공을 한 번 쳐서 물체를 날리고 연쇄 충돌을 만드는 3D 물리 골프입니다. 일반 비거리 모드의 골드·공·슈트 성장과 별도로, 도미노·과자 파쇄·우주 볼링의 세 과제에서 발사각과 세기로 연쇄의 시작점을 고릅니다.</p></div>
+        <div class="note-heading-copy"><h2 id="orbit-title">오빗 골프</h2><p class="note-description">공을 한 번 쳐서 물체를 날리고 연쇄 충돌을 만드는 3D 물리 골프입니다. 일반 비거리 모드의 골드·공·슈트 성장과 별도로, 도미노·과자 파쇄·우주 볼링의 세 과제에서 발사각과 세기로 연쇄의 시작점을 고릅니다.</p></div>
         <figure class="note-art art-orbit"><img src="../games/orbit-golf/icon.svg" alt="오빗 골프 게임 아이콘 아트" width="128" height="128" loading="lazy"><figcaption>아이콘 아트 미리보기</figcaption></figure>
       </div>
       <div class="note-decisions" aria-label="오빗 골프 구현 결정">
@@ -97,7 +97,7 @@
     </section>
 
     <section class="case-section notes-more" aria-labelledby="more-title">
-      <p class="eyebrow">대표 사례와 공개 자료</p><h2 id="more-title">설계 의도에서,<br>실제 수정 기록까지.</h2>
+      <h2 id="more-title">설계 의도에서,<br>실제 수정 기록까지.</h2>
       <p>블록 블룸 대표 사례에서는 제작 요청, AI를 활용한 구현, 후속 수정과 검증 기록을 이어서 볼 수 있습니다. 각 게임의 세부 규칙과 기존 검증 범위는 공개 제작 문서에 정리했습니다.</p>
       <div class="note-actions"><a class="button button-primary" href="block-bloom.html">블록 블룸 대표 사례 <span aria-hidden="true">↗</span></a><a class="note-link" href="../#play">홈의 게임 목록 <span aria-hidden="true">↗</span></a></div>
       <details class="case-test-details source-notes"><summary>공개 소스 폴더 확인 <span aria-hidden="true">+</span></summary><div><p>현재 구현은 아래 각 게임 폴더에서 확인할 수 있습니다.</p><ul class="source-list">

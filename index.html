@@ -7,8 +7,8 @@
   <meta name="description" content="게임 클라이언트 개발자 정우용의 포트폴리오. 파이드픽셀즈의 전투·AI·ATB 결투장 개발, 이동 동기화 경험과 AI 게임 프로토타입을 소개합니다.">
   <title>정우용 · 게임 클라이언트 개발</title>
   <link rel="icon" href="portfolio/mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="portfolio/style.css?v=portfolio-20261031">
-  <script src="portfolio/main.js" defer></script>
+  <link rel="stylesheet" href="portfolio/style.css?v=case-first-20261102">
+  <script src="portfolio/main.js?v=case-first-20261102" defer></script>
 </head>
 <body id="top">
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
@@ -18,61 +18,65 @@
         <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path d="M25 23A13 13 0 0 1 9 4a13 13 0 1 0 16 19Z" fill="currentColor"/><path d="m23 4 1.2 3.8L28 9l-3.8 1.2L23 14l-1.2-3.8L18 9l3.8-1.2Z" fill="currentColor"/></svg>
         <span>정우용<span class="brand-dot">.</span></span>
       </a>
-      <nav class="main-nav" aria-label="주 메뉴"><a href="#play">게임</a><a href="#case-study">사례</a><a href="#about">소개</a></nav>
+      <nav class="main-nav" aria-label="주 메뉴"><a href="#case-study">사례</a><a href="#play">게임</a><a href="#work">경력</a><a href="#about">소개</a></nav>
       <a class="header-link" href="https://github.com/LunarElin" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span><span class="sr-only"> (새 탭)</span></a>
     </div>
   </header>
   <main id="main">
-    <section class="hero prototype-hero wrap" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="small-star" aria-hidden="true">✳</span> PLAYABLE PROTOTYPES</p>
-        <h1 id="hero-title">재미의 가설을<br><span>플레이로.</span></h1>
-        <p class="hero-intro">게임 클라이언트 개발자 <strong>정우용</strong>입니다.<br class="desktop-break"> 퍼즐·경영·필드 RPG까지, 아홉 개의 프로토타입을 만듭니다. 직접 플레이하고 설계·개선·AI 협업 기록을 살펴보세요.</p>
-        <div class="hero-actions"><a class="button button-primary" href="games/block-bloom/">블록 블룸 플레이 <span aria-hidden="true">↗</span></a><a class="text-link" href="#case-study">대표 사례 보기 <span aria-hidden="true">↓</span></a></div>
-      </div>
-      <a class="prototype-hero-visual" href="games/block-bloom/" aria-label="대표 사례 블록 블룸 플레이">
-        <span class="prototype-visual-top"><span>대표 사례</span><span>HTML5 퍼즐</span></span>
-        <img src="portfolio/assets/block-bloom-campaign-board.webp" alt="블록 블룸 현재 1스테이지의 실습 보드. 강조된 블록과 이동 안내가 보입니다." width="450" height="455" fetchpriority="high">
-        <span class="prototype-visual-bottom"><strong>BLOCK BLOOM</strong><span>직접 따라 배우는 퍼즐 <span aria-hidden="true">↗</span></span></span>
-      </a>
-      <div class="hero-foot"><span>웹 게임 프로토타입 9개 · 설치 없이 플레이</span><a href="#work">개발 경력 보기 <span aria-hidden="true">↗</span></a></div>
-    </section>
+<section class="hero prototype-hero wrap" aria-labelledby="hero-title">
+  <div class="hero-copy">
+    <h1 id="hero-title">플레이를 설계하고,<br><span>AI와 구현합니다.</span></h1>
+    <p class="hero-intro">17년 이상 게임 클라이언트를 개발해 온 <strong>정우용</strong>입니다. 제작 방향과 요구사항을 정하고, Codex와 구현·검증·개선을 이어갑니다.</p>
+    <div class="hero-actions"><a class="button button-primary" href="portfolio/block-bloom.html#ai-workflow">설계·AI 협업 사례 <span aria-hidden="true">↗</span></a><a class="text-link" href="#work">경력·담당 업무 <span aria-hidden="true">↓</span></a></div>
+  </div>
+  <a class="prototype-hero-visual" href="portfolio/block-bloom.html#ai-workflow" aria-label="블록 블룸 설계와 AI 협업 사례 읽기">
+    <img src="portfolio/assets/block-bloom-campaign-board.webp" alt="블록 블룸 첫 판의 실제 실습 보드. 강조된 블록을 화살표 방향으로 이동합니다." width="450" height="455" fetchpriority="high">
+    <span class="prototype-visual-bottom"><strong>블록 블룸</strong><span>현재 1판 실습 보드 · 협업 사례 읽기 <span aria-hidden="true">↗</span></span></span>
+  </a>
+  <div class="hero-foot"><span>방향 설정 → AI 구현 → 검증·개선</span><a href="#case-study">대표 변경 살펴보기 <span aria-hidden="true">↓</span></a></div>
+</section>
+
+<section class="section wrap bloom-case-section" id="case-study" aria-labelledby="case-title">
+  <div class="section-heading"><div><h2 id="case-title">블록 블룸,<br>설계와 AI 협업의 기록.</h2><p>제작자의 요구가 플레이 흐름의 변경으로 이어진 사례입니다.</p></div></div>
+  <div class="case-overview">
+    <div class="case-overview-copy">
+      <h3>모드 선택에서,<br>한 판씩 배우는 퍼즐로.</h3>
+      <p>순차 진행·초반 실습·조작 단순화를 요청하고, Codex가 규칙과 화면을 수정했습니다. 무엇을 요청하고 어떻게 반영했는지 실제 제작 기록으로 보여드립니다.</p>
+      <dl class="case-decision-record">
+        <div><dt>요청</dt><dd>모드를 고르는 대신 새 기믹을 배우며 순서대로 진행</dd></div>
+        <div><dt>변경</dt><dd>1~7판 학습·복습 → 8~12판 조합 → 13판부터 응용</dd></div>
+        <div><dt>확인 근거</dt><dd>변경 커밋, 규칙·DOM 검사와 Chromium 플레이 확인 기록</dd></div>
+      </dl>
+      <p class="case-scope">2026.10.21 제작·검토 기록 기준입니다. 신규 사용자의 이해도·재미·재방문 효과는 아직 측정하지 않았습니다.</p>
+      <div class="case-actions"><a class="button button-primary" href="portfolio/block-bloom.html#iterations">요청과 수정 기록 <span aria-hidden="true">↗</span></a><a class="text-link" href="portfolio/block-bloom.html#ai-workflow">AI 협업 과정 <span aria-hidden="true">↗</span></a></div>
+    </div>
+    <figure class="case-overview-figure">
+      <a class="case-overview-image" href="portfolio/assets/block-bloom-campaign-screen.webp" target="_blank" rel="noopener noreferrer" aria-label="블록 블룸 첫 판 실습 화면 크게 보기 (새 탭)"><img src="portfolio/assets/block-bloom-campaign-screen.webp" alt="코랄 블록을 위쪽 출구로 미는 블록 블룸 1스테이지 컬러 탈출 실습 화면" width="500" height="900" loading="lazy"></a>
+      <figcaption>1스테이지 컬러 탈출 실습 · 실제 실행 화면</figcaption>
+      <a class="text-link" href="games/block-bloom/">블록 블룸 직접 플레이 <span aria-hidden="true">↗</span></a>
+    </figure>
+  </div>
+</section>
 
     <section class="play-section" id="play" aria-labelledby="play-title">
       <div class="wrap">
-        <div class="section-label"><span class="section-number">01</span><span>웹 게임 프로토타입</span><span class="label-en">PLAYGROUND</span></div>
         <div class="section-heading"><div><h2 id="play-title">이번엔, 직접 플레이.</h2><p>설치 없이 브라우저에서.<br class="mobile-break"> PC와 휴대폰으로 가볍게 즐겨보세요.</p></div><span class="play-count">9개의 브라우저 프로토타입 <span aria-hidden="true">↙</span></span></div>
         <div class="game-grid">
-          <article class="game-card game-bloom"><a class="game-visual" href="games/block-bloom/" tabindex="-1" aria-hidden="true"><span class="game-genre">대표 사례 · 컬러 퍼즐</span><div class="visual-checks"></div><img src="games/block-bloom/icon.svg" width="148" height="148" alt="" loading="lazy"><span class="visual-title">BLOCK<br><b>BLOOM</b></span><span class="visual-plus">✳</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/block-bloom/">블록 블룸</a></h3><span class="game-index">01</span></div><p>같은 색 출구로 블록을 밀어보세요.<br>한 판씩 기믹을 배우고 조합해 보세요.</p><div class="game-links"><a class="play-link" href="games/block-bloom/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" href="portfolio/block-bloom.html">대표 사례 <span aria-hidden="true">↗</span></a></div></div></article>
-          <article class="game-card game-acorn"><a class="game-visual game-art art-acorn" href="games/acorn-guard/" tabindex="-1" aria-hidden="true"><span class="game-genre">사계절 채집 · 겨울 집 꾸미기</span><span class="sprite-window animal-window"><img src="games/acorn-guard/assets/squirrel-front.webp" width="768" height="384" alt="도토리를 든 다람쥐의 게임 아트" loading="lazy"></span><span class="sprite-window tree-window"><img src="games/acorn-guard/assets/oak-autumn.webp" width="384" height="576" alt="가을 참나무의 게임 아트" loading="lazy"></span><span class="art-caption">게임 아트 미리보기 <span>↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/acorn-guard/">도토리 원정대</a></h3><span class="game-index">02</span></div><p>다람쥐로 시작해 동료와 겨울나기 재료를 모아요.<br>사계절을 지나 겨울 집을 꾸미고, 다시 봄으로.</p><ul class="game-highlights"><li>채집 진도로 계절 전환, 겨울에는 집 꾸미기</li><li>동료·개인 성장·꾸미기는 다음 해에도 유지</li></ul><div class="game-links"><a class="play-link" href="games/acorn-guard/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" href="portfolio/prototypes.html#acorn-guard">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
-          <article class="game-card game-grove-warden"><a class="game-visual game-art art-grove" href="games/grove-warden/" tabindex="-1" aria-hidden="true"><span class="game-genre">2D 도트 · 필드 RPG</span><img src="games/grove-warden/icon.svg" width="148" height="148" alt="숲의 수호자의 현재 도트 드루이드 아트" loading="lazy"><span class="visual-title">GROVE<br><b>WARDEN</b></span><span class="art-caption">게임 아트 미리보기 <span>↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/grove-warden/">숲의 수호자</a></h3><span class="game-index">03</span></div><p>도트 숲을 탐험하고 전리품을 거점으로 운반해요.<br>무기를 고르고 자동 변신으로 더 깊은 숲에 도전.</p><ul class="game-highlights"><li>거점에서 7종 무기 무료 선택·공통 영구 성장</li><li>레벨로 늑대·곰·용 변신을 해금해 자동 대응</li></ul><div class="game-links"><a class="play-link" href="games/grove-warden/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" href="portfolio/prototypes.html#grove-warden">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
-          <article class="game-card game-wild-oath"><a class="game-visual game-art art-wild" href="games/wild-oath/" tabindex="-1" aria-hidden="true"><img class="art-illustration" src="games/wild-oath/assets/gem-v5/forms/wolf.webp" width="320" height="160" alt="야생의 서약에 사용되는 보석 장식 늑대 변신 카드 삽화" loading="lazy"><span class="game-genre">덱 빌딩 · 변신 자동 전투</span><span class="art-caption">게임 아트 미리보기 <span>↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/wild-oath/">야생의 서약</a></h3><span class="game-index">04</span></div><p>여덟 번의 카드 선택으로 첫 덱을 구성해요.<br>변신과 상태 이상을 엮어 다섯 시련에 도전.</p><ul class="game-highlights"><li>덱 순서와 기력으로 연속 카드 사용 설계</li><li>보석 마스코트 아트·공격 카드 돌진 연출</li></ul><div class="game-links"><a class="play-link" href="games/wild-oath/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" href="portfolio/prototypes.html#wild-oath">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
-          <article class="game-card game-runehaven"><a class="game-visual game-art art-rune" href="games/runehaven/" tabindex="-1" aria-hidden="true"><span class="game-genre">상점 경영 · 단골 방어전</span><img src="games/runehaven/icon.svg" width="148" height="148" alt="룬빛 상회의 게임 아이콘" loading="lazy"><span class="visual-title">RUNE<br><b>HAVEN</b></span><span class="art-caption">게임 아이콘 <span>↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/runehaven/">룬빛 상회</a></h3><span class="game-index">05</span></div><p>재료 운반부터 복수 주문·식사·자리 정리까지.<br>상회를 키우고, 구매한 단골과 함께 지켜내요.</p><ul class="game-highlights"><li>좌석별 식사·청소와 식탁별 대금 수거</li><li>바닥 작업 원과 조수의 직무로 운영 동선 구성</li></ul><div class="game-links"><a class="play-link" href="games/runehaven/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" href="portfolio/prototypes.html#runehaven">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
-          <article class="game-card game-ark"><a class="game-visual" href="games/orbit-golf/" tabindex="-1" aria-hidden="true" style="background:linear-gradient(135deg,#0e243b,#285b69);color:#bcf6df"><span class="game-genre">3D 스페이스 골프 · 궤도 챌린지</span><img src="games/orbit-golf/icon.svg" width="148" height="148" alt="" loading="lazy"><span class="visual-title">ORBIT<br><b style="color:#d4ff72">GOLF</b></span><span class="visual-plus">✦</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/orbit-golf/">오빗 골프</a></h3><span class="game-index">06</span></div><p>각도와 세기를 조절해 우주 트랙을 달려요.<br>같은 코스에 다시 도전하며 물체의 연쇄를 조준.</p><ul class="game-highlights"><li>비거리 성장과 연쇄 조준 과제 3종을 분리</li><li>같은 시드에서 각도 비교·공 특성 해금</li></ul><div class="game-links"><a class="play-link" href="games/orbit-golf/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" href="portfolio/prototypes.html#orbit-golf">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
-          <article class="game-card game-ark"><a class="game-visual" href="games/neon-ark/" tabindex="-1" aria-hidden="true"><span class="game-genre">로그라이크 퍼즐</span><div class="visual-orbit"></div><img src="games/neon-ark/icon.svg" width="148" height="148" alt="" loading="lazy"><span class="visual-title">NEON<br><b>ARK</b></span><span class="visual-plus">✧</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/neon-ark/">네온 아크</a></h3><span class="game-index">07</span></div><p>탐사대를 태우고, 행성을 조사하고.<br>강화를 선택하며 9개 항로를 완주하는 우주 퍼즐.</p><div class="game-links"><a class="play-link" href="games/neon-ark/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" href="games/neon-ark/design.html">설계 노트 <span aria-hidden="true">↗</span></a></div></div></article>
-          <article class="game-card game-cozy"><a class="game-visual" href="games/cozy-forest/" tabindex="-1" aria-hidden="true"><span class="game-genre">동물 트리플 매치</span><div class="visual-hill"></div><img src="games/cozy-forest/icon.svg" width="148" height="148" alt="" loading="lazy"><span class="visual-title">COZY<br><b>FOREST</b></span><span class="visual-plus">✿</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/cozy-forest/">포근포근 숲</a></h3><span class="game-index">08</span></div><p>귀여운 동물 셋이 만나면, 마음까지 포근하게.<br>아이템과 피버로 이어가는 숲속 퍼즐 산책.</p><div class="game-links"><a class="play-link" href="games/cozy-forest/">플레이 <span aria-hidden="true">↗</span></a><span class="game-note">터치 · 마우스</span></div></div></article>
-          <article class="game-card game-merge"><a class="game-visual" href="games/merge3/" tabindex="-1" aria-hidden="true"><span class="game-genre">숫자 머지 퍼즐</span><div class="merge-tiles"><span>1</span><span>1</span><span>1</span><b>2</b></div><span class="visual-title">LITTLE<br><b>MERGE</b></span><span class="visual-plus">+</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/merge3/">작은 머지</a></h3><span class="game-index">09</span></div><p>같은 숫자 셋이 모이면 더 큰 숫자로.<br>한 수씩 생각하며 채워가는 5×5 퍼즐.</p><div class="game-links"><a class="play-link" href="games/merge3/">플레이 <span aria-hidden="true">↗</span></a><span class="game-note">터치 · 마우스</span></div></div></article>
+          <article class="game-card game-bloom"><a class="game-visual game-screenshot" href="games/block-bloom/" tabindex="-1" aria-hidden="true"><img src="portfolio/assets/block-bloom-campaign-board.webp" width="450" height="455" alt="" loading="lazy"><span class="game-genre">컬러 탈출 퍼즐</span><span class="screenshot-caption">현재 실습 보드 · 플레이 <span aria-hidden="true">↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/block-bloom/">블록 블룸</a></h3><span class="game-index">01</span></div><p>같은 색 출구로 블록을 밀어보세요.<br>한 판씩 기믹을 배우고 조합해 보세요.</p><div class="game-links"><a class="play-link" aria-label="블록 블룸 플레이" href="games/block-bloom/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" aria-label="블록 블룸 대표 사례" href="portfolio/block-bloom.html">대표 사례 <span aria-hidden="true">↗</span></a></div></div></article>
+          <article class="game-card game-acorn"><a class="game-visual game-art art-acorn" href="games/acorn-guard/" tabindex="-1" aria-hidden="true"><span class="game-genre">사계절 채집 · 겨울 집 꾸미기</span><span class="sprite-window animal-window"><img src="games/acorn-guard/assets/squirrel-front.webp" width="768" height="384" alt="도토리를 든 다람쥐의 게임 아트" loading="lazy"></span><span class="sprite-window tree-window"><img src="games/acorn-guard/assets/oak-autumn.webp" width="384" height="576" alt="가을 참나무의 게임 아트" loading="lazy"></span><span class="art-caption">게임 아트 · 플레이 <span aria-hidden="true">↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/acorn-guard/">도토리 원정대</a></h3><span class="game-index">02</span></div><p>다람쥐로 시작해 동료와 겨울나기 재료를 모아요.<br>사계절을 지나 겨울 집을 꾸미고, 다시 봄으로.</p><ul class="game-highlights"><li>채집 진도로 계절 전환, 겨울에는 집 꾸미기</li><li>동료·개인 성장·꾸미기는 다음 해에도 유지</li></ul><div class="game-links"><a class="play-link" aria-label="도토리 원정대 플레이" href="games/acorn-guard/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" aria-label="도토리 원정대 설계·개선 기록" href="portfolio/prototypes.html#acorn-guard">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
+          <article class="game-card game-grove-warden"><a class="game-visual game-art art-grove" href="games/grove-warden/" tabindex="-1" aria-hidden="true"><span class="game-genre">2D 도트 · 필드 RPG</span><img src="games/grove-warden/icon.svg" width="148" height="148" alt="숲의 수호자의 현재 도트 드루이드 아트" loading="lazy"><span class="visual-title">GROVE<br><b>WARDEN</b></span><span class="art-caption">게임 아트 · 플레이 <span aria-hidden="true">↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/grove-warden/">숲의 수호자</a></h3><span class="game-index">03</span></div><p>도트 숲을 탐험하고 전리품을 거점으로 운반해요.<br>무기를 고르고 자동 변신으로 더 깊은 숲에 도전.</p><ul class="game-highlights"><li>거점에서 7종 무기 무료 선택·공통 영구 성장</li><li>레벨로 늑대·곰·용 변신을 해금해 자동 대응</li></ul><div class="game-links"><a class="play-link" aria-label="숲의 수호자 플레이" href="games/grove-warden/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" aria-label="숲의 수호자 설계·개선 기록" href="portfolio/prototypes.html#grove-warden">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
+          <article class="game-card game-wild-oath"><a class="game-visual game-art art-wild" href="games/wild-oath/" tabindex="-1" aria-hidden="true"><img class="art-illustration" src="games/wild-oath/assets/gem-v5/forms/wolf.webp" width="320" height="160" alt="야생의 서약에 사용되는 보석 장식 늑대 변신 카드 삽화" loading="lazy"><span class="game-genre">덱 빌딩 · 변신 자동 전투</span><span class="art-caption">게임 아트 · 플레이 <span aria-hidden="true">↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/wild-oath/">야생의 서약</a></h3><span class="game-index">04</span></div><p>여덟 번의 카드 선택으로 첫 덱을 구성해요.<br>변신과 상태 이상을 엮어 다섯 시련에 도전.</p><ul class="game-highlights"><li>덱 순서와 기력으로 연속 카드 사용 설계</li><li>보석 마스코트 아트·공격 카드 돌진 연출</li></ul><div class="game-links"><a class="play-link" aria-label="야생의 서약 플레이" href="games/wild-oath/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" aria-label="야생의 서약 설계·개선 기록" href="portfolio/prototypes.html#wild-oath">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
+          <article class="game-card game-runehaven"><a class="game-visual game-art art-rune" href="games/runehaven/" tabindex="-1" aria-hidden="true"><span class="game-genre">상점 경영 · 단골 방어전</span><img src="games/runehaven/icon.svg" width="148" height="148" alt="룬빛 상회의 게임 아이콘" loading="lazy"><span class="visual-title">RUNE<br><b>HAVEN</b></span><span class="art-caption">게임 아이콘 · 플레이 <span aria-hidden="true">↗</span></span></a><div class="game-copy"><div class="game-title"><h3><a href="games/runehaven/">룬빛 상회</a></h3><span class="game-index">05</span></div><p>재료 운반부터 복수 주문·식사·자리 정리까지.<br>상회를 키우고, 구매한 단골과 함께 지켜내요.</p><ul class="game-highlights"><li>좌석별 식사·청소와 식탁별 대금 수거</li><li>바닥 작업 원과 조수의 직무로 운영 동선 구성</li></ul><div class="game-links"><a class="play-link" aria-label="룬빛 상회 플레이" href="games/runehaven/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" aria-label="룬빛 상회 설계·개선 기록" href="portfolio/prototypes.html#runehaven">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
+          <article class="game-card game-ark"><a class="game-visual" href="games/orbit-golf/" tabindex="-1" aria-hidden="true" style="background:linear-gradient(135deg,#0e243b,#285b69);color:#bcf6df"><span class="game-genre">3D 스페이스 골프 · 궤도 챌린지</span><img src="games/orbit-golf/icon.svg" width="148" height="148" alt="" loading="lazy"><span class="visual-title">ORBIT<br><b style="color:#d4ff72">GOLF</b></span><span class="visual-plus">✦</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/orbit-golf/">오빗 골프</a></h3><span class="game-index">06</span></div><p>각도와 세기를 조절해 우주 트랙을 달려요.<br>같은 코스에 다시 도전하며 물체의 연쇄를 조준.</p><ul class="game-highlights"><li>비거리 성장과 연쇄 조준 과제 3종을 분리</li><li>같은 시드에서 각도 비교·공 특성 해금</li></ul><div class="game-links"><a class="play-link" aria-label="오빗 골프 플레이" href="games/orbit-golf/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" aria-label="오빗 골프 설계·개선 기록" href="portfolio/prototypes.html#orbit-golf">설계·개선 기록 <span aria-hidden="true">↗</span></a></div></div></article>
+          <article class="game-card game-ark"><a class="game-visual" href="games/neon-ark/" tabindex="-1" aria-hidden="true"><span class="game-genre">로그라이크 퍼즐</span><div class="visual-orbit"></div><img src="games/neon-ark/icon.svg" width="148" height="148" alt="" loading="lazy"><span class="visual-title">NEON<br><b>ARK</b></span><span class="visual-plus">✧</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/neon-ark/">네온 아크</a></h3><span class="game-index">07</span></div><p>탐사대를 태우고, 행성을 조사하고.<br>강화를 선택하며 9개 항로를 완주하는 우주 퍼즐.</p><div class="game-links"><a class="play-link" aria-label="네온 아크 플레이" href="games/neon-ark/">플레이 <span aria-hidden="true">↗</span></a><a class="notes-link" aria-label="네온 아크 설계 노트" href="games/neon-ark/design.html">설계 노트 <span aria-hidden="true">↗</span></a></div></div></article>
+          <article class="game-card game-cozy"><a class="game-visual" href="games/cozy-forest/" tabindex="-1" aria-hidden="true"><span class="game-genre">동물 트리플 매치</span><div class="visual-hill"></div><img src="games/cozy-forest/icon.svg" width="148" height="148" alt="" loading="lazy"><span class="visual-title">COZY<br><b>FOREST</b></span><span class="visual-plus">✿</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/cozy-forest/">포근포근 숲</a></h3><span class="game-index">08</span></div><p>귀여운 동물 셋이 만나면, 마음까지 포근하게.<br>아이템과 피버로 이어가는 숲속 퍼즐 산책.</p><div class="game-links"><a class="play-link" aria-label="포근포근 숲 플레이" href="games/cozy-forest/">플레이 <span aria-hidden="true">↗</span></a><span class="game-note">터치 · 마우스</span></div></div></article>
+          <article class="game-card game-merge"><a class="game-visual" href="games/merge3/" tabindex="-1" aria-hidden="true"><span class="game-genre">숫자 머지 퍼즐</span><div class="merge-tiles"><span>1</span><span>1</span><span>1</span><b>2</b></div><span class="visual-title">LITTLE<br><b>MERGE</b></span><span class="visual-plus">+</span></a><div class="game-copy"><div class="game-title"><h3><a href="games/merge3/">작은 머지</a></h3><span class="game-index">09</span></div><p>같은 숫자 셋이 모이면 더 큰 숫자로.<br>한 수씩 생각하며 채워가는 5×5 퍼즐.</p><div class="game-links"><a class="play-link" aria-label="작은 머지 플레이" href="games/merge3/">플레이 <span aria-hidden="true">↗</span></a><span class="game-note">터치 · 마우스</span></div></div></article>
         </div>
         <p class="play-footnote"><span aria-hidden="true">✳</span> 2026.10.31 갱신 · 최근 게임의 설계·개선 기록도 함께 살펴보세요.</p>
       </div>
     </section>
 
-    <section class="section wrap bloom-case-section" id="case-study" aria-labelledby="case-title">
-      <div class="section-label"><span class="section-number">02</span><span>대표 사례 · 블록 블룸</span><span class="label-en">CASE STUDY</span></div>
-      <div class="section-heading"><div><h2 id="case-title">한 수의 만족감에서,<br>다음 한 판의 이유까지.</h2><p>레퍼런스 분석, 코어 규칙, 보상 데모, AI 협업과 검증을 연결한 사례입니다.</p></div></div>
-      <div class="case-overview">
-        <a class="case-overview-image" href="portfolio/block-bloom.html"><img src="portfolio/assets/block-bloom-campaign-board.webp" alt="현재 블록 블룸 1스테이지의 직접 따라 하는 실습 보드" width="450" height="455" loading="lazy"><span>현재 1판 실습 보드 · 사례 읽기 <span aria-hidden="true">↗</span></span></a>
-        <div class="case-overview-copy">
-          <h3>모드 선택에서,<br>한 판씩 배우는 퍼즐로.</h3><p>1~7판에서 규칙을 배우고 복습하며, 8~12판에서 배운 기믹을 조합합니다. 13판부터는 조합을 반복·응용합니다. 순차 진행, 초반 실습과 조작 단순화로 이어진 제작자 요청과 구현 기록을 정리했습니다.</p>
-          <dl class="case-facts"><div><dt>학습·첫 조합</dt><dd>12<span>판</span></dd></div><div><dt>즉시 사용 아이템</dt><dd>5<span>종</span></dd></div></dl>
-          <p class="case-scope">제작 방향과 요구사항을 정하고, Codex가 구현·자동 검증을 수행한 기록을 정리했습니다. 실제 결제·광고와 사용자·UA 지표는 이 사례의 검증 범위에 포함하지 않습니다.</p>
-          <a class="button button-primary" href="portfolio/block-bloom.html">설계·개선 과정 <span aria-hidden="true">↗</span></a>
-        </div>
-      </div>
-    </section>
-
     <section class="section wrap about-section" id="about" aria-labelledby="about-title">
-      <div class="section-label"><span class="section-number">03</span><span>소개</span><span class="label-en">ABOUT</span></div>
       <div class="about-layout">
         <div class="about-heading"><h2 id="about-title">오래 쌓은 경험.<br><span>계속되는 호기심.</span></h2><p class="section-aside">피처폰에서 모바일, PC MMORPG까지.<br>기술과 플랫폼이 바뀌어도, 중심은 플레이어입니다.</p><figure class="about-memory"><img src="portfolio/assets/elios-1.webp" alt="엘리오스의 전설 1의 모바일 전투 화면" width="234" height="324" loading="lazy"><figcaption>엘리오스의 전설 1 · 개발의 초창기</figcaption></figure></div>
         <div class="about-copy">
@@ -99,7 +103,7 @@
     </section>
 
     <section class="featured-section wrap" aria-labelledby="featured-title">
-      <div class="section-heading"><div><p class="eyebrow">SELECTED SCENES</p><h2 id="featured-title">만들어 온 게임의 장면들.</h2></div><p>클라이언트 개발, 전투, 동기화.<br>실제 플레이 화면으로 만나는 개발 이력.</p></div>
+      <div class="section-heading"><div><h2 id="featured-title">만들어 온 게임의 장면들.</h2></div><p>클라이언트 개발, 전투, 동기화.<br>실제 플레이 화면으로 만나는 개발 이력.</p></div>
       <div class="featured-grid">
         <a class="featured-card" href="https://www.youtube.com/live/hHAhYbN0tQI" target="_blank" rel="noopener noreferrer"><div class="featured-image"><img src="portfolio/assets/ark-ama.jpg" width="480" height="360" alt="슈퍼빌런랩스 AMA 이벤트의 게임 공간과 동물 캐릭터" loading="lazy"><span class="featured-play" aria-hidden="true">▶</span></div><span class="featured-meta">슈퍼빌런랩스 · UE5</span><h3>Ark · AMA 빌드 <span aria-hidden="true">↗</span></h3><p>클라이언트 리딩 · 빌드와 릴리즈</p><span class="sr-only">영상 보기 (새 탭)</span></a>
         <a class="featured-card" href="https://youtu.be/sRqXcnXf2oI" target="_blank" rel="noopener noreferrer"><div class="featured-image"><img src="portfolio/assets/gsu-raid.jpg" width="480" height="360" alt="그랑사가 언리미티드 Wind Corridor 16인 레이드 영상" loading="lazy"><span class="featured-play" aria-hidden="true">▶</span></div><span class="featured-meta">엔픽셀 · PC MMORPG</span><h3>그랑사가: 언리미티드 <span aria-hidden="true">↗</span></h3><p>PC 클라이언트 전환 · 팀 리딩</p><span class="sr-only">영상 보기 (새 탭)</span></a>
@@ -108,10 +112,9 @@
     </section>
 
     <section class="section wrap work-section" id="work" aria-labelledby="work-title">
-      <div class="section-label"><span class="section-number">04</span><span>경력과 프로젝트</span><span class="label-en">SELECTED EXPERIENCE</span></div>
-      <div class="section-heading"><div><h2 id="work-title">게임과 함께한 시간.</h2><p>직접 맡았던 역할과 구현한 것들을 중심으로.</p></div><a class="text-link source-link" href="https://app.notion.com/p/23aeae97f1a2800eb4d8e161e8e464bd" target="_blank" rel="noopener noreferrer">노션 원문 <span aria-hidden="true">↗</span><span class="sr-only"> (새 탭)</span></a></div>
+      <div class="section-heading"><div><h2 id="work-title">경력과 담당 업무.</h2><p>직접 맡았던 역할과 구현한 것들을 중심으로.</p></div><a class="text-link source-link" href="https://app.notion.com/p/23aeae97f1a2800eb4d8e161e8e464bd" target="_blank" rel="noopener noreferrer">노션 원문 <span aria-hidden="true">↗</span><span class="sr-only"> (새 탭)</span></a></div>
       <div class="career-layout">
-        <aside class="career-aside"><p class="career-range">2008 — 현재</p><p><strong>17년 이상</strong>의 경험</p><p>현직 · 파이드픽셀즈</p><p class="source-date">이력 업데이트 · 2026.10.21</p><nav aria-label="회사별 경력"><a href="#career-pied">파이드픽셀즈</a><a href="#career-svl">슈퍼빌런랩스</a><a href="#career-npixel">엔픽셀</a><a href="#career-netmarble">넷마블 넥서스</a><a href="#career-mym">마이모인스</a><a href="#network">이동 동기화 기술</a></nav></aside>
+        <aside class="career-aside"><p class="career-range">2008 — 현재</p><p><strong>17년 이상</strong>의 경험</p><p>현직 · 파이드픽셀즈</p><p class="source-date">이력 업데이트 · 2026.10.21</p><nav aria-label="회사별 경력"><a href="#career-pied">파이드픽셀즈</a><a href="#career-svl">슈퍼빌런랩스</a><a href="#career-npixel">엔픽셀</a><a href="#career-netmarble">넷마블 넥서스</a><a href="#career-mym">마이모인스</a></nav><a class="career-tech-link" href="#network">이동 동기화 기술 <span aria-hidden="true">↗</span></a></aside>
         <div class="career-list">
           <article class="career-item" id="career-pied">
             <div class="career-date">2025.09.01 — 현재 <span>재직 중</span></div>
@@ -156,13 +159,13 @@
         </div>
       </div>
       <section class="network-case" id="network" aria-labelledby="network-title">
-        <p class="eyebrow">TECHNICAL EXPERIENCE</p><h3 id="network-title">패킷 사이의 움직임을 연결하는 일.</h3>
+        <h3 id="network-title">패킷 사이의 움직임을 연결하는 일.</h3>
         <p class="network-lead">초당 제한된 횟수로 수신하는 서버 이동 패킷을 바탕으로 제3자 캐릭터를 동기화했습니다. 수신 상태 사이를 보간하고 클라이언트에서 이동·점프를 시뮬레이션해 화면의 움직임을 이어 주는 작업입니다.</p>
         <ol class="network-flow" aria-label="이동 동기화의 주요 처리"><li><span>수신</span><strong>서버 이동 상태</strong><p>제한된 횟수로 수신하는 이동 패킷을 기준으로 상태 갱신</p></li><li><span>계산</span><strong>이동·점프 시뮬레이션</strong><p>프레임 시간과 충돌면을 고려해 이동·점프 처리</p></li><li><span>표현</span><strong>보간과 스무딩</strong><p>수신 상태 사이의 위치를 연결하고 시각적 움직임 보정</p></li></ol>
         <dl class="network-terms"><div><dt>이동 보간 · 네트워크 스무딩</dt><dd>Interpolation · Network Smoothing. 수신한 이동 상태 사이를 부드럽게 연결하는 처리로, 이동·수영·점프·낙하와 공중 콤보의 동기화 경험을 갖고 있습니다.</dd></div><div><dt>클라이언트 이동·점프 시뮬레이션</dt><dd>프레임 시간을 반영한 이동 계산, 충돌면을 고려한 방향 보정, 중력과 목표 높이를 바탕으로 한 점프 시뮬레이션을 다뤘습니다.</dd></div><div><dt>RecastNav · NavMesh</dt><dd>이동 가능한 영역을 표현하는 내비게이션 메시와 경로 탐색 작업에 RecastNav를 활용했습니다. 네트워크 동기화와 구분되는 내비게이션 기술입니다.</dd></div></dl>
       </section>
       <div class="early-games" id="early-games">
-        <div class="section-heading"><div><p class="eyebrow">EARLY WORKS · 2008–2014</p><h3>작은 화면에서 시작한 이야기.</h3></div><p>엘리오스의 전설부터 드래곤 파라다이스까지.<br>직접 개발에 참여했던 게임의 실제 화면입니다.</p></div>
+        <div class="section-heading"><div><h3>작은 화면에서 시작한 이야기.</h3></div><p>엘리오스의 전설부터 드래곤 파라다이스까지.<br>직접 개발에 참여했던 게임의 실제 화면입니다.</p></div>
               <div class="legacy-gallery">
                 <figure><a href="portfolio/assets/elios-2.webp" target="_blank" rel="noopener noreferrer" aria-label="엘리오스의 전설 2 크게 보기 (새 탭)"><img src="portfolio/assets/elios-2.webp" alt="엘리오스의 전설 2 전투 화면" width="480" height="318" loading="lazy"></a><figcaption>엘리오스의 전설 2<span>크게 보기 ↗</span></figcaption></figure>
                 <figure><a href="portfolio/assets/elios-1.webp" target="_blank" rel="noopener noreferrer" aria-label="엘리오스의 전설 1 크게 보기 (새 탭)"><img src="portfolio/assets/elios-1.webp" alt="엘리오스의 전설 1 전투 화면" width="234" height="324" loading="lazy"></a><figcaption>엘리오스의 전설 1<span>크게 보기 ↗</span></figcaption></figure>
@@ -174,11 +177,10 @@
     </section>
 
     <section class="section wrap approach-section" aria-labelledby="approach-title">
-      <div class="section-label"><span class="section-number">05</span><span>함께 일하는 방식</span><span class="label-en">HOW I WORK</span></div>
       <div class="about-layout"><div class="about-heading"><h2 id="approach-title">좋은 게임은,<br><span>함께 만듭니다.</span></h2><p class="section-aside">열정 · 진정성 · 솔직함 · 동료의식</p></div><div class="approach-copy"><div><h3>먼저, 맥락을 공유합니다.</h3><p>목표와 비전, 지금 이 일을 하는 배경, 일정과 기술의 제약, 성공을 판단할 기준. 같은 맥락을 이해한 상태에서 함께 답을 찾습니다.</p></div><div><h3>반복은 도구에, 판단은 개발자에게.</h3><p>언리얼 API에 맞춘 패킷 구조체 자동 생성과 리소스 정리 스크립트에 AI를 활용했습니다. 도구가 만든 결과를 이해하고 검증하는 기술적 안목을 중요하게 생각합니다.</p></div></div></div>
     </section>
 
-    <section class="closing wrap" aria-labelledby="closing-title"><span class="closing-star" aria-hidden="true">✦</span><p class="eyebrow">KEEP MAKING. KEEP PLAYING.</p><h2 id="closing-title">다음 플레이도,<br>즐겁게 만들겠습니다.</h2><div class="closing-links"><a class="text-link" href="mailto:fksltm@hanmail.net">이메일 연락 <span aria-hidden="true">↗</span></a><a class="text-link" href="https://github.com/LunarElin" target="_blank" rel="noopener noreferrer">GitHub에서 더 보기 <span aria-hidden="true">↗</span><span class="sr-only"> (새 탭)</span></a></div></section>
+    <section class="closing wrap" aria-labelledby="closing-title"><span class="closing-star" aria-hidden="true">✦</span><h2 id="closing-title">다음 플레이도,<br>즐겁게 만들겠습니다.</h2><div class="closing-links"><a class="text-link" href="mailto:fksltm@hanmail.net">이메일 연락 <span aria-hidden="true">↗</span></a><a class="text-link" href="https://github.com/LunarElin" target="_blank" rel="noopener noreferrer">GitHub에서 더 보기 <span aria-hidden="true">↗</span><span class="sr-only"> (새 탭)</span></a></div></section>
   </main>
   <footer class="site-footer wrap"><a class="footer-name" href="#top">정우용<span>.</span></a><p>© 2026 정우용 · 프로토타입 정리 2026.10.31</p><div><a href="archive/2026-10-14-original/index.html">이전 홈페이지 <span aria-hidden="true">↗</span></a><a href="#top" aria-label="맨 위로">맨 위로 <span aria-hidden="true">↑</span></a></div></footer>
 </body>

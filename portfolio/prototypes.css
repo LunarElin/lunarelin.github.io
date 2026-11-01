@@ -1,4 +1,3 @@
-.prototype-notes .eyebrow { font-size: 16px; letter-spacing: .5px; }
 .prototype-notes .main-nav a { font-size: 16px; }
 .prototypes-page, .prototype-note, .note-heading-copy, .note-decisions > article { min-width: 0; }
 .notes-intro { padding-bottom: 30px; }
@@ -8,7 +7,6 @@
 .prototype-index a:hover { background: #e9dff2; }
 .art-disclosure { margin-top: 24px; padding: 18px 20px; border-left: 3px solid #b396cb; background: #ece2f499; color: #6e587e; font-size: 16px; }
 .note-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 240px); gap: 44px; align-items: start; }
-.note-heading-copy > .eyebrow { margin-bottom: 16px; }
 .note-heading h2 { margin-bottom: 22px; font-size: 36px; letter-spacing: -1.2px; }
 .note-description { max-width: 790px; color: var(--muted); font-size: 17px; line-height: 1.95; }
 .note-art { min-width: 0; margin: 0; padding: 30px 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: #e9dff2; }
