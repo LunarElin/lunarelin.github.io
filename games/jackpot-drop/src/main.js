@@ -19,14 +19,14 @@
   };
   const balls = {
     normal: ['기본 구슬', '표준 크기와 반동'],
-    big: ['큰 구슬', '넓은 면적으로 핀을 맞혀요'],
+    big: ['큰 구슬', '크기가 커서 핀에 더 잘 닿아요'],
     iron: ['철구', '블록 피해 2 · 쇠 벽을 부숴요'],
-    glass: ['유리 구슬', '핀 24개를 맞히면 조각으로 갈라져요']
+    glass: ['유리 구슬', '핀 12개에 균열\n24개에 구슬 3개로 분열']
   };
   const springs = {
     standard: ['기본 스프링', '표준 충전 속도와 반동'],
-    soft: ['부드러운 스프링', '충전이 빠르고 금색 구간이 넓어요'],
-    stiff: ['강한 스프링', '발사 속도가 빠르고 퍼펙트 콤보가 강해요'],
+    soft: ['부드러운 스프링', '빠른 충전 · 금색 구간 넓음\n약한 발사'],
+    stiff: ['강한 스프링', '느린 충전 · 금색 구간 좁음\n강한 발사 · 퍼펙트 콤보 +1'],
     left: ['왼쪽 회전', '핀에 닿을 때 왼쪽으로 휘어요'],
     right: ['오른쪽 회전', '핀에 닿을 때 오른쪽으로 휘어요']
   };
@@ -63,7 +63,7 @@
   let s=game.snapshot();
   const ui={
     saved,focus:0,muted:saved.muted,newBest:false,newBestStage:false,age:0,
-    stageAge:0,stateAge:0,chargeAge:0,tutorialSeen:false,hintHidden:false,
+    stageAge:0,stateAge:0,tutorialSeen:false,hintHidden:false,
     demoPower:0,demoRecoil:0,slowBlend:0,cardNotice:null,reduced:media.matches
   };
   const audio=JD.createAudio ? JD.createAudio(ui.muted) : null;
@@ -154,7 +154,6 @@
           ui.hintHidden=false;
           break;
         case 'charge_started':
-          ui.chargeAge=0;
           ui.hintHidden=true;
           break;
         case 'shot_fired':
@@ -164,7 +163,7 @@
           slowPhase=false;
           break;
         case 'card_picked':
-          ui.cardNotice={event:e,before,age:0};
+          ui.cardNotice={event:e,age:0};
           break;
         case 'run_ended':
           if(!s.practiceStart) {
@@ -208,7 +207,6 @@
     ui.age++;
     ui.stageAge++;
     ui.stateAge++;
-    if(s.charging) ui.chargeAge++;
     if(ui.cardNotice&&++ui.cardNotice.age>44) ui.cardNotice=null;
     const fast=!force&&s.state==='FLIGHT'&&input.fast();
     slowActive=!fast&&slowFrames<40&&nearJackpot();
@@ -272,10 +270,19 @@
     button.type='button';
     button.className='machine-button equipment-option';
     button.setAttribute('aria-pressed',String(selected));
-    button.textContent=name;
+    const heading=document.createElement('span');
+    heading.className='equipment-name';
+    heading.textContent=name;
+    if(selected) {
+      const badge=document.createElement('span');
+      badge.className='equipment-selected';
+      badge.setAttribute('aria-hidden','true');
+      badge.textContent='장착 중';
+      heading.append(badge);
+    }
     const detail=document.createElement('small');
     detail.textContent=description;
-    button.append(detail);
+    button.append(heading,detail);
     button.addEventListener('click',()=>{
       if(audio) audio.activate();
       game.queue(command);
@@ -310,7 +317,7 @@
     equipmentOptions.replaceChildren(...options());
     equipmentMenu.showModal();
     syncLoop();
-    equipmentOptions.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
+    equipmentOptions.querySelector('[aria-pressed="true"]')?.focus();
   }
 
   pauseButton.addEventListener('click',openPause);

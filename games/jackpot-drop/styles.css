@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Jackpot Sans";
-  src: url("assets/noto-sans-kr-ui.woff2") format("woff2");
+  src: url("assets/noto-sans-kr-ui.woff2?v=menu-layout") format("woff2");
   font-style: normal;
   font-weight: 600 900;
   font-display: swap;
@@ -38,7 +38,8 @@ body {
   --bottom-space: max(5px, env(safe-area-inset-bottom));
   --left-space: max(6px, env(safe-area-inset-left));
   --side-space: calc(var(--left-space) + var(--right-space));
-  --rail-space: calc(102px + var(--top-space) + var(--bottom-space));
+  --play-rail-height: 48px;
+  --rail-space: calc(54px + var(--play-rail-height) + var(--top-space) + var(--bottom-space));
   --board-width: calc((100vh - var(--rail-space)) * .6125);
   --fitted-height: calc((min(100vw, 470px) - var(--side-space)) * (640 / 392) + var(--rail-space));
   width: min(100%, max(348px, calc(var(--board-width) + var(--side-space))), 470px);
@@ -46,8 +47,12 @@ body {
   margin-inline: auto;
   padding: var(--top-space) var(--right-space) var(--bottom-space) var(--left-space);
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr) 48px;
+  grid-template-rows: 44px minmax(0, 1fr) var(--play-rail-height);
   gap: 5px;
+}
+
+.cabinet:has(#game:is([data-state="CARD"], [data-state="RESULT"])) {
+  --play-rail-height: 0px;
 }
 
 @supports (height: 100dvh) {
@@ -64,13 +69,23 @@ body {
   min-width: 0;
 }
 
+.top-controls {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 48px clamp(56px, 20vw, 72px);
+}
+
+.top-controls > .machine-button {
+  padding-inline: 4px;
+}
+
 .top-controls h1 {
-  flex: 1;
   align-self: center;
-  margin: 0 2px;
-  white-space: nowrap;
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
   text-align: center;
-  font-size: clamp(16px, 5vw, 20px);
+  font-size: clamp(1rem, 5vw, 1.25rem);
+  line-height: 1.1;
   font-weight: 900;
   color: #ffe293;
   text-shadow: 0 2px 0 #5a3627;
@@ -142,8 +157,20 @@ canvas:focus-visible {
   outline-offset: 2px;
 }
 
+canvas:focus-visible {
+  outline-width: 2px;
+  outline-offset: -4px;
+}
+
+.machine-button:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
 .sound {
   font-size: 16px;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .sound[aria-pressed="true"] {
@@ -159,8 +186,18 @@ canvas:focus-visible {
   font-weight: 900;
 }
 
+.play-controls > .machine-button {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.play-controls > .machine-button:not(.action) {
+  max-width: 35%;
+}
+
 .play-controls .action {
-  flex: 1;
+  flex: 1 1 92px;
   touch-action: none;
 }
 
@@ -187,12 +224,18 @@ canvas:focus-visible {
 }
 
 .game-menu {
-  width: min(calc(100% - 24px), 360px);
-  max-height: calc(100vh - 28px);
-  max-height: calc(100dvh - max(14px, env(safe-area-inset-top)) - max(14px, env(safe-area-inset-bottom)));
-  padding: 18px;
-  overflow: auto;
-  overscroll-behavior: contain;
+  --menu-top: max(12px, env(safe-area-inset-top));
+  --menu-right: max(12px, env(safe-area-inset-right));
+  --menu-bottom: max(12px, env(safe-area-inset-bottom));
+  --menu-left: max(12px, env(safe-area-inset-left));
+  position: fixed;
+  inset: var(--menu-top) var(--menu-right) var(--menu-bottom) var(--menu-left);
+  width: min(360px, calc(100% - var(--menu-left) - var(--menu-right)));
+  max-height: calc(100vh - var(--menu-top) - var(--menu-bottom));
+  max-height: calc(100dvh - var(--menu-top) - var(--menu-bottom));
+  margin: auto;
+  padding: 16px;
+  overflow: hidden;
   border: 1px solid #8c78bf;
   border-bottom: 4px solid #4b376e;
   border-radius: 17px;
@@ -201,29 +244,64 @@ canvas:focus-visible {
   color: inherit;
 }
 
+.game-menu[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .game-menu::backdrop {
-  background: #070718ac;
+  background: rgb(5 5 17 / .8);
 }
 
 .game-menu h2 {
-  margin: 0 0 14px;
+  flex-shrink: 0;
+  margin: 0;
   text-align: center;
-  font-size: 24px;
+  font-size: 26px;
   line-height: 1.2;
 }
 
 .menu-options {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   gap: 7px;
+  margin-inline: -4px;
+  padding: 4px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #a28bc8 #201a3c;
+}
+
+.menu-options > .machine-button {
+  flex-shrink: 0;
 }
 
 .equipment-option {
   display: grid;
   gap: 3px;
   justify-content: stretch;
-  padding-block: 5px 7px;
+  padding-block: 6px;
   padding-inline: 12px;
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.equipment-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  line-height: 1.25;
+}
+
+.equipment-selected {
+  color: #ffdf83;
+  font-size: 14px;
 }
 
 .equipment-option[aria-pressed="true"] {
@@ -235,13 +313,13 @@ canvas:focus-visible {
   color: #e7dff4;
   font-size: 16px;
   font-weight: 600;
-  line-height: 1.2;
-  white-space: normal;
+  line-height: 1.4;
+  white-space: pre-line;
+  word-break: keep-all;
 }
 
 .close-menu {
-  width: 100%;
-  margin-top: 10px;
+  flex-shrink: 0;
 }
 
 .visually-hidden {

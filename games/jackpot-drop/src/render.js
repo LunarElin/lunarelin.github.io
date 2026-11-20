@@ -17,6 +17,8 @@
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   const pulse = (time, period) => .5 - .5 * Math.cos(time * twoPi / period);
   const number = n => Math.round(n).toLocaleString('en-US');
+  const compactScore = new Intl.NumberFormat('ko-KR', {notation:'compact', maximumSignificantDigits:4});
+  const score = n => n < 1000000 ? number(n) : compactScore.format(n);
   const combo = tier => colors['combo' + tier] || colors.text;
   const springColor = key => ({standard:colors.springStandard, soft:colors.springSoft, stiff:colors.springStiff, spin:colors.spin})[key];
   const rgba = (hex, a) => {
@@ -110,7 +112,7 @@
     c.strokeStyle=springColor(spring) || colors.springStandard; c.stroke(); c.restore();
   }
 
-  JD.Drawing={colors,clamp,pulse,number,combo,springColor,rgba,fresh,box,circle,line,label,glow,ball,coil,fontFamily};
+  JD.Drawing={colors,clamp,pulse,number,score,combo,springColor,rgba,fresh,box,circle,line,label,glow,ball,coil,fontFamily};
   JD.UI={
     ballX:(s,i) => 180+(i-(s.fullRack.length-1)/2)*28,
     cards:s => s.offer && (s.offer.length===1 ? [{x:46,y:202,w:300,h:218}] :
@@ -223,31 +225,68 @@
     line(c,368+tremor,handleY+6,384+tremor,handleY+6,rgba(colors.bgTop,.45));
   }
 
+  function aimMessages(s,ui,fx) {
+    if (s.charging) return [s.perfect?'지금 떼기!':'금색에서 떼기'];
+    if (s.launch?.perfect) return ['퍼펙트!'];
+    const cancelled=fresh(fx,'charge_cancel');
+    if (cancelled?.age<30) return ['길게 누르세요'];
+    if (s.state!=='AIM') return [];
+    if (s.stage===1 && !ui.tutorialSeen) return ['길게 누르세요','금색에서 떼기'];
+    if (s.stage===1 || ui.stageAge>=180 || ui.hintHidden) return [];
+    const direction=s.hint?.spin===1?'오른쪽':'왼쪽';
+    if (s.hint?.ball && s.hint?.spring) return ['철구 선택',direction+' 회전'];
+    if (s.hint?.ball) return ['철구로 쇠 벽 파괴'];
+    if (s.hint?.spring) return [direction+' 회전'];
+    return ['잭팟 칸을 노려요'];
+  }
+
   function panel(c,s,ui,fx) {
-    const shot=s.shot, p=s.payout, hit=fresh(fx,'peg_hit'), mult=fresh(fx,'mult_land');
-    if(!shot&&!p) return;
-    if(shot){
-      const bump=hit&&hit.age<4 ? 1+.12*Math.sin(hit.age*Math.PI/4) : 1;
-      box(c,150,84,180,32,16,rgba(colors.ink,.7),shot.tier?combo(shot.tier):rgba(colors.text,.2),2);
-      label(c,number(shot.pts),164,109,32*bump,colors.text,'left',{max:99,minSize:25});
-      const gold=fresh(fx,'gold');
-      const bounce=mult && mult.age<12 ? mult.e.vault?2:1.6 : gold&&gold.age<20 ? 1+.5*(1-gold.age/20):1;
-      const multValue=Math.max(s.stageMult,shot.liveMult-(fx?fx.pendingMult():0));
-      label(c,'×'+number(multValue),316,109,31*Math.min(bounce,ui.reduced?1.15:1.35),colors.jackpot,'right',{max:65,minSize:25});
+    const shot=s.shot, payout=s.payout;
+    const x=8, y=100, w=342, h=50;
+    if (!shot && !payout) {
+      if (s.state !== 'AIM' && s.state !== 'LAUNCH') return;
+      box(c,x,y,112,h,10,'#111632',colors.laneEdge);
+      label(c,'배수',64,120,20,colors.textDim);
+      label(c,'×'+score(s.stageMult),64,145,29,colors.jackpot,'center',{max:96,minSize:27});
+      const perfect=s.launch?.perfect || (s.charging && s.perfect);
+      const messages=aimMessages(s,ui,fx);
+      if (messages.length) {
+        box(c,130,y,220,h,10,perfect?'#392B20':'#111632',perfect?colors.jackpot:colors.laneEdge);
+        messages.forEach((message,i)=>{
+          const dual=messages.length>1;
+          label(c,message,240,dual?120+i*24:136,dual?23:27,perfect||i?colors.jackpot:colors.text,'center',{max:198,minSize:23});
+        });
+      }
       return;
     }
-    const n=p.pins.length*p.spacing, elapsed=p.elapsed;
-    const first=elapsed>=n, second=elapsed>=n+20, last=elapsed>=n+40;
-    box(c,150,84,180,32,16,rgba(colors.ink,.85),
-      second&&p.jackpot || first&&p.mult>=4 ? colors.jackpot : rgba(colors.text,.3),2);
-    const pop=fresh(fx,'payout_pop');
-    label(c,number(p.pts),162,110,pop&&pop.age<3?31:27,colors.text,'left',{max:70,minSize:23});
-    if(first) label(c,'×'+number(p.mult),260,109,26+5*Math.max(0,1-(elapsed-n)/20),p.mult>=4?colors.jackpot:colors.text,'right',{max:52,minSize:20});
-    if(second) label(c,'×'+number(p.bucketSum),321,109,26+5*Math.max(0,1-(elapsed-n-20)/20),p.jackpot?colors.jackpot:colors.text,'right',{max:52,minSize:20});
-    if(last) {
-      const a=clamp((elapsed-n-40)/30,0,1), ease=a*a;
-      label(c,'+'+number(p.score),240+24*ease,152-44*ease,35-8*ease,colors.jackpot,'center',{outline:colors.ink,max:150,minSize:24});
+
+    const reveal=payout?payout.elapsed-payout.pins.length*payout.spacing:0;
+    if (payout && reveal>=40) {
+      box(c,x,y,w,h,10,'#2B231D',colors.jackpot,1.5);
+      label(c,'획득 점수',116,134,26,colors.text);
+      label(c,'+'+score(payout.score),278,137,35,colors.jackpot,'center',{max:129,minSize:32});
+      return;
     }
+    box(c,x,y,w,h,10,'#111632',shot?.tier?combo(shot.tier):colors.laneEdge);
+    line(c,121,y+9,121,y+h-9,rgba(colors.laneEdge,.48));
+    line(c,230,y+9,230,y+h-9,rgba(colors.laneEdge,.48));
+    const metric=(name,value,cx,tint=colors.text)=>{
+      label(c,name,cx,120,20,colors.textDim,'center',{max:102,minSize:19});
+      label(c,value,cx,145,29,tint,'center',{max:100,minSize:27});
+    };
+    metric('발사 점수',score(shot?shot.pts:payout.pts),66);
+    if (shot) {
+      const multiplier=Math.max(s.stageMult,shot.liveMult-(fx?fx.pendingMult():0));
+      metric('배수','×'+score(multiplier),176,colors.jackpot);
+      const tier=shot.tier;
+      const perfect=shot.perfect;
+      if (perfect) label(c,'퍼펙트!',289,tier?120:136,23,colors.jackpot);
+      if (tier) label(c,JD.CFG.COMBO_NAMES[tier]+' +'+JD.CFG.COMBO_BONUS[tier],289,perfect?145:136,23,combo(tier),'center',{max:106,minSize:22});
+      return;
+    }
+
+    metric('배수',reveal>=0?'×'+score(payout.mult):'—',176,colors.jackpot);
+    metric('착지 배수',reveal>=20?'×'+score(payout.bucketSum):'—',290,payout.jackpot?colors.jackpot:colors.text);
   }
 
   function drawBalls(c,s,ui,fx,t) {
@@ -298,55 +337,23 @@
   }
 
   function hud(c,s) {
-    const p=s.payout, a=p?clamp((p.elapsed-(p.duration-30))/30,0,1):0;
-    const displayed=s.stageScore+(p?p.score*a:0);
+    const payout=s.payout;
+    const earned=payout?payout.score*clamp((payout.elapsed-(payout.duration-30))/30,0,1):0;
+    const displayed=s.stageScore+earned;
     const win=displayed>=s.target;
     const progressColor=win?colors.success:colors.jackpot;
     const ballsColor=s.ballsLeft===1?colors.danger:colors.text;
-    box(c,8,6,342,76,13,'#151A3E','#3F4879',1.5);
-    line(c,267,15,267,66,rgba(colors.laneEdge,.55));
-    label(c,(s.endless?'무한 ':'')+s.stage+'단계',19,23,21,s.endless?colors.jackpot:colors.textDim,'left',{max:126});
-    label(c,'목표 점수',253,23,20,colors.textDim,'right');
-    label(c,number(displayed)+' / '+number(s.target),19,64,41,win?colors.success:colors.text,'left',{max:236,minSize:39});
-    label(c,'구슬',309,23,20,colors.textDim);
-    label(c,number(s.ballsLeft),300,64,40,ballsColor);
-    if (s.pick.ball) ball(c,s.pick.ball,329,50,9,{});
-    box(c,19,74,234,4,2,rgba(colors.text,.16));
-    box(c,19,74,234*clamp(displayed/s.target,0,1),4,2,progressColor);
-    if (!s.shot && !s.payout) {
-      label(c,'×'+number(s.stageMult),15,114,34,s.stageMult>=4?colors.jackpot:colors.text,'left',{outline:colors.ink,max:90,minSize:29});
-    }
-  }
-
-  function tutorial(c,s,ui,fx,t) {
-    if(s.stage!==1||s.state!=='AIM') return;
-    if(ui.tutorialSeen && !s.charging) return;
-    const change=ui.chargeAge<6 ? ui.chargeAge/6 : 1;
-    const nudge=pulse(ui.age-300,24);
-    const scale=!ui.reduced&&ui.age>=300&&(ui.age-300)%600<24?1+.3*nudge:1+.12*pulse(t,30);
-    const cancelled=fresh(fx,'charge_cancel');
-    box(c,29,121,302,60,10,rgba(colors.ink,.9),colors.laneEdge);
-    if(s.charging) {
-      label(c,s.perfect?'지금 떼기!':'금색에서 떼기',180,159,28+2*change,s.perfect?colors.jackpot:colors.text,'center');
-    } else {
-      const twitch=cancelled&&cancelled.age<30&&!ui.reduced?4*Math.sin(cancelled.age):0;
-      label(c,'길게 눌러 발사',180+twitch,146,24*scale,colors.text,'center');
-      label(c,'금색 구간에서 손을 떼세요',180,171,22,colors.jackpot,'center',{body:true,max:285,minSize:21});
-    }
-    if(s.charging) return;
-    const cycle=(t+12)%90, down=cycle<6?cycle/6:cycle<60?1:cycle<66?(66-cycle)/6:0;
-    const y=430+4*down;
-    const ring=cycle<6?cycle/6:(cycle%20)/20;
-    if(cycle<66) circle(c,180,y,10+12*ring,null,rgba(colors.text,.65*(1-ring)),2);
-    c.save(); c.translate(180,y); c.rotate(-.24);
-    box(c,-5,0,14,30,7,rgba(colors.text,.9),colors.ink,1);
-    circle(c,1,0,9,rgba(colors.text,.9),colors.ink,1);
-    box(c,-5,0,12,14,4,'#EFF1FC'); c.restore();
-    if(cycle>=6&&cycle<60){
-      circle(c,180,y-27,14,rgba(colors.ink,.9),colors.textDim,1);
-      c.beginPath(); c.arc(180,y-27,11,-Math.PI/2,-Math.PI/2+twoPi*(cycle-6)/54);
-      c.strokeStyle=ui.demoPower>=s.spring.perfectLo?colors.jackpot:colors.combo1; c.lineWidth=3; c.stroke();
-    }
+    box(c,8,6,342,90,13,'#151A3E','#3F4879',1.5);
+    line(c,174,17,174,78,rgba(colors.laneEdge,.55));
+    line(c,274,17,274,78,rgba(colors.laneEdge,.55));
+    label(c,(s.endless?'무한 ':'')+s.stage+'단계',20,32,25,s.endless?colors.jackpot:colors.textDim,'left',{max:147,minSize:23});
+    label(c,score(displayed),20,78,50,win?colors.success:colors.text,'left',{max:145,minSize:47});
+    label(c,'목표',223,32,25,colors.textDim);
+    label(c,score(s.target),263,76,39,colors.text,'right',{max:80,minSize:37});
+    label(c,'구슬',310,32,25,colors.textDim);
+    label(c,score(s.ballsLeft),310,78,50,ballsColor,'center',{max:59,minSize:47});
+    box(c,20,86,243,4,2,rgba(colors.text,.16));
+    box(c,20,86,243*clamp(displayed/s.target,0,1),4,2,progressColor);
   }
 
   JD.createRenderer = function (canvas) {
@@ -363,16 +370,16 @@
       buckets(c,s,ui,fx,t,false);
       lane(c,s,ui,fx,t);
       if(JD.drawBoardObjects) JD.drawBoardObjects(c,s,ui,fx,t);
-      panel(c,s,ui,fx);
       drawBalls(c,s,ui,fx,t);
-      if(fx) fx.draw(c,s,ui);
+      if(fx) fx.draw(c);
       c.restore();
       if(fx) fx.overlay(c,s,ui);
-      hud(c,s);
-      if(JD.drawStageHint) JD.drawStageHint(c,s,ui,fx,t);
-      tutorial(c,s,ui,fx,t);
+      if(s.state!=='CARD'&&s.state!=='RESULT') {
+        hud(c,s);
+        panel(c,s,ui,fx);
+      }
       if(JD.drawScreens) JD.drawScreens(c,s,ui,fx,t);
-      if(JD.drawCardReward) JD.drawCardReward(c,s,ui,fx,t);
+      if(JD.drawCardReward) JD.drawCardReward(c,s,ui);
     };
   };
 })(JD);
@@ -654,20 +661,20 @@
   'use strict';
 
   const cards = {
-    goldPlus: ['골드 러시', '보드마다 금색 핀 +3', '✦', 'jackpot'],
-    heavy: ['핀 보너스', '파랑·금색 핀 점수 +10', '✦', 'pegNormal'],
-    bombPlus: ['빅뱅', '폭탄 +2, 폭발 반경 +16', '●', 'pegBomb'],
-    fever: ['배수 보너스', '시작 배수 +1', '×', 'jackpot'],
-    jackpot: ['넓은 잭팟', '×5 착지 칸 너비 +40', '×5', 'jackpot'],
-    gate: ['멀티볼', '보드마다 초록 게이트 +1', '+1', 'gatePlus'],
-    extra: ['여분 구슬', '단계마다 구슬 +1', '+', 'pegNormal'],
-    split: ['분열 발사', '첫 새 핀 충돌에 구슬 +1', '÷', 'text'],
-    ballIron: ['철구', '쇠 벽 부수고 블록 피해 2', '', 'iron'],
-    ballGlass: ['유리구슬', '12회에 금이 가고 24회에 3개로 분열', '', 'glass'],
-    ballBig: ['큰 구슬', '크기가 커서 핀에 더 잘 닿아요', '', 'glass'],
-    springSpin: ['회전 스프링', '핀에 닿을 때 선택한 방향으로 휘어요', '', 'spin'],
-    springSoft: ['부드러운 스프링', '빠른 충전·넓은 금색 구간 / 낮은 힘', '', 'springSoft'],
-    springStiff: ['강한 스프링', '느린 충전·좁은 금색 구간 / 높은 힘·퍼펙트 콤보 +1', '', 'springStiff']
+    goldPlus: ['골드 러시', ['보드마다 금색 핀 +3'], '✦', 'jackpot'],
+    heavy: ['핀 보너스', ['파랑·금색 핀 점수 +10'], '✦', 'pegNormal'],
+    bombPlus: ['빅뱅', ['폭탄 +2', '폭발 반경 +16'], '●', 'pegBomb'],
+    fever: ['배수 보너스', ['시작 배수 +1'], '×', 'jackpot'],
+    jackpot: ['넓은 잭팟', ['×5 착지 칸 너비 +40'], '×5', 'jackpot'],
+    gate: ['멀티볼', ['보드마다 초록 게이트 +1'], '+1', 'gatePlus'],
+    extra: ['여분 구슬', ['단계마다 구슬 +1'], '+', 'pegNormal'],
+    split: ['분열 발사', ['첫 새 핀 충돌에', '구슬 +1'], '÷', 'text'],
+    ballIron: ['철구', ['쇠 벽 파괴', '블록 피해 2'], '', 'iron'],
+    ballGlass: ['유리구슬', ['12회에 금이 가고', '24회에 3개로 분열'], '', 'glass'],
+    ballBig: ['큰 구슬', ['핀에 더 잘 닿아요'], '', 'glass'],
+    springSpin: ['회전 스프링', ['핀에 닿을 때', '고른 방향으로 회전'], '', 'spin'],
+    springSoft: ['부드러운 스프링', ['빠른 충전·넓은 금색', '발사 힘 감소'], '', 'springSoft'],
+    springStiff: ['강한 스프링', ['느린 충전·좁은 금색', '강한 힘·퍼펙트 콤보 +1'], '', 'springStiff']
   };
 
   const stageNames = {
@@ -681,23 +688,6 @@
     ['퍼펙트 발사', 'perfects'], ['최고 콤보', 'bestTier'],
     ['맞힌 핀', 'pegsPopped'], ['부순 블록', 'blocksBroken']
   ];
-
-  function wrapLines(ctx, words, maxWidth, size, D) {
-    ctx.save();
-    ctx.font = '600 ' + size + 'px ' + D.fontFamily;
-    const lines = [];
-    let current = '';
-    for (const word of words.split(' ')) {
-      const joined = current ? current + ' ' + word : word;
-      if (current && ctx.measureText(joined).width > maxWidth) {
-        lines.push(current);
-        current = word;
-      } else current = joined;
-    }
-    lines.push(current);
-    ctx.restore();
-    return lines;
-  }
 
   function preview(s) {
     const next = JD.stageDef(s.stage);
@@ -768,62 +758,46 @@
     D.circle(ctx, x + 6, y + 15, 3, D.colors.spin);
   }
 
-  function drawCard(ctx, s, index, ui, time, opts, D) {
+  function drawCard(ctx, s, index, ui, time, D) {
     const card = JD.UI.cards(s)[index];
     if (!card) return;
     const id = s.offer[index];
-    const [name, detail, , token] = cards[id];
+    const [name, details, , token] = cards[id];
     const { x, y, w, h } = card;
     const C = D.colors;
     const tint = C[token];
     const fixed = s.offer.length === 1;
     const midX = x + w / 2;
-    const midY = y + h / 2;
-    const focus = opts.focus;
-    const age = opts.age;
-    const rise = ui.reduced || opts.picked ? 0 : Math.max(0, 1 - age / 12) * 20;
-    const scale = opts.picked ? 1 + 0.10 * Math.sin(Math.PI * Math.min(1, age / 12)) : focus ? 1.03 : 1;
-    ctx.save();
-    ctx.globalAlpha = opts.picked ? 1 - Math.max(0, age - 7) / 5 : Math.min(1, (age + 2) / 8);
-    ctx.translate(midX, midY + rise);
-    ctx.scale(scale, scale);
-    ctx.translate(-midX, -midY);
+    const focus = ui.focus===index;
     const face = ctx.createLinearGradient(0,y,0,y+h);
     face.addColorStop(0,'#252D63');
     face.addColorStop(1,'#121634');
     D.box(ctx, x, y+5, w, h, fixed ? 18 : 14, '#080A20');
-    D.box(ctx, x, y, w, h, fixed ? 18 : 14, face, focus ? '#FFFFFF' : tint, focus ? 3 : 1.5);
-    D.box(ctx, x+4, y+4, w-8, h-8, fixed ? 15 : 11,
-      D.rgba(tint, opts.picked ? .08 + .24 * D.pulse(age,10) : .07));
+    D.box(ctx, x, y, w, h, fixed ? 18 : 14, face, tint, 1.5);
+    if (focus) D.box(ctx,x+3,y+3,w-6,h-6,fixed?15:11,null,C.text,2);
 
     if (fixed) {
-      drawIcon(ctx, id, midX, y+49, 36, time, ui.reduced, D);
-      D.label(ctx, name, midX, y+111, 32, C.text, 'center', {max:w-24,minSize:26});
-      const lines = wrapLines(ctx, detail, w-28, 23, D);
-      lines.forEach((line, i) => D.label(ctx, line, midX, y+142+i*24, 23, C.text, 'center', {body:true}));
+      drawIcon(ctx, id, midX, y+43, 32, time, ui.reduced, D);
+      D.label(ctx, name, midX, y+108, 34, C.text, 'center', {max:w-24,minSize:29});
+      details.forEach((line,i)=>D.label(ctx,line,midX,y+138+i*29,26,C.text,'center',{body:true,max:w-28,minSize:25}));
       if (JD.CARD_BALL[id]) rackPreview(ctx, s.fullRack, id, midX, y+191, w-56, 8, D);
       if (JD.CARD_SPRING[id]) drawTrajectory(ctx, midX, y+190, D);
     } else {
       drawIcon(ctx, id, x+32, y+51, 24, time, ui.reduced, D);
-      D.label(ctx, name, x+65, y+32, 26, C.text, 'left', {max:w-79,minSize:24});
-      const lines = wrapLines(ctx, detail, w-77, 23, D);
-      lines.forEach((line, i) => D.label(ctx, line, x+65, y+56+i*22, 23, C.text, 'left', {body:true}));
+      D.label(ctx,name,x+65,y+31,28,C.text,'left',{max:w-79,minSize:26});
+      details.forEach((line,i)=>D.label(ctx,line,x+65,y+61+i*29,25,C.text,'left',{body:true,max:w-77,minSize:24}));
     }
-    ctx.restore();
   }
 
   function drawCardScreen(ctx, s, ui, t, D) {
     const C = D.colors;
     const fixed = s.offer.length === 1;
     const title = !fixed ? '강화 선택' : JD.CARD_BALL[s.offer[0]] ? '새 구슬' : '새 스프링';
-    D.box(ctx, 0, 0, 392, 640, 0, D.rgba(C.ink, .75));
-    D.label(ctx, title, 196, 112, 36, fixed ? C.jackpot : C.text);
-    D.label(ctx, preview(s), 196, 141, 22, C.textDim, 'center', {max:352,minSize:20});
-    for (let i = 0; i < s.offer.length; i++) {
-      const age = ui.stateAge - 6 * i;
-      if (age >= 0) drawCard(ctx, s, i, ui, t, {focus:ui.focus===i,age}, D);
-    }
-    if (fixed) D.label(ctx, '카드를 눌러 받기', 196, 477, 23, C.text);
+    D.box(ctx,0,0,392,640,0,D.rgba(C.ink,.9));
+    D.label(ctx,title,196,98,42,fixed?C.jackpot:C.text);
+    D.label(ctx,preview(s),196,132,25,C.textDim,'center',{max:352,minSize:23});
+    for (let i=0;i<s.offer.length;i++) drawCard(ctx,s,i,ui,t,D);
+    if (fixed) D.label(ctx,'카드를 눌러 받기',196,467,27,C.text);
   }
 
   function drawRatio(ctx, ratio, center, y, time, D) {
@@ -839,22 +813,6 @@
     return (s.endless ? '무한 ' : '') + s.stage + '단계 · ' + (stageNames[s.stageName] || s.stageName);
   }
 
-  function stageBonus(ctx, s, ui, D) {
-    const C = D.colors;
-    const value = '+' + D.number(Math.round(s.target/10));
-    s.rackIndices.forEach((i, n) => {
-      const age = ui.stateAge-6*n;
-      const x0 = JD.UI.ballX(s,i);
-      if (age < 0 || age >= 32) return;
-      if (age < 6) {
-        D.ball(ctx, s.fullRack[i], x0, 44, 8 + (ui.reduced ? 0 : age * .28));
-        return;
-      }
-      const p = (age-6)/26, arc = ui.reduced ? 0 : 98 * Math.sin(Math.PI*p);
-      D.label(ctx, value, x0+(264-x0)*p, 46-23*p+arc, 15, C.jackpot, 'center', {outline:C.ink});
-    });
-  }
-
   function drawBanner(ctx, s, ui, t, D) {
     const C = D.colors;
     const b = s.banner;
@@ -862,18 +820,16 @@
     const allClear = b.kind === 'allclear';
     const flash = ui.reduced ? 0 : (1-D.clamp(ui.stateAge/12,0,1));
     const tint = clear ? C.success : allClear ? C.jackpot : b.ratio >= 80 ? C.danger : C.text;
-    const scale = ui.reduced ? 1 : 1-.44*flash + .14*Math.sin(Math.PI*D.clamp(ui.stateAge/14,0,1));
-    D.box(ctx, 12, 282, 336, b.kind === 'fail' ? 99 : 77, 18, D.rgba(C.ink,.79), D.rgba(tint,.53), 1.5);
+    const bonus = clear ? Math.round(s.target/10)*s.ballsLeft : 0;
+    const subtitle = allClear ? '무한 모드 시작' : bonus>0 ? '남은 구슬 +' + D.score(bonus) : '';
+    D.box(ctx,12,269,336,b.kind==='fail'?112:subtitle?109:82,18,'#10152D',D.rgba(tint,.58),1.5);
     const title = allClear ? '전 단계 클리어!' : clear ? '단계 클리어!' : b.ratio >= 80 ? '아깝다!' : '구슬 소진';
-    D.label(ctx,title,180,326,(allClear ? 40 : clear ? 36 : 34)*scale,tint,'center',{max:312,outline:C.ink});
+    D.label(ctx,title,180,322,40,tint,'center',{max:312,minSize:36});
     if (b.kind === 'fail') {
-      D.label(ctx,b.ratio+'%',180,351,22,tint);
-      drawRatio(ctx,b.ratio,180,357,t,D);
-    } else if (allClear) {
-      if (ui.stateAge >= 30) D.label(ctx,'무한 모드 시작',180,353,22,C.text);
-      if (flash) D.box(ctx, 3,3,386,634,6,null,D.rgba(C.jackpot, flash*.75),6);
-      stageBonus(ctx,s,ui,D);
-    } else stageBonus(ctx,s,ui,D);
+      D.label(ctx,b.ratio+'%',180,350,25,tint);
+      drawRatio(ctx,b.ratio,180,360,t,D);
+    } else if (subtitle) D.label(ctx,subtitle,180,354,26,C.text,'center',{max:300,minSize:24});
+    if (allClear&&flash) D.box(ctx,3,3,386,634,6,null,D.rgba(C.jackpot,flash*.75),6);
   }
 
   function resultLoadout(ctx, r, t, D) {
@@ -893,21 +849,23 @@
     const title = r.won ? '전 단계 클리어!' : r.ratio>=80 ? '아깝다!' : '구슬 소진';
     const tint = r.won ? C.jackpot : r.ratio>=80 ? C.danger : C.text;
     const shownScore = Math.round(r.runScore*D.clamp(ui.stateAge/40,0,1));
-    D.box(ctx,0,0,392,640,0,D.rgba(C.ink,.9));
-    D.label(ctx,title,196,112,40,tint,'center',{max:352,minSize:35});
-    D.label(ctx,stageLabel(s)+' · '+r.ratio+'%',196,149,22,C.text,'center',{max:352,minSize:20});
-    drawRatio(ctx,r.ratio,196,162,t,D);
-    D.label(ctx,'최종 점수',196,211,22,C.textDim);
-    D.label(ctx,D.number(shownScore),196,258,50,C.text,'center',{max:344,minSize:38});
-    const best = s.practiceStart ? '연습 · '+s.practiceStart+'단계 시작' : ui.newBest ? '최고점 경신!' : '최고점 '+D.number(ui.saved.best);
-    D.label(ctx,best,196,287,22,ui.newBest&&!s.practiceStart ? C.jackpot : C.textDim);
+    D.box(ctx,0,0,392,640,0,D.rgba(C.ink,.94));
+    D.label(ctx,title,196,72,44,tint,'center',{max:352,minSize:38});
+    D.label(ctx,stageLabel(s)+' · '+r.ratio+'%',196,108,25,C.text,'center',{max:352,minSize:23});
+    drawRatio(ctx,r.ratio,196,122,t,D);
+    D.label(ctx,'최종 점수',196,160,25,C.textDim);
+    D.label(ctx,D.number(shownScore),196,214,52,C.text,'center',{max:344,minSize:43});
+    const best=s.practiceStart?'연습 · '+s.practiceStart+'단계 시작':ui.newBest?'최고점 경신!':'최고점 '+D.score(ui.saved.best);
+    D.label(ctx,best,196,253,24,ui.newBest&&!s.practiceStart?C.jackpot:C.textDim,'center',{max:346,minSize:23});
+    D.box(ctx,22,266,348,191,13,'#131834',D.rgba(C.laneEdge,.62),1.5);
     resultStats.forEach(([label,key],i) => {
-      const y = 320+i*22;
-      const value = key === 'bestTier' ? JD.CFG.COMBO_NAMES[r.bestTier] || '—' : D.number(key ? r[key] : ui.saved.bestStage);
+      const y = 290+i*25;
+      const value = key === 'bestTier' ? JD.CFG.COMBO_NAMES[r.bestTier] || '—' : D.score(key ? r[key] : ui.saved.bestStage);
       const emphasis = i===0 && ui.newBestStage && !s.practiceStart;
       const color = key === 'bestTier' ? D.combo(r.bestTier) : emphasis ? C.jackpot : C.text;
-      D.label(ctx,label,55,y,20,emphasis ? C.jackpot : C.textDim,'left');
-      D.label(ctx,value,337,y,20,color,'right');
+      if(i>0) D.line(ctx,37,y-21,355,y-21,D.rgba(C.laneEdge,.28));
+      D.label(ctx,label,39,y,23,emphasis?C.jackpot:C.textDim,'left',{body:true});
+      D.label(ctx,value,353,y,24,color,'right',{max:138,minSize:23});
     });
     resultLoadout(ctx,r,t,D);
   }
@@ -919,49 +877,15 @@
     else if(s.state === 'RESULT') drawResult(ctx,s,ui,t,D);
   };
 
-  JD.drawStageHint = function (ctx,s,ui,fx,t) {
-    if(s.stage === 1 || s.state !== 'AIM' || ui.stageAge >= 180 || ui.hintHidden) return;
-    const D = JD.Drawing;
-    const C = D.colors;
-    const direction = s.hint && s.hint.spin === 1 ? '오른쪽' : '왼쪽';
-    let text = '잭팟 칸을 노려요';
-    if(s.hint && s.hint.ball && s.hint.spring) text = '철구 + '+direction+' 회전';
-    else if(s.hint && s.hint.ball) text = '철구로 쇠 벽을 부숴요';
-    else if(s.hint && s.hint.spring) text = direction+' 회전으로 휘어요';
-    D.box(ctx,29,121,302,66,10,D.rgba(C.ink,.9),C.laneEdge);
-    D.label(ctx,stageLabel(s),180,147,25,C.text,'center',{max:288,minSize:22});
-    D.label(ctx,text,180,174,22,C.hint,'center',{max:288,minSize:20});
-  };
-
-  JD.drawCardReward = function (ctx,s,ui,fx,t) {
+  JD.drawCardReward = function (ctx,s,ui) {
     const notice = ui.cardNotice;
-    if (!notice || !notice.before.offer) return;
+    if (!notice || s.state!=='AIM') return;
     const D = JD.Drawing;
-    const { event, before, age } = notice;
+    const { event, age } = notice;
     const id = event.id;
-    const index = before.offer.indexOf(id);
-    if (index < 0) return;
-    if (age < 12) {
-      drawCard(ctx,before,index,ui,t,{focus:true,picked:true,age},D);
-      return;
-    }
     const kind = JD.CARD_BALL[id], spring = JD.CARD_SPRING[id];
     if (!kind && !spring) return;
-    const card = JD.UI.cards(before)[index];
-    const fixed = before.offer.length === 1;
-    const startX = fixed ? card.x+card.w/2 : card.x+32;
-    const startY = card.y+(fixed ? 49 : 51);
-    const endX = kind ? 329 : 376;
-    const endY = kind ? 50 : 583;
-    const p = D.clamp((age-12)/20,0,1);
-    const land = Math.max(0, age-32);
-    const arc = ui.reduced ? 0 : 44*Math.sin(Math.PI*p);
-    const x = startX+(endX-startX)*p, y = startY+(endY-startY)*p-arc;
     const trail = D.colors[cards[id][3]];
-    if (p > 0 && p < 1) D.line(ctx,x,y,x+Math.sign(startX-endX)*10,y+14,D.rgba(trail,.65),3);
-    const bump = p === 1 ? (ui.reduced ? .15 : .4)*Math.max(0,1-land/12) : 0;
-    if (kind) D.ball(ctx,kind,x,y,(8+8*(1-p))*(1+bump),{cracked:kind==='glass'});
-    else D.coil(ctx,x,y-10,7*(1+bump),20*(1+bump),spring);
-    if (p === 1) D.circle(ctx,x,y,9+land*1.5,null,D.rgba(trail,.72*Math.max(0,1-land/12)),2);
+    D.circle(ctx,376,kind?540:583,ui.reduced?13:10+age*.2,null,D.rgba(trail,.75*(1-age/45)),2);
   };
 }(window.JD));

@@ -2,7 +2,6 @@
   'use strict';
 
   const TAU=2*Math.PI;
-  const comboNames=JD.CFG.COMBO_NAMES;
 
   JD.createFx=function () {
     const D=JD.Drawing, C=D.colors;
@@ -159,7 +158,7 @@
       burst(196,170,count,[C.combo1,C.success,C.jackpot,C.combo4,C.text],
         {shape:'fragment',life:72,speed:5,up:true,spreadX:130,gravity:.14});
     }
-    function event(e,s,before,blastDelays,ui) {
+    function event(e,s,before,blastDelays) {
       let id=e.id;
       if(e.type==='warp') id=e.ball;
       if(e.type==='ball_landed') id=e.bucket;
@@ -186,13 +185,6 @@
         case 'shot_fired':
           trails.length=0; births.length=0; combo=null;
           ring(376,540,12,0,C.text,6,2);
-          if(e.perfect) {
-            text(heads,'PERFECT!',302,89,22,C.jackpot,30,{fixed:true,pop:true});
-            if(e.spring==='stiff') text(heads,'GREAT START',302,104,11,C.jackpot,30,{fixed:true});
-          }
-          break;
-        case 'charge_cancel':
-          if(s.stage!==1||ui.tutorialSeen) text(heads,'HOLD!',180,136,20,C.text,30,{fixed:true,wave:true});
           break;
         case 'launch':
           ring(352,60,10,0,C.text,6,2);
@@ -278,7 +270,7 @@
           .sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))
           .forEach((p,i)=>delays.set(p.id,Math.min(6,i+1)));
       }
-      for(const e of items) event(e,s,before,delays,ui);
+      for(const e of items) event(e,s,before,delays);
       if(s.shot&&s.balls.length>before.balls.length) {
         for(let i=Math.max(1,before.balls.length);i<s.balls.length;i++) births[i]=time;
       }
@@ -390,7 +382,7 @@
         D.label(c,'×+'+r.add,x,y,r.vault?32:22,C.jackpot,'center',{outline:C.ink});
       }
     }
-    function draw(c,s) {
+    function draw(c) {
       drawRings(c);
       for(const p of particles) drawParticle(c,p);
       for(const d of floats) drawText(c,d);
@@ -399,16 +391,6 @@
         else drawText(c,d);
       }
       drawRewards(c);
-      if(s.shot&&combo) {
-        const age=time-combo.at,tier=combo.tier;
-        if(age<48){
-          const scale=age<4?.5+.1875*age:1+.25*Math.max(0,1-(age-4)/8);
-          c.save(); c.globalAlpha=Math.min(1,(48-age)/8);
-          D.label(c,comboNames[tier]+'!',240,144,(26+4*tier)*Math.min(scale,reduced?1.15:1.25),D.combo(tier),'center',{outline:C.ink});
-          D.label(c,'+'+JD.CFG.COMBO_BONUS[tier]+' / PEG',240,158,12,C.textDim,'center',{outline:C.ink});
-          c.restore();
-        }
-      }
       if(banner) {
         const age=visualTime-banner.at;
         if(age>=0&&age<banner.life){
