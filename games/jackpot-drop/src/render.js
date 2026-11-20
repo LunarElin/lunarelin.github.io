@@ -241,52 +241,47 @@
   }
 
   function panel(c,s,ui,fx) {
-    const shot=s.shot, payout=s.payout;
-    const x=8, y=100, w=342, h=50;
-    if (!shot && !payout) {
-      if (s.state !== 'AIM' && s.state !== 'LAUNCH') return;
-      box(c,x,y,112,h,10,'#111632',colors.laneEdge);
-      label(c,'배수',64,120,20,colors.textDim);
-      label(c,'×'+score(s.stageMult),64,145,29,colors.jackpot,'center',{max:96,minSize:27});
-      const perfect=s.launch?.perfect || (s.charging && s.perfect);
-      const messages=aimMessages(s,ui,fx);
-      if (messages.length) {
-        box(c,130,y,220,h,10,perfect?'#392B20':'#111632',perfect?colors.jackpot:colors.laneEdge);
-        messages.forEach((message,i)=>{
-          const dual=messages.length>1;
-          label(c,message,240,dual?120+i*24:136,dual?23:27,perfect||i?colors.jackpot:colors.text,'center',{max:198,minSize:23});
-        });
+    const {shot,payout}=s;
+    if (shot) {
+      const mult=Math.max(s.stageMult,shot.liveMult-(fx?fx.pendingMult():0));
+      const hit=fresh(fx,'peg_hit');
+      const pop=hit&&hit.age<4?1+.12*Math.sin(hit.age*Math.PI/4):1;
+      box(c,150,84,180,32,16,rgba(colors.ink,.7),shot.tier?combo(shot.tier):colors.laneEdge,2);
+      label(c,score(shot.pts),164,109,28*pop,colors.text,'left',{max:85,minSize:23});
+      label(c,'×'+score(mult),316,108,22,colors.jackpot,'right',{max:60,minSize:19});
+      if (shot.perfect&&ui.stateAge<30) label(c,'PERFECT!',12,108,22,colors.jackpot,'left',{max:126});
+      if (shot.tier) {
+        const award=JD.CFG.COMBO_NAMES[shot.tier]+' +'+JD.CFG.COMBO_BONUS[shot.tier];
+        label(c,award,240,143,26,combo(shot.tier),'center',{outline:colors.ink,max:174});
       }
       return;
     }
-
-    const reveal=payout?payout.elapsed-payout.pins.length*payout.spacing:0;
-    if (payout && reveal>=40) {
-      box(c,x,y,w,h,10,'#2B231D',colors.jackpot,1.5);
-      label(c,'획득 점수',116,134,26,colors.text);
-      label(c,'+'+score(payout.score),278,137,35,colors.jackpot,'center',{max:129,minSize:32});
+    if (payout) {
+      const reveal=payout.elapsed-payout.pins.length*payout.spacing;
+      const tint=(reveal>=20&&payout.jackpot)||(reveal>=0&&payout.mult>=4)?colors.jackpot:colors.laneEdge;
+      box(c,150,84,180,32,16,rgba(colors.ink,.7),tint,2);
+      label(c,score(payout.pts),162,108,22,colors.text,'left',{max:72,minSize:18});
+      if (reveal>=0) label(c,'×'+score(payout.mult),276,108,20,tint,'right',{max:38,minSize:17});
+      if (reveal>=20) label(c,'×'+score(payout.bucketSum),320,108,20,tint,'right',{max:40,minSize:17});
+      if (reveal>=40) {
+        const progress=clamp((reveal-40)/30,0,1);
+        const travel=progress*progress;
+        c.save();
+        c.globalAlpha=1-travel;
+        label(c,'= '+score(payout.score),240-60*travel,143-110*travel,30-14*travel,colors.jackpot,'center',{outline:colors.ink,max:174});
+        c.restore();
+      }
       return;
     }
-    box(c,x,y,w,h,10,'#111632',shot?.tier?combo(shot.tier):colors.laneEdge);
-    line(c,121,y+9,121,y+h-9,rgba(colors.laneEdge,.48));
-    line(c,230,y+9,230,y+h-9,rgba(colors.laneEdge,.48));
-    const metric=(name,value,cx,tint=colors.text)=>{
-      label(c,name,cx,120,20,colors.textDim,'center',{max:102,minSize:19});
-      label(c,value,cx,145,29,tint,'center',{max:100,minSize:27});
-    };
-    metric('발사 점수',score(shot?shot.pts:payout.pts),66);
-    if (shot) {
-      const multiplier=Math.max(s.stageMult,shot.liveMult-(fx?fx.pendingMult():0));
-      metric('배수','×'+score(multiplier),176,colors.jackpot);
-      const tier=shot.tier;
-      const perfect=shot.perfect;
-      if (perfect) label(c,'퍼펙트!',289,tier?120:136,23,colors.jackpot);
-      if (tier) label(c,JD.CFG.COMBO_NAMES[tier]+' +'+JD.CFG.COMBO_BONUS[tier],289,perfect?145:136,23,combo(tier),'center',{max:106,minSize:22});
-      return;
+    const messages=aimMessages(s,ui,fx);
+    if (messages.length>1) {
+      box(c,17,100,326,52,8,rgba(colors.ink,.6));
+      label(c,messages[0],180,124,25,colors.text);
+      label(c,messages[1],180,146,18,colors.jackpot);
+    } else if (messages.length) {
+      const tint=s.perfect||s.launch?.perfect?colors.jackpot:colors.text;
+      label(c,messages[0],180,132,25,tint,'center',{outline:colors.ink,max:310});
     }
-
-    metric('배수',reveal>=0?'×'+score(payout.mult):'—',176,colors.jackpot);
-    metric('착지 배수',reveal>=20?'×'+score(payout.bucketSum):'—',290,payout.jackpot?colors.jackpot:colors.text);
   }
 
   function drawBalls(c,s,ui,fx,t) {
@@ -327,33 +322,34 @@
       }
       if(tier>=3) glow(c,x,y,r*2.2,tint,.35);
       ball(c,s.shot.ball,x,y,r,{cracked:s.shot.cracked,spin:s.shot.spin,time:t});
-      if(i===0&&s.shot.hits>0){
+      if(i===0&&s.shot.hits>0&&y+r>=0){
         const n=number(s.shot.hits), hit=fresh(fx,'peg_hit');
         const size=(11+2*tier)*(hit&&hit.age<4?1+(ui.reduced?.15:.3)*(1-hit.age/4):1);
-        box(c,x+3,y-28,9+n.length*(size*.65),size+2,8,rgba(tier?combo(tier):colors.lane,.91));
-        label(c,n,x+7,y-27+size,size,tier?colors.ink:colors.text,'left');
+        const width=9+n.length*size*.65;
+        const left=Math.min(x+3,358-width);
+        const top=y-28>=2?y-28:Math.max(38,y+r+4);
+        box(c,left,top,width,size+2,8,rgba(tier?combo(tier):colors.lane,.91));
+        label(c,n,left+4,top+size+1,size,tier?colors.ink:colors.text,'left');
       }
     });
   }
 
-  function hud(c,s) {
+  function hud(c,s,ui,fx) {
     const payout=s.payout;
     const earned=payout?payout.score*clamp((payout.elapsed-(payout.duration-30))/30,0,1):0;
     const displayed=s.stageScore+earned;
     const win=displayed>=s.target;
-    const progressColor=win?colors.success:colors.jackpot;
-    const ballsColor=s.ballsLeft===1?colors.danger:colors.text;
-    box(c,8,6,342,90,13,'#151A3E','#3F4879',1.5);
-    line(c,174,17,174,78,rgba(colors.laneEdge,.55));
-    line(c,274,17,274,78,rgba(colors.laneEdge,.55));
-    label(c,(s.endless?'무한 ':'')+s.stage+'단계',20,32,25,s.endless?colors.jackpot:colors.textDim,'left',{max:147,minSize:23});
-    label(c,score(displayed),20,78,50,win?colors.success:colors.text,'left',{max:145,minSize:47});
-    label(c,'목표',223,32,25,colors.textDim);
-    label(c,score(s.target),263,76,39,colors.text,'right',{max:80,minSize:37});
-    label(c,'구슬',310,32,25,colors.textDim);
-    label(c,score(s.ballsLeft),310,78,50,ballsColor,'center',{max:59,minSize:47});
-    box(c,20,86,243,4,2,rgba(colors.text,.16));
-    box(c,20,86,243*clamp(displayed/s.target,0,1),4,2,progressColor);
+    label(c,s.endless?'ENDLESS '+s.stage:'STAGE '+s.stage+'/8',12,27,14,s.endless?colors.jackpot:colors.text,'left',{max:80});
+    const clear=fresh(fx,'stage_clear');
+    const bump=clear&&clear.age<6&&!ui.reduced ? .1*Math.sin(clear.age*Math.PI/6) : 0;
+    const barHeight=18*(1+bump);
+    box(c,96,23-barHeight/2,168,barHeight,9,rgba(colors.text,.12));
+    box(c,96,23-barHeight/2,168*clamp(displayed/s.target,0,1),barHeight,9,win?colors.success:colors.jackpot);
+    label(c,score(displayed)+' / '+score(s.target),180,28,16,colors.text,'center',{outline:colors.ink,max:158,minSize:13});
+    ball(c,s.pick.ball,287,23,7,{});
+    label(c,String(s.ballsLeft),306,30,22,s.ballsLeft===1?colors.danger:colors.text);
+    const mult=s.shot?Math.max(s.stageMult,s.shot.liveMult-(fx?fx.pendingMult():0)):s.stageMult;
+    label(c,'×'+score(mult),12,66,22,mult>=4?colors.jackpot:colors.text,'left',{max:100});
   }
 
   JD.createRenderer = function (canvas) {
@@ -370,14 +366,18 @@
       buckets(c,s,ui,fx,t,false);
       lane(c,s,ui,fx,t);
       if(JD.drawBoardObjects) JD.drawBoardObjects(c,s,ui,fx,t);
+      if (s.state!=='CARD'&&s.state!=='RESULT') {
+        // Keep the score fixed, then paint even high rebounds in front of it.
+        c.save();
+        c.setTransform(w/392,0,0,h/640,0,0);
+        hud(c,s,ui,fx);
+        panel(c,s,ui,fx);
+        c.restore();
+      }
       drawBalls(c,s,ui,fx,t);
       if(fx) fx.draw(c);
       c.restore();
       if(fx) fx.overlay(c,s,ui);
-      if(s.state!=='CARD'&&s.state!=='RESULT') {
-        hud(c,s);
-        panel(c,s,ui,fx);
-      }
       if(JD.drawScreens) JD.drawScreens(c,s,ui,fx,t);
       if(JD.drawCardReward) JD.drawCardReward(c,s,ui);
     };
