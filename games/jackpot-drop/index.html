@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0e2a">
+  <title>Jackpot Drop</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="cabinet" aria-label="Jackpot Drop">
+    <header class="controls top-controls">
+      <a class="machine-button" href="../../" aria-label="포트폴리오 홈">홈</a>
+      <h1>Jackpot Drop</h1>
+      <button class="machine-button" id="pause" type="button" aria-label="일시 정지">정지</button>
+      <button class="machine-button sound" id="sound" type="button" aria-label="음소거" aria-pressed="false">소리 켬</button>
+    </header>
+
+    <div class="playfield">
+      <div class="board">
+        <canvas id="game" width="392" height="640" tabindex="0" aria-label="잭팟 드롭 보드" aria-describedby="board-keys"></canvas>
+        <button class="machine-button primary replay" id="replay" type="button" hidden>다시 하기</button>
+      </div>
+      <p class="visually-hidden" id="board-keys">보드를 누르거나 스페이스 키를 누르세요. 금색 구간에서 떼면 발사됩니다. 좌우 키로 구슬, 상하 키로 스프링을 고릅니다. 강화 카드는 방향키와 엔터로 선택합니다.</p>
+    </div>
+
+    <div class="controls play-controls" aria-label="플레이 조작">
+      <button class="machine-button" id="ball" type="button" aria-haspopup="dialog" hidden>구슬</button>
+      <button class="machine-button" id="spring" type="button" aria-haspopup="dialog" hidden>스프링</button>
+      <button class="machine-button primary action" id="action" type="button" aria-label="누르고 떼서 발사">발사</button>
+    </div>
+  </main>
+
+  <dialog class="game-menu" id="pause-menu" aria-labelledby="pause-title">
+    <h2 id="pause-title">일시 정지</h2>
+    <div class="menu-options">
+      <button class="machine-button primary" id="resume" type="button" autofocus>계속</button>
+      <button class="machine-button" id="restart" type="button">처음부터</button>
+      <a class="machine-button" href="../../">포트폴리오</a>
+    </div>
+  </dialog>
+
+  <dialog class="game-menu" id="equipment-menu" aria-labelledby="equipment-title">
+    <h2 id="equipment-title"></h2>
+    <div class="menu-options" id="equipment-options"></div>
+    <button class="machine-button close-menu" id="close-equipment" type="button">닫기</button>
+  </dialog>
+  <noscript>Jackpot Drop을 플레이하려면 JavaScript를 켜 주세요.</noscript>
+  <script src="src/rules.js" defer></script>
+  <script src="src/game.js" defer></script>
+  <script src="src/audio.js" defer></script>
+  <script src="src/fx.js" defer></script>
+  <script src="src/render.js" defer></script>
+  <script src="src/input.js" defer></script>
+  <script src="src/main.js" defer></script>
+</body>
+</html>

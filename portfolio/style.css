@@ -188,6 +188,44 @@ details[open] > summary .detail-toggle::after { transform: rotate(0); }
 .visual-orbit::after { content: ""; position: absolute; border: 1px dashed #6eb5b13a; border-radius: 50%; inset: -25px; }
 .game-bloom .game-visual { background: #dfcbe3; color: #694f6e; }
 .game-bloom .visual-title b { color: #57395f; }
+.art-jackpot { background: radial-gradient(ellipse at 50% 65%, #443474, #1a143a 78%); }
+.game-visual.art-jackpot { justify-content: center; }
+.game-visual .jackpot-board { margin-top: 36px; }
+.jackpot-board {
+  position: relative;
+  display: block;
+  width: 120px;
+  height: 146px;
+  margin: 20px auto 0;
+  border: 2px solid #9887c3;
+  border-radius: 22px 22px 12px 12px;
+  background:
+    radial-gradient(circle at 7px 7px, #9ee6ff 0 2px, #467ab4 3px, transparent 4px) 5px 8px / 26px 28px,
+    radial-gradient(circle at 7px 7px, #ffe194 0 2px, #a16843 3px, transparent 4px) 18px 22px / 26px 28px,
+    linear-gradient(#352a66, #1f1a42);
+  box-shadow: inset 0 3px 0 #ffffff20, inset 0 -4px 0 #0d0a2a77, 0 8px 18px #100a32b8;
+}
+.jackpot-board::before {
+  content: "";
+  position: absolute;
+  top: 26px;
+  right: 19px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 26%, #fff9e3, #ffd068 40%, #b46925 78%);
+  box-shadow: 0 3px 7px #170c25, 0 0 12px #ffce4477;
+}
+.jackpot-board::after {
+  content: "";
+  position: absolute;
+  inset: auto 8px 8px;
+  height: 20px;
+  border: 1px solid #796da6;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #2b2856 38%, #ffd467 38% 62%, #2b2856 62%);
+  box-shadow: inset 0 3px 0 #ffffff25, inset 0 -3px 0 #1713346b;
+}
 .game-merge .game-visual { background: #d4d2b5; color: #65694c; }
 .game-merge .visual-title b { color: #434c32; }
 .merge-tiles { position: absolute; left: 36px; top: 88px; width: 155px; height: 110px; transform: rotate(-12deg); }
