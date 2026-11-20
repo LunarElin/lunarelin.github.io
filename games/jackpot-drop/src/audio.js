@@ -4,7 +4,6 @@
   const C5=523.251, D5=587.330, E5=659.255, G5=783.991;
   const C6=1046.502, E6=1318.510, G6=1567.982;
   const comboNotes = [[], [C5,E5], [D5,739.989], [E5,830.609], [G5,987.767,1174.659]];
-  const launchTone = { standard:[180,520,.120], spin:[180,520,.120], stiff:[140,440,.160], soft:[240,600,.090] };
 
   JD.createAudio = function (initialMuted) {
     const voices = new Set();
@@ -211,13 +210,11 @@
           tone('sine',150,.04,.29);
           break;
         case 'ball_picked':
-        case 'spring_picked':
-          tone('sine',1200,.02,.23);
+          sequence([900,1500],.015,'square',.18,0,.015);
           break;
         case 'shot_fired': {
           stopCharge();
-          const [low,high,length]=launchTone[e.spring] || launchTone.standard;
-          tone('sine',low,length,.36,{endHz:high});
+          tone('sine',180,.120,.36,{endHz:520});
           if(e.perfect) chord([C6,G6],.15,'sine',.18);
           break;
         }
@@ -231,6 +228,9 @@
           if(e.pegType === 'gold') tone('sine',pitch*1.5,.12,.16,{peg:true});
           break;
         }
+        case 'peg_break':
+          noise('bandpass',5000,5000,.025,.15);
+          break;
         case 'combo_up':
           chord(comboNotes[e.tier],.09,'square',e.tier === 4 ? .12 : .16);
           noise('highpass',3400,3400,.10,.11);
@@ -242,6 +242,13 @@
         case 'iron_break':
           noise('bandpass',2500,2500,.25,.34);
           tone('sine',120,.20,.43);
+          break;
+        case 'ball_parked':
+          tone('square',700,.020,.20);
+          tone('sine',1100,.040,.22);
+          break;
+        case 'parked_release':
+          sequence([C6,E6,G6],.07,'triangle',.24,0,.03);
           break;
         case 'warp':
           tone('sine',900,.20,.32,{endHz:150});

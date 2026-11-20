@@ -1,14 +1,6 @@
-@font-face {
-  font-family: "Jackpot Sans";
-  src: url("assets/noto-sans-kr-ui.woff2?v=menu-layout") format("woff2");
-  font-style: normal;
-  font-weight: 600 900;
-  font-display: swap;
-}
-
 :root {
   color-scheme: dark;
-  font-family: "Jackpot Sans", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  font-family: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   font-weight: 800;
   background: #080a1e;
   color: #fbf7ff;
@@ -40,8 +32,8 @@ body {
   --side-space: calc(var(--left-space) + var(--right-space));
   --play-rail-height: 48px;
   --rail-space: calc(54px + var(--play-rail-height) + var(--top-space) + var(--bottom-space));
-  --board-width: calc((100vh - var(--rail-space)) * .6125);
-  --fitted-height: calc((min(100vw, 470px) - var(--side-space)) * (640 / 392) + var(--rail-space));
+  --board-width: calc((100vh - var(--rail-space)) * .6875);
+  --fitted-height: calc((min(100vw, 470px) - var(--side-space)) * (640 / 440) + var(--rail-space));
   width: min(100%, max(348px, calc(var(--board-width) + var(--side-space))), 470px);
   height: min(100vh, var(--fitted-height));
   margin-inline: auto;
@@ -49,6 +41,7 @@ body {
   display: grid;
   grid-template-rows: 44px minmax(0, 1fr) var(--play-rail-height);
   gap: 5px;
+  touch-action: none;
 }
 
 .cabinet:has(#game:is([data-state="CARD"], [data-state="RESULT"])) {
@@ -57,7 +50,7 @@ body {
 
 @supports (height: 100dvh) {
   .cabinet {
-    --board-width: calc((100dvh - var(--rail-space)) * .6125);
+    --board-width: calc((100dvh - var(--rail-space)) * .6875);
     height: min(100dvh, var(--fitted-height));
   }
 }
@@ -71,7 +64,7 @@ body {
 
 .top-controls {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 48px clamp(56px, 20vw, 72px);
+  grid-template-columns: 44px minmax(0, 1fr) 48px clamp(64px, 23vw, 84px);
 }
 
 .top-controls > .machine-button {
@@ -101,8 +94,8 @@ body {
 .board {
   position: relative;
   width: min(100%, var(--board-width));
-  width: min(100%, 61.25cqh);
-  aspect-ratio: 392 / 640;
+  width: min(100%, 68.75cqh);
+  aspect-ratio: 440 / 640;
   border-radius: 9px;
   box-shadow: 0 0 0 1px #665491, 0 3px 0 #09091d, 0 12px 36px #02020a8c;
 }
@@ -115,6 +108,33 @@ canvas {
   touch-action: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+.magazine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.magazine-slot {
+  position: absolute;
+  left: calc(100% * 360 / 440);
+  right: 0;
+  height: calc(100% * 52 / 640);
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  appearance: none;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+.magazine-slot:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -3px;
 }
 
 .machine-button {
@@ -168,9 +188,36 @@ canvas:focus-visible {
 }
 
 .sound {
+  gap: 4px;
   font-size: 16px;
   white-space: normal;
   word-break: keep-all;
+}
+
+.sound-icon {
+  position: relative;
+  flex: 0 0 14px;
+  height: 14px;
+}
+
+.sound-icon::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: currentColor;
+  clip-path: polygon(0 30%, 34% 30%, 76% 0, 76% 100%, 34% 70%, 0 70%);
+}
+
+.sound[aria-pressed="true"] .sound-icon::after {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 15px;
+  height: 2px;
+  content: "";
+  border-radius: 1px;
+  background: #ffc348;
+  transform: rotate(-45deg);
 }
 
 .sound[aria-pressed="true"] {
@@ -192,10 +239,6 @@ canvas:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.play-controls > .machine-button:not(.action) {
-  max-width: 35%;
-}
-
 .play-controls .action {
   flex: 1 1 92px;
   touch-action: none;
@@ -213,8 +256,8 @@ canvas:focus-visible {
 .replay {
   position: absolute;
   top: 77.8125%;
-  left: 50%;
-  width: 61.225%;
+  left: calc(100% * 196 / 440);
+  width: calc(100% * 240 / 440);
   min-height: max(44px, 8.75%);
   transform: translate(-50%, -50%);
 }
@@ -276,49 +319,6 @@ canvas:focus-visible {
 }
 
 .menu-options > .machine-button {
-  flex-shrink: 0;
-}
-
-.equipment-option {
-  display: grid;
-  gap: 3px;
-  justify-content: stretch;
-  padding-block: 6px;
-  padding-inline: 12px;
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.equipment-name {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  line-height: 1.25;
-}
-
-.equipment-selected {
-  color: #ffdf83;
-  font-size: 14px;
-}
-
-.equipment-option[aria-pressed="true"] {
-  border-color: #ffdb72;
-  color: #ffdf83;
-}
-
-.equipment-option small {
-  color: #e7dff4;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-  white-space: pre-line;
-  word-break: keep-all;
-}
-
-.close-menu {
   flex-shrink: 0;
 }
 

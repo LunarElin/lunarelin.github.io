@@ -1,50 +1,42 @@
-// Deterministic play policies for balance regression tests.
+// tests/harness.js — balance harness. Copy verbatim.
 // policy: 'random' | 'aim' | 'pro'. One rnd stream: picks, power draws, card offer, card choice.
-//   random: any ball, any spring (any spin side), any charge.
-//   aim:    follows the stage hint (hinted ball and spring while it has them, otherwise any), tries for the PERFECT
+//   random: any ball, any charge.
+//   aim:    follows the stage hint (fires the other balls first and the hinted ball last), tries for the PERFECT
 //           band and lands near it (a first-time player who reads the stage intro).
-//   pro:    test-fires every ball type left x every spring (both spin sides) x 7 charges on a copy of the board
-//           and keeps the best (a player who has learned the board and the tools).
+//   pro:    test-fires every ball type left x 7 charges on a copy of the board
+//           and keeps the best (a player who has learned the board and the tools). Points banked by a ball parked on an
+//           iron wall count x5 if an iron ball is still left to release them.
 JD.PRO_POWERS = [0.15, 0.3, 0.45, 0.6, 0.72, 0.84, 1.0];
 
-// All spring picks the player can make: [{ spring, spin }].
-JD.springPicks = function (up) {
-  var out = [];
-  up.springs.forEach(function (k) {
-    if (JD.SPRINGS[k].spin) { out.push({ spring: k, spin: -1 }); out.push({ spring: k, spin: 1 }); }
-    else out.push({ spring: k, spin: 1 });
-  });
-  return out;
-};
-
-// Returns { ball, spring, spin, power } for the next shot. left = ball types still in the rack this stage.
+// Returns { ball, power } for the next shot. left = ball types still in the rack this stage.
 JD.choosePick = function (board, policy, rnd, up, left, hint) {
-  var springs = JD.springPicks(up);
   if (policy !== 'pro') {
-    var b = left[Math.floor(rnd() * left.length)], s = springs[Math.floor(rnd() * springs.length)];
-    if (policy === 'aim' && hint) {
-      if (hint.ball && left.indexOf(hint.ball) >= 0) b = hint.ball;
-      if (hint.spring && up.springs.indexOf(hint.spring) >= 0) s = { spring: hint.spring, spin: hint.spin || 1 };
+    var b = left[Math.floor(rnd() * left.length)];
+    if (policy === 'aim' && hint && hint.ball) {
+      // read the hint: gather the other balls first, fire the hinted ball last
+      var others = left.filter(function (t) { return t !== hint.ball; });
+      b = others.length ? others[Math.floor(rnd() * others.length)] : hint.ball;
     }
-    var sp = JD.SPRINGS[s.spring];
+    var sp = JD.SPRING;
     var power = policy === 'random' ? 0.05 + 0.95 * rnd() : (sp.perfectLo + sp.perfectHi) / 2 + (rnd() - 0.5) * 0.24;
-    return { ball: b, spring: s.spring, spin: s.spin, power: power };
+    return { ball: b, power: power };
   }
   var best = null, types = left.filter(function (t, i) { return left.indexOf(t) === i; });
   types.forEach(function (b) {
-    springs.forEach(function (s) {
-      for (var i = 0; i < JD.PRO_POWERS.length; i++) {
-        var p = Math.min(1, JD.PRO_POWERS[i] + (rnd() - 0.5) * 0.04);
-        var pick = { ball: b, spring: s.spring, spin: s.spin, power: p };
-        var shot = JD.createShot(JSON.parse(JSON.stringify(board)), p, up, pick);
-        while (!JD.stepShot(shot)) {}
-        if (!best || shot.score > best.score) best = { pick: pick, score: shot.score };
-      }
-    });
+    for (var i = 0; i < JD.PRO_POWERS.length; i++) {
+      var p = Math.min(1, JD.PRO_POWERS[i] + (rnd() - 0.5) * 0.04);
+      var pick = { ball: b, power: p };
+      var copy = JSON.parse(JSON.stringify(board)), shot = JD.createShot(copy, p, up, pick);
+      while (!JD.stepShot(shot)) {}
+      // value = this shot's score + what newly banked points will pay if an iron ball is still left to release them (x5)
+      var rest = left.slice(); rest.splice(rest.indexOf(b), 1);
+      var banked = copy.parked.reduce(function (s, q) { return s + q.bank; }, 0) - board.parked.reduce(function (s, q) { return s + q.bank; }, 0);
+      var value = shot.score + (rest.indexOf('iron') >= 0 ? banked * copy.mult * 5 : 0);
+      if (!best || value > best.value) best = { pick: pick, value: value };
+    }
   });
   return best.pick;
 };
-
 // maxStages: how many stages to play at most (default 8 = the fixed run; larger values continue into ENDLESS).
 // won = cleared stage 8. reached = number of stages cleared.
 JD.simulateRun = function (seed, policy, maxStages) {
@@ -60,7 +52,7 @@ JD.simulateRun = function (seed, policy, maxStages) {
       score += shot.score; out.shots++; out.flightTicks += shot.t;
       if (shot.perfect) out.perfects++;
       if (shot.balls.some(function (b) { return !b.lost && shot.bucketMult[b.bucket] === 5; })) out.jackpots++;
-      var key = pick.ball + '/' + pick.spring; out.picks[key] = (out.picks[key] || 0) + 1;
+      out.picks[pick.ball] = (out.picks[pick.ball] || 0) + 1;
       if (score >= S.target) break;
     }
     var clear = score >= S.target;

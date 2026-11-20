@@ -21,7 +21,7 @@
     let practiceStart = Number.isInteger(settings.start) && settings.start >= 2 && settings.start <= 8
       ? settings.start : null;
     let state, enteredTick, stageIndex, stage, stageStartedTick, board, pegById;
-    let up, offerRandom, offer, rackIndices, slot, spring, spinDirection;
+    let up, offerRandom, offer, rackIndices, slot;
     let power, chargeTicks, charging, enteredPerfect, lastPower;
     let launch, shot, hitPins, readyPayout, banner, result;
     let runScore, stageScore;
@@ -71,11 +71,8 @@
     function startRun() {
       up = JD.newUpgrades();
       if (practiceStart >= 2) JD.applyCard(up, 'ballIron');
-      if (practiceStart >= 3) JD.applyCard(up, 'springSpin');
       offerRandom = JD.mulberry32(seed + 999);
       stageIndex = (practiceStart || 1) - 1;
-      spring = 'standard';
-      spinDirection = -1;
       runScore = biggestShot = jackpots = perfects = bestTier = pegsPopped = blocksBroken = 0;
       result = null;
       launch = null;
@@ -84,22 +81,14 @@
       startStage();
     }
 
-    function selection() {
-      return {
-        ball: up.rack[rackIndices[slot]] || null,
-        spring,
-        spin: JD.SPRINGS[spring].spin ? spinDirection : 0
-      };
-    }
-
     function fire() {
-      const picked = selection();
+      const ball = up.rack[rackIndices[slot]];
       const firedPower = Math.max(JD.CFG.POWER_MIN, power);
-      const perfect = JD.isPerfect(firedPower, picked.spring);
+      const perfect = JD.isPerfect(firedPower);
       rackIndices.splice(slot, 1);
       power = lastPower = firedPower;
       charging = false;
-      launch = Object.assign({ power: firedPower, perfect }, picked);
+      launch = { power: firedPower, perfect, ball };
       hitPins = [];
       if (perfect) perfects++;
       enter('LAUNCH');
@@ -115,8 +104,8 @@
 
     function chargeStep() {
       chargeTicks++;
-      power = Math.min(1, chargeTicks / JD.SPRINGS[spring].charge);
-      if (!enteredPerfect && JD.isPerfect(power, spring)) {
+      power = Math.min(1, chargeTicks / JD.SPRING.charge);
+      if (!enteredPerfect && JD.isPerfect(power)) {
         enteredPerfect = true;
         emit('charge_zone', { zone: 'perfect' });
       }
@@ -153,7 +142,8 @@
             }
             break;
           }
-          case 'bomb_exploded': {
+          case 'bomb_exploded':
+          case 'peg_break': {
             const pin = hitPins.find(hit => hit.id === event.id);
             if (pin) pin.removed = true;
             break;
@@ -173,17 +163,18 @@
       const finished = JD.stepShot(shot);
       collectShotEvents();
       if (!finished) return;
-      const { score, pts, golds, bucketSum, hits, t, tier } = shot;
+      const { score, pts, bankIn, golds, bucketSum, hits, t, tier } = shot;
+      const parked = shot.balls.filter(ball => ball.parked).length;
       const mult = board.mult;
       biggestShot = Math.max(biggestShot, score);
       bestTier = Math.max(bestTier, tier);
       pegsPopped += hits;
       readyPayout = {
         duration: JD.payoutDuration(hits), spacing: payoutSpacing(hits),
-        score, pts, mult, bucketSum, hits, tier, pins: hitPins,
+        score, pts, bankIn, mult, bucketSum, hits, tier, pins: hitPins,
         jackpot: shot.balls.some(ball => !ball.lost && shot.bucketMult[ball.bucket] === 5)
       };
-      emit('shot_finished', { score, pts, golds, stageMult: mult, bucketSum, hits, t, tier });
+      emit('shot_finished', { score, pts, bankIn, golds, stageMult: mult, bucketSum, hits, t, tier, parked });
       enter('PAYOUT');
     }
 
@@ -194,6 +185,7 @@
       shot = null;
       emit('payout_done', { stageScore });
       if (stageScore >= stage.target) {
+        board.parked.length = 0;
         const stageNumber = stageIndex + 1;
         const ballsLeft = rackIndices.length;
         const bonus = Math.round(stage.target / 10) * ballsLeft;
@@ -206,6 +198,7 @@
       } else if (rackIndices.length > 0) {
         enterAim();
       } else {
+        board.parked.length = 0;
         const ratio = Math.floor(stageScore * 100 / stage.target);
         banner = { kind: 'fail', ratio, text: ratio >= 80 ? 'SO CLOSE!' : 'OUT OF BALLS' };
         emit('stage_failed', { stage: stageIndex + 1, ratio });
@@ -221,7 +214,7 @@
         result = {
           won, reached, stageReached, stageName: stage.name, ratio: banner.ratio,
           runScore, biggestShot, jackpots, perfects, bestTier, pegsPopped, blocksBroken,
-          rack: up.rack.slice(), springs: up.springs.slice()
+          rack: up.rack.slice()
         };
         enter('RESULT');
         emit('run_ended', { won, reached, stageReached, runScore });
@@ -265,13 +258,6 @@
             emit('ball_picked', { slot, ball: up.rack[rackIndices[slot]] });
           }
           break;
-        case 'pickSpring':
-          if (!charging && up.springs.includes(command.spring)) {
-            spring = command.spring;
-            if (JD.SPRINGS[spring].spin && (command.spin === -1 || command.spin === 1)) spinDirection = command.spin;
-            emit('spring_picked', { spring, spin: JD.SPRINGS[spring].spin ? spinDirection : 0 });
-          }
-          break;
       }
     }
 
@@ -303,25 +289,24 @@
     }
 
     function snapshot() {
-      const pick = selection();
       const elapsed = tick - enteredTick;
       const shownShot = state === 'FLIGHT' ? shot : null;
       const fullRack = up.rack.slice();
-      const springs = up.springs.slice();
       return {
         tick, state, seed, stage: stageIndex + 1, stageName: stage.name, endless: !!stage.endless,
         stageStartedTick, stateElapsed: elapsed, practiceStart, target: stage.target, stageScore, runScore,
         ballsLeft: rackIndices.length, power, charging, lastPower,
-        perfect: JD.isPerfect(power, spring), rack: rackIndices.map(index => fullRack[index]),
-        fullRack, rackIndices: rackIndices.slice(), slot, springs, spinDirection, pick,
-        spring: Object.assign({ key: spring }, JD.SPRINGS[spring]),
+        perfect: JD.isPerfect(power), rack: rackIndices.map(index => fullRack[index]),
+        fullRack, rackIndices: rackIndices.slice(), slot,
         hint: stage.hint ? Object.assign({}, stage.hint) : null,
         iron: board.iron.map(group => ({ id: group.id, alive: group.alive, segs: group.segs.map(segment => segment.slice()) })),
+        parked: board.parked.map(({ x, y, r, ball, group, bank }) => ({ x, y, r, ball, group, bank })),
+        bank: board.parked.reduce((total, ball) => total + ball.bank, 0),
         warps: board.warps ? { ins: copyRecords(board.warps.ins) } : null,
-        ball: launch ? launch.ball : shot ? shot.ballKey : pick.ball,
+        ball: launch ? launch.ball : shot ? shot.ballKey : fullRack[rackIndices[slot]] || null,
         launch: launch ? Object.assign({ elapsed: elapsed + 1 }, launch) : null,
         stageMult: board.mult,
-        up: Object.assign({}, up, { rack: fullRack.slice(), springs: springs.slice() }),
+        up: Object.assign({}, up, { rack: fullRack.slice() }),
         offer: offer ? offer.slice() : null,
         pegs: copyRecords(board.pegs),
         bumpers: copyRecords(board.bumpers),
@@ -329,16 +314,19 @@
         blocks: copyRecords(board.blocks),
         terrain: board.terrain.map(segment => segment.slice()),
         buckets: { x: board.buckets.x.slice(), mult: board.buckets.mult.slice() },
-        balls: shot ? shot.balls.map(({ x, y, r, done, lost, bucket }) => ({ x, y, r, done, lost, bucket })) : [],
+        balls: shot ? shot.balls.map(({ x, y, r, done, lost, parked, bucket, bank }) => ({
+          x, y, r, done, lost, parked: !!parked, bucket, ball: bank === undefined ? shot.ballKey : 'normal'
+        })) : [],
         shot: shownShot ? {
           pts: shot.pts, hits: shot.hits, golds: shot.golds, t: shot.t,
           liveMult: board.mult + shot.golds, tier: shot.tier, perfect: shot.perfect,
-          ball: shot.ballKey, spring: shot.springKey, spin: shot.spin,
+          bankIn: shot.balls.reduce((total, ball) => total + (ball.bank || 0), 0),
+          ball: shot.ballKey,
           cracked: shot.cracked, shattered: shot.shattered, hitstop: shot.hitstop
         } : null,
         payout: readyPayout ? Object.assign({}, readyPayout, { elapsed, pins: copyRecords(readyPayout.pins) }) : null,
         banner: banner ? Object.assign({ elapsed }, banner) : null,
-        result: result ? Object.assign({}, result, { rack: result.rack.slice(), springs: result.springs.slice() }) : null
+        result: result ? Object.assign({}, result, { rack: result.rack.slice() }) : null
       };
     }
 

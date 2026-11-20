@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jackpot Drop 자동 검사</title>
+  <style>
+    body { margin: 20px; background: #0b0e2a; color: white; font: 16px system-ui, sans-serif; }
+    h1 { font-size: 28px; }
+    .results { overflow-x: auto; }
+    table { width: 100%; min-width: 640px; border-collapse: collapse; text-align: left; }
+    th, td { padding: 10px; border: 1px solid #5a62a8; vertical-align: top; }
+    td { white-space: pre-wrap; overflow-wrap: anywhere; }
+    td:first-child { min-width: 110px; }
+    .pass td:last-child { color: #5cffb0; }
+    .fail td:last-child { color: #ff8585; }
+  </style>
+  <script src="src/rules.js" defer></script>
+  <script src="src/game.js" defer></script>
+  <script src="tests/harness.js" defer></script>
+  <script src="tests/tests.js" defer></script>
+  <script src="tests/browser.js" defer></script>
+</head>
+<body>
+  <h1 id="summary" aria-live="polite">검사 준비 중</h1>
+  <div class="results">
+    <table aria-label="Jackpot Drop 규칙과 상태 자동 검사">
+      <thead><tr><th>검사</th><th>기대값</th><th>관측값</th><th>판정</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</body>
+</html>

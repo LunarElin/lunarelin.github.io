@@ -4,7 +4,7 @@ var JD = window.JD || (window.JD = {});
 JD.CFG = {
   W: 360, H: 640,
   EXIT_X: 352, EXIT_Y: 60, EXIT_VY: 0.5, POWER_MIN: 0.05, LAUNCH_TICKS: 12,
-  PEG_R: 7, BUMPER_R: 14, SPIN_KICK: 1.0,
+  PEG_R: 7, BUMPER_R: 14, PEG_BREAK_HITS: 2, PEG_HIT_CD: 6, PARK_SPEED: 1.0, PARK_TICKS: 20, IRON_FRICTION: 0.9,
   WARP_R: 13, WARP_CD: 30, WARP_CLEAR: 22, HITSTOP_WARP: 4, HITSTOP_IRON: 3,
   GRAVITY: 0.22, VMAX: 12, SUBSTEPS: 4,
   E_WALL: 0.8, E_BLOCK: 0.75, E_TERRAIN: 0.8, BUMPER_KICK: 2.2,
@@ -21,18 +21,11 @@ JD.CFG = {
   GATE_HALF_W: 36, GATE_BUMPER_CLEAR: 24, MAX_BALLS: 6
 };
 
-// Springs. The player owns a set of springs and picks one for each shot.
+// The plunger spring (one spring, no choice).
 // Holding charges power by 1 / charge per tick (0 -> 1, then it stays at 1).
 // power p in [POWER_MIN, 1] sets the exit speed vx = -(vMin + (vMax - vMin) * p).
 // A release with p inside [perfectLo, perfectHi] is PERFECT: the shot starts perfectTier combo tiers higher.
-// spin: the player also picks a side (-1 left, +1 right). Like side spin in billiards, every peg contact
-//       adds spin * SPIN_KICK to vx, so the ball walks toward that side as it bounces down.
-JD.SPRINGS = {
-  standard: { vMin: 1.5, vMax: 9.0,  perfectLo: 0.78, perfectHi: 0.90, perfectTier: 1, charge: 60, spin: false },
-  spin:     { vMin: 1.5, vMax: 9.0,  perfectLo: 0.78, perfectHi: 0.90, perfectTier: 1, charge: 60, spin: true },
-  soft:     { vMin: 1.5, vMax: 7.5,  perfectLo: 0.66, perfectHi: 0.92, perfectTier: 1, charge: 40, spin: false },
-  stiff:    { vMin: 2.0, vMax: 11.0, perfectLo: 0.86, perfectHi: 0.92, perfectTier: 2, charge: 90, spin: false }
-};
+JD.SPRING = { vMin: 1.5, vMax: 9.0, perfectLo: 0.78, perfectHi: 0.90, perfectTier: 1, charge: 60 };
 
 // Ball types. Every ball in the rack has a type and the player picks which one to fire.
 // r = radius, ePeg = bounce off pegs, blockDmg = HP per block hit, breaksIron = breaks iron walls.
@@ -69,12 +62,16 @@ JD.bucketLayout = function (S, up) {
 // blocks: [x, y, w, h, hp, kind] (centre, size, hit points, 'block' | 'vault')
 // terrain: [x1, y1, x2, y2] unbreakable wall segments, 8px thick, no score.
 // iron: groups of segments (8px thick). An iron ball breaks the whole group on touch and passes through;
-//       any other ball bounces off it like terrain. A broken group stays broken for the rest of the stage.
+//       any other ball bounces off it like terrain (sticky: it slows down and settles). A ball that comes to rest
+//       on an iron group (speed under PARK_SPEED for PARK_TICKS ticks while touching it) is PARKED: it stays on the
+//       board across shots and holds its shot's peg points (bank). When an iron ball breaks that group, its parked
+//       balls drop again as balls of that shot and their banked points join that shot's peg points.
+//       A broken group stays broken for the rest of the stage.
 // warps: { ins: [[x, y]...], outs: [[x, y]...] }. A ball that reaches a hole is moved to an exit picked by the
 //        board's warp rnd, so where it comes out is a surprise. It then drops straight down.
 // buckets: key of JD.BUCKETS.
 // reward: fixed card offer after clearing this stage (a one-card choice), or null for the normal 3-card offer.
-// hint: the tool pick the stage is built around ({ ball, spring, spin }), shown at stage start; null = none.
+// hint: the ball the stage is built around ({ ball }), shown at stage start; null = none.
 JD.STAGES = [
   { name: 'TUTORIAL', gold: 8, bomb: 3, plus: 0, minus: 0, balls: 3, target: 3000, bumpers: [], blocks: [], buckets: 'center',
     reward: ['ballIron'], hint: null, iron: [], warps: null,
@@ -84,41 +81,41 @@ JD.STAGES = [
     terrain: [[0, 522, 136, 580], [360, 522, 224, 580]],
     map: ['#########', '########', '#########', '########', '#########', '########',
           '#########', '########', '#########', '########', '#########', '########'] },
-  { name: 'IRON LID', gold: 8, bomb: 4, plus: 0, minus: 0, balls: 3, target: 6000, bumpers: [], blocks: [], buckets: 'center',
-    reward: ['springSpin'], hint: { ball: 'iron' }, warps: null,
+  { name: 'IRON LID', gold: 8, bomb: 4, plus: 0, minus: 0, balls: 3, target: 20000, bumpers: [], blocks: [], buckets: 'center',
+    reward: null, hint: { ball: 'iron' }, warps: null,
     terrain: [[0, 522, 136, 580], [360, 522, 224, 580]],
-    iron: [[[136, 580, 180, 556], [180, 556, 224, 580]]],
+    iron: [[[136, 580, 224, 580]]],
     map: ['#########', '########', '#########', '########', '#########', '########',
           '#########', '########', '#########', '########', '#########', '########'] },
-  { name: 'CURVE', gold: 9, bomb: 4, plus: 1, minus: 1, balls: 3, target: 6000, bumpers: [], blocks: [],
-    reward: null, hint: { spring: 'spin', spin: -1 }, iron: [], warps: null,
+  { name: 'CURVE', gold: 9, bomb: 4, plus: 1, minus: 1, balls: 3, target: 8000, bumpers: [], blocks: [],
+    reward: null, hint: null, iron: [], warps: null,
     terrain: [[76, 400, 76, 596]], buckets: 'left',
     map: ['#########', '########', '#########', '########', '#########', '########',
           '#########', '########', '#########', '########', '#########', '########'] },
-  { name: 'HOURGLASS', gold: 9, bomb: 4, plus: 1, minus: 1, balls: 3, target: 8000, bumpers: [],
+  { name: 'HOURGLASS', gold: 9, bomb: 4, plus: 1, minus: 1, balls: 3, target: 15000, bumpers: [],
     reward: null, hint: null, iron: [], warps: { ins: [[60, 470], [180, 470]], outs: [[324, 140], [324, 500], [40, 140]] },
     terrain: [[36, 208, 108, 280], [108, 328, 36, 400], [324, 208, 252, 280], [252, 328, 324, 400]], buckets: 'right',
     blocks: [[108, 304, 44, 20, 3, 'block'], [180, 304, 44, 20, 3, 'block'], [252, 304, 44, 20, 3, 'block']],
     map: ['#########', '########', '.#######.', '.######.', '..#####..', '..####..',
           '...###...', '..####..', '..#####..', '.######.', '.#######.', '########'] },
-  { name: 'ZIGZAG', gold: 10, bomb: 5, plus: 1, minus: 1, balls: 3, target: 10000, bumpers: [[180, 256]], buckets: 'center',
+  { name: 'ZIGZAG', gold: 10, bomb: 5, plus: 1, minus: 1, balls: 3, target: 50000, bumpers: [[180, 256]], buckets: 'center',
     terrain: [[0, 500, 136, 580], [360, 500, 224, 580]],
-    reward: null, hint: { ball: 'iron' }, warps: null, iron: [[[136, 584, 180, 560], [180, 560, 224, 584]]],
+    reward: null, hint: { ball: 'iron' }, warps: null, iron: [[[136, 580, 224, 580]]],
     blocks: [[90, 400, 44, 20, 4, 'block'], [270, 400, 44, 20, 4, 'block']],
     map: ['######...', '.######.', '..######.', '..######', '...######', '..######',
           '..######.', '.######.', '.######..', '######..', '######...', '.######.'] },
-  { name: 'BOWL', gold: 10, bomb: 5, plus: 2, minus: 1, balls: 3, target: 12000, bumpers: [], terrain: [], buckets: 'twin',
+  { name: 'BOWL', gold: 10, bomb: 5, plus: 2, minus: 1, balls: 3, target: 20000, bumpers: [], terrain: [], buckets: 'twin',
     reward: null, hint: null, iron: [], warps: { ins: [[180, 330]], outs: [[96, 540], [264, 540], [180, 140], [330, 220]] },
     blocks: [[72, 272, 44, 20, 5, 'block'], [126, 336, 44, 20, 5, 'block'], [180, 400, 44, 20, 5, 'block'],
              [234, 336, 44, 20, 5, 'block'], [288, 272, 44, 20, 5, 'block']],
     map: ['#########', '########', '#.#####.#', '#.####.#', '#..###..#', '#..##..#',
           '##..#..##', '##....##', '#########', '########', '#.#.#.#.#', '#.#..#.#'] },
-  { name: 'RING', gold: 12, bomb: 5, plus: 2, minus: 2, balls: 3, target: 18000, bumpers: [[180, 256], [90, 416], [270, 416]],
-    reward: null, hint: { ball: 'iron', spring: 'spin', spin: -1 }, warps: null, terrain: [], buckets: 'left', iron: [[[4, 566, 76, 566]]],
+  { name: 'RING', gold: 12, bomb: 5, plus: 2, minus: 2, balls: 3, target: 20000, bumpers: [[180, 256], [90, 416], [270, 416]],
+    reward: null, hint: { ball: 'iron' }, warps: null, terrain: [], buckets: 'left', iron: [[[4, 566, 76, 566]]],
     blocks: [[54, 304, 44, 20, 4, 'block'], [180, 368, 44, 20, 6, 'block'], [306, 304, 44, 20, 4, 'block']],
     map: ['#########', '########', '###...###', '##....##', '##.....##', '#......#',
           '##.....##', '##....##', '###...###', '########', '#########', '########'] },
-  { name: 'VAULT', gold: 12, bomb: 6, plus: 2, minus: 1, balls: 3, target: 36000, bumpers: [[180, 256]], terrain: [], buckets: 'center',
+  { name: 'VAULT', gold: 12, bomb: 6, plus: 2, minus: 1, balls: 3, target: 60000, bumpers: [[180, 256]], terrain: [], buckets: 'center',
     reward: null, hint: null, iron: [], warps: { ins: [[40, 520], [320, 520]], outs: [[180, 316], [180, 140], [40, 140], [320, 140]] },
     blocks: [[180, 368, 72, 28, 10, 'vault'], [72, 432, 44, 20, 6, 'block'], [288, 432, 44, 20, 6, 'block']],
     map: ['#########', '########', '#.#####.#', '#.####.#', '##.###.##', '##.##.##',
@@ -146,21 +143,17 @@ JD.GATE_SLOTS = [
   [72, 464], [180, 464], [288, 464]
 ];
 
-// Cards in the random 3-card offer. springSpin is not in the pool: it is the fixed reward of stage 2.
+// Cards in the random 3-card offer (stage 1 instead gives its fixed reward, ballIron).
 JD.CARD_IDS = ['goldPlus', 'heavy', 'bombPlus', 'fever', 'jackpot', 'extra', 'split', 'gate',
-  'ballGlass', 'ballBig', 'ballIron', 'springSoft', 'springStiff'];
-JD.CARD_CAP = { jackpot: 1, extra: 2, split: 2, gate: 2, ballGlass: 1, ballBig: 1, ballIron: 2,
-  springSpin: 1, springSoft: 1, springStiff: 1 };
+  'ballGlass', 'ballBig', 'ballIron'];
+JD.CARD_CAP = { jackpot: 1, extra: 2, split: 2, gate: 2, ballGlass: 1, ballBig: 1, ballIron: 2 };
 // Ball cards put a ball of that type into the rack (it replaces a normal ball; with no normal ball left it is added).
-// Spring cards add a spring to the springs the player can pick from.
 JD.CARD_BALL = { ballGlass: 'glass', ballBig: 'big', ballIron: 'iron' };
-JD.CARD_SPRING = { springSpin: 'spin', springSoft: 'soft', springStiff: 'stiff' };
 
-// rack: ball types for each stage (refilled at every stage start). springs: the springs the player owns.
+// rack: ball types for each stage (refilled at every stage start).
 JD.newUpgrades = function () {
   return { goldPlus: 0, heavy: 0, bombPlus: 0, fever: 0, jackpot: 0, extra: 0, split: 0, gate: 0,
-    ballGlass: 0, ballBig: 0, ballIron: 0, springSpin: 0, springSoft: 0, springStiff: 0,
-    rack: ['normal', 'normal', 'normal'], springs: ['standard'] };
+    ballGlass: 0, ballBig: 0, ballIron: 0, rack: ['normal', 'normal', 'normal'] };
 };
 
 JD.applyCard = function (up, id) {
@@ -168,8 +161,6 @@ JD.applyCard = function (up, id) {
   if (JD.CARD_BALL[id]) {
     var i = up.rack.indexOf('normal');
     if (i >= 0) up.rack[i] = JD.CARD_BALL[id]; else up.rack.push(JD.CARD_BALL[id]);
-  } else if (JD.CARD_SPRING[id]) {
-    up.springs.push(JD.CARD_SPRING[id]);
   } else if (id === 'extra') {
     up.rack.push('normal');
   }
@@ -290,6 +281,7 @@ JD.buildBoard = function (stageIndex, up, runSeed) {
     blocks: S.blocks.map(function (q, qi) { return { id: qi, x: q[0], y: q[1], w: q[2], h: q[3], hp: q[4], maxHp: q[4], kind: q[5], alive: true }; }),
     terrain: S.terrain.map(function (w) { return [w[0], w[1], w[2], w[3]]; }),
     iron: S.iron.map(function (grp, gi) { return { id: gi, segs: grp.map(function (w) { return [w[0], w[1], w[2], w[3]]; }), alive: true }; }),
+    parked: [],
     warps: S.warps ? {
       ins: S.warps.ins.map(function (h) { return { x: h[0], y: h[1] }; }),
       outs: S.warps.outs.map(function (h) { return { x: h[0], y: h[1] }; }),
@@ -300,10 +292,9 @@ JD.buildBoard = function (stageIndex, up, runSeed) {
   };
 };
 
-// Is plunger power p a PERFECT release for this spring?
-JD.isPerfect = function (p, springKey) {
-  var sp = JD.SPRINGS[springKey];
-  return p >= sp.perfectLo && p <= sp.perfectHi;
+// Is plunger power p a PERFECT release?
+JD.isPerfect = function (p) {
+  return p >= JD.SPRING.perfectLo && p <= JD.SPRING.perfectHi;
 };
 
 // Same generator as mulberry32, but the state lives in a plain object so a board can be copied with JSON.
@@ -316,16 +307,15 @@ JD.nextRand = function (st) {
 
 // One shot from the plunger. power in [0, 1] (clamped to POWER_MIN). The ball leaves the shooter lane
 // at (EXIT_X, EXIT_Y) moving left; more power = faster = enters the board further left.
-// pick = { ball: ball type, spring: spring key, spin: -1 | 1 } (defaults: 'normal', 'standard', 1).
+// pick = { ball: ball type } (default 'normal').
 JD.createShot = function (board, power, up, pick) {
-  var C = JD.CFG, k = pick || {}, ballKey = k.ball || 'normal', springKey = k.spring || 'standard';
-  var sp = JD.SPRINGS[springKey], bd = JD.BALLS[ballKey];
+  var C = JD.CFG, k = pick || {}, ballKey = k.ball || 'normal';
+  var sp = JD.SPRING, bd = JD.BALLS[ballKey];
   var p = Math.max(C.POWER_MIN, Math.min(1, power));
-  var perfect = JD.isPerfect(p, springKey);
+  var perfect = JD.isPerfect(p);
   var vx = -(sp.vMin + (sp.vMax - sp.vMin) * p);
   var S = {
-    board: board, up: up, ballKey: ballKey, springKey: springKey, ballDef: bd, power: p, perfect: perfect,
-    spin: sp.spin ? (k.spin < 0 ? -1 : 1) : 0,
+    board: board, up: up, ballKey: ballKey, ballDef: bd, power: p, perfect: perfect,
     balls: [JD.newBall(C.EXIT_X, C.EXIT_Y, vx, C.EXIT_VY, bd.r)],
     pts: 0, golds: 0, hits: 0, blockHits: 0, split: false, cracked: false, shattered: false,
     comboBase: perfect ? sp.perfectTier : 0, tier: 0,
@@ -336,12 +326,13 @@ JD.createShot = function (board, power, up, pick) {
     events: []
   };
   S.tier = Math.min(C.COMBO_MAX, S.comboBase);
-  S.events.push({ type: 'launch', power: p, perfect: perfect, tier: S.tier, ball: ballKey, spring: springKey, spin: S.spin });
+  S.events.push({ type: 'launch', power: p, perfect: perfect, tier: S.tier, ball: ballKey });
   return S;
 };
 
 JD.newBall = function (x, y, vx, vy, r) {
-  return { x: x, y: y, vx: vx, vy: vy, r: r, done: false, lost: false, bucket: -1, slow: 0, cd: {}, warpCd: 0 };
+  return { x: x, y: y, vx: vx, vy: vy, r: r, done: false, lost: false, parked: false, bucket: -1, slow: 0, cd: {}, warpCd: 0,
+    restIron: -1, restTicks: 0 };
 };
 
 // Light a peg. Every COMBO_STEP new lights raise the combo tier; each peg is worth COMBO_BONUS[tier] more.
@@ -392,14 +383,16 @@ JD.passGate = function (S, B, bi, g) {
 };
 
 // Bounce ball B off a wall segment w (8px thick). Returns true on contact.
-JD.bounceSegment = function (B, w) {
+// sticky (iron walls for non-iron balls): no roll-off kick and IRON_FRICTION on the sliding speed, so balls settle and park.
+JD.bounceSegment = function (B, w, sticky) {
   var C = JD.CFG, sp0 = JD.segPoint(B.x, B.y, w), RT = B.r + C.TERRAIN_HALF;
   if (!(sp0.d < RT && sp0.d > 0)) return false;
   var tx = (B.x - sp0.cx) / sp0.d, ty = (B.y - sp0.cy) / sp0.d;
   B.x = sp0.cx + tx * RT; B.y = sp0.cy + ty * RT;
   var vt = B.vx * tx + B.vy * ty;
   if (vt < 0) { B.vx -= (1 + C.E_TERRAIN) * vt * tx; B.vy -= (1 + C.E_TERRAIN) * vt * ty; }
-  if (ty < -0.7 && Math.abs(B.vx) < 0.8) B.vx = (tx >= 0 ? 1 : -1) * 0.8; // never rest on a wall end
+  if (sticky) { B.vx *= C.IRON_FRICTION; if (ty < -0.7 && B.vy < 0) B.vy *= 0.5; }
+  else if (ty < -0.7 && Math.abs(B.vx) < 0.8) B.vx = (tx >= 0 ? 1 : -1) * 0.8; // never rest on a wall end
   return true;
 };
 
@@ -423,6 +416,7 @@ JD.stepShot = function (S) {
     if (B.done) continue;
     B.vy += C.GRAVITY;
     if (B.warpCd > 0) B.warpCd--;
+    var touchIron = -1;
     for (var s = 0; s < C.SUBSTEPS; s++) {
       var prevY = B.y;
       B.x += B.vx / C.SUBSTEPS; B.y += B.vy / C.SUBSTEPS;
@@ -453,9 +447,16 @@ JD.stepShot = function (S) {
           var vn = B.vx * nx + B.vy * ny;
           if (vn < 0) { B.vx -= (1 + S.ballDef.ePeg) * vn * nx; B.vy -= (1 + S.ballDef.ePeg) * vn * ny; }
           if (Math.abs(B.vx) < 0.2) B.vx = (B.x >= p.x ? 1 : -1) * 0.4;
-          B.vx += S.spin * C.SPIN_KICK;
           var wasLit = p.lit;
           JD.lightPeg(S, p, 'ball');
+          if (!(B.cd['p' + p.id] > S.t)) {
+            B.cd['p' + p.id] = S.t + C.PEG_HIT_CD;
+            p.touches = (p.touches || 0) + 1;
+            if (p.touches >= C.PEG_BREAK_HITS && p.alive) {
+              p.alive = false;
+              S.events.push({ type: 'peg_break', id: p.id, x: p.x, y: p.y });
+            }
+          }
           if (!wasLit && p.type === 'bomb') {
             p.alive = false;
             var lit = [];
@@ -523,9 +524,10 @@ JD.stepShot = function (S) {
               grp.alive = false;
               S.events.push({ type: 'iron_break', id: grp.id, ball: bi, x: B.x, y: B.y });
               S.hitstop = Math.max(S.hitstop, C.HITSTOP_IRON);
+              JD.releaseParked(S, grp.id);
               break;
             }
-          } else if (JD.bounceSegment(B, grp.segs[gs])) { S.events.push({ type: 'iron_hit', id: grp.id, ball: bi }); break; }
+          } else if (JD.bounceSegment(B, grp.segs[gs], true)) { touchIron = grp.id; S.events.push({ type: 'iron_hit', id: grp.id, ball: bi }); break; }
         }
       }
       var bum = S.board.bumpers;
@@ -544,6 +546,15 @@ JD.stepShot = function (S) {
     if (B.done) continue; // lost at a minus gate
     var sp = Math.hypot(B.vx, B.vy);
     if (sp > C.VMAX) { B.vx *= C.VMAX / sp; B.vy *= C.VMAX / sp; }
+    if (touchIron >= 0 && sp < C.PARK_SPEED) {
+      B.restTicks = B.restIron === touchIron ? B.restTicks + 1 : 1; B.restIron = touchIron;
+    } else if (touchIron < 0) { B.restTicks = 0; B.restIron = -1; }
+    if (B.restTicks >= C.PARK_TICKS) {
+      B.done = true; B.parked = true;
+      S.board.parked.push({ x: B.x, y: B.y, r: B.r, ball: S.ballKey, group: B.restIron, bank: 0, shot: S });
+      S.events.push({ type: 'ball_parked', ball: bi, x: B.x, y: B.y, group: B.restIron, count: S.board.parked.length });
+      continue;
+    }
     if (sp < C.STUCK_SPEED) B.slow++; else B.slow = 0;
     if (B.slow >= C.STUCK_TICKS) {
       var cleared = [];
@@ -569,10 +580,31 @@ JD.stepShot = function (S) {
   return all;
 };
 
+// An iron ball broke group g: its parked balls drop again (straight down) as balls of the current shot.
+JD.releaseParked = function (S, g) {
+  var keep = [], n = 0;
+  S.board.parked.forEach(function (q) {
+    if (q.group !== g) { keep.push(q); return; }
+    var nb = JD.newBall(q.x, q.y, 0, 0.5, q.r); nb.bank = q.bank; S.balls.push(nb); n++;
+  });
+  S.board.parked = keep;
+  if (n) S.events.push({ type: 'parked_release', group: g, count: n });
+};
+
+// Score = (peg points + points banked by released balls) x stage mult x bucket sum.
+// Bucket sum: each landed ball adds its bucket's multiplier; lost and parked balls add 0.
+// If no ball of this shot landed and some parked, the parked balls share this shot's peg points as their bank
+// (paid later when they are released and land).
 JD.finishShot = function (S) {
   S.board.pegs.forEach(function (p) { if (p.lit) p.alive = false; });
   S.board.mult += S.golds;
-  S.bucketSum = S.balls.reduce(function (s, b) { return s + (b.lost ? 0 : S.bucketMult[b.bucket]); }, 0);
-  S.score = S.pts * S.board.mult * S.bucketSum;
+  var landed = 0, bankIn = 0;
+  S.balls.forEach(function (b) { if (!b.lost && !b.parked) landed++; if (b.bank) bankIn += b.bank; });
+  S.bucketSum = S.balls.reduce(function (s, b) { return s + (b.lost || b.parked ? 0 : S.bucketMult[b.bucket]); }, 0);
+  var mine = S.board.parked.filter(function (q) { return q.shot === S; });
+  if (!landed && mine.length) mine.forEach(function (q) { q.bank = Math.floor(S.pts / mine.length); });
+  mine.forEach(function (q) { delete q.shot; });
+  S.bankIn = bankIn;
+  S.score = (S.pts + bankIn) * S.board.mult * S.bucketSum;
   S.finished = true;
 };

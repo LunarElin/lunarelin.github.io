@@ -6,7 +6,7 @@
   JD.createFx=function () {
     const D=JD.Drawing, C=D.colors;
     const recent=new Map(), pending=[], pegsPending=new Set();
-    const trails=[], births=[], particles=[], rings=[], floats=[], heads=[], rewards=[], bonuses=[];
+    const trails=[], births=[], particles=[], rings=[], floats=[], heads=[], rewards=[], bonuses=[], bankFlights=[];
     const firstIronHits=new Set(), contactTimes=new Map();
     let time=0, visualTime=0, seed=20261120, reduced=false, shake=null;
     let combo=null, banner=null, vaultAt=-1000, hotTier=0, heat=0, payoutIndex=0;
@@ -65,10 +65,6 @@
         text(floats,'×+1',p.x,p.y+8,14,C.jackpot,20);
         mark({type:'gold'});
       }
-      if(e.spin) {
-        const x=p.x+e.spin*11, y=p.y;
-        rings.push({x,y,r0:7,r1:14,color:C.spin,life:6,width:2,at:time,arc:e.spin});
-      }
     }
     function contact(e,id) {
       const k=key(e.type,id);
@@ -126,12 +122,15 @@
         text(heads,'SAFE!',e.x,e.y-15,14,C.text,16);
       } else text(heads,'MAX BALLS',e.x,e.y-15,12,C.textDim,16);
     }
+    function ironCenter(iron) {
+      const points=[].concat(...iron.segs);
+      const xs=points.filter((_,i)=>i%2===0), ys=points.filter((_,i)=>i%2===1);
+      return {x:(Math.min(...xs)+Math.max(...xs))/2,y:Math.min(...ys)};
+    }
     function gotIron(e,s,before) {
       const iron=s.iron.find(group=>group.id===e.id);
       if(!iron) return;
-      const points=[].concat(...iron.segs);
-      const xs=points.filter((_,i)=>i%2===0), ys=points.filter((_,i)=>i%2===1);
-      const x=(Math.min(...xs)+Math.max(...xs))/2, y=Math.min(...ys);
+      const {x,y}=ironCenter(iron);
       if(e.type==='iron_hit') {
         const b=s.balls[e.ball]||before.balls[e.ball];
         if(b) burst(b.x,b.y,4,C.text,{speed:3,life:11,up:true});
@@ -148,7 +147,8 @@
           fragment(w[0]+a*dx/length,w[1]+a*dy/length,11,7,C.ironEdge,40,(random()-.5)*2,-random()*2,tilt,3);
         }
       }
-      text(heads,'CRASH!',x,y-18,22,C.text,32);
+      const releasesBalls=before.parked.some(ball=>ball.group===e.id);
+      text(heads,'CRASH!',x,y-(releasesBalls?79:18),22,C.text,32);
       shakeScreen(5,10);
     }
     function coinFan(x,y,count) {
@@ -163,14 +163,18 @@
       if(e.type==='warp') id=e.ball;
       if(e.type==='ball_landed') id=e.bucket;
       if(e.type==='terrain_hit'||e.type==='bumper_hit') id=e.index;
-      if(e.type==='spring_picked') e=Object.assign({oldLo:before.spring.perfectLo,oldHi:before.spring.perfectHi},e);
+      if(e.type==='ball_parked'||e.type==='parked_release') id=e.group;
+      if(e.type==='parked_release'){
+        const iron=s.iron.find(group=>group.id===e.group);
+        const bank=before.parked.reduce((sum,ball)=>sum+(ball.group===e.group?ball.bank:0),0);
+        if(iron) e=Object.assign({},e,ironCenter(iron),{bank});
+      }
       if(e.type==='peg_hit'){
-        const p=s.pegs[e.id]||before.pegs[e.id];
+        const p=s.pegs.find(peg=>peg.id===e.id);
         if(!p) return;
         const delay=e.cause==='blast'?(blastDelays.get(e.id)||0):0;
-        const trigger=Object.assign({spin:s.shot?s.shot.spin:before.shot?before.shot.spin:0},e);
-        if(delay){pegsPending.add(p.id);pending.push({e:trigger,peg:p,at:time+delay});}
-        else burstPeg(p,trigger);
+        if(delay){pegsPending.add(p.id);pending.push({e,peg:p,at:time+delay});}
+        else burstPeg(p,e);
         return;
       }
       if((e.type==='terrain_hit'||e.type==='bumper_hit')&&!contact(e,id)) return;
@@ -179,7 +183,7 @@
         case 'stage_started':
           firstIronHits.clear();contactTimes.clear();trails.length=0;births.length=0;
           recent.clear();particles.length=0;rings.length=0;floats.length=0;heads.length=0;
-          rewards.length=0;bonuses.length=0;pending.length=0;pegsPending.clear();
+          rewards.length=0;bonuses.length=0;bankFlights.length=0;pending.length=0;pegsPending.clear();
           combo=null;banner=null;shake=null;vaultAt=-1000;hotTier=0;heat=0;
           break;
         case 'shot_fired':
@@ -191,6 +195,12 @@
           if(e.tier) setCombo(e.tier);
           break;
         case 'combo_up': setCombo(e.tier); break;
+        case 'peg_break': {
+          const peg=s.pegs.find(peg=>peg.id===e.id);
+          const color=peg?.type==='gold'?C.pegGold:C.pegNormal;
+          burst(e.x,e.y,4,color,{shape:'triangle',life:12,delay:2,size:3,speed:4});
+          break;
+        }
         case 'bomb_exploded':
           ring(e.x,e.y,0,e.r,C.pegBomb,12,6);
           burst(e.x,e.y,24,[C.pegBomb,C.pegBombLit,C.jackpot],{shape:'fragment',life:24,speed:5});
@@ -211,6 +221,18 @@
           rings.push({x:e.ox,y:e.oy,r0:30,r1:0,color:C.warp,life:20,width:3,at:time+4});
           text(heads,'?!',e.ox,e.oy-12,14,C.warp,20,{at:time+4}); break;
         case 'iron_hit': case 'iron_break': gotIron(e,s,before); break;
+        case 'ball_parked': {
+          const ball=s.balls[e.ball];
+          ring(e.x,e.y,20,(ball?.r||8)+3,C.bank,6,2);
+          text(heads,'SAVED',e.x,e.y-30,14,C.bank,30);
+          break;
+        }
+        case 'parked_release':
+          if(e.x!==undefined) {
+            text(heads,'RELEASE! ×'+e.count,e.x,e.y-52,20,C.bank,40);
+            if(e.bank>0) bankFlights.push({x:Math.min(e.x+104,320),y:e.y-34,bank:e.bank,at:time,life:20});
+          }
+          break;
         case 'block_hit': {
           const b=s.blocks.find(p=>p.id===e.id);
           if(!b||e.cause!=='ball') break;
@@ -232,7 +254,7 @@
           break;
         }
         case 'stuck_clear':
-          for(const id of e.ids){ const p=s.pegs[id]; if(p) ring(p.x,p.y,7,0,C.text,10,2); }
+          for(const id of e.ids){ const p=s.pegs.find(peg=>peg.id===id); if(p) ring(p.x,p.y,7,0,C.text,10,2); }
           break;
         case 'ball_landed': {
           const x=(s.buckets.x[e.bucket]+s.buckets.x[e.bucket+1])/2;
@@ -251,7 +273,7 @@
           confetti(60);
           if(e.ballsLeft) {
             const amount=e.bonus/e.ballsLeft;
-            s.rackIndices.forEach((slot,i)=>bonuses.push({x:JD.UI.ballX(s,slot),y:44,amount,at:time+i*6}));
+            JD.UI.magazine(s).forEach(({y},i)=>bonuses.push({x:416,y,amount,at:time+i*6}));
           }
           break;
         case 'all_clear':
@@ -266,7 +288,7 @@
       const delays=new Map();
       for (const e of items) {
         if(e.type!=='bomb_exploded') continue;
-        e.lit.map(id=>s.pegs[id]).filter(Boolean)
+        e.lit.map(id=>s.pegs.find(peg=>peg.id===id)).filter(Boolean)
           .sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))
           .forEach((p,i)=>delays.set(p.id,Math.min(6,i+1)));
       }
@@ -328,7 +350,7 @@
         if(s.result) coinFan(196,625,4);
         else confetti(4);
       }
-      keep(particles,visualTime);keep(rings,time);keep(floats,time);keep(heads,time);
+      keep(particles,visualTime);keep(rings,time);keep(floats,time);keep(heads,time);keep(bankFlights,time);
     }
 
     function drawParticle(c,p) {
@@ -356,7 +378,7 @@
         if(a<0||a>=1) continue;
         const size=r.r0+(r.r1-r.r0)*a;
         c.beginPath();
-        c.arc(r.x,r.y,Math.max(.1,size),r.arc?(r.arc<0?2.4:-.5):0,r.arc?(r.arc<0?3.8:.8):TAU);
+        c.arc(r.x,r.y,Math.max(.1,size),0,TAU);
         c.strokeStyle=D.rgba(r.color,1-a);c.lineWidth=1+(r.width-1)*(1-a);c.stroke();
       }
     }
@@ -391,6 +413,11 @@
         else drawText(c,d);
       }
       drawRewards(c);
+      for(const flight of bankFlights){
+        const a=D.clamp((time-flight.at)/flight.life,0,1);
+        const x=flight.x+(235-flight.x)*a,y=flight.y+(100-flight.y)*a;
+        D.label(c,'+'+D.number(flight.bank),x,y,17,C.bank,'center',{outline:C.ink});
+      }
       if(banner) {
         const age=visualTime-banner.at;
         if(age>=0&&age<banner.life){
@@ -445,7 +472,8 @@
     return {
       events,frame,draw,world,overlay,fresh,trails,births,pegsPending,
       get hotTier(){return hotTier;},get heat(){return heat;},
-      pendingMult(){return rewards.reduce((sum,r)=>sum+(r.done?0:r.add),0);}
+      pendingMult(){return rewards.reduce((sum,r)=>sum+(r.done?0:r.add),0);},
+      pendingBank(){return bankFlights.reduce((sum,flight)=>sum+flight.bank,0);}
     };
   };
 })(JD);

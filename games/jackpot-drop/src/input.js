@@ -1,7 +1,8 @@
 (function (JD) {
   'use strict';
 
-  JD.createInput = function (canvas, actionButton, controls) {
+  JD.createInput = function (canvas, actionButton, magazineButtons, controls) {
+    const cabinet = canvas.closest('.cabinet');
     let pointer = null;
     let chargeKey = null;
     let shift = false;
@@ -9,7 +10,7 @@
     function position(ev) {
       const rect = canvas.getBoundingClientRect();
       return {
-        x: (ev.clientX - rect.left) * 392 / rect.width,
+        x: (ev.clientX - rect.left) * 440 / rect.width,
         y: (ev.clientY - rect.top) * 640 / rect.height
       };
     }
@@ -23,10 +24,17 @@
     }
 
     function pointerDown(ev) {
-      if (pointer || controls.isBlocked() || ev.button !== 0) return;
+      if (pointer || controls.isBlocked() || ev.button !== 0 || !ev.isPrimary) return;
+      const origin = ev.target;
+      if (!(origin instanceof Element)) return;
+      const magazineButton = magazineButtons.includes(origin);
+      if (!magazineButton && origin !== actionButton && origin.closest('button, a')) return;
       const state = controls.snapshot();
-      const target = ev.currentTarget;
+      if (magazineButton && (origin.disabled || !canPickBall(state))) return;
+      if (state.state === 'CARD' && origin !== canvas) return;
+      if (state.state === 'AIM' && origin === canvas && over(position(ev), 392, 340, 48, 288)) return;
       if (state.state === 'AIM' && (chargeKey !== null || state.charging)) return;
+      const target = magazineButton || origin === actionButton ? origin : canvas;
       pointer = { id: ev.pointerId, target, kind: state.state, card: -1 };
       controls.activateAudio();
       target.focus({ preventScroll: true });
@@ -35,7 +43,10 @@
       }
       if (ev.cancelable) ev.preventDefault();
 
-      if (state.state === 'AIM') {
+      if (magazineButton) {
+        pointer.kind = 'magazine';
+        pointer.slot = Number(target.dataset.slot);
+      } else if (state.state === 'AIM') {
         pointer.kind = 'charge';
         controls.queue({ type: 'hold' });
       } else if (state.state === 'CARD') {
@@ -53,6 +64,11 @@
       const state = controls.snapshot();
       if (press.kind === 'charge') {
         controls.queue({ type: 'release' });
+      } else if (press.kind === 'magazine') {
+        const rect = press.target.getBoundingClientRect();
+        const point = { x: ev.clientX, y: ev.clientY };
+        if (!press.target.disabled && Number(press.target.dataset.slot) === press.slot &&
+            over(point, rect.left, rect.top, rect.width, rect.height)) selectBall(state, press.slot);
       } else if (press.kind === 'PAYOUT' && state.state === 'PAYOUT') {
         controls.queue({ type: 'skip' });
       } else if (press.kind === 'CARD' && state.state === 'CARD' && press.card >= 0 && cardAt(position(ev), state) === press.card) {
@@ -61,6 +77,13 @@
     }
 
     function pointerCancel(ev) {
+      if (!pointer || pointer.id !== ev.pointerId) return;
+      const wasCharging = pointer.kind === 'charge';
+      pointer = null;
+      if (wasCharging && !controls.isBlocked()) controls.queue({ type: 'release' });
+    }
+
+    function lostCapture(ev) {
       if (!pointer || pointer.id !== ev.pointerId) return;
       const wasCharging = pointer.kind === 'charge';
       pointer = null;
@@ -80,56 +103,56 @@
       return (index + direction + length) % length;
     }
 
-    function cycleSpring(state, direction) {
-      if (state.charging || state.springs.length < 2) return;
-      const choices = [];
-      state.springs.forEach(spring => {
-        if (spring === 'spin') {
-          choices.push({ spring, spin: -1 }, { spring, spin: 1 });
-        } else {
-          choices.push({ spring, spin: 0 });
-        }
-      });
-      const current = choices.findIndex(choice => choice.spring === state.pick.spring && choice.spin === state.pick.spin);
-      controls.queue(Object.assign({ type: 'pickSpring' }, choices[cycle(current, direction, choices.length)]));
+    function canPickBall(state) {
+      return state.state === 'AIM' && state.stage > 1 && state.rack.length > 1 &&
+        !state.charging && chargeKey === null && pointer === null;
+    }
+
+    function selectBall(state, slot) {
+      if (!canPickBall(state) || !state.rack[slot]) return;
+      controls.activateAudio();
+      if (slot !== state.slot) controls.queue({ type: 'pickBall', slot });
+      canvas.focus({ preventScroll: true });
     }
 
     function keyDown(ev) {
-      if (controls.isBlocked() || ev.altKey || ev.metaKey || ev.ctrlKey) return;
-      if (ev.target !== actionButton && ev.target instanceof Element &&
-          ev.target.closest('a, button, input, select, textarea, [contenteditable]')) return;
+      if (ev.altKey || ev.metaKey || ev.ctrlKey) return;
       const key = ev.key;
+      if (key === 'm' || key === 'M') {
+        ev.preventDefault();
+        if (!ev.repeat) controls.toggleMute();
+        return;
+      }
+      if (controls.isBlocked()) return;
       const action = key === ' ' || key === 'Enter';
       const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(key);
-      const mute = key === 'm' || key === 'M';
+      if (ev.target !== actionButton && ev.target instanceof Element &&
+          ev.target.closest('a, button, input, select, textarea, [contenteditable]') &&
+          !(arrow >= 0 && magazineButtons.includes(ev.target))) return;
       const directCard = ['1', '2', '3'].indexOf(key);
       const state = controls.snapshot();
-      const cardMove = state.state === 'CARD' && arrow >= 0;
-      if (!action && arrow < 0 && !mute && !cardMove && directCard < 0 && key !== 'Shift') return;
+      const cardTab = state.state === 'CARD' && ev.target === canvas && key === 'Tab';
+      const cardMove = state.state === 'CARD' && (arrow >= 0 || cardTab);
+      if (!action && arrow < 0 && !cardTab && directCard < 0 && key !== 'Shift') return;
       if (key !== 'Shift') ev.preventDefault();
       if (ev.repeat) return;
       controls.activateAudio();
 
-      if (mute) {
-        controls.toggleMute();
-      } else if (key === 'Shift') {
+      if (key === 'Shift') {
         shift = state.state === 'FLIGHT';
       } else if (state.state === 'AIM') {
-        if (action && chargeKey === null && !(pointer && pointer.kind === 'charge') && !state.charging) {
+        if (action && chargeKey === null && pointer === null && !state.charging) {
           chargeKey = key;
           controls.queue({ type: 'hold' });
-        } else if (arrow === 0 || arrow === 1) {
-          if (!state.charging && state.stage > 1 && state.rack.length > 1) {
-            controls.queue({ type: 'pickBall', slot: cycle(state.slot, arrow === 0 ? -1 : 1, state.rack.length) });
-          }
-        } else if (arrow >= 2) {
-          cycleSpring(state, arrow === 2 ? -1 : 1);
+        } else if (arrow >= 0 && canPickBall(state)) {
+          const direction = arrow === 1 || arrow === 2 ? 1 : -1;
+          controls.queue({ type: 'pickBall', slot: cycle(state.slot, direction, state.rack.length) });
         }
       } else if (state.state === 'PAYOUT' && action) {
         controls.queue({ type: 'skip' });
       } else if (state.state === 'CARD') {
         if (cardMove) {
-          const direction = arrow % 2 === 0 ? -1 : 1;
+          const direction = cardTab ? (ev.shiftKey ? -1 : 1) : (arrow % 2 === 0 ? -1 : 1);
           controls.focus(cycle(controls.focused(), direction, state.offer.length));
         } else if (action || directCard >= 0) {
           controls.queue({ type: 'pick', index: action ? controls.focused() : directCard });
@@ -156,9 +179,16 @@
       else if (state.state === 'PAYOUT') controls.queue({ type: 'skip' });
     });
 
-    for (const target of [canvas, actionButton]) {
-      target.addEventListener('pointerdown', pointerDown, { passive: false });
-      target.addEventListener('lostpointercapture', pointerCancel);
+    for (const button of magazineButtons) {
+      button.addEventListener('click', ev => {
+        if (ev.detail !== 0 || ev.pointerType || controls.isBlocked()) return;
+        selectBall(controls.snapshot(), Number(button.dataset.slot));
+      });
+    }
+
+    cabinet.addEventListener('pointerdown', pointerDown, { passive: false });
+    for (const target of [canvas, actionButton, ...magazineButtons]) {
+      target.addEventListener('lostpointercapture', lostCapture);
       target.addEventListener('contextmenu', ev => ev.preventDefault());
     }
     canvas.addEventListener('pointermove', pointerMove);

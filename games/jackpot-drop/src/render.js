@@ -8,19 +8,20 @@
     block:'#2E3A8C', blockEdge:'#8FA2FF', vault:'#5A3A00', vaultEdge:'#FFC83D',
     terrain:'#3A3F66', terrainEdge:'#C9CEF5', ball:'#FFFFFF', jackpot:'#FFC83D',
     combo1:'#3DD6FF', combo2:'#5CFFB0', combo3:'#FFC83D', combo4:'#FF4DD2',
-    springStandard:'#C9CEF5', springSoft:'#5CFFB0', springStiff:'#FF6B6B', ironWall:'#59627E',
-    ironEdge:'#C9D1E6', warp:'#9D4DFF', spin:'#3DD6FF', hint:'#FFC83D', glass:'#BDF3FF',
+    springStandard:'#C9CEF5', ironWall:'#59627E',
+    ironEdge:'#C9D1E6', warp:'#9D4DFF', bank:'#5CFFB0', hint:'#FFC83D', glass:'#BDF3FF',
     iron:'#9AA3B8', text:'#FFFFFF', textDim:'#A9B0D6', danger:'#FF6B6B', success:'#5CFFB0', ink:'#05061A'
   };
   const twoPi = 2 * Math.PI;
-  const fontFamily = '"Jackpot Sans","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif';
+  const fontFamily='"Arial Black","Segoe UI",system-ui,sans-serif';
+  const bodyFamily='"Segoe UI",system-ui,sans-serif';
+
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   const pulse = (time, period) => .5 - .5 * Math.cos(time * twoPi / period);
   const number = n => Math.round(n).toLocaleString('en-US');
   const compactScore = new Intl.NumberFormat('ko-KR', {notation:'compact', maximumSignificantDigits:4});
   const score = n => n < 1000000 ? number(n) : compactScore.format(n);
   const combo = tier => colors['combo' + tier] || colors.text;
-  const springColor = key => ({standard:colors.springStandard, soft:colors.springSoft, stiff:colors.springStiff, spin:colors.spin})[key];
   const rgba = (hex, a) => {
     const n = parseInt(hex.slice(1), 16);
     return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
@@ -53,9 +54,10 @@
     c.save();
     c.textAlign=align || 'center'; c.textBaseline='alphabetic';
     const font = opts.body ? '600 ' : '900 ';
-    c.font = font + size + 'px ' + fontFamily;
+    const family = opts.body ? bodyFamily : fontFamily;
+    c.font = font + size + 'px ' + family;
     while (opts.max && c.measureText(value).width>opts.max && size>(opts.minSize || 11)) {
-      c.font=font + (--size) + 'px ' + fontFamily;
+      c.font=font + (--size) + 'px ' + family;
     }
     if (opts.outline) {
       c.lineJoin='round'; c.lineWidth=opts.outlineWidth || 3; c.strokeStyle=opts.outline;
@@ -93,45 +95,42 @@
       line(c,0,-r*.1,r*.38,r*.69,colors.text,1);
       line(c,0,-r*.1,r*.85,-r*.31,colors.text,1);
     }
-    if (o.spin) {
-      c.save(); c.beginPath(); c.arc(0,0,r-.3,0,twoPi); c.clip();
-      c.rotate(o.spin*(o.time || 0)*twoPi/10);
-      c.beginPath(); c.ellipse(-r*.36,0,r*.5,r*.91,.2,0,twoPi);
-      c.ellipse(r*.34,0,r*.45,r*.91,.2,0,twoPi);
-      c.strokeStyle=colors.spin; c.lineWidth=1.4; c.stroke(); c.restore();
-    }
     c.restore();
   }
 
-  function coil(c,x,y,halfWidth,height,spring) {
-    const turns={standard:7,spin:7,soft:5,stiff:10}[spring] || 7;
+  function coil(c,x,y,halfWidth,height) {
+    const turns=7;
     c.save(); c.lineJoin='round'; c.lineCap='round';
     c.beginPath(); c.moveTo(x,y);
-    for(let i=0;i<turns;i++) c.lineTo(x+(i%2 ? -halfWidth : halfWidth),y+(i+1)*height/(turns+1));
-    c.lineTo(x,y+height); c.lineWidth=spring==='stiff'?3:2;
-    c.strokeStyle=springColor(spring) || colors.springStandard; c.stroke(); c.restore();
+    for(let i=0;i<turns;i++) c.lineTo(x+(i%2?-halfWidth:halfWidth),y+(i+1)*height/(turns+1));
+    c.lineTo(x,y+height); c.lineWidth=2;
+    c.strokeStyle=colors.springStandard; c.stroke(); c.restore();
   }
 
-  JD.Drawing={colors,clamp,pulse,number,score,combo,springColor,rgba,fresh,box,circle,line,label,glow,ball,coil,fontFamily};
+  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,fontFamily,bodyFamily};
   JD.UI={
-    ballX:(s,i) => 180+(i-(s.fullRack.length-1)/2)*28,
-    cards:s => s.offer && (s.offer.length===1 ? [{x:46,y:202,w:300,h:218}] :
-      s.offer.map((_,i)=>({x:30,y:166+120*i,w:332,h:106}))),
+    magazine(s) {
+      const slots=s.rack.map((_,slot)=>slot).filter(slot=>slot!==s.slot);
+      if(s.rack[s.slot]) slots.unshift(s.slot);
+      return slots.map((slot,row)=>({slot,y:590-row*52}));
+    },
+    cards:s=>s.offer&&(s.offer.length===1?[{x:46,y:220,w:300,h:200}]:
+      s.offer.map((_,i)=>({x:30,y:170+120*i,w:332,h:100}))),
     result:{x:76,y:470,w:240,h:56}
   };
 
   function background(c,s,fx) {
     const bg=c.createLinearGradient(0,0,0,640);
     bg.addColorStop(0,colors.bgTop); bg.addColorStop(1,colors.bgBottom);
-    c.fillStyle=bg; c.fillRect(0,0,392,640);
+    c.fillStyle=bg; c.fillRect(0,0,440,640);
     const tier = s.shot ? s.shot.tier : fx ? fx.hotTier : 0;
     if (tier>=3) {
       const heat=c.createLinearGradient(0,0,0,410);
       heat.addColorStop(0,rgba(combo(tier),.06*(s.shot ? 1 : fx.heat)));
-      heat.addColorStop(1,rgba(combo(tier),0)); c.fillStyle=heat; c.fillRect(0,0,392,410);
+      heat.addColorStop(1,rgba(combo(tier),0)); c.fillStyle=heat; c.fillRect(0,0,440,410);
     }
-    for(let x=0;x<392;x+=40) line(c,x+.5,0,x+.5,640,rgba(colors.text,.04));
-    for(let y=0;y<640;y+=40) line(c,0,y+.5,392,y+.5,rgba(colors.text,.04));
+    for(let x=0;x<440;x+=40) line(c,x+.5,0,x+.5,640,rgba(colors.text,.04));
+    for(let y=0;y<640;y+=40) line(c,0,y+.5,440,y+.5,rgba(colors.text,.04));
   }
 
   function buckets(c,s,ui,fx,t,beam) {
@@ -154,7 +153,8 @@
         box(c,left+2,600,width-4,40,3,null,colors.jackpot,2);
         const flash=ui.stageAge<30 && ui.stageAge%10<4 || landing && landing.age<30 && landing.age%10<4;
         if (flash) box(c,left+2,601,width-4,38,3,rgba(colors.text,.45));
-        label(c,'×5',center,628,29,colors.bgBottom);
+        label(c,'×5',center,width>=56?620:628,width>=56?24:29,colors.bgBottom);
+        if(width>=56) label(c,'JACKPOT',center,630,10,colors.bgBottom);
         for(let k=0;k<6;k++) {
           c.beginPath(); c.ellipse(center+(k%3-1)*9+(k>=3?3:0),637-(k>=3?3:0),5,2.3,0,0,twoPi);
           c.fillStyle=k>=3?'#FFED9C':colors.jackpot; c.fill();
@@ -164,7 +164,14 @@
           circle(c,left+5+lead*(width-10),592+2*Math.sin(lead*twoPi+k),1.3,rgba(colors.jackpot,.45+.55*pulse(t+k*20,40)));
         }
         if(t%60<10) circle(c,center+9,632,2,rgba(colors.text,1-(t%60)/10));
-        if(ui.stageAge<80) label(c,'▼ 잭팟',clamp(center,40,320),584,20,colors.jackpot,'center',{outline:colors.ink});
+        if(ui.stageAge<60) {
+          const gate=s.iron.some(group=>group.alive&&group.segs.some(([x1,y1,x2,y2])=>
+            Math.max(x1,x2)>left&&Math.min(x1,x2)<x[i+1]&&Math.min(y1,y2)>=562&&Math.max(y1,y2)<=586));
+          const cueY=gate?597:584+(ui.reduced?0:4*Math.sin(t*Math.PI/20));
+          const cueX=clamp(center,40,320);
+          label(c,'▼ JACKPOT',cueX,cueY,gate?12:14,colors.jackpot,'center',
+            {outline:colors.ink,max:Math.min(94,2*cueX-6,714-2*cueX),minSize:11});
+        }
       } else {
         box(c,left+2,600,width-4,40,0,rgba(colors.text,.04));
         label(c,'×'+mult,center,627,21,colors.textDim);
@@ -196,16 +203,12 @@
     c.beginPath(); c.arc(352,84,36,-Math.PI/2,0); c.lineTo(388,640); c.stroke();
     c.beginPath(); c.arc(352,84,12,-Math.PI/2,0); c.lineTo(364,640); c.stroke(); c.restore();
 
-    const sKey=s.spring.key;
+    const {perfectLo:lo,perfectHi:hi}=JD.SPRING;
     const example=ui.demoPower;
     const p=s.state==='AIM' ? Math.max(s.power,example) : 0;
-    const perfect=s.perfect && s.state==='AIM' || example>=s.spring.perfectLo && example<=s.spring.perfectHi;
+    const perfect=s.perfect && s.state==='AIM' || example>=lo && example<=hi;
     const color=p===1?colors.text : perfect?colors.jackpot:colors.combo1;
     const tremor=!ui.reduced && p===1 ? t%2?1:-1 : 0;
-    const pick=fresh(fx,'spring_picked');
-    const zoneT=pick&&pick.age<8 ? pick.age/8 : 1;
-    const lo=pick&&zoneT<1?pick.e.oldLo+(s.spring.perfectLo-pick.e.oldLo)*zoneT:s.spring.perfectLo;
-    const hi=pick&&zoneT<1?pick.e.oldHi+(s.spring.perfectHi-pick.e.oldHi)*zoneT:s.spring.perfectHi;
     c.save(); c.translate(tremor,0);
     box(c,364,360,24,160,0,rgba(colors.text,.08));
     if(p>0) box(c,364,520-p*160,24,p*160,0,color);
@@ -217,77 +220,180 @@
     if(s.lastPower!==null) label(c,'◀',387,523-s.lastPower*160,9,colors.textDim);
     const recoil=shot&&shot.age<18 ? -10*Math.cos(shot.age*.9)*Math.pow(.75,shot.age) : ui.demoRecoil;
     const handleY=616+p*48+recoil, trayY=548+p*24;
-    const coilJitter=!ui.reduced && sKey==='stiff' && s.charging ? (t%2?1:-1):0;
-    coil(c,376+coilJitter,trayY,8,handleY-trayY,sKey);
+    coil(c,376,trayY,8,handleY-trayY);
     box(c,367,trayY-1,18,3,1,colors.laneEdge);
     box(c,362+tremor,handleY,28,12,4,perfect?colors.jackpot:'#E6E9FF');
     if(handleY+12>640) box(c,362,636,28,4,1,colors.text);
     line(c,368+tremor,handleY+6,384+tremor,handleY+6,rgba(colors.bgTop,.45));
   }
 
+  function drawMagazine(c,s,ui,t,animation,fx) {
+    const slots=JD.UI.magazine(s);
+    const start=animation.from;
+    const key=s.stage+':'+slots.map(({slot})=>s.rackIndices[slot]).join(',');
+    if (key!==animation.key) {
+      animation.key=key;
+      animation.from=new Map();
+      if (animation.stage===s.stage) {
+        const progress=clamp((t-animation.at)/6,0,1);
+        for (const [id,target] of animation.targets) {
+          const from=start.get(id)??target;
+          animation.from.set(id,from+(target-from)*progress);
+        }
+      }
+      animation.stage=s.stage;
+      animation.at=t;
+      animation.targets=new Map(slots.map(({slot,y})=>[s.rackIndices[slot],y]));
+    }
+
+    box(c,392,340,48,288,0,rgba(colors.lane,.6));
+    line(c,392.5,340,392.5,628,colors.laneEdge);
+    const ready=s.state==='AIM'&&!s.charging;
+    const progress=ui.reduced?1:clamp((t-animation.at)/6,0,1);
+    const canPick=ready&&s.stage!==1;
+    const hint=canPick&&!ui.stageFired?s.hint?.ball:null;
+    const last=ready&&slots.length===1;
+    c.save();
+    c.globalAlpha=ready?1:.5;
+    for (let i=0;i<s.fullRack.length;i++) {
+      const y=590-i*52;
+      const selected=!i&&canPick&&slots.length>0;
+      const warning=i===0&&last;
+      const border=warning&&Math.floor(t/15)%2?colors.danger:colors.text;
+      const matchingHint=hint&&s.rack[slots[i]?.slot]===hint;
+      const edge=matchingHint?rgba(colors.hint,.64+.36*pulse(t,20)):
+        selected||warning?border:rgba(colors.laneEdge,.63);
+      box(c,396,y-22,40,44,9,selected?'#252947':'#10152E',edge,selected||matchingHint||warning?2:1);
+      if(selected) {
+        label(c,'◀',395,y+4,11,border);
+        label(c,'장전',416,y-11,10,border);
+      }
+    }
+    const picked=fresh(fx,'ball_picked');
+    for (const {slot,y} of slots) {
+      const id=s.rackIndices[slot];
+      const kind=s.rack[slot];
+      const from=animation.from.get(id)??y;
+      const dy=y===590&&canPick?3:0;
+      const bump=picked?.age<6&&slot===s.slot&&!ui.reduced?1+.12*Math.sin(Math.PI*picked.age/6):1;
+      ball(c,kind,416,from+(y-from)*progress+dy,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
+    }
+    c.restore();
+    label(c,slots.length+'/'+s.fullRack.length,416,628,12,last?colors.danger:colors.textDim);
+  }
+
   function aimMessages(s,ui,fx) {
-    if (s.charging) return [s.perfect?'지금 떼기!':'금색에서 떼기'];
-    if (s.launch?.perfect) return ['퍼펙트!'];
-    const cancelled=fresh(fx,'charge_cancel');
-    if (cancelled?.age<30) return ['길게 누르세요'];
+    if (s.charging) return ['RELEASE IN GOLD!'];
+    if (fresh(fx,'charge_cancel')?.age<30) return ['HOLD!'];
     if (s.state!=='AIM') return [];
-    if (s.stage===1 && !ui.tutorialSeen) return ['길게 누르세요','금색에서 떼기'];
-    if (s.stage===1 || ui.stageAge>=180 || ui.hintHidden) return [];
-    const direction=s.hint?.spin===1?'오른쪽':'왼쪽';
-    if (s.hint?.ball && s.hint?.spring) return ['철구 선택',direction+' 회전'];
-    if (s.hint?.ball) return ['철구로 쇠 벽 파괴'];
-    if (s.hint?.spring) return [direction+' 회전'];
-    return ['잭팟 칸을 노려요'];
+    if (s.stage===1 && !ui.tutorialSeen) return ['HOLD','release in GOLD · aim for JACKPOT ×5'];
+    if (s.stage===1 || ui.stageAge>=90 || ui.hintHidden) return [];
+    const title=(s.endless?'ENDLESS ':'STAGE ')+s.stage+' · '+s.stageName;
+    const hint=s.hint?.ball==='iron'?'SAVE BALLS ON THE GATE · IRON BALL LAST':'GET THE JACKPOT';
+    return [title,hint];
+  }
+
+  function drawHand(c,x,y,scale,angle) {
+    c.save();
+    c.translate(x,y); c.scale(scale,scale); c.rotate(angle);
+    box(c,-5,0,14,30,7,rgba(colors.text,.9),colors.ink);
+    circle(c,1,0,9,rgba(colors.text,.9),colors.ink);
+    box(c,-5,0,12,14,4,'#EFF1FC');
+    c.restore();
+  }
+
+  function drawAim(c,s,ui,fx,t) {
+    const messages=aimMessages(s,ui,fx);
+    if (messages.length===1) {
+      const cancelled=messages[0]==='HOLD!';
+      const wiggle=cancelled&&!ui.reduced?4*Math.sin(ui.stateAge*1.7):0;
+      label(c,messages[0],180+wiggle,136,24,s.perfect?colors.jackpot:colors.text,'center',{outline:colors.ink,max:326});
+      return;
+    }
+    if (s.stage===1 && s.state==='AIM') {
+      if (ui.tutorialSeen) {
+        label(c,'HOLD',350,439,14,colors.text,'right',{outline:colors.ink});
+        drawHand(c,339,451,.44,-Math.PI*.47);
+        return;
+      }
+      const scale=ui.reduced?1:1+.12*pulse(t,30);
+      const nudge=(ui.age-300)%600;
+      const bump=ui.age>=300&&nudge<15&&!ui.reduced?1+.16*Math.sin(nudge*Math.PI/15):1;
+      box(c,17,100,326,53,8,rgba(colors.ink,.63));
+      label(c,messages[0],180,124,33*scale*bump,colors.text,'center',{outline:colors.ink,max:324});
+      label(c,messages[1],180,146,14,colors.jackpot,'center',{body:true,max:312});
+      const cycle=(ui.age+12)%90;
+      const down=ui.reduced?0:cycle<6?cycle/6:cycle<60?1:cycle<66?(66-cycle)/6:0;
+      const y=430+4*down;
+      const ring=cycle<6?cycle/6:(cycle%20)/20;
+      if (!ui.reduced&&cycle<66) circle(c,180,y,10+12*ring,null,rgba(colors.text,.65*(1-ring)),2);
+      drawHand(c,180,y,1,-.24);
+      if (!ui.reduced&&cycle>=6&&cycle<60) {
+        circle(c,180,y-27,14,rgba(colors.ink,.9),colors.textDim);
+        c.beginPath();
+        c.arc(180,y-27,11,-Math.PI/2,-Math.PI/2+twoPi*(cycle-6)/54);
+        c.strokeStyle=ui.demoPower>=JD.SPRING.perfectLo?colors.jackpot:colors.combo1;
+        c.lineWidth=3; c.stroke();
+      }
+      return;
+    }
+    if (messages.length>1) {
+      box(c,17,108,326,44,8,rgba(colors.ink,.68));
+      label(c,messages[0],180,128,18,colors.text,'center',{max:310});
+      label(c,messages[1],180,147,14,colors.hint,'center',{max:310});
+    }
   }
 
   function panel(c,s,ui,fx) {
     const {shot,payout}=s;
+    const fired=fresh(fx,'shot_fired');
+    if (fired?.e.perfect&&fired.age<30) {
+      const age=fired.age;
+      const scale=ui.reduced?1:age<5?.6+.12*age:1+.2*Math.max(0,1-(age-5)/12);
+      const x=shot?12:300;
+      const y=shot?108:92;
+      label(c,'PERFECT!',x,y,22*scale,colors.jackpot,shot?'left':'center',{outline:colors.ink,max:shot?126:145});
+    }
     if (shot) {
       const mult=Math.max(s.stageMult,shot.liveMult-(fx?fx.pendingMult():0));
       const hit=fresh(fx,'peg_hit');
-      const pop=hit&&hit.age<4?1+.12*Math.sin(hit.age*Math.PI/4):1;
+      const pop=hit&&hit.age<4&&!ui.reduced?1+.12*Math.sin(hit.age*Math.PI/4):1;
+      const bank=Math.max(0,shot.bankIn-(fx?.pendingBank?.()||0));
+      const base=bank?'('+score(shot.pts)+' + '+score(bank)+')':score(shot.pts);
       box(c,150,84,180,32,16,rgba(colors.ink,.7),shot.tier?combo(shot.tier):colors.laneEdge,2);
-      label(c,score(shot.pts),164,109,28*pop,colors.text,'left',{max:85,minSize:23});
-      label(c,'×'+score(mult),316,108,22,colors.jackpot,'right',{max:60,minSize:19});
-      if (shot.perfect&&ui.stateAge<30) label(c,'PERFECT!',12,108,22,colors.jackpot,'left',{max:126});
+      label(c,base,162,109,(bank?20:28)*pop,bank?colors.bank:colors.text,'left',{max:99,minSize:18});
+      label(c,'× '+score(mult),316,108,22,colors.jackpot,'right',{max:54,minSize:19});
       if (shot.tier) {
         const award=JD.CFG.COMBO_NAMES[shot.tier]+' +'+JD.CFG.COMBO_BONUS[shot.tier];
-        label(c,award,240,143,26,combo(shot.tier),'center',{outline:colors.ink,max:174});
+        label(c,award,240,146,25+shot.tier,combo(shot.tier),'center',{outline:colors.ink,max:174,minSize:22});
       }
       return;
     }
-    if (payout) {
-      const reveal=payout.elapsed-payout.pins.length*payout.spacing;
-      const tint=(reveal>=20&&payout.jackpot)||(reveal>=0&&payout.mult>=4)?colors.jackpot:colors.laneEdge;
-      box(c,150,84,180,32,16,rgba(colors.ink,.7),tint,2);
-      label(c,score(payout.pts),162,108,22,colors.text,'left',{max:72,minSize:18});
-      if (reveal>=0) label(c,'×'+score(payout.mult),276,108,20,tint,'right',{max:38,minSize:17});
-      if (reveal>=20) label(c,'×'+score(payout.bucketSum),320,108,20,tint,'right',{max:40,minSize:17});
-      if (reveal>=40) {
-        const progress=clamp((reveal-40)/30,0,1);
-        const travel=progress*progress;
-        c.save();
-        c.globalAlpha=1-travel;
-        label(c,'= '+score(payout.score),240-60*travel,143-110*travel,30-14*travel,colors.jackpot,'center',{outline:colors.ink,max:174});
-        c.restore();
-      }
-      return;
-    }
-    const messages=aimMessages(s,ui,fx);
-    if (messages.length>1) {
-      box(c,17,100,326,52,8,rgba(colors.ink,.6));
-      label(c,messages[0],180,124,25,colors.text);
-      label(c,messages[1],180,146,18,colors.jackpot);
-    } else if (messages.length) {
-      const tint=s.perfect||s.launch?.perfect?colors.jackpot:colors.text;
-      label(c,messages[0],180,132,25,tint,'center',{outline:colors.ink,max:310});
+    if (!payout) return;
+    const reveal=payout.elapsed-payout.pins.length*payout.spacing;
+    const tint=(reveal>=20&&payout.jackpot)||(reveal>=0&&payout.mult>=4)?colors.jackpot:colors.laneEdge;
+    const pop=fresh(fx,'payout_pop',payout.pins[Math.max(0,Math.floor(payout.elapsed/payout.spacing)-1)]?.id);
+    const bump=pop?.age<5&&!ui.reduced?1+.08*(1-pop.age/5):1;
+    const base=payout.bankIn?'('+score(payout.pts)+' + '+score(payout.bankIn)+')':score(payout.pts);
+    const factor=age=>ui.reduced?1:1+.6*Math.max(0,1-age/20);
+    box(c,150,84,180,32,16,rgba(colors.ink,.7),tint,2);
+    label(c,base,162,108,22*bump,payout.bankIn?colors.bank:colors.text,'left',{max:68,minSize:17});
+    if (reveal>=0) label(c,'× '+score(payout.mult),276,108,20*factor(reveal),reveal>=20&&payout.mult<4?colors.text:colors.jackpot,'right',{max:42,minSize:17});
+    if (reveal>=20) label(c,'× '+score(payout.bucketSum),320,108,20*factor(reveal-20),payout.jackpot?colors.jackpot:colors.text,'right',{max:42,minSize:17});
+    if (reveal>=40) {
+      const progress=clamp((reveal-40)/30,0,1);
+      const travel=ui.reduced?0:progress*progress;
+      c.save();
+      c.globalAlpha=1-travel;
+      label(c,'= '+score(payout.score),240-60*travel,143-110*travel,32-16*travel,colors.jackpot,'center',{outline:colors.ink,max:174});
+      c.restore();
     }
   }
 
   function drawBalls(c,s,ui,fx,t) {
-    if(s.state==='AIM') {
+    if(s.state==='AIM'&&s.ball) {
       const p=Math.max(s.power,ui.demoPower);
-      ball(c,s.pick.ball,376,540+p*24,JD.BALLS[s.pick.ball].r,{});
+      ball(c,s.ball,376,540+p*24,JD.BALLS[s.ball].r,{});
     }
     if(s.launch) {
       const tint=s.launch.perfect?colors.jackpot:colors.text;
@@ -298,7 +404,7 @@
         circle(c,q[0],q[1],8*(1-i/(tail+2)),rgba(tint,.5*(1-i/(tail+1))));
       }
       const q=launchPosition(s.launch.elapsed);
-      ball(c,s.launch.ball,q[0],q[1],JD.BALLS[s.launch.ball].r,{spin:s.launch.spin,time:t});
+      ball(c,s.launch.ball,q[0],q[1],JD.BALLS[s.launch.ball].r,{});
     }
     if(!s.shot) return;
     const tier=s.shot.tier,tint=combo(tier);
@@ -321,16 +427,8 @@
         }
       }
       if(tier>=3) glow(c,x,y,r*2.2,tint,.35);
-      ball(c,s.shot.ball,x,y,r,{cracked:s.shot.cracked,spin:s.shot.spin,time:t});
-      if(i===0&&s.shot.hits>0&&y+r>=0){
-        const n=number(s.shot.hits), hit=fresh(fx,'peg_hit');
-        const size=(11+2*tier)*(hit&&hit.age<4?1+(ui.reduced?.15:.3)*(1-hit.age/4):1);
-        const width=9+n.length*size*.65;
-        const left=Math.min(x+3,358-width);
-        const top=y-28>=2?y-28:Math.max(38,y+r+4);
-        box(c,left,top,width,size+2,8,rgba(tier?combo(tier):colors.lane,.91));
-        label(c,n,left+4,top+size+1,size,tier?colors.ink:colors.text,'left');
-      }
+      const kind=b.ball||s.shot.ball;
+      ball(c,kind,x,y,r,{cracked:kind==='glass'&&s.shot.cracked});
     });
   }
 
@@ -346,21 +444,24 @@
     box(c,96,23-barHeight/2,168,barHeight,9,rgba(colors.text,.12));
     box(c,96,23-barHeight/2,168*clamp(displayed/s.target,0,1),barHeight,9,win?colors.success:colors.jackpot);
     label(c,score(displayed)+' / '+score(s.target),180,28,16,colors.text,'center',{outline:colors.ink,max:158,minSize:13});
-    ball(c,s.pick.ball,287,23,7,{});
-    label(c,String(s.ballsLeft),306,30,22,s.ballsLeft===1?colors.danger:colors.text);
+    label(c,'BALLS',291,26,12,colors.textDim);
+    label(c,String(s.ballsLeft),326,30,22,s.ballsLeft===1?colors.danger:colors.text);
     const mult=s.shot?Math.max(s.stageMult,s.shot.liveMult-(fx?fx.pendingMult():0)):s.stageMult;
     label(c,'×'+score(mult),12,66,22,mult>=4?colors.jackpot:colors.text,'left',{max:100});
   }
 
   JD.createRenderer = function (canvas) {
     const c=canvas.getContext('2d');
+    const magazine={key:'',stage:null,at:0,from:new Map(),targets:new Map()};
     return function draw(s,ui,fx,t) {
       const rect=canvas.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
       const w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr));
       if(canvas.width!==w||canvas.height!==h) { canvas.width=w;canvas.height=h; }
-      c.setTransform(w/392,0,0,h/640,0,0);
+      c.setTransform(w/440,0,0,h/640,0,0);
       background(c,s,fx);
+      drawMagazine(c,s,ui,t,magazine,fx);
       c.save();
+      c.beginPath(); c.rect(0,0,392,640); c.clip();
       if(fx) fx.world(c,s,ui);
       buckets(c,s,ui,fx,t,true);
       buckets(c,s,ui,fx,t,false);
@@ -369,7 +470,7 @@
       if (s.state!=='CARD'&&s.state!=='RESULT') {
         // Keep the score fixed, then paint even high rebounds in front of it.
         c.save();
-        c.setTransform(w/392,0,0,h/640,0,0);
+        c.setTransform(w/440,0,0,h/640,0,0);
         hud(c,s,ui,fx);
         panel(c,s,ui,fx);
         c.restore();
@@ -378,6 +479,7 @@
       if(fx) fx.draw(c);
       c.restore();
       if(fx) fx.overlay(c,s,ui);
+      drawAim(c,s,ui,fx,t);
       if(JD.drawScreens) JD.drawScreens(c,s,ui,fx,t);
       if(JD.drawCardReward) JD.drawCardReward(c,s,ui);
     };
@@ -477,6 +579,7 @@
     }
     ctx.drawImage(pegFace(D,peg.type,peg.lit),peg.x-10*bounce,peg.y-9*bounce,20*bounce,20*bounce);
     if (peg.type === 'gold') star(ctx, peg.x, peg.y, 3.3 * bounce, '#FFFFFF');
+    if (peg.lit&&peg.touches>0) D.line(ctx,peg.x-4*bounce,peg.y-2*bounce,peg.x+4*bounce,peg.y+3*bounce, D.colors.jackpot,1.2);
     if (peg.type === 'bomb') {
       D.circle(ctx, peg.x, peg.y, 3 * bounce, '#5A0F1E');
       D.circle(ctx, peg.x + 1.6, peg.y - 4.5 * bounce, 2, D.rgba('#FFF1B8', 0.42 + 0.58 * D.pulse(time, 10)));
@@ -610,8 +713,65 @@
         D.circle(ctx, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, 1.5, C.ironEdge);
       }
     }
-    if (!breaking) D.label(ctx, 'IRON', (left + right) / 2, top - 9, 9, C.ironEdge, 'center', { outline: '#0B0E2A' });
+    if (!breaking&&!snapshot.parked.some(ball=>ball.group===group.id)) {
+      D.label(ctx,'IRON',(left+right)/2,top-9,9,C.ironEdge,'center',{outline:'#0B0E2A'});
+    }
     ctx.restore();
+  }
+
+  function savedPillPosition(group) {
+    let left=360,right=0,top=640;
+    for(const [x1,y1,x2,y2] of group.segs) {
+      left=Math.min(left,x1,x2);
+      right=Math.max(right,x1,x2);
+      top=Math.min(top,y1,y2);
+    }
+    return {x:(left+right)/2,y:Math.max(520,top-32)};
+  }
+
+  function drawParked(ctx,s,ui,fx,time,D) {
+    const C=D.colors;
+    const byGroup=new Map();
+    for(const token of s.parked) {
+      const {x,y,r,group}=token;
+      const arrival=D.fresh(fx,'ball_parked',group);
+      const age=arrival&&Math.abs(arrival.e.x-x)<.01&&Math.abs(arrival.e.y-y)<.01?arrival.age:Infinity;
+      const squash=age<6&&!ui.reduced?1-.15*Math.sin(age*Math.PI/6):1;
+      const halo=age<6&&!ui.reduced?20+(r+3-20)*age/6:r+3;
+      D.ball(ctx,token.ball,x,y,r*squash,{cracked:token.ball==='glass'});
+      D.circle(ctx,x,y,halo,null,D.rgba(C.bank,.5+.4*D.pulse(time,40)),1.5);
+      const info=byGroup.get(group)||{count:0,points:0};
+      info.count++;
+      info.points+=token.bank;
+      byGroup.set(group,info);
+    }
+
+    for(const group of s.iron) {
+      const entry=byGroup.get(group.id);
+      const release=D.fresh(fx,'parked_release',group.id);
+      if(!entry && !(release?.age<8)) continue;
+      const {x,y}=savedPillPosition(group);
+      if(!entry) {
+        const alpha=.85*(1-release.age/8);
+        const cx=D.clamp(x,82,278);
+        D.box(ctx,cx-60,y-10,120,20,10,D.rgba(C.jackpot,alpha*.45),D.rgba(C.jackpot,alpha),1.5);
+        continue;
+      }
+      const saved='SAVED ×'+entry.count;
+      const bank=entry.points?' · '+D.score(entry.points):'';
+      const finish=D.fresh(fx,'shot_finished');
+      const bump=finish?.age<8&&finish.e.parked&&!ui.reduced?1+.3*Math.sin(finish.age*Math.PI/8):1;
+      ctx.save();
+      ctx.font='900 13px '+D.fontFamily;
+      const leftWidth=ctx.measureText(saved).width;
+      const rightWidth=bank?ctx.measureText(bank).width*bump:0;
+      const width=Math.min(244,leftWidth+rightWidth+20);
+      const left=D.clamp(x-width/2,24,336-width);
+      D.box(ctx,left,y-10,width,20,10,D.rgba(C.ink,.91),C.ironEdge,1.5);
+      D.label(ctx,saved,left+10,y+4,13,C.text,'left',{max:width-20});
+      if(bank) D.label(ctx,bank,left+10+leftWidth,y+4,13*bump,C.bank,'left',{max:width-20-leftWidth,minSize:12});
+      ctx.restore();
+    }
   }
 
   function drawWarp(ctx, hole, time, D) {
@@ -641,6 +801,8 @@
       if (peg.alive) {
         const drawn=fx&&fx.pegsPending.has(peg.id)?Object.assign({},peg,{lit:false}):peg;
         drawPeg(ctx, drawn, snapshot, ui, fx, time, D);
+      } else if (D.fresh(fx,'peg_break',peg.id)?.age<2) {
+        D.circle(ctx,peg.x,peg.y,7,D.colors.text);
       }
     }
     if (snapshot.payout) {
@@ -653,6 +815,7 @@
     snapshot.blocks.forEach(block => drawBlock(ctx, block, ui, fx, time, D));
     snapshot.gates.forEach(gate => drawGate(ctx, gate, fx, time, D));
     snapshot.iron.forEach(group => drawIron(ctx, group, snapshot, fx, time, D));
+    drawParked(ctx,snapshot,ui,fx,time,D);
     if (snapshot.warps) snapshot.warps.ins.forEach(hole => drawWarp(ctx, hole, time, D));
   };
 }(window.JD));
@@ -661,39 +824,49 @@
   'use strict';
 
   const cards = {
-    goldPlus: ['골드 러시', ['보드마다 금색 핀 +3'], '✦', 'jackpot'],
-    heavy: ['핀 보너스', ['파랑·금색 핀 점수 +10'], '✦', 'pegNormal'],
-    bombPlus: ['빅뱅', ['폭탄 +2', '폭발 반경 +16'], '●', 'pegBomb'],
-    fever: ['배수 보너스', ['시작 배수 +1'], '×', 'jackpot'],
-    jackpot: ['넓은 잭팟', ['×5 착지 칸 너비 +40'], '×5', 'jackpot'],
-    gate: ['멀티볼', ['보드마다 초록 게이트 +1'], '+1', 'gatePlus'],
-    extra: ['여분 구슬', ['단계마다 구슬 +1'], '+', 'pegNormal'],
-    split: ['분열 발사', ['첫 새 핀 충돌에', '구슬 +1'], '÷', 'text'],
-    ballIron: ['철구', ['쇠 벽 파괴', '블록 피해 2'], '', 'iron'],
-    ballGlass: ['유리구슬', ['12회에 금이 가고', '24회에 3개로 분열'], '', 'glass'],
-    ballBig: ['큰 구슬', ['핀에 더 잘 닿아요'], '', 'glass'],
-    springSpin: ['회전 스프링', ['핀에 닿을 때', '고른 방향으로 회전'], '', 'spin'],
-    springSoft: ['부드러운 스프링', ['빠른 충전·넓은 금색', '발사 힘 감소'], '', 'springSoft'],
-    springStiff: ['강한 스프링', ['느린 충전·좁은 금색', '강한 힘·퍼펙트 콤보 +1'], '', 'springStiff']
+    goldPlus: ['GOLD RUSH', '+3 gold pegs on every board', '✦', 'jackpot'],
+    heavy: ['RICH PEGS', '+10 points per blue/gold peg', '✦', 'pegNormal'],
+    bombPlus: ['BIG BANG', '+2 bombs, blast radius +16', '●', 'pegBomb'],
+    fever: ['HOT START', 'Stage multiplier starts +1', '×', 'jackpot'],
+    jackpot: ['WIDE JACKPOT', '×5 buckets 40px wider', '×5', 'jackpot'],
+    gate: ['MULTI BALL', '+1 green gate on every board', '+1', 'gatePlus'],
+    extra: ['EXTRA BALL', '+1 ball every stage', '+', 'pegNormal'],
+    split: ['SPLIT SHOT', '+1 ball on first new peg hit', '÷', 'text'],
+    ballIron: ['IRON BALL', 'Breaks iron walls,\nblocks take 2 damage', '', 'iron'],
+    ballGlass: ['GLASS BALL', 'Cracks at 12 hits,\nshatters into 3 at 24', '', 'glass'],
+    ballBig: ['BIG BALL', 'Bigger ball, more hits', '', 'glass']
   };
 
-  const stageNames = {
-    TUTORIAL:'첫 발사', 'IRON LID':'쇠 덮개', CURVE:'커브', HOURGLASS:'모래시계',
-    ZIGZAG:'지그재그', BOWL:'그릇', RING:'고리', VAULT:'금고'
-  };
-  const previewNames = { 1:'쇠 덮개', 2:'커브 · 게이트', 3:'블록 ×+1 · 워프', 7:'금고 ×+3', 8:'무한 모드' };
-  const previewJackpots = { center:'중앙 잭팟', left:'왼쪽 잭팟', right:'오른쪽 잭팟', twin:'잭팟 2곳' };
+  const previewNames = {1:'IRON LID',2:'CURVE · GATES',3:'BLOCKS ×+1 · WARP',7:'THE VAULT ×+3',8:'ENDLESS'};
+  const previewJackpots = {center:'JACKPOT ▼',left:'JACKPOT ◀',right:'JACKPOT ▶',twin:'TWIN JACKPOT'};
   const resultStats = [
-    ['최고 단계', null], ['최고 발사 점수', 'biggestShot'], ['잭팟', 'jackpots'],
-    ['퍼펙트 발사', 'perfects'], ['최고 콤보', 'bestTier'],
-    ['맞힌 핀', 'pegsPopped'], ['부순 블록', 'blocksBroken']
+    ['BEST STAGE',null],['BIGGEST SHOT','biggestShot'],['JACKPOTS','jackpots'],
+    ['PERFECT SHOTS','perfects'],['BEST COMBO','bestTier'],
+    ['PEGS POPPED','pegsPopped'],['BLOCKS BROKEN','blocksBroken']
   ];
 
   function preview(s) {
-    const next = JD.stageDef(s.stage);
-    const current = JD.stageDef(s.stage - 1);
-    const suffix = next.buckets === current.buckets ? '' : ' · ' + previewJackpots[next.buckets];
-    return '다음 · ' + (previewNames[s.stage] || stageNames[next.name] || next.name) + suffix;
+    const next=JD.stageDef(s.stage);
+    const current=JD.stageDef(s.stage-1);
+    const suffix=next.buckets===current.buckets?'':' · '+previewJackpots[next.buckets];
+    return 'NEXT: '+(previewNames[s.stage]||next.name)+suffix;
+  }
+
+  function effectLines(ctx,text,width,size,D) {
+    const lines=text.split('\n');
+    if(lines.length>1) return lines;
+    lines[0]='';
+    ctx.save();
+    ctx.font='600 '+size+'px '+D.bodyFamily;
+    const tokens=text.split(' ');
+    for (const token of tokens) {
+      const index=lines.length-1;
+      const line=lines[index]?lines[index]+' '+token:token;
+      if (lines[index]&&lines.length<2&&ctx.measureText(line).width>width) lines.push(token);
+      else lines[index]=line;
+    }
+    ctx.restore();
+    return lines;
   }
 
   function rackAfter(rack, id) {
@@ -720,18 +893,13 @@
     rackRow(ctx, next, left + beforeW + 34, y, gap, r, D);
   }
 
-  function drawIcon(ctx, id, x, y, r, time, reduced, D) {
+  function drawIcon(ctx, id, x, y, r, D) {
     const [, , glyph, token] = cards[id];
     const tint = D.colors[token];
     D.circle(ctx, x, y, r, D.rgba(tint, .13), D.rgba(tint, .6), 1.3);
     if (JD.CARD_BALL[id]) {
       const kind = JD.CARD_BALL[id];
-      D.ball(ctx, kind, x, y, Math.min(r * .62, JD.BALLS[kind].r * 2), { cracked:kind === 'glass' });
-    } else if (JD.CARD_SPRING[id]) {
-      const spring = JD.CARD_SPRING[id];
-      const height = r * (reduced ? .95 : .78 + .24 * D.pulse(time,60));
-      D.coil(ctx, x, y - height / 2, r * .37, height, spring);
-      if (spring === 'spin') D.label(ctx, '⟲', x + r * .57, y - 1, r * .66, tint);
+      D.ball(ctx, kind, x, y, Math.min(r-3,JD.BALLS[kind].r*2), { cracked:kind === 'glass' });
     } else if (id === 'bombPlus') {
       D.circle(ctx, x, y + 3, r * .40, tint);
       D.circle(ctx, x, y + 3, r * .16, '#5A0F1E');
@@ -742,62 +910,64 @@
     }
   }
 
-  function drawTrajectory(ctx, x, y, D) {
-    D.coil(ctx, x - 49, y - 14, 9, 27, 'spin');
-    D.label(ctx, '◀', x - 23, y + 5, 12, D.colors.spin);
+  function drawCard(ctx,s,index,ui,D,selectedAge=null) {
+    const {x,y,w,h}=JD.UI.cards(s)[index];
+    const id=s.offer[index];
+    const [name,effect,,token]=cards[id];
+    const C=D.colors;
+    const focus=index===ui.focus;
+    const fixed=s.offer.length===1;
+    const age=Math.max(0,ui.stateAge-6*index);
+    const enter=selectedAge===null&&!ui.reduced?D.clamp(age/12,0,1):1;
+    const scale=ui.reduced?1:selectedAge!==null?1+.1*Math.sin(Math.PI*selectedAge/12):focus?1.03:1;
+    const cx=x+w/2;
+    const cy=y+h/2;
     ctx.save();
-    ctx.strokeStyle = D.colors.spin;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([3,5]);
-    ctx.beginPath();
-    ctx.moveTo(x + 47, y - 12);
-    ctx.bezierCurveTo(x + 51, y + 1, x + 44, y + 14, x + 5, y + 15);
-    ctx.stroke();
-    ctx.restore();
-    D.ball(ctx, 'normal', x + 45, y - 11, 5, {spin:-1,time:0});
-    D.circle(ctx, x + 6, y + 15, 3, D.colors.spin);
-  }
-
-  function drawCard(ctx, s, index, ui, time, D) {
-    const card = JD.UI.cards(s)[index];
-    if (!card) return;
-    const id = s.offer[index];
-    const [name, details, , token] = cards[id];
-    const { x, y, w, h } = card;
-    const C = D.colors;
-    const tint = C[token];
-    const fixed = s.offer.length === 1;
-    const midX = x + w / 2;
-    const focus = ui.focus===index;
-    const face = ctx.createLinearGradient(0,y,0,y+h);
+    ctx.globalAlpha=selectedAge===null?Math.min(1,.15+enter*1.7):1-selectedAge/12;
+    ctx.translate(cx,cy+(1-enter)*20);
+    ctx.scale(scale,scale);
+    ctx.translate(-cx,-cy);
+    const face=ctx.createLinearGradient(0,y,0,y+h);
     face.addColorStop(0,'#252D63');
     face.addColorStop(1,'#121634');
-    D.box(ctx, x, y+5, w, h, fixed ? 18 : 14, '#080A20');
-    D.box(ctx, x, y, w, h, fixed ? 18 : 14, face, tint, 1.5);
-    if (focus) D.box(ctx,x+3,y+3,w-6,h-6,fixed?15:11,null,C.text,2);
-
+    D.box(ctx,x,y+5,w,h,fixed?18:14,'#080A20');
+    D.box(ctx,x,y,w,h,fixed?18:14,face,focus||selectedAge!==null?C.text:C[token],focus||selectedAge!==null?3:1.5);
     if (fixed) {
-      drawIcon(ctx, id, midX, y+43, 32, time, ui.reduced, D);
-      D.label(ctx, name, midX, y+108, 34, C.text, 'center', {max:w-24,minSize:29});
-      details.forEach((line,i)=>D.label(ctx,line,midX,y+138+i*29,26,C.text,'center',{body:true,max:w-28,minSize:25}));
-      if (JD.CARD_BALL[id]) rackPreview(ctx, s.fullRack, id, midX, y+191, w-56, 8, D);
-      if (JD.CARD_SPRING[id]) drawTrajectory(ctx, midX, y+190, D);
+      drawIcon(ctx,id,cx,y+48,40,D);
+      D.label(ctx,name,cx,y+110,26,C.text,'center',{max:w-30});
+      effectLines(ctx,effect,w-38,16,D).forEach((value,i)=>
+        D.label(ctx,value,cx,y+134+i*18,16,C.text,'center',{body:true,max:w-38,minSize:14}));
+      rackPreview(ctx,s.fullRack,id,cx,y+180,w-60,8,D);
     } else {
-      drawIcon(ctx, id, x+32, y+51, 24, time, ui.reduced, D);
-      D.label(ctx,name,x+65,y+31,28,C.text,'left',{max:w-79,minSize:26});
-      details.forEach((line,i)=>D.label(ctx,line,x+65,y+61+i*29,25,C.text,'left',{body:true,max:w-77,minSize:24}));
+      D.label(ctx,String(index+1),43,y+19,12,focus?C.text:C.textDim);
+      drawIcon(ctx,id,x+34,y+49,24,D);
+      D.label(ctx,name,x+63,y+31,21,C.text,'left',{max:w-80,minSize:19});
+      effectLines(ctx,effect,w-81,15,D).forEach((value,i)=>
+        D.label(ctx,value,x+63,y+51+i*17,15,C.text,'left',{body:true,max:w-81,minSize:13}));
+      if (JD.CARD_BALL[id]) {
+        rackPreview(ctx,s.fullRack,id,x+152,y+86,176,5,D);
+        D.label(ctx,'NEW BALL',x+w-14,y+91,12,C[token],'right');
+      } else {
+        const level=s.up[id]||0;
+        D.label(ctx,'Lv '+level+' → '+(level+1),x+w-14,y+89,12,C.textDim,'right');
+      }
     }
+    ctx.restore();
   }
 
-  function drawCardScreen(ctx, s, ui, t, D) {
-    const C = D.colors;
-    const fixed = s.offer.length === 1;
-    const title = !fixed ? '강화 선택' : JD.CARD_BALL[s.offer[0]] ? '새 구슬' : '새 스프링';
-    D.box(ctx,0,0,392,640,0,D.rgba(C.ink,.9));
-    D.label(ctx,title,196,98,42,fixed?C.jackpot:C.text);
-    D.label(ctx,preview(s),196,132,25,C.textDim,'center',{max:352,minSize:23});
-    for (let i=0;i<s.offer.length;i++) drawCard(ctx,s,i,ui,t,D);
-    if (fixed) D.label(ctx,'카드를 눌러 받기',196,467,27,C.text);
+  function drawCardScreen(ctx,s,ui,t,D) {
+    const C=D.colors;
+    const fixed=s.offer.length===1;
+    D.box(ctx,0,0,440,640,0,D.rgba(C.ink,.75));
+    D.label(ctx,fixed?'NEW BALL!':'PICK ONE',196,120,fixed?28:24,fixed?C.jackpot:C.text);
+    D.label(ctx,preview(s),196,146,15,C.textDim,'center',{max:352,minSize:11});
+    for(let i=0;i<s.offer.length;i++) {
+      if(ui.stateAge>=6*i||ui.reduced) drawCard(ctx,s,i,ui,D);
+    }
+    if(fixed) {
+      const alpha=ui.reduced?1:.75+.25*D.pulse(t,30);
+      D.label(ctx,'TAP TO TAKE',196,452,16,D.rgba(C.text,alpha));
+    }
   }
 
   function drawRatio(ctx, ratio, center, y, time, D) {
@@ -810,64 +980,55 @@
   }
 
   function stageLabel(s) {
-    return (s.endless ? '무한 ' : '') + s.stage + '단계 · ' + (stageNames[s.stageName] || s.stageName);
+    return (s.endless?'ENDLESS ':'STAGE ')+s.stage+' · '+s.stageName;
   }
 
-  function drawBanner(ctx, s, ui, t, D) {
-    const C = D.colors;
-    const b = s.banner;
-    const clear = b.kind === 'clear';
-    const allClear = b.kind === 'allclear';
-    const flash = ui.reduced ? 0 : (1-D.clamp(ui.stateAge/12,0,1));
-    const tint = clear ? C.success : allClear ? C.jackpot : b.ratio >= 80 ? C.danger : C.text;
-    const bonus = clear ? Math.round(s.target/10)*s.ballsLeft : 0;
-    const subtitle = allClear ? '무한 모드 시작' : bonus>0 ? '남은 구슬 +' + D.score(bonus) : '';
+  function drawBanner(ctx,s,ui,t,D) {
+    const C=D.colors;
+    const b=s.banner;
+    const clear=b.kind==='clear';
+    const allClear=b.kind==='allclear';
+    const flash=ui.reduced?0:1-D.clamp(ui.stateAge/12,0,1);
+    const tint=clear?C.success:allClear?C.jackpot:b.ratio>=80?C.danger:C.text;
+    const bonus=clear?Math.round(s.target/10)*s.ballsLeft:0;
+    const subtitle=allClear?'ENDLESS MODE':bonus>0?'BALL BONUS +'+D.score(bonus):'';
+    const title=allClear?'ALL CLEAR!':clear?'STAGE CLEAR!':b.ratio>=80?'SO CLOSE!':'OUT OF BALLS';
     D.box(ctx,12,269,336,b.kind==='fail'?112:subtitle?109:82,18,'#10152D',D.rgba(tint,.58),1.5);
-    const title = allClear ? '전 단계 클리어!' : clear ? '단계 클리어!' : b.ratio >= 80 ? '아깝다!' : '구슬 소진';
-    D.label(ctx,title,180,322,40,tint,'center',{max:312,minSize:36});
-    if (b.kind === 'fail') {
-      D.label(ctx,b.ratio+'%',180,350,25,tint);
+    D.label(ctx,title,180,322,36,tint,'center',{max:312,minSize:34});
+    if(b.kind==='fail') {
+      D.label(ctx,b.ratio+'%',180,350,24,tint);
       drawRatio(ctx,b.ratio,180,360,t,D);
-    } else if (subtitle) D.label(ctx,subtitle,180,354,26,C.text,'center',{max:300,minSize:24});
-    if (allClear&&flash) D.box(ctx,3,3,386,634,6,null,D.rgba(C.jackpot,flash*.75),6);
-  }
-
-  function resultLoadout(ctx, r, t, D) {
-    const w = (r.rack.length-1)*21+(r.springs.length-1)*29+48;
-    const left = 196-w/2;
-    rackRow(ctx,r.rack,left,578,21,7,D);
-    const springsX = left+(r.rack.length-1)*21+48;
-    D.line(ctx,springsX-24,570,springsX-24,586,D.rgba(D.colors.text,.21),1);
-    r.springs.forEach((spring,i) => {
-      const height = 20 + 2*D.pulse(t,60);
-      D.coil(ctx,springsX+29*i,578-height/2,6,height,spring);
-    });
+    } else if (subtitle) D.label(ctx,subtitle,180,354,23,C.text,'center',{max:300,minSize:20});
+    if(allClear&&flash) D.box(ctx,3,3,386,634,6,null,D.rgba(C.jackpot,flash*.75),6);
   }
 
   function drawResult(ctx,s,ui,t,D) {
-    const r = s.result, C = D.colors;
-    const title = r.won ? '전 단계 클리어!' : r.ratio>=80 ? '아깝다!' : '구슬 소진';
-    const tint = r.won ? C.jackpot : r.ratio>=80 ? C.danger : C.text;
-    const shownScore = Math.round(r.runScore*D.clamp(ui.stateAge/40,0,1));
-    D.box(ctx,0,0,392,640,0,D.rgba(C.ink,.94));
-    D.label(ctx,title,196,72,44,tint,'center',{max:352,minSize:38});
-    D.label(ctx,stageLabel(s)+' · '+r.ratio+'%',196,108,25,C.text,'center',{max:352,minSize:23});
-    drawRatio(ctx,r.ratio,196,122,t,D);
-    D.label(ctx,'최종 점수',196,160,25,C.textDim);
-    D.label(ctx,D.number(shownScore),196,214,52,C.text,'center',{max:344,minSize:43});
-    const best=s.practiceStart?'연습 · '+s.practiceStart+'단계 시작':ui.newBest?'최고점 경신!':'최고점 '+D.score(ui.saved.best);
-    D.label(ctx,best,196,253,24,ui.newBest&&!s.practiceStart?C.jackpot:C.textDim,'center',{max:346,minSize:23});
-    D.box(ctx,22,266,348,191,13,'#131834',D.rgba(C.laneEdge,.62),1.5);
-    resultStats.forEach(([label,key],i) => {
-      const y = 290+i*25;
-      const value = key === 'bestTier' ? JD.CFG.COMBO_NAMES[r.bestTier] || '—' : D.score(key ? r[key] : ui.saved.bestStage);
-      const emphasis = i===0 && ui.newBestStage && !s.practiceStart;
-      const color = key === 'bestTier' ? D.combo(r.bestTier) : emphasis ? C.jackpot : C.text;
-      if(i>0) D.line(ctx,37,y-21,355,y-21,D.rgba(C.laneEdge,.28));
-      D.label(ctx,label,39,y,23,emphasis?C.jackpot:C.textDim,'left',{body:true});
-      D.label(ctx,value,353,y,24,color,'right',{max:138,minSize:23});
+    const r=s.result,C=D.colors;
+    const title=r.won?'JACKPOT RUN!':r.ratio>=80?'SO CLOSE!':'OUT OF BALLS';
+    const tint=r.won?C.jackpot:r.ratio>=80?C.danger:C.text;
+    const shownScore=Math.round(r.runScore*D.clamp(ui.stateAge/40,0,1));
+    D.box(ctx,0,0,440,640,0,D.rgba(C.ink,.94));
+    D.label(ctx,title,196,150,32,tint,'center',{max:352,minSize:28});
+    if(r.won) D.label(ctx,'ALL CLEAR · REACHED STAGE '+r.stageReached,196,176,14,C.jackpot,'center',{max:352,minSize:13});
+    D.label(ctx,stageLabel(s)+' · '+r.ratio+'%',196,200,18,C.text,'center',{max:352,minSize:16});
+    drawRatio(ctx,r.ratio,196,210,t,D);
+    D.label(ctx,'RUN SCORE',196,250,16,C.textDim);
+    D.label(ctx,D.number(shownScore),196,289,40,C.text,'center',{max:344,minSize:37});
+    const best=s.practiceStart?'PRACTICE · START '+s.practiceStart:ui.newBest?'NEW BEST!':'BEST '+D.score(ui.saved.best);
+    if(ui.newBest&&!s.practiceStart) D.box(ctx,146,298,100,18,9,D.rgba(C.jackpot,.18),C.jackpot);
+    D.label(ctx,best,196,311,13,ui.newBest&&!s.practiceStart?C.jackpot:C.textDim,'center',{max:346,minSize:12});
+    D.box(ctx,42,318,308,137,11,'#131834',D.rgba(C.laneEdge,.62));
+    resultStats.forEach(([label,key],i)=>{
+      const y=332+i*19;
+      const value=key==='bestTier'?JD.CFG.COMBO_NAMES[r.bestTier]||'—':D.score(key?r[key]:ui.saved.bestStage);
+      const emphasis=i===0&&ui.newBestStage&&!s.practiceStart;
+      const color=key==='bestTier'?D.combo(r.bestTier):emphasis?C.jackpot:C.text;
+      if(i>0) D.line(ctx,51,y-14,341,y-14,D.rgba(C.laneEdge,.28));
+      D.label(ctx,label,56,y,14,emphasis?C.jackpot:C.textDim,'left',{body:true});
+      D.label(ctx,value,336,y,15,color,'right',{max:132,minSize:13});
     });
-    resultLoadout(ctx,r,t,D);
+    rackRow(ctx,r.rack,196-(r.rack.length-1)*23/2,571,23,8,D);
+    D.label(ctx,'SEED '+s.seed,376,610,12,C.textDim,'right',{max:170});
   }
 
   JD.drawScreens = function (ctx,s,ui,fx,t) {
@@ -878,14 +1039,37 @@
   };
 
   JD.drawCardReward = function (ctx,s,ui) {
-    const notice = ui.cardNotice;
-    if (!notice || s.state!=='AIM') return;
-    const D = JD.Drawing;
-    const { event, age } = notice;
-    const id = event.id;
-    const kind = JD.CARD_BALL[id], spring = JD.CARD_SPRING[id];
-    if (!kind && !spring) return;
-    const trail = D.colors[cards[id][3]];
-    D.circle(ctx,376,kind?540:583,ui.reduced?13:10+age*.2,null,D.rgba(trail,.75*(1-age/45)),2);
+    const notice=ui.cardNotice;
+    if(!notice?.before||s.state!=='AIM') return;
+    const {event,before,age}=notice;
+    const id=event.id;
+    const index=before.offer.indexOf(id);
+    if(index<0) return;
+    const D=JD.Drawing;
+    if(age<12&&!ui.reduced) drawCard(ctx,before,index,ui,D,age);
+    const kind=JD.CARD_BALL[id];
+    if(!kind) return;
+    const fullIndex=s.fullRack.findIndex((value,i)=>value!==before.fullRack[i]);
+    const slot=s.rackIndices.indexOf(fullIndex);
+    const destination=JD.UI.magazine(s).find(item=>item.slot===slot);
+    if(!destination) return;
+    const card=JD.UI.cards(before)[index];
+    const fixed=before.offer.length===1;
+    const startX=fixed?card.x+card.w/2:card.x+34;
+    const startY=card.y+(fixed?48:49);
+    const progress=ui.reduced?1:D.clamp((age-8)/20,0,1);
+    if(progress===0) return;
+    const x=startX+(416-startX)*progress;
+    const y=startY+(destination.y-startY)*progress-(ui.reduced?0:48*Math.sin(Math.PI*progress));
+    const land=Math.max(0,age-28);
+    const bump=ui.reduced?1:1+.4*(1-Math.min(land/12,1));
+    const tint=D.colors[cards[id][3]];
+    if(progress<1) {
+      D.line(ctx,x-11*progress,y-8,x,y,D.rgba(tint,.7),2);
+      D.ball(ctx,kind,x,y,JD.BALLS[kind].r*(1.8-.3*progress),{cracked:kind==='glass'});
+    } else if(land<13) {
+      D.ball(ctx,kind,x,y,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
+      D.circle(ctx,x,y,12+land*.75,null,D.rgba(tint,.8*(1-land/13)),2);
+    }
   };
 }(window.JD));
