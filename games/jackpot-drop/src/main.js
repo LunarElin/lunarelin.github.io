@@ -2,19 +2,13 @@
   'use strict';
 
   const canvas = document.getElementById('game');
+  const homeLink = document.querySelector('.top-controls a');
   const pauseButton = document.getElementById('pause');
   const soundButton = document.getElementById('sound');
   const soundLabel = document.getElementById('sound-label');
-  const actionButton = document.getElementById('action');
   const magazine = document.getElementById('magazine');
   const magazineButtons = Array.from(magazine.querySelectorAll('button'));
-  const replayButton = document.getElementById('replay');
-  const pauseMenu = document.getElementById('pause-menu');
-  const actions = {
-    AIM: ['발사', '누르고 떼서 발사'],
-    FLIGHT: ['빨리 보기', '누르는 동안 구슬을 빠르게'],
-    PAYOUT: ['건너뛰기', '점수 계산 건너뛰기']
-  };
+  const playDescription = canvas.getAttribute('aria-description');
   const balls = {
     normal: '기본 구슬',
     big: '큰 구슬',
@@ -54,6 +48,7 @@
   let s=game.snapshot();
   const ui={
     saved,focus:0,muted:saved.muted,newBest:false,newBestStage:false,age:0,
+    paused:false,pauseFocus:0,
     stageAge:0,stateAge:0,stageFired:false,tutorialSeen:false,hintHidden:false,
     demoPower:0,demoRecoil:0,slowBlend:0,cardNotice:null,reduced:media.matches
   };
@@ -63,12 +58,16 @@
   let prevTime=null, accumulator=0;
   let frameRequest=null, pageActive=true;
 
+  function isInactive() {
+    return document.hidden || !pageActive;
+  }
+
   function isBlocked() {
-    return document.hidden || !pageActive || pauseMenu.open;
+    return isInactive() || ui.paused;
   }
 
   function updateMagazine() {
-    magazine.hidden=s.state==='CARD'||s.state==='RESULT';
+    magazine.hidden=ui.paused||s.state==='CARD'||s.state==='RESULT';
     if(magazine.hidden) return;
     const slots=JD.UI.magazine(s);
     const canSelect=s.state==='AIM'&&s.stage>1&&s.rack.length>1&&!s.charging;
@@ -85,16 +84,12 @@
   }
 
   function updateControls() {
-    const action=actions[s.state];
     canvas.dataset.state=s.state;
-    actionButton.hidden=!action;
-    if(action) {
-      actionButton.dataset.mode=s.state;
-      actionButton.textContent=action[0];
-      actionButton.setAttribute('aria-label',action[1]);
-    }
-    actionButton.classList.toggle('is-charging',s.charging);
-    replayButton.hidden=s.state!=='RESULT';
+    const result=s.state==='RESULT';
+    canvas.setAttribute('aria-label',ui.paused?'일시 정지. '+JD.UI.pauseButtons[ui.pauseFocus].label:
+      result?'잭팟 드롭 결과. 다시 하기':'잭팟 드롭 보드');
+    canvas.setAttribute('aria-description',ui.paused?'방향키 또는 탭으로 고르고 Space나 Enter로 선택합니다. Esc를 누르면 계속합니다.':
+      result?'Space 또는 Enter로 다시 시작합니다.':playDescription);
     updateMagazine();
   }
 
@@ -122,7 +117,7 @@
     if(audio&&audio.pause) audio.pause();
   }
 
-  const input=JD.createInput(canvas,actionButton,magazineButtons,{
+  const input=JD.createInput(canvas,magazineButtons,{
     snapshot:()=>s,
     queue:cmd=>game.queue(cmd),
     focus:index=>{ui.focus=index;},
@@ -130,7 +125,11 @@
     activateAudio:()=>{if(audio) audio.activate();},
     toggleMute,
     cancel:cancelInput,
-    isBlocked
+    isInactive,
+    isPaused:()=>ui.paused,
+    pauseFocused:()=>ui.pauseFocus,
+    focusPause,
+    choosePause
   });
 
   function handleEvents(events,before) {
@@ -190,8 +189,7 @@
     }
     if(s.state!==before.state || s.charging!==before.charging || s.slot!==before.slot ||
         s.rack.length!==before.rack.length) updateControls();
-    if(s.state!==before.state && s.state==='CARD') canvas.focus({preventScroll:true});
-    if(s.state!==before.state && s.state==='RESULT') replayButton.focus({preventScroll:true});
+    if(s.state!==before.state && (s.state==='CARD'||s.state==='RESULT')) canvas.focus({preventScroll:true});
     handleEvents(game.drainEvents(),before);
   }
 
@@ -258,29 +256,36 @@
     if(pageActive&&!document.hidden) draw(s,ui,fx,ui.age);
   }
 
-  function openPause() {
-    if(isBlocked()) return;
-    pauseMenu.showModal();
-    syncLoop();
+  function focusPause(index) {
+    ui.pauseFocus=index;
+    canvas.setAttribute('aria-label','일시 정지. '+JD.UI.pauseButtons[index].label);
+    draw(s,ui,fx,ui.age);
   }
 
-  pauseButton.addEventListener('click',openPause);
-  soundButton.addEventListener('click',toggleMute);
-  replayButton.addEventListener('click',()=>{
-    if(isBlocked()||s.state!=='RESULT') return;
-    if(audio) audio.activate();
-    game.queue({type:'restart'});
+  function togglePause() {
+    if(isInactive()) return;
+    ui.paused=!ui.paused;
+    ui.pauseFocus=0;
+    canvas.toggleAttribute('data-paused',ui.paused);
+    pauseButton.setAttribute('aria-expanded',String(ui.paused));
+    pauseButton.setAttribute('aria-label',ui.paused?'계속':'일시 정지');
+    updateControls();
+    syncLoop();
     canvas.focus({preventScroll:true});
-  });
-  document.getElementById('resume').addEventListener('click',()=>pauseMenu.close());
-  document.getElementById('restart').addEventListener('click',()=>{
-    window.location.replace(window.location.protocol==='file:'?'./index.html':'./');
-  });
-  pauseMenu.addEventListener('close',syncLoop);
+  }
+
+  function choosePause(index) {
+    if(index===0) togglePause();
+    else if(index===1) window.location.replace(window.location.protocol==='file:'?'./index.html':'./');
+    else if(index===2) window.location.href=homeLink.href;
+  }
+
+  pauseButton.addEventListener('click',togglePause);
+  soundButton.addEventListener('click',toggleMute);
   window.addEventListener('keydown',event=>{
-    if(event.key==='Escape'&&!event.repeat&&!isBlocked()) {
+    if(event.key==='Escape'&&!event.repeat&&!isInactive()) {
       event.preventDefault();
-      openPause();
+      togglePause();
     }
   });
   document.addEventListener('visibilitychange',syncLoop);

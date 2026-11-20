@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0e2a">
   <title>Jackpot Drop</title>
-  <link rel="stylesheet" href="styles.css?v=build-12">
+  <link rel="stylesheet" href="styles.css?v=build-12-board-controls">
 </head>
 <body>
   <main class="cabinet" aria-label="Jackpot Drop">
-    <header class="controls top-controls">
+    <header class="top-controls">
       <a class="machine-button" href="../../" aria-label="포트폴리오 홈">홈</a>
       <h1>Jackpot Drop</h1>
-      <button class="machine-button" id="pause" type="button" aria-label="일시 정지">정지</button>
+      <button class="machine-button" id="pause" type="button" aria-label="일시 정지" aria-controls="game" aria-expanded="false">정지</button>
       <button class="machine-button sound" id="sound" type="button" aria-label="음소거" aria-pressed="false">
         <span class="sound-icon" aria-hidden="true"></span><span id="sound-label">소리 켬</span>
       </button>
@@ -20,7 +20,7 @@
 
     <div class="playfield">
       <div class="board">
-        <canvas id="game" width="440" height="640" tabindex="0" aria-label="잭팟 드롭 보드" aria-describedby="board-keys"></canvas>
+        <canvas id="game" width="440" height="640" tabindex="0" aria-label="잭팟 드롭 보드" aria-description="보드나 스페이스 키를 누른 뒤 떼서 발사합니다. 비행 중에는 보드나 Shift를 누르는 동안 2배속으로 진행합니다. 정산은 보드를 탭하거나 Space 또는 Enter로 건너뜁니다. 방향키로 구슬과 강화 카드를 고릅니다."></canvas>
         <div id="magazine" class="magazine" role="group" aria-label="구슬 탄창" hidden>
           <button class="magazine-slot" type="button" hidden></button>
           <button class="magazine-slot" type="button" hidden></button>
@@ -28,32 +28,15 @@
           <button class="magazine-slot" type="button" hidden></button>
           <button class="magazine-slot" type="button" hidden></button>
         </div>
-        <button class="machine-button primary replay" id="replay" type="button" hidden>다시 하기</button>
       </div>
-      <p class="visually-hidden" id="board-keys">보드를 누르거나 스페이스 키를 누르세요. 금색 구간에서 떼면 발사됩니다. 방향키로 탄창의 구슬을 고릅니다. 강화 카드는 방향키와 엔터로 선택합니다.</p>
-    </div>
-
-    <div class="controls play-controls" aria-label="플레이 조작">
-      <button class="machine-button primary action" id="action" type="button" aria-label="누르고 떼서 발사">발사</button>
     </div>
   </main>
-
-  <dialog class="game-menu" id="pause-menu" aria-labelledby="pause-title">
-    <h2 id="pause-title">일시 정지</h2>
-    <div class="menu-options">
-      <button class="machine-button primary" id="resume" type="button" autofocus>계속</button>
-      <button class="machine-button" id="restart" type="button">처음부터</button>
-      <a class="machine-button" href="../../">포트폴리오</a>
-    </div>
-  </dialog>
-
-  <noscript>Jackpot Drop을 플레이하려면 JavaScript를 켜 주세요.</noscript>
   <script src="src/rules.js?v=build-12" defer></script>
   <script src="src/game.js?v=build-12" defer></script>
   <script src="src/audio.js?v=build-12" defer></script>
   <script src="src/fx.js?v=build-12" defer></script>
-  <script src="src/render.js?v=build-12" defer></script>
-  <script src="src/input.js?v=build-12" defer></script>
-  <script src="src/main.js?v=build-12" defer></script>
+  <script src="src/render.js?v=build-12-board-controls" defer></script>
+  <script src="src/input.js?v=build-12-board-controls" defer></script>
+  <script src="src/main.js?v=build-12-board-controls" defer></script>
 </body>
 </html>

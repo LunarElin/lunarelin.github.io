@@ -30,41 +30,42 @@ body {
   --bottom-space: max(5px, env(safe-area-inset-bottom));
   --left-space: max(6px, env(safe-area-inset-left));
   --side-space: calc(var(--left-space) + var(--right-space));
-  --play-rail-height: 48px;
-  --rail-space: calc(54px + var(--play-rail-height) + var(--top-space) + var(--bottom-space));
-  --board-width: calc((100vh - var(--rail-space)) * .6875);
-  --fitted-height: calc((min(100vw, 470px) - var(--side-space)) * (640 / 440) + var(--rail-space));
-  width: min(100%, max(348px, calc(var(--board-width) + var(--side-space))), 470px);
+  --header-space: calc(49px + var(--top-space) + var(--bottom-space));
+  --board-width: calc((100vh - var(--header-space)) * .6875);
+  --fitted-height: calc((100vw - var(--side-space)) * (640 / 440) + var(--header-space));
+  width: min(100%, max(348px, calc(var(--board-width) + var(--side-space))));
   height: min(100vh, var(--fitted-height));
   margin-inline: auto;
   padding: var(--top-space) var(--right-space) var(--bottom-space) var(--left-space);
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr) var(--play-rail-height);
+  grid-template-rows: 44px minmax(0, 1fr);
   gap: 5px;
   touch-action: none;
 }
 
-.cabinet:has(#game:is([data-state="CARD"], [data-state="RESULT"])) {
-  --play-rail-height: 0px;
-}
-
 @supports (height: 100dvh) {
   .cabinet {
-    --board-width: calc((100dvh - var(--rail-space)) * .6875);
+    --board-width: calc((100dvh - var(--header-space)) * .6875);
     height: min(100dvh, var(--fitted-height));
   }
 }
 
-.controls {
-  display: flex;
-  align-items: stretch;
-  gap: 5px;
-  min-width: 0;
+@media (max-width: 470px) {
+  .cabinet {
+    --left-space: max(2px, env(safe-area-inset-left));
+    --right-space: max(2px, env(safe-area-inset-right));
+  }
+
+  .top-controls {
+    margin-inline: 4px;
+  }
 }
 
 .top-controls {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 48px clamp(64px, 23vw, 84px);
+  gap: 5px;
+  min-width: 0;
 }
 
 .top-controls > .machine-button {
@@ -163,8 +164,7 @@ canvas {
   cursor: pointer;
 }
 
-.machine-button:active,
-.machine-button.is-charging {
+.machine-button:active {
   border-bottom-width: 1px;
   padding-bottom: 4px;
   transform: translateY(1px);
@@ -180,11 +180,6 @@ canvas:focus-visible {
 canvas:focus-visible {
   outline-width: 2px;
   outline-offset: -4px;
-}
-
-.machine-button:disabled {
-  opacity: .6;
-  cursor: default;
 }
 
 .sound {
@@ -222,114 +217,4 @@ canvas:focus-visible {
 
 .sound[aria-pressed="true"] {
   color: #d0c1e8;
-}
-
-.primary {
-  border-color: #ffe493;
-  border-bottom-color: #a55826;
-  background: linear-gradient(#ffe89a, #e8a947);
-  box-shadow: inset 0 1px #fff6ca, 0 2px 4px #110817aa;
-  color: #24142e;
-  font-weight: 900;
-}
-
-.play-controls > .machine-button {
-  white-space: normal;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
-}
-
-.play-controls .action {
-  flex: 1 1 92px;
-  touch-action: none;
-}
-
-.play-controls .action[data-mode="FLIGHT"],
-.play-controls .action[data-mode="PAYOUT"] {
-  border-color: #7768a6;
-  border-bottom-color: #2a2046;
-  background: linear-gradient(#3c345f, #25203e);
-  box-shadow: inset 0 1px #a692bd64, 0 2px 3px #04041195;
-  color: #fbf7ff;
-}
-
-.replay {
-  position: absolute;
-  top: 77.8125%;
-  left: calc(100% * 196 / 440);
-  width: calc(100% * 240 / 440);
-  min-height: max(44px, 8.75%);
-  transform: translate(-50%, -50%);
-}
-
-.replay:active {
-  transform: translate(-50%, calc(-50% + 1px));
-}
-
-.game-menu {
-  --menu-top: max(12px, env(safe-area-inset-top));
-  --menu-right: max(12px, env(safe-area-inset-right));
-  --menu-bottom: max(12px, env(safe-area-inset-bottom));
-  --menu-left: max(12px, env(safe-area-inset-left));
-  position: fixed;
-  inset: var(--menu-top) var(--menu-right) var(--menu-bottom) var(--menu-left);
-  width: min(360px, calc(100% - var(--menu-left) - var(--menu-right)));
-  max-height: calc(100vh - var(--menu-top) - var(--menu-bottom));
-  max-height: calc(100dvh - var(--menu-top) - var(--menu-bottom));
-  margin: auto;
-  padding: 16px;
-  overflow: hidden;
-  border: 1px solid #8c78bf;
-  border-bottom: 4px solid #4b376e;
-  border-radius: 17px;
-  background: linear-gradient(#352650, #1a1436);
-  box-shadow: inset 0 1px #d6bbe74d, 0 12px 40px #030311ad;
-  color: inherit;
-}
-
-.game-menu[open] {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.game-menu::backdrop {
-  background: rgb(5 5 17 / .8);
-}
-
-.game-menu h2 {
-  flex-shrink: 0;
-  margin: 0;
-  text-align: center;
-  font-size: 26px;
-  line-height: 1.2;
-}
-
-.menu-options {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  gap: 7px;
-  margin-inline: -4px;
-  padding: 4px;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: #a28bc8 #201a3c;
-}
-
-.menu-options > .machine-button {
-  flex-shrink: 0;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  border: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }

@@ -107,7 +107,18 @@
     c.strokeStyle=colors.springStandard; c.stroke(); c.restore();
   }
 
-  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,fontFamily,bodyFamily};
+  function menuButton(c, {x,y,w,h}, text, primary, focused) {
+    const radius = h/2;
+    const fill = c.createLinearGradient(0, y, 0, y+h);
+    fill.addColorStop(0, primary ? '#FFE493' : '#3C345F');
+    fill.addColorStop(1, primary ? colors.jackpot : '#25203E');
+    if (focused) box(c,x-4,y-4,w+8,h+12,radius+4,null,colors.text,3);
+    box(c,x,y+4,w,h,radius,primary ? '#A55826' : '#15112C');
+    box(c,x,y,w,h,radius,fill,primary ? '#FFF6CA' : '#7768A6',1.5);
+    label(c,text,x+w/2,y+h/2+7,22,primary ? colors.bgBottom : colors.text);
+  }
+
+  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,menuButton,fontFamily,bodyFamily};
   JD.UI={
     magazine(s) {
       const slots=s.rack.map((_,slot)=>slot).filter(slot=>slot!==s.slot);
@@ -116,8 +127,24 @@
     },
     cards:s=>s.offer&&(s.offer.length===1?[{x:46,y:220,w:300,h:200}]:
       s.offer.map((_,i)=>({x:30,y:170+120*i,w:332,h:100}))),
-    result:{x:76,y:470,w:240,h:56}
+    result:{x:76,y:470,w:240,h:56},
+    pauseButtons:[
+      {x:84,y:253,w:272,h:60,label:'계속'},
+      {x:84,y:325,w:272,h:60,label:'처음부터'},
+      {x:84,y:397,w:272,h:60,label:'포트폴리오'}
+    ]
   };
+
+  function drawPause(c, focus) {
+    const panel = c.createLinearGradient(0, 175, 0, 481);
+    panel.addColorStop(0, '#352650');
+    panel.addColorStop(1, '#1A1436');
+    box(c,0,0,440,640,0,rgba(colors.ink,.8));
+    box(c,56,181,328,306,19,'#100822');
+    box(c,56,175,328,306,19,panel,'#8C78BF',1.5);
+    label(c,'일시 정지',220,225,29,colors.text);
+    JD.UI.pauseButtons.forEach((button,index) => menuButton(c,button,button.label,index===0,index===focus));
+  }
 
   function background(c,s,fx) {
     const bg=c.createLinearGradient(0,0,0,640);
@@ -482,6 +509,7 @@
       drawAim(c,s,ui,fx,t);
       if(JD.drawScreens) JD.drawScreens(c,s,ui,fx,t);
       if(JD.drawCardReward) JD.drawCardReward(c,s,ui);
+      if(ui.paused) drawPause(c,ui.pauseFocus);
     };
   };
 })(JD);
@@ -1027,6 +1055,7 @@
       D.label(ctx,label,56,y,14,emphasis?C.jackpot:C.textDim,'left',{body:true});
       D.label(ctx,value,336,y,15,color,'right',{max:132,minSize:13});
     });
+    D.menuButton(ctx,JD.UI.result,'PLAY AGAIN',true,ui.focus===0);
     rackRow(ctx,r.rack,196-(r.rack.length-1)*23/2,571,23,8,D);
     D.label(ctx,'SEED '+s.seed,376,610,12,C.textDim,'right',{max:170});
   }
