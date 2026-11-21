@@ -2,6 +2,7 @@
   'use strict';
 
   JD.createInput = function (canvas, magazineButtons, controls) {
+    const playfield = canvas.closest('.playfield');
     let pointer = null;
     let chargeKey = null;
     let shift = false;
@@ -46,8 +47,6 @@
       if (target.setPointerCapture) {
         try { target.setPointerCapture(ev.pointerId); } catch (_) { /* The pointer may have ended. */ }
       }
-      if (ev.cancelable) ev.preventDefault();
-
       if (paused) {
         pointer.option = pauseAt(position(ev));
         if (pointer.option !== -1) controls.focusPause(pointer.option);
@@ -129,7 +128,7 @@
     function selectBall(state, slot) {
       if (!canPickBall(state) || !state.rack[slot]) return;
       controls.activateAudio();
-      if (slot !== state.slot) controls.queue({ type: 'pickBall', slot });
+      if (state.load > 1 || slot !== state.slot) controls.queue({ type: 'pickBall', slot });
       canvas.focus({ preventScroll: true });
     }
 
@@ -144,9 +143,13 @@
       if (controls.isInactive()) return;
       const action = key === ' ' || key === 'Enter';
       const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(key);
+      const state = controls.snapshot();
+      const toggleLoaded = state.state === 'AIM' && state.load > 1 && (key === 'a' || key === 'A');
+      const loadAll = state.state === 'AIM' && state.load > 1 && (key === 'l' || key === 'L');
+      const magazineTarget = magazineButtons.includes(ev.target);
       if (ev.target instanceof Element &&
           ev.target.closest('a, button, input, select, textarea, [contenteditable]') &&
-          !(arrow >= 0 && magazineButtons.includes(ev.target))) return;
+          !(magazineTarget && (arrow >= 0 || toggleLoaded || loadAll))) return;
       if (controls.isPaused()) {
         if (!action && arrow < 0 && key !== 'Tab') return;
         ev.preventDefault();
@@ -159,10 +162,9 @@
         return;
       }
       const directCard = ['1', '2', '3'].indexOf(key);
-      const state = controls.snapshot();
       const cardTab = state.state === 'CARD' && ev.target === canvas && key === 'Tab';
       const cardMove = state.state === 'CARD' && (arrow >= 0 || cardTab);
-      if (!action && arrow < 0 && !cardTab && directCard < 0 && key !== 'Shift') return;
+      if (!action && arrow < 0 && !cardTab && directCard < 0 && key !== 'Shift' && !toggleLoaded && !loadAll) return;
       if (key !== 'Shift') ev.preventDefault();
       if (ev.repeat) return;
       controls.activateAudio();
@@ -173,9 +175,25 @@
         if (action && chargeKey === null && pointer === null && !state.charging) {
           chargeKey = key;
           controls.queue({ type: 'hold' });
-        } else if (arrow >= 0 && canPickBall(state)) {
-          const direction = arrow === 1 || arrow === 2 ? 1 : -1;
-          controls.queue({ type: 'pickBall', slot: cycle(state.slot, direction, state.rack.length) });
+        } else if (canPickBall(state)) {
+          const focused = magazineTarget ? Number(ev.target.dataset.slot) : controls.magazineFocused() ?? state.slot;
+          if (arrow >= 0) {
+            const direction = arrow === 1 || arrow === 2 ? 1 : -1;
+            if (state.load > 1) {
+              const slots = JD.UI.magazine(state);
+              const row = slots.findIndex(entry => entry.slot === focused);
+              controls.focusMagazine(slots[cycle(row, direction, slots.length)].slot);
+              canvas.focus({ preventScroll: true });
+            } else {
+              controls.queue({ type: 'pickBall', slot: cycle(state.slot, direction, state.rack.length) });
+            }
+          } else if (toggleLoaded) {
+            controls.focusMagazine(focused);
+            selectBall(state, focused);
+          } else if (loadAll) {
+            controls.queue({ type: 'loadAll' });
+            canvas.focus({ preventScroll: true });
+          }
         }
       } else if (state.state === 'PAYOUT' && action) {
         controls.queue({ type: 'skip' });
@@ -208,10 +226,16 @@
     }
 
     for (const target of [canvas, ...magazineButtons]) {
-      target.addEventListener('pointerdown', pointerDown, { passive: false });
+      target.addEventListener('pointerdown', pointerDown);
       target.addEventListener('lostpointercapture', lostCapture);
-      target.addEventListener('contextmenu', ev => ev.preventDefault());
     }
+    for (const type of ['selectstart', 'contextmenu', 'dragstart', 'gesturestart', 'dblclick']) {
+      document.addEventListener(type, ev => ev.preventDefault(), { passive: false });
+    }
+    playfield.addEventListener('pointerdown', ev => {
+      if (ev.cancelable) ev.preventDefault();
+      window.getSelection()?.removeAllRanges();
+    }, { capture: true, passive: false });
     canvas.addEventListener('pointermove', pointerMove);
     window.addEventListener('pointerup', pointerUp);
     window.addEventListener('pointercancel', pointerCancel);

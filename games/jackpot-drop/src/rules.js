@@ -5,11 +5,13 @@ JD.CFG = {
   W: 360, H: 640,
   EXIT_X: 352, EXIT_Y: 60, EXIT_VY: 0.5, POWER_MIN: 0.05, LAUNCH_TICKS: 12,
   PEG_R: 7, BUMPER_R: 14, PEG_BREAK_HITS: 2, PEG_HIT_CD: 6, PARK_SPEED: 1.0, PARK_TICKS: 20, IRON_FRICTION: 0.9,
+  E_BALL: 0.9, E_PARKED: 0.3, BALL_HIT_MIN: 0.5, LOAD_GAP: 8, LOAD_MAX: 3, LOAD_SPREAD: 0.06, PARK_GRACE: 3, PARK_REACH: 2,
+  ROWS: 12, ROW_Y0: 160, ROW_DY: 32, LAND_PAD: 84, FLIGHT_PER_ROW: 60,
   WARP_R: 13, WARP_CD: 30, WARP_CLEAR: 22, HITSTOP_WARP: 4, HITSTOP_IRON: 3,
   GRAVITY: 0.22, VMAX: 12, SUBSTEPS: 4,
   E_WALL: 0.8, E_BLOCK: 0.75, E_TERRAIN: 0.8, BUMPER_KICK: 2.2,
-  LAND_Y: 596, BLAST_R: 64, BLAST_R_STEP: 16,
-  STUCK_SPEED: 0.4, STUCK_TICKS: 45, MAX_FLIGHT: 720,
+  BLAST_R: 64, BLAST_R_STEP: 16,
+  STUCK_SPEED: 0.4, STUCK_TICKS: 45,
   COMBO_STEP: 8, COMBO_BONUS: [0, 5, 10, 20, 40], COMBO_MAX: 4,
   COMBO_NAMES: ['', 'NICE', 'GREAT', 'AMAZING', 'INSANE'],
   WIDE_STEP: 20, TERRAIN_HALF: 4, TERRAIN_PEG_CLEAR: 17, TERRAIN_GATE_CLEAR: 20,
@@ -27,7 +29,9 @@ JD.CFG = {
 // A release with p inside [perfectLo, perfectHi] is PERFECT: the shot starts perfectTier combo tiers higher.
 JD.SPRING = { vMin: 1.5, vMax: 9.0, perfectLo: 0.78, perfectHi: 0.90, perfectTier: 1, charge: 60 };
 
-// Ball types. Every ball in the rack has a type and the player picks which one to fire.
+// MULTI LOAD (card springLoad) lets the spring take up to LOAD_MAX balls at once. They leave the lane one after
+// another (LOAD_GAP ticks apart), each a little slower (LOAD_SPREAD), and fly at the same time as one shot.
+// Ball types. Every ball in the rack has a type and the player picks which ones to fire.
 // r = radius, ePeg = bounce off pegs, blockDmg = HP per block hit, breaksIron = breaks iron walls.
 // glass: cracks after crackAt new peg lights in one shot, shatters into `shards` extra balls at shatterAt.
 JD.BALLS = {
@@ -57,7 +61,9 @@ JD.bucketLayout = function (S, up) {
   return { x: x, mult: L.mult.slice() };
 };
 
-// map: 12 rows, top to bottom. '#' keeps the peg at that grid spot, '.' removes it.
+// rows: number of peg rows (default ROWS = 12). A taller stage (rows 24) is a long board: the camera scrolls down
+//      with the ball. landY = ROW_Y0 + ROW_DY * (rows - 1) + LAND_PAD (596 for 12 rows, 980 for 24 rows).
+// map: one string per row, top to bottom. '#' keeps the peg at that grid spot, '.' removes it.
 //      Even rows use 9 characters (x = 36..324), odd rows use the first 8 (x = 54..306).
 // blocks: [x, y, w, h, hp, kind] (centre, size, hit points, 'block' | 'vault')
 // terrain: [x1, y1, x2, y2] unbreakable wall segments, 8px thick, no score.
@@ -69,9 +75,11 @@ JD.bucketLayout = function (S, up) {
 //       A broken group stays broken for the rest of the stage.
 // warps: { ins: [[x, y]...], outs: [[x, y]...] }. A ball that reaches a hole is moved to an exit picked by the
 //        board's warp rnd, so where it comes out is a surprise. It then drops straight down.
+//        Each hole works once: after swallowing a ball it closes for the rest of the stage.
 // buckets: key of JD.BUCKETS.
 // reward: fixed card offer after clearing this stage (a one-card choice), or null for the normal 3-card offer.
-// hint: the ball the stage is built around ({ ball }), shown at stage start; null = none.
+// hint: what the stage is built around, shown at stage start: { ball } (fire that ball last), { load: 'all' }
+//       (load every ball and fire them together), or null.
 JD.STAGES = [
   { name: 'TUTORIAL', gold: 8, bomb: 3, plus: 0, minus: 0, balls: 3, target: 3000, bumpers: [], blocks: [], buckets: 'center',
     reward: ['ballIron'], hint: null, iron: [], warps: null,
@@ -81,30 +89,33 @@ JD.STAGES = [
     terrain: [[0, 522, 136, 580], [360, 522, 224, 580]],
     map: ['#########', '########', '#########', '########', '#########', '########',
           '#########', '########', '#########', '########', '#########', '########'] },
-  { name: 'IRON LID', gold: 8, bomb: 4, plus: 0, minus: 0, balls: 3, target: 20000, bumpers: [], blocks: [], buckets: 'center',
-    reward: null, hint: { ball: 'iron' }, warps: null,
+  { name: 'IRON LID', gold: 8, bomb: 4, plus: 0, minus: 0, balls: 3, target: 35000, bumpers: [], blocks: [], buckets: 'center',
+    reward: ['springLoad'], hint: { ball: 'iron' }, warps: null,
     terrain: [[0, 522, 136, 580], [360, 522, 224, 580]],
     iron: [[[136, 580, 224, 580]]],
     map: ['#########', '########', '#########', '########', '#########', '########',
           '#########', '########', '#########', '########', '#########', '########'] },
-  { name: 'CURVE', gold: 9, bomb: 4, plus: 1, minus: 1, balls: 3, target: 8000, bumpers: [], blocks: [],
-    reward: null, hint: null, iron: [], warps: null,
+  { name: 'CURVE', gold: 9, bomb: 4, plus: 1, minus: 1, balls: 3, target: 25000, bumpers: [], blocks: [],
+    reward: null, hint: { load: 'all' }, iron: [], warps: null,
     terrain: [[76, 400, 76, 596]], buckets: 'left',
     map: ['#########', '########', '#########', '########', '#########', '########',
           '#########', '########', '#########', '########', '#########', '########'] },
-  { name: 'HOURGLASS', gold: 9, bomb: 4, plus: 1, minus: 1, balls: 3, target: 15000, bumpers: [],
+  { name: 'HOURGLASS', gold: 9, bomb: 4, plus: 1, minus: 1, balls: 3, target: 30000, bumpers: [],
     reward: null, hint: null, iron: [], warps: { ins: [[60, 470], [180, 470]], outs: [[324, 140], [324, 500], [40, 140]] },
     terrain: [[36, 208, 108, 280], [108, 328, 36, 400], [324, 208, 252, 280], [252, 328, 324, 400]], buckets: 'right',
     blocks: [[108, 304, 44, 20, 3, 'block'], [180, 304, 44, 20, 3, 'block'], [252, 304, 44, 20, 3, 'block']],
     map: ['#########', '########', '.#######.', '.######.', '..#####..', '..####..',
           '...###...', '..####..', '..#####..', '.######.', '.#######.', '########'] },
-  { name: 'ZIGZAG', gold: 10, bomb: 5, plus: 1, minus: 1, balls: 3, target: 50000, bumpers: [[180, 256]], buckets: 'center',
-    terrain: [[0, 500, 136, 580], [360, 500, 224, 580]],
-    reward: null, hint: { ball: 'iron' }, warps: null, iron: [[[136, 580, 224, 580]]],
-    blocks: [[90, 400, 44, 20, 4, 'block'], [270, 400, 44, 20, 4, 'block']],
+  // ZIGZAG is the first long board (24 rows): the band swings twice, the funnel and iron gate are at the bottom.
+  { name: 'ZIGZAG', gold: 14, bomb: 7, plus: 2, minus: 1, balls: 3, target: 120000, rows: 24, bumpers: [[180, 256], [180, 640]], buckets: 'center',
+    terrain: [[0, 884, 136, 964], [360, 884, 224, 964]],
+    reward: null, hint: { ball: 'iron' }, warps: null, iron: [[[136, 964, 224, 964]]],
+    blocks: [[90, 400, 44, 20, 4, 'block'], [270, 400, 44, 20, 4, 'block'], [90, 784, 44, 20, 5, 'block'], [270, 784, 44, 20, 5, 'block']],
     map: ['######...', '.######.', '..######.', '..######', '...######', '..######',
+          '..######.', '.######.', '.######..', '######..', '######...', '.######.',
+          '######...', '.######.', '..######.', '..######', '...######', '..######',
           '..######.', '.######.', '.######..', '######..', '######...', '.######.'] },
-  { name: 'BOWL', gold: 10, bomb: 5, plus: 2, minus: 1, balls: 3, target: 20000, bumpers: [], terrain: [], buckets: 'twin',
+  { name: 'BOWL', gold: 10, bomb: 5, plus: 2, minus: 1, balls: 3, target: 60000, bumpers: [], terrain: [], buckets: 'twin',
     reward: null, hint: null, iron: [], warps: { ins: [[180, 330]], outs: [[96, 540], [264, 540], [180, 140], [330, 220]] },
     blocks: [[72, 272, 44, 20, 5, 'block'], [126, 336, 44, 20, 5, 'block'], [180, 400, 44, 20, 5, 'block'],
              [234, 336, 44, 20, 5, 'block'], [288, 272, 44, 20, 5, 'block']],
@@ -115,11 +126,16 @@ JD.STAGES = [
     blocks: [[54, 304, 44, 20, 4, 'block'], [180, 368, 44, 20, 6, 'block'], [306, 304, 44, 20, 4, 'block']],
     map: ['#########', '########', '###...###', '##....##', '##.....##', '#......#',
           '##.....##', '##....##', '###...###', '########', '#########', '########'] },
-  { name: 'VAULT', gold: 12, bomb: 6, plus: 2, minus: 1, balls: 3, target: 60000, bumpers: [[180, 256]], terrain: [], buckets: 'center',
-    reward: null, hint: null, iron: [], warps: { ins: [[40, 520], [320, 520]], outs: [[180, 316], [180, 140], [40, 140], [320, 140]] },
-    blocks: [[180, 368, 72, 28, 10, 'vault'], [72, 432, 44, 20, 6, 'block'], [288, 432, 44, 20, 6, 'block']],
+  // VAULT is a long board (24 rows): the vault room on top, a sparse second field with two blocks below, and warp holes
+  // at the bottom that send a ball back up (one exit is right above the vault). Each hole works once.
+  { name: 'VAULT', gold: 16, bomb: 8, plus: 3, minus: 1, balls: 3, target: 400000, rows: 24, bumpers: [[180, 256], [180, 640]], terrain: [], buckets: 'center',
+    reward: null, hint: null, iron: [], warps: { ins: [[40, 904], [320, 904]], outs: [[180, 316], [96, 560], [264, 560], [180, 140]] },
+    blocks: [[180, 368, 72, 28, 10, 'vault'], [72, 432, 44, 20, 6, 'block'], [288, 432, 44, 20, 6, 'block'],
+             [126, 752, 44, 20, 6, 'block'], [234, 752, 44, 20, 6, 'block']],
     map: ['#########', '########', '#.#####.#', '#.####.#', '##.###.##', '##.##.##',
-          '###.#.###', '########', '#########', '########', '#########', '########'] }
+          '###.#.###', '########', '#########', '########', '#########', '########',
+          '#.#.#.#.#', '.#.#.#.#', '#..###..#', '.#.##.#.', '#.#.#.#.#', '.#.#.#.#',
+          '##.#.#.##', '.#.##.#.', '#.#.#.#.#', '.#.#.#.#', '#.#.#.#.#', '########'] }
 ];
 
 // Stage definition for any 0-based index. Index 8 and later is ENDLESS: it cycles stages 6..8
@@ -129,31 +145,41 @@ JD.stageDef = function (i) {
   if (i < n) return JD.STAGES[i];
   var k = i - n, loop = Math.floor(k / C.ENDLESS_CYCLE) + 1, base = JD.STAGES[C.ENDLESS_FIRST + (k % C.ENDLESS_CYCLE)];
   return {
-    name: base.name, gold: base.gold, bomb: base.bomb, plus: base.plus, minus: base.minus, balls: base.balls,
+    name: base.name, gold: base.gold, bomb: base.bomb, plus: base.plus, minus: base.minus, balls: base.balls, rows: base.rows,
     target: Math.round(JD.STAGES[n - 1].target * Math.pow(C.ENDLESS_GROWTH, k + 1) / 1000) * 1000,
     bumpers: base.bumpers, map: base.map, terrain: base.terrain, buckets: base.buckets, endless: true,
     iron: base.iron, warps: base.warps, reward: null, hint: base.hint,
     blocks: base.blocks.map(function (q) { return [q[0], q[1], q[2], q[3], q[4] + C.ENDLESS_HP_STEP * loop, q[5]]; })
   };
 };
-// Gate slots: centre (x, y). y lies halfway between two peg rows.
+// Gate slots: centre (x, y). y lies halfway between two peg rows. The last three rows exist only on long boards.
 JD.GATE_SLOTS = [
   [72, 240], [180, 240], [288, 240],
   [72, 368], [180, 368], [288, 368],
-  [72, 464], [180, 464], [288, 464]
+  [72, 464], [180, 464], [288, 464],
+  [72, 592], [180, 592], [288, 592],
+  [72, 720], [180, 720], [288, 720],
+  [72, 848], [180, 848], [288, 848]
 ];
 
-// Cards in the random 3-card offer (stage 1 instead gives its fixed reward, ballIron).
+// Board geometry for a stage: peg rows, landing line, board height, flight time limit.
+JD.boardSize = function (S) {
+  var C = JD.CFG, rows = S.rows || C.ROWS, landY = C.ROW_Y0 + C.ROW_DY * (rows - 1) + C.LAND_PAD;
+  return { rows: rows, landY: landY, h: landY + 44, maxFlight: C.FLIGHT_PER_ROW * rows };
+};
+
+// Cards in the random 3-card offer (stage 1 and 2 instead give their fixed rewards, ballIron and springLoad).
+// springLoad (MULTI LOAD) is a fixed reward only: up.load becomes LOAD_MAX.
 JD.CARD_IDS = ['goldPlus', 'heavy', 'bombPlus', 'fever', 'jackpot', 'extra', 'split', 'gate',
   'ballGlass', 'ballBig', 'ballIron'];
-JD.CARD_CAP = { jackpot: 1, extra: 2, split: 2, gate: 2, ballGlass: 1, ballBig: 1, ballIron: 2 };
+JD.CARD_CAP = { jackpot: 1, extra: 2, split: 2, gate: 2, ballGlass: 1, ballBig: 1, ballIron: 2, springLoad: 1 };
 // Ball cards put a ball of that type into the rack (it replaces a normal ball; with no normal ball left it is added).
 JD.CARD_BALL = { ballGlass: 'glass', ballBig: 'big', ballIron: 'iron' };
 
-// rack: ball types for each stage (refilled at every stage start).
+// rack: ball types for each stage (refilled at every stage start). load: how many balls one shot may carry.
 JD.newUpgrades = function () {
   return { goldPlus: 0, heavy: 0, bombPlus: 0, fever: 0, jackpot: 0, extra: 0, split: 0, gate: 0,
-    ballGlass: 0, ballBig: 0, ballIron: 0, rack: ['normal', 'normal', 'normal'] };
+    ballGlass: 0, ballBig: 0, ballIron: 0, springLoad: 0, load: 1, rack: ['normal', 'normal', 'normal'] };
 };
 
 JD.applyCard = function (up, id) {
@@ -163,6 +189,8 @@ JD.applyCard = function (up, id) {
     if (i >= 0) up.rack[i] = JD.CARD_BALL[id]; else up.rack.push(JD.CARD_BALL[id]);
   } else if (id === 'extra') {
     up.rack.push('normal');
+  } else if (id === 'springLoad') {
+    up.load = JD.CFG.LOAD_MAX;
   }
 };
 
@@ -194,23 +222,23 @@ JD.segPoint = function (px, py, w) {
   return { d: Math.hypot(px - cx, py - cy), cx: cx, cy: cy };
 };
 
-JD.pegGrid = function () {
-  var out = [];
-  for (var r = 0; r < 12; r++) {
-    var y = 160 + 32 * r;
+JD.pegGrid = function (rows) {
+  var C = JD.CFG, out = [];
+  for (var r = 0; r < (rows || C.ROWS); r++) {
+    var y = C.ROW_Y0 + C.ROW_DY * r;
     var n = (r % 2 === 0) ? 9 : 8;
     var x0 = (r % 2 === 0) ? 36 : 54;
     for (var c = 0; c < n; c++) out.push({ id: out.length, x: x0 + 36 * c, y: y });
   }
-  return out; // 102 pegs
+  return out; // 102 pegs for 12 rows, 204 for 24
 };
 
 // up = JD.newUpgrades() shape. stageIndex is 0-based.
 JD.buildBoard = function (stageIndex, up, runSeed) {
-  var C = JD.CFG, S = JD.stageDef(stageIndex);
+  var C = JD.CFG, S = JD.stageDef(stageIndex), size = JD.boardSize(S);
   var rnd = JD.mulberry32(runSeed * 7919 + stageIndex * 104729 + 13);
-  var pegs = JD.pegGrid().map(function (p) {
-    var r = Math.round((p.y - 160) / 32), c = Math.round((p.x - (r % 2 === 0 ? 36 : 54)) / 36);
+  var pegs = JD.pegGrid(size.rows).map(function (p) {
+    var r = Math.round((p.y - C.ROW_Y0) / C.ROW_DY), c = Math.round((p.x - (r % 2 === 0 ? 36 : 54)) / 36);
     return { id: p.id, x: p.x, y: p.y, type: 'normal', lit: false, alive: S.map[r].charAt(c) === '#' };
   });
   var order = pegs.map(function (p) { return p.id; });
@@ -250,6 +278,7 @@ JD.buildBoard = function (stageIndex, up, runSeed) {
 
   // Gates: drop slots near a bumper or block, shuffle the rest with the same rnd, plus gates first.
   var slots = JD.GATE_SLOTS.filter(function (s) {
+    if (s[1] > size.landY - 100) return false;
     var nearBumper = S.bumpers.some(function (b) {
       var dx = Math.max(Math.abs(b[0] - s[0]) - C.GATE_HALF_W, 0), dy = b[1] - s[1];
       return Math.hypot(dx, dy) < C.GATE_BUMPER_CLEAR;
@@ -282,8 +311,9 @@ JD.buildBoard = function (stageIndex, up, runSeed) {
     terrain: S.terrain.map(function (w) { return [w[0], w[1], w[2], w[3]]; }),
     iron: S.iron.map(function (grp, gi) { return { id: gi, segs: grp.map(function (w) { return [w[0], w[1], w[2], w[3]]; }), alive: true }; }),
     parked: [],
+    rows: size.rows, landY: size.landY, h: size.h, maxFlight: size.maxFlight,
     warps: S.warps ? {
-      ins: S.warps.ins.map(function (h) { return { x: h[0], y: h[1] }; }),
+      ins: S.warps.ins.map(function (h) { return { x: h[0], y: h[1], alive: true }; }),
       outs: S.warps.outs.map(function (h) { return { x: h[0], y: h[1] }; }),
       rnd: { s: runSeed * 31 + stageIndex * 977 + 5 }
     } : null,
@@ -305,18 +335,23 @@ JD.nextRand = function (st) {
   return ((t ^ t >>> 14) >>> 0) / 4294967296;
 };
 
-// One shot from the plunger. power in [0, 1] (clamped to POWER_MIN). The ball leaves the shooter lane
+// One shot from the plunger. power in [0, 1] (clamped to POWER_MIN). The balls leave the shooter lane
 // at (EXIT_X, EXIT_Y) moving left; more power = faster = enters the board further left.
-// pick = { ball: ball type } (default 'normal').
+// pick = { balls: [ball types] } in firing order (or { ball: type }; default ['normal']). At most up.load balls.
+// Ball k (0-based) waits k * LOAD_GAP ticks in the lane and leaves with vx * (1 - LOAD_SPREAD * k).
 JD.createShot = function (board, power, up, pick) {
-  var C = JD.CFG, k = pick || {}, ballKey = k.ball || 'normal';
-  var sp = JD.SPRING, bd = JD.BALLS[ballKey];
+  var C = JD.CFG, k = pick || {}, keys = (k.balls || [k.ball || 'normal']).slice(0, Math.max(1, up.load || 1));
+  var sp = JD.SPRING;
   var p = Math.max(C.POWER_MIN, Math.min(1, power));
   var perfect = JD.isPerfect(p);
   var vx = -(sp.vMin + (sp.vMax - sp.vMin) * p);
   var S = {
-    board: board, up: up, ballKey: ballKey, ballDef: bd, power: p, perfect: perfect,
-    balls: [JD.newBall(C.EXIT_X, C.EXIT_Y, vx, C.EXIT_VY, bd.r)],
+    board: board, up: up, ballKeys: keys, power: p, perfect: perfect,
+    balls: keys.map(function (key, i) {
+      var B = JD.newBall(C.EXIT_X, C.EXIT_Y, vx * (1 - C.LOAD_SPREAD * i), C.EXIT_VY, key);
+      B.wait = C.LOAD_GAP * i; return B;
+    }),
+    landY: board.landY || 596, maxFlight: board.maxFlight || C.FLIGHT_PER_ROW * C.ROWS,
     pts: 0, golds: 0, hits: 0, blockHits: 0, split: false, cracked: false, shattered: false,
     comboBase: perfect ? sp.perfectTier : 0, tier: 0,
     t: 0, hitstop: 0, finished: false,
@@ -326,13 +361,15 @@ JD.createShot = function (board, power, up, pick) {
     events: []
   };
   S.tier = Math.min(C.COMBO_MAX, S.comboBase);
-  S.events.push({ type: 'launch', power: p, perfect: perfect, tier: S.tier, ball: ballKey });
+  S.events.push({ type: 'launch', power: p, perfect: perfect, tier: S.tier, balls: keys.slice() });
   return S;
 };
 
-JD.newBall = function (x, y, vx, vy, r) {
-  return { x: x, y: y, vx: vx, vy: vy, r: r, done: false, lost: false, parked: false, bucket: -1, slow: 0, cd: {}, warpCd: 0,
-    restIron: -1, restTicks: 0 };
+// key = ball type (default 'normal'); the ball keeps its own type (radius, bounce, damage, iron breaking).
+JD.newBall = function (x, y, vx, vy, key) {
+  var kk = key || 'normal', d = JD.BALLS[kk];
+  return { x: x, y: y, vx: vx, vy: vy, r: d.r, key: kk, def: d, wait: 0, done: false, lost: false, parked: false, bucket: -1,
+    slow: 0, cd: {}, warpCd: 0, restIron: -1, restTicks: 0, restSeen: -99, parkTouch: -1 };
 };
 
 // Light a peg. Every COMBO_STEP new lights raise the combo tier; each peg is worth COMBO_BONUS[tier] more.
@@ -371,11 +408,11 @@ JD.passGate = function (S, B, bi, g) {
   if (g.kind === 'plus') {
     if (S.balls.length < C.MAX_BALLS) {
       var dir = B.vx >= 0 ? -1 : 1;
-      S.balls.push(JD.newBall(B.x, g.y, dir * Math.max(Math.abs(B.vx), 0.8), B.vy, B.r));
+      S.balls.push(JD.newBall(B.x, g.y, dir * Math.max(Math.abs(B.vx), 0.8), B.vy, B.key));
       result = 'spawn';
     } else result = 'capped';
   } else {
-    var active = S.balls.filter(function (b) { return !b.done; }).length;
+    var active = S.balls.filter(function (b) { return !b.done && !b.wait; }).length;
     if (active >= 2) { B.done = true; B.lost = true; result = 'removed'; }
     else result = 'saved';
   }
@@ -396,16 +433,17 @@ JD.bounceSegment = function (B, w, sticky) {
   return true;
 };
 
-// A ball reached a warp hole this substep: move it to an exit picked by the board's warp rnd.
+// A ball reached a warp hole this substep: move it to an exit picked by the board's warp rnd. The hole then closes.
 JD.useWarp = function (S, B, bi, wi) {
   var C = JD.CFG, W = S.board.warps, h = W.ins[wi];
   var oi = Math.floor(JD.nextRand(W.rnd) * W.outs.length), out = W.outs[oi];
+  h.alive = false;
   S.events.push({ type: 'warp', ball: bi, from: wi, to: oi, x: h.x, y: h.y, ox: out.x, oy: out.y });
   B.x = out.x; B.y = out.y; B.vx = 0; B.vy = 1; B.warpCd = C.WARP_CD;
   S.hitstop = Math.max(S.hitstop, C.HITSTOP_WARP);
 };
 
-// Advance one 60Hz tick of flight. Returns true once every ball has landed or been lost.
+// Advance one 60Hz tick of flight. Returns true once every ball has landed, parked or been lost.
 JD.stepShot = function (S) {
   var C = JD.CFG;
   if (S.finished) return true;
@@ -414,6 +452,7 @@ JD.stepShot = function (S) {
   for (var bi = 0; bi < S.balls.length; bi++) { // balls appended this tick are processed this tick
     var B = S.balls[bi];
     if (B.done) continue;
+    if (B.wait > 0) { B.wait--; continue; } // still in the shooter lane (MULTI LOAD)
     B.vy += C.GRAVITY;
     if (B.warpCd > 0) B.warpCd--;
     var touchIron = -1;
@@ -433,7 +472,7 @@ JD.stepShot = function (S) {
       var W = S.board.warps;
       if (W && B.warpCd === 0) {
         for (var wi = 0; wi < W.ins.length; wi++) {
-          if (Math.hypot(B.x - W.ins[wi].x, B.y - W.ins[wi].y) < C.WARP_R) { JD.useWarp(S, B, bi, wi); break; }
+          if (W.ins[wi].alive && Math.hypot(B.x - W.ins[wi].x, B.y - W.ins[wi].y) < C.WARP_R) { JD.useWarp(S, B, bi, wi); break; }
         }
       }
       var pegs = S.board.pegs;
@@ -445,7 +484,7 @@ JD.stepShot = function (S) {
           var nx = dx / d, ny = dy / d;
           B.x = p.x + nx * R; B.y = p.y + ny * R;
           var vn = B.vx * nx + B.vy * ny;
-          if (vn < 0) { B.vx -= (1 + S.ballDef.ePeg) * vn * nx; B.vy -= (1 + S.ballDef.ePeg) * vn * ny; }
+          if (vn < 0) { B.vx -= (1 + B.def.ePeg) * vn * nx; B.vy -= (1 + B.def.ePeg) * vn * ny; }
           if (Math.abs(B.vx) < 0.2) B.vx = (B.x >= p.x ? 1 : -1) * 0.4;
           var wasLit = p.lit;
           JD.lightPeg(S, p, 'ball');
@@ -476,17 +515,17 @@ JD.stepShot = function (S) {
           if (!wasLit && S.up.split > 0 && !S.split) {
             S.split = true;
             for (var k = 0; k < S.up.split; k++) {
-              S.balls.push(JD.newBall(B.x, B.y, -B.vx * (1 - 0.3 * k) + (k ? 1 : 0), B.vy, B.r));
+              S.balls.push(JD.newBall(B.x, B.y, -B.vx * (1 - 0.3 * k) + (k ? 1 : 0), B.vy, B.key));
             }
             S.events.push({ type: 'ball_split', count: S.up.split, x: B.x, y: B.y });
           }
-          var bd = S.ballDef;
+          var bd = B.def;
           if (bd.crackAt && !S.cracked && S.hits >= bd.crackAt) { S.cracked = true; S.events.push({ type: 'ball_crack', ball: bi, x: B.x, y: B.y }); }
           if (bd.shatterAt && !S.shattered && S.hits >= bd.shatterAt) {
             S.shattered = true;
             var made = 0;
             for (var sh = 0; sh < bd.shards && S.balls.length < C.MAX_BALLS; sh++, made++) {
-              S.balls.push(JD.newBall(B.x, B.y, (sh === 0 ? -1 : 1) * Math.max(1.5, Math.abs(B.vx)), B.vy - 1, B.r));
+              S.balls.push(JD.newBall(B.x, B.y, (sh === 0 ? -1 : 1) * Math.max(1.5, Math.abs(B.vx)), B.vy - 1, B.key));
             }
             S.events.push({ type: 'ball_shatter', ball: bi, x: B.x, y: B.y, count: made });
           }
@@ -510,7 +549,7 @@ JD.stepShot = function (S) {
         var vb = B.vx * bx + B.vy * by;
         if (vb < 0) { B.vx -= (1 + C.E_BLOCK) * vb * bx; B.vy -= (1 + C.E_BLOCK) * vb * by; }
         if (by < -0.7 && Math.abs(B.vx) < 0.8) B.vx = (B.x >= kb.x ? 1 : -1) * 0.8; // roll off a flat top
-        if (!(B.cd[kb.id] > S.t)) { B.cd[kb.id] = S.t + C.BLOCK_CD; JD.hitBlock(S, kb, S.ballDef.blockDmg, 'ball'); }
+        if (!(B.cd[kb.id] > S.t)) { B.cd[kb.id] = S.t + C.BLOCK_CD; JD.hitBlock(S, kb, B.def.blockDmg, 'ball'); }
       }
       var ter = S.board.terrain;
       for (var ti = 0; ti < ter.length; ti++) if (JD.bounceSegment(B, ter[ti])) S.events.push({ type: 'terrain_hit', index: ti });
@@ -519,7 +558,7 @@ JD.stepShot = function (S) {
         var grp = irn[ii];
         if (!grp.alive) continue;
         for (var gs = 0; gs < grp.segs.length; gs++) {
-          if (S.ballDef.breaksIron) {
+          if (B.def.breaksIron) {
             if (JD.segPoint(B.x, B.y, grp.segs[gs]).d < B.r + C.TERRAIN_HALF) {
               grp.alive = false;
               S.events.push({ type: 'iron_break', id: grp.id, ball: bi, x: B.x, y: B.y });
@@ -546,12 +585,18 @@ JD.stepShot = function (S) {
     if (B.done) continue; // lost at a minus gate
     var sp = Math.hypot(B.vx, B.vy);
     if (sp > C.VMAX) { B.vx *= C.VMAX / sp; B.vy *= C.VMAX / sp; }
-    if (touchIron >= 0 && sp < C.PARK_SPEED) {
-      B.restTicks = B.restIron === touchIron ? B.restTicks + 1 : 1; B.restIron = touchIron;
-    } else if (touchIron < 0) { B.restTicks = 0; B.restIron = -1; }
+    // Resting on an iron group, or on a ball already parked on it (found by last tick's ball contact pass), counts.
+    // A touch within the last PARK_GRACE ticks still counts, so a ball wedged against a parked ball (touching it every
+    // other tick) parks too.
+    var restOn = touchIron >= 0 ? touchIron : B.parkTouch;
+    B.parkTouch = -1;
+    if (restOn >= 0) { B.restIron = restOn; B.restSeen = S.t; }
+    var nearRest = B.restIron >= 0 && S.t - B.restSeen <= C.PARK_GRACE;
+    if (nearRest && sp < C.PARK_SPEED) B.restTicks++;
+    else if (!nearRest) { B.restTicks = 0; B.restIron = -1; }
     if (B.restTicks >= C.PARK_TICKS) {
       B.done = true; B.parked = true;
-      S.board.parked.push({ x: B.x, y: B.y, r: B.r, ball: S.ballKey, group: B.restIron, bank: 0, shot: S });
+      S.board.parked.push({ x: B.x, y: B.y, r: B.r, ball: B.key, group: B.restIron, bank: 0, shot: S });
       S.events.push({ type: 'ball_parked', ball: bi, x: B.x, y: B.y, group: B.restIron, count: S.board.parked.length });
       continue;
     }
@@ -562,15 +607,16 @@ JD.stepShot = function (S) {
       S.events.push({ type: 'stuck_clear', ids: cleared });
       B.slow = 0;
     }
-    if (B.y >= C.LAND_Y) {
+    if (B.y >= S.landY) {
       B.done = true;
       var i = 0; while (i < 4 && B.x >= S.bucketX[i + 1]) i++;
       B.bucket = i;
       S.events.push({ type: 'ball_landed', ball: bi, bucket: i, mult: S.bucketMult[i] });
     }
   }
+  JD.ballContacts(S);
   var all = S.balls.every(function (b) { return b.done; });
-  if (!all && S.t >= C.MAX_FLIGHT) {
+  if (!all && S.t >= S.maxFlight) {
     S.balls.forEach(function (b, bi2) {
       if (!b.done) { b.done = true; b.bucket = 0; S.events.push({ type: 'ball_landed', ball: bi2, bucket: 0, mult: S.bucketMult[0], timeout: true }); }
     });
@@ -580,12 +626,54 @@ JD.stepShot = function (S) {
   return all;
 };
 
+// Ball-to-ball contact, once per tick after every ball has moved. Flying balls bounce off each other (equal mass,
+// restitution E_BALL) and off parked balls (parked balls do not move; restitution E_PARKED). A flying ball within
+// PARK_REACH of a parked ball rests on that ball's iron group (parkTouch), so balls pile up on a gate and park there too.
+// An iron ball that touches a parked ball breaks that ball's iron group (the hit goes through the pile).
+JD.ballContacts = function (S) {
+  var C = JD.CFG, fly = S.balls.filter(function (b) { return !b.done && !b.wait; }), smash = [];
+  for (var i = 0; i < fly.length; i++) {
+    var A = fly[i];
+    for (var j = i + 1; j < fly.length; j++) {
+      var B = fly[j], dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy), R = A.r + B.r;
+      if (!(d < R && d > 0)) continue;
+      var nx = dx / d, ny = dy / d, push = (R - d) / 2;
+      A.x -= nx * push; A.y -= ny * push; B.x += nx * push; B.y += ny * push;
+      var vn = (B.vx - A.vx) * nx + (B.vy - A.vy) * ny;
+      if (vn < 0) {
+        var jj = -(1 + C.E_BALL) * vn / 2;
+        A.vx -= jj * nx; A.vy -= jj * ny; B.vx += jj * nx; B.vy += jj * ny;
+        if (-vn >= C.BALL_HIT_MIN) S.events.push({ type: 'ball_hit', a: S.balls.indexOf(A), b: S.balls.indexOf(B), x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 });
+      }
+    }
+    S.board.parked.forEach(function (q) {
+      var ex = A.x - q.x, ey = A.y - q.y, e = Math.hypot(ex, ey), RR = A.r + q.r;
+      if (e < RR + C.PARK_REACH) A.parkTouch = q.group;
+      if (!(e < RR && e > 0)) return;
+      if (A.def.breaksIron) { if (smash.indexOf(q.group) < 0) smash.push(q.group); smash.ball = S.balls.indexOf(A); return; }
+      var mx = ex / e, my = ey / e;
+      A.x = q.x + mx * RR; A.y = q.y + my * RR;
+      var vm = A.vx * mx + A.vy * my;
+      if (vm < 0) { A.vx -= (1 + C.E_PARKED) * vm * mx; A.vy -= (1 + C.E_PARKED) * vm * my; }
+    });
+  }
+  smash.forEach(function (g) {
+    var grp = S.board.iron[g];
+    if (!grp || !grp.alive) return;
+    var B = S.balls[smash.ball];
+    grp.alive = false;
+    S.events.push({ type: 'iron_break', id: g, ball: smash.ball, x: B.x, y: B.y, via: 'pile' });
+    S.hitstop = Math.max(S.hitstop, C.HITSTOP_IRON);
+    JD.releaseParked(S, g);
+  });
+};
+
 // An iron ball broke group g: its parked balls drop again (straight down) as balls of the current shot.
 JD.releaseParked = function (S, g) {
   var keep = [], n = 0;
   S.board.parked.forEach(function (q) {
     if (q.group !== g) { keep.push(q); return; }
-    var nb = JD.newBall(q.x, q.y, 0, 0.5, q.r); nb.bank = q.bank; S.balls.push(nb); n++;
+    var nb = JD.newBall(q.x, q.y, 0, 0.5, q.ball); nb.bank = q.bank; S.balls.push(nb); n++;
   });
   S.board.parked = keep;
   if (n) S.events.push({ type: 'parked_release', group: g, count: n });

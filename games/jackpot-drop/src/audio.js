@@ -161,11 +161,11 @@
       }
     }
 
-    function rateLimited(event) {
-      const key = event.type + ':' + event.index;
+    function rateLimited(event, gap=3, id=event.index, tick=frameNumber) {
+      const key = event.type + ':' + id;
       const last = contacts.get(key);
-      if (last !== undefined && frameNumber - last < 3) return true;
-      contacts.set(key,frameNumber);
+      if (last !== undefined && tick - last < gap) return true;
+      contacts.set(key,tick);
       return false;
     }
 
@@ -210,7 +210,7 @@
           tone('sine',150,.04,.29);
           break;
         case 'ball_picked':
-          sequence([900,1500],.015,'square',.18,0,.015);
+          sequence(e.loaded.includes(e.slot)?[900,1500]:[1500,900],.015,'square',.18,0,.015);
           break;
         case 'shot_fired': {
           stopCharge();
@@ -221,6 +221,9 @@
         case 'launch':
           noise('highpass',1500,1500,.08,.22);
           break;
+        case 'lane_released':
+          noise('highpass',1500,1500,.04,.14);
+          break;
         case 'peg_hit': {
           if(e.cause !== 'ball') break;
           const pitch=392*Math.pow(2,Math.min(e.n-1,24)/12);
@@ -230,6 +233,11 @@
         }
         case 'peg_break':
           noise('bandpass',5000,5000,.025,.15);
+          break;
+        case 'ball_hit':
+          if (rateLimited(e,6,e.a+':'+e.b,e.tick)) break;
+          tone('triangle',1800,.018,.13);
+          tone('sine',900,.030,.07);
           break;
         case 'combo_up':
           chord(comboNotes[e.tier],.09,'square',e.tier === 4 ? .12 : .16);
@@ -253,6 +261,7 @@
         case 'warp':
           tone('sine',900,.20,.32,{endHz:150});
           tone('sine',150,.12,.24,{delay:4/60,endHz:600});
+          tone('sine',220,.05,.16,{delay:4/60});
           break;
         case 'bomb_exploded':
           noise('lowpass',900,120,.30,.72);
@@ -277,7 +286,7 @@
           const pitch=180*Math.pow(2,((block ? block.maxHp : e.hp)-e.hp)/12);
           tone('square',pitch,.05,.25);
           noise('highpass',950,950,.05,.15);
-          if(snapshot.ball === 'iron') {
+          if(snapshot.shot?.balls.every(ball=>ball==='iron')) {
             tone('square',1200,.03,.13);
             tone('sine',600,.08,.20);
           } else if(block && block.kind === 'vault') silverPing();

@@ -48,7 +48,7 @@
   let s=game.snapshot();
   const ui={
     saved,focus:0,muted:saved.muted,newBest:false,newBestStage:false,age:0,
-    paused:false,pauseFocus:0,
+    paused:false,pauseFocus:0,magazineFocus:null,cameraY:0,
     stageAge:0,stateAge:0,stageFired:false,tutorialSeen:false,hintHidden:false,
     demoPower:0,demoRecoil:0,slowBlend:0,cardNotice:null,reduced:media.matches
   };
@@ -79,7 +79,7 @@
       button.dataset.slot=entry.slot;
       button.style.top=(entry.y-26)*100/640+'%';
       button.setAttribute('aria-label','구슬 '+(entry.slot+1)+': '+balls[s.rack[entry.slot]]);
-      button.setAttribute('aria-pressed',String(s.stage>1&&entry.slot===s.slot));
+      button.setAttribute('aria-pressed',String(s.stage>1&&s.loaded.includes(entry.slot)));
     });
   }
 
@@ -89,7 +89,8 @@
     canvas.setAttribute('aria-label',ui.paused?'일시 정지. '+JD.UI.pauseButtons[ui.pauseFocus].label:
       result?'잭팟 드롭 결과. 다시 하기':'잭팟 드롭 보드');
     canvas.setAttribute('aria-description',ui.paused?'방향키 또는 탭으로 고르고 Space나 Enter로 선택합니다. Esc를 누르면 계속합니다.':
-      result?'Space 또는 Enter로 다시 시작합니다.':playDescription);
+      result?'Space 또는 Enter로 다시 시작합니다.':s.load>1?
+        playDescription+' 방향키로 탄창의 구슬에 초점을 두고 A로 장전하거나 뺍니다. L로 최대 세 개를 장전합니다.':playDescription);
     updateMagazine();
   }
 
@@ -122,6 +123,8 @@
     queue:cmd=>game.queue(cmd),
     focus:index=>{ui.focus=index;},
     focused:()=>ui.focus,
+    focusMagazine:slot=>{ui.magazineFocus=slot;},
+    magazineFocused:()=>ui.magazineFocus,
     activateAudio:()=>{if(audio) audio.activate();},
     toggleMute,
     cancel:cancelInput,
@@ -147,6 +150,7 @@
           ui.stageAge=0;
           ui.stageFired=false;
           ui.hintHidden=false;
+          ui.magazineFocus=null;
           break;
         case 'charge_started':
           ui.hintHidden=true;
@@ -155,6 +159,7 @@
           ui.stageFired=true;
           ui.tutorialSeen=true;
           ui.hintHidden=true;
+          ui.magazineFocus=null;
           slowFrames=0;
           slowPhase=false;
           break;
@@ -178,6 +183,7 @@
   }
 
   handleEvents(game.drainEvents(),s);
+  JD.updateCamera(s,ui);
 
   function gameStep() {
     const before=s;
@@ -187,16 +193,21 @@
       ui.stateAge=0;
       if(s.state==='CARD'||s.state==='RESULT') ui.focus=0;
     }
-    if(s.state!==before.state || s.charging!==before.charging || s.slot!==before.slot ||
+    const loadedChanged=s.loaded.length!==before.loaded.length||s.loaded.some((slot,index)=>slot!==before.loaded[index]);
+    if(s.state!==before.state || s.charging!==before.charging || loadedChanged ||
         s.rack.length!==before.rack.length) updateControls();
     if(s.state!==before.state && (s.state==='CARD'||s.state==='RESULT')) canvas.focus({preventScroll:true});
-    handleEvents(game.drainEvents(),before);
+    const events=game.drainEvents();
+    if(before.state==='FLIGHT'&&s.balls.some((ball,index)=>ball.wait===0&&before.balls[index]?.wait>0)) {
+      events.push({type:'lane_released'});
+    }
+    handleEvents(events,before);
   }
 
   function nearJackpot() {
     if(s.state!=='FLIGHT') return false;
-    const moving=s.balls.filter(ball=>!ball.done);
-    if(moving.length!==1||moving[0].y<520) return false;
+    const moving=s.balls.filter(ball=>!ball.done&&ball.wait<=0);
+    if(moving.length!==1||moving[0].y<s.landY-76||s.balls.some(ball=>ball.wait>0)) return false;
     return s.buckets.mult.some((mult,i)=>mult===5&&moving[0].x>=s.buckets.x[i]-20&&moving[0].x<=s.buckets.x[i+1]+20);
   }
 
@@ -222,6 +233,7 @@
     const cycle=(ui.age+12)%90;
     ui.demoPower=demo&&cycle>=6&&cycle<60 ? (cycle-6)/54*.84 : 0;
     ui.demoRecoil=demo&&cycle>=60&&cycle<78 ? -10*Math.cos((cycle-60)*.9)*Math.pow(.75,cycle-60) : 0;
+    JD.updateCamera(s,ui);
     if(audio&&demo&&ui.age>=300&&(ui.age-300)%600===0) audio.event({type:'tutorial_nudge'},s);
     if(fx) fx.frame(s,ui,audio);
     if(audio) audio.frame(s,{slow:slowActive});
@@ -298,6 +310,7 @@
   if(query.get('debug')==='1') {
     window.JD_APP={
       game,
+      get cameraY() { return ui.cameraY; },
       advance(n) {
         if(isBlocked()) return s;
         for(let i=0;i<n;i++) presentationTick(true);
