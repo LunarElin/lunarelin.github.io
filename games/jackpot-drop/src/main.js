@@ -61,7 +61,7 @@
     focus:0,muted:!s.practice&&stored?.muted===true,newBest:false,age:0,
     paused:false,cameraY:0,panelFocus:null,panelShake:null,mapUnlock:false,
     stageAge:0,stateAge:0,stageFired:false,tutorialSeen:false,hintHidden:false,
-    demoPower:0,demoRecoil:0,slowBlend:0,cardNotice:null,reduced:media.matches
+    demoPower:0,demoRecoil:0,slowBlend:0,cardNotice:null,ironUnlockAge:null,reduced:media.matches
   };
   const audio=JD.createAudio ? JD.createAudio(ui.muted) : null;
   const fx=JD.createFx ? JD.createFx() : null;
@@ -69,6 +69,7 @@
   let prevTime=null, accumulator=0;
   let frameRequest=null, pageActive=true;
   let pendingMapUnlock=false;
+  let pendingIronUnlock=false;
 
   function isInactive() {
     return document.hidden || !pageActive;
@@ -82,7 +83,7 @@
     magazine.hidden=ui.paused||s.state==='CARD'||s.state==='RESULT'||s.state==='SHOP'||s.state==='MAP';
     if(magazine.hidden) return;
     const slots=JD.UI.magazine(s);
-    const equipmentEnabled=s.mode==='endless'||s.stage>1;
+    const equipmentEnabled=JD.UI.ballSelectionEnabled(s);
     const canSelect=s.state==='AIM'&&equipmentEnabled&&s.rack.length>1&&!s.charging;
     magazineButtons.forEach((button,index)=>{
       const entry=slots[index];
@@ -146,8 +147,9 @@
 
   function updateControls() {
     canvas.dataset.state=s.state;
-    const labels={SHOP:'잭팟 드롭 강화 상점',MAP:'잭팟 드롭 스테이지 지도',RESULT:'잭팟 드롭 무한 모드 결과'};
-    const descriptions={SHOP:'숫자 1부터 5까지로 강화합니다. Enter, Space 또는 R로 재도전합니다.',
+    const labels={CARD:'이번 단계의 강화 카드',SHOP:'잭팟 드롭 강화 상점',MAP:'잭팟 드롭 스테이지 지도',RESULT:'잭팟 드롭 무한 모드 결과'};
+    const descriptions={CARD:'이번 단계에 적용할 카드를 고릅니다. 방향키로 이동하고 Enter를 누르거나 숫자 1부터 3까지를 누릅니다.',
+      SHOP:'숫자 1부터 5까지로 강화합니다. Enter, Space 또는 R로 재도전합니다.',
       MAP:'위아래 방향키로 고르고 Enter 또는 Space로 선택합니다. Esc로 지도를 닫습니다.',
       RESULT:'Space 또는 Enter로 다시 시작하고 G로 지도를 엽니다.'};
     canvas.setAttribute('aria-label',labels[s.state]||'잭팟 드롭 보드');
@@ -201,12 +203,17 @@
         case 'run_started':
           ui.newBest=false;
           ui.cardNotice=null;
+          ui.ironUnlockAge=null;
+          pendingIronUnlock=false;
           updateSound();
           break;
         case 'stage_started':
           ui.stageAge=0;
           ui.stageFired=false;
           ui.hintHidden=false;
+          ui.cardNotice=null;
+          ui.ironUnlockAge=pendingIronUnlock&&e.mode==='campaign'&&e.stage===2?0:null;
+          pendingIronUnlock=false;
           break;
         case 'charge_started':
           ui.hintHidden=true;
@@ -220,6 +227,9 @@
           break;
         case 'card_picked':
           ui.cardNotice={event:e,before,age:0};
+          break;
+        case 'ball_unlocked':
+          pendingIronUnlock=e.ball==='iron';
           break;
         case 'endless_unlocked':
           pendingMapUnlock=true;
@@ -269,7 +279,15 @@
     ui.age++;
     ui.stageAge++;
     ui.stateAge++;
-    if(ui.cardNotice&&++ui.cardNotice.age>44) ui.cardNotice=null;
+    if(ui.cardNotice) {
+      const {event,age}=ui.cardNotice;
+      if(age===27&&(JD.CARD_BALL[event.id]||event.id==='extra')&&audio) audio.event({type:'reward_ball_arrived'},s);
+      if(++ui.cardNotice.age>44) ui.cardNotice=null;
+    }
+    if(ui.ironUnlockAge!==null) {
+      if(++ui.ironUnlockAge===20&&audio) audio.event({type:'reward_ball_arrived'},s);
+      if(ui.ironUnlockAge>=28) ui.ironUnlockAge=null;
+    }
     if(ui.panelShake&&++ui.panelShake.age>=12) ui.panelShake=null;
     const fast=!force&&s.state==='FLIGHT'&&input.fast();
     slowActive=!fast&&slowFrames<40&&nearJackpot();

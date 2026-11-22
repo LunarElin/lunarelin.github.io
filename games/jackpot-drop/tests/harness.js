@@ -37,54 +37,45 @@ JD.choosePick = function (board, policy, rnd, up, left, hint) {
   });
   return best.pick;
 };
-// One try per stage, no shop (a skill check): plays campaign stages 1..maxStages (default 8) in a row and stops at the first fail.
-// won = cleared stage 8 (ENDLESS_UNLOCK) in one go. reached = number of stages cleared.
-JD.simulateRun = function (seed, policy, maxStages) {
-  var rnd = JD.mulberry32(seed + 999), up = JD.newUpgrades(), last = (maxStages || JD.CFG.ENDLESS_UNLOCK) - 1;
-  var out = { seed: seed, won: false, reached: 0, stages: [], shots: 0, flightTicks: 0, cards: 0, perfects: 0, jackpots: 0, picks: {} };
-  for (var s = 0; s <= last; s++) {
-    var S = JD.stageDef(s), board = JD.buildBoard(s, up, seed), score = 0, left = up.rack.slice();
-    while (left.length) {
-      var pick = JD.choosePick(board, policy, rnd, up, left, S.hint);
-      left.splice(left.indexOf(pick.ball), 1); out.picks[pick.ball] = (out.picks[pick.ball] || 0) + 1;
-      var shot = JD.createShot(board, pick.power, up, pick);
-      while (!JD.stepShot(shot)) {}
-      score += shot.score; out.shots++; out.flightTicks += shot.t;
-      if (shot.perfect) out.perfects++;
-      if (shot.balls.some(function (b) { return !b.lost && !b.parked && shot.bucketMult[b.bucket] === 5; })) out.jackpots++;
-      if (score >= S.target) break;
-    }
-    var clear = score >= S.target;
-    out.stages.push({ score: score, used: up.rack.length - left.length, clear: clear });
-    if (!clear) return out;
-    out.reached = s + 1;
-    if (s + 1 >= JD.CFG.ENDLESS_UNLOCK) out.won = true;
-    if (s === last) return out;
-    var offer = JD.drawOffer(rnd, up, s);
-    JD.applyCard(up, offer[Math.floor(rnd() * offer.length)]);
-    out.cards++;
-  }
-  return out;
-};
-
-// Plays one stage (index s, attempt a) to the end or until the target is reached. Returns the stage result.
-JD.playStage = function (s, up, seed, attempt, policy, rnd) {
-  var S = JD.stageDef(s), board = JD.buildBoard(s, up, seed, attempt), score = 0, left = up.rack.slice();
-  var r = { score: 0, shots: 0, coins: 0, flightTicks: 0, perfects: 0, jackpots: 0, clear: false };
+// Plays one attempt of stage index s from a fresh JD.newUpgrades(perks, s) (no cards) to the end or until the target is
+// reached. After every shot that leaves the stage unfinished it draws a card offer from rnd and takes a random card
+// (it works for the rest of this attempt only). Returns the attempt result.
+JD.playStage = function (s, perks, seed, attempt, policy, rnd) {
+  var S = JD.stageDef(s), up = JD.newUpgrades(perks, s), board = JD.buildBoard(s, up, seed, attempt), score = 0, left = up.rack.slice();
+  var r = { score: 0, shots: 0, coins: 0, flightTicks: 0, perfects: 0, jackpots: 0, cards: 0, picks: {}, clear: false };
   while (left.length) {
     var pick = JD.choosePick(board, policy, rnd, up, left, S.hint);
-    left.splice(left.indexOf(pick.ball), 1);
+    left.splice(left.indexOf(pick.ball), 1); r.picks[pick.ball] = (r.picks[pick.ball] || 0) + 1;
     var shot = JD.createShot(board, pick.power, up, pick);
     while (!JD.stepShot(shot)) {}
     score += shot.score; r.shots++; r.flightTicks += shot.t; r.coins += JD.shotCoins(shot);
     if (shot.perfect) r.perfects++;
     if (shot.balls.some(function (b) { return !b.lost && !b.parked && shot.bucketMult[b.bucket] === 5; })) r.jackpots++;
-    if (score >= S.target) break;
+    if (score >= S.target || !left.length) break;
+    var offer = JD.drawOffer(rnd, up, left);
+    JD.applyCard(up, offer[Math.floor(rnd() * offer.length)], board, left, rnd);
+    r.cards++;
   }
   r.score = score; r.clear = score >= S.target;
   return r;
 };
 
+// One try per stage, no shop, no perks (a skill check): plays campaign stages 1..maxStages (default 8) in a row and
+// stops at the first fail. won = cleared stage 8 (ENDLESS_UNLOCK) in one go. reached = number of stages cleared.
+JD.simulateRun = function (seed, policy, maxStages) {
+  var rnd = JD.mulberry32(seed + 999), last = (maxStages || JD.CFG.ENDLESS_UNLOCK) - 1;
+  var out = { seed: seed, won: false, reached: 0, stages: [], shots: 0, flightTicks: 0, cards: 0, perfects: 0, jackpots: 0, picks: {} };
+  for (var s = 0; s <= last; s++) {
+    var r = JD.playStage(s, null, seed, 0, policy, rnd);
+    out.shots += r.shots; out.flightTicks += r.flightTicks; out.cards += r.cards; out.perfects += r.perfects; out.jackpots += r.jackpots;
+    for (var t in r.picks) out.picks[t] = (out.picks[t] || 0) + r.picks[t];
+    out.stages.push({ score: r.score, used: r.shots, clear: r.clear });
+    if (!r.clear) return out;
+    out.reached = s + 1;
+    if (s + 1 >= JD.CFG.ENDLESS_UNLOCK) out.won = true;
+  }
+  return out;
+};
 // Shop policy of the harness: keep buying the cheapest perk level the wallet can afford (ties in JD.PERK_IDS order).
 JD.shopGreedy = function (wallet) {
   var bought = [];
@@ -100,19 +91,18 @@ JD.shopGreedy = function (wallet) {
 };
 
 // CAMPAIGN: stages 1..20 with retries. A failed stage sends the player to the shop (JD.shopGreedy) and the same
-// stage is retried with a new layout (attempt + 1), keeping the cards picked so far. maxTries caps attempts per stage.
-// Returns per-stage attempts and how far the campaign got.
+// stage is retried with a new layout (attempt + 1). Cards never carry over: every attempt starts with none.
+// maxTries caps attempts per stage. Returns per-stage attempts and how far the campaign got.
 JD.simulateCampaign = function (seed, policy, maxTries) {
-  var rnd = JD.mulberry32(seed + 999), wallet = { coins: 0, perks: JD.newPerks() }, up = JD.newUpgrades(wallet.perks);
+  var rnd = JD.mulberry32(seed + 999), wallet = { coins: 0, perks: JD.newPerks() };
   var out = { seed: seed, cleared: 0, tries: [], shots: 0, flightTicks: 0, cards: 0, coins: 0, perfects: 0, jackpots: 0,
     perksAt: [], scores: [] };
   for (var s = 0; s < JD.CFG.CAMPAIGN; s++) {
     var a = 0, r;
     while (true) {
-      JD.syncPerks(up, wallet.perks);
-      r = JD.playStage(s, up, seed, a, policy, rnd);
+      r = JD.playStage(s, wallet.perks, seed, a, policy, rnd);
       out.shots += r.shots; out.flightTicks += r.flightTicks; out.coins += r.coins; wallet.coins += r.coins;
-      out.perfects += r.perfects; out.jackpots += r.jackpots;
+      out.perfects += r.perfects; out.jackpots += r.jackpots; out.cards += r.cards;
       a++;
       if (r.clear || a >= (maxTries || 30)) break;
       JD.shopGreedy(wallet);
@@ -121,27 +111,20 @@ JD.simulateCampaign = function (seed, policy, maxTries) {
     if (!r.clear) break;
     out.cleared = s + 1; wallet.coins += JD.CFG.CLEAR_COINS; out.coins += JD.CFG.CLEAR_COINS;
     out.perksAt.push(JD.PERK_IDS.map(function (id) { return wallet.perks[id]; }).join(''));
-    if (s + 1 >= JD.CFG.CAMPAIGN) break;
-    var offer = JD.drawOffer(rnd, up, s);
-    JD.applyCard(up, offer[Math.floor(rnd() * offer.length)]);
-    out.cards++;
   }
   out.wallet = wallet;
   return out;
 };
 
-// ENDLESS: a separate run that starts at index 20 with ballIron already applied and the given perks.
-// No retries: the run ends at the first failed stage. reached = endless stages cleared.
+// ENDLESS: a separate run that starts at index 20 with the given perks (the rack has the iron ball). No retries:
+// the run ends at the first failed stage. reached = endless stages cleared.
 JD.simulateEndless = function (seed, policy, perks, maxStages) {
-  var rnd = JD.mulberry32(seed + 999), up = JD.newUpgrades(perks), out = { seed: seed, reached: 0, scores: [], coins: 0 };
-  JD.applyCard(up, 'ballIron');
+  var rnd = JD.mulberry32(seed + 999), out = { seed: seed, reached: 0, scores: [], coins: 0 };
   for (var k = 0; k < (maxStages || 12); k++) {
-    var s = JD.CFG.CAMPAIGN + k, r = JD.playStage(s, up, seed, 0, policy, rnd);
+    var r = JD.playStage(JD.CFG.CAMPAIGN + k, perks, seed, 0, policy, rnd);
     out.scores.push(r.score); out.coins += r.coins;
     if (!r.clear) return out;
     out.reached = k + 1;
-    var offer = JD.drawOffer(rnd, up, s);
-    JD.applyCard(up, offer[Math.floor(rnd() * offer.length)]);
   }
   return out;
 };

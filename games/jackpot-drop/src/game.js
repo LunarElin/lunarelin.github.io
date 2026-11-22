@@ -28,38 +28,8 @@
     return perks;
   }
 
-  function initialUpgrades(perks, stageIndex) {
-    const up = JD.newUpgrades(perks);
-    if (stageIndex > 0) JD.applyCard(up, 'ballIron');
-    return up;
-  }
-
   function copyUpgrades(up) {
     return { ...up, rack: up.rack.slice(), perks: { ...up.perks } };
-  }
-
-  function restoreUpgrades(raw, perks, stageIndex) {
-    if (!raw || typeof raw !== 'object') return initialUpgrades(perks, stageIndex);
-    const storedPerks = raw.perks ? perksFrom(raw.perks) : { ...perks };
-    storedPerks.ball = Math.min(storedPerks.ball, perks.ball);
-    const up = JD.newUpgrades(storedPerks);
-    for (const id of JD.CARD_IDS) {
-      const fixed = stageIndex > 0 && JD.STAGES[0].reward.includes(id);
-      const level = integer(raw[id], fixed ? 1 : 0, JD.CARD_CAP[id] || JD.CFG.CAMPAIGN);
-      for (let levelIndex = 0; levelIndex < level; levelIndex++) JD.applyCard(up, id);
-    }
-    const specialBalls = Object.keys(JD.CARD_BALL).reduce((total, id) => total + JD.CARD_CAP[id], 0);
-    const rackLimit = Math.max(3, specialBalls) + JD.CARD_CAP.extra + perks.ball;
-    if (Array.isArray(raw.rack) && raw.rack.length >= 3 && raw.rack.length <= rackLimit) {
-      const rack = Array.from(raw.rack);
-      if (rack.every(key => Object.prototype.hasOwnProperty.call(JD.BALLS, key))) {
-        up.rack = rack;
-        // A partially written save can have the new rack and the previous perk level.
-        up.perks.ball = Math.max(up.perks.ball, perks.ball - (rackLimit - rack.length));
-      }
-    }
-    JD.syncPerks(up, perks);
-    return up;
   }
 
   JD.createGame = function (options) {
@@ -78,8 +48,7 @@
     const campaign = {
       seed: validSeed(savedCampaign.seed) ? savedCampaign.seed : startingSeed,
       stage: savedStage,
-      attempt: integer(savedCampaign.attempt, 0, maxNumber),
-      up: restoreUpgrades(savedCampaign.up, wallet.perks, savedStage)
+      attempt: integer(savedCampaign.attempt, 0, maxNumber)
     };
     let cleared = integer(source.cleared, 0, stageCount);
     let endlessUnlocked = source.endlessUnlocked === true || cleared >= unlockStage;
@@ -89,7 +58,8 @@
     let tick = 0;
     let mode, seed, attempt, state, enteredTick, stageIndex, stage, stageStartedTick, board, pegById;
     let mapReturn;
-    let up, offerRandom, offer, rackIndices, slot;
+    let up, left, fullRack, rackIndices, slot, offer;
+    let campaignRandom, offerRandom;
     let power, chargeTicks, charging, enteredPerfect, lastPower;
     let launch, shot, crackedBall, hitPins, readyPayout, banner, result;
     let runScore, stageScore, runCoins, stageCoins;
@@ -131,31 +101,32 @@
 
     function startStage(announce = true) {
       stage = JD.stageDef(stageIndex);
+      up = JD.newUpgrades(wallet.perks, stageIndex);
       board = JD.buildBoard(stageIndex, up, seed, attempt);
       pegById = new Map(board.pegs.map(peg => [peg.id, peg]));
       stageStartedTick = tick;
       stageScore = stageCoins = 0;
-      rackIndices = up.rack.map((ball, index) => index);
+      left = up.rack.slice();
+      fullRack = left.slice();
+      rackIndices = left.map((ball, index) => index);
       offer = null;
       banner = null;
       enterAim();
       if (announce) emit('stage_started', {
         stage: stageNumber(), name: stage.name, target: stage.target,
-        balls: rackIndices.length, endless: mode === 'endless', mode, attempt
+        balls: left.length, endless: mode === 'endless', mode, attempt
       });
     }
 
-    function startRun(nextMode, runSeed, nextStage, nextAttempt, nextUp) {
+    function startRun(nextMode, runSeed, nextStage, nextAttempt) {
       mode = nextMode;
       seed = runSeed;
       stageIndex = nextStage;
       attempt = nextAttempt;
-      up = nextUp;
-      offerRandom = JD.mulberry32(seed + 999);
-      if (mode === 'campaign' && !practice) {
-        // Each cleared stage after the fixed first reward uses one three-card offer.
-        for (let draws = Math.max(0, stageIndex - 1) * 3; draws > 0; draws--) offerRandom();
-      }
+      if (mode === 'campaign') {
+        campaignRandom ||= JD.mulberry32(seed + 999);
+        offerRandom = campaignRandom;
+      } else offerRandom = JD.mulberry32(seed + 999);
       runScore = runCoins = biggestShot = jackpots = perfects = bestTier = pegsPopped = blocksBroken = 0;
       result = null;
       launch = null;
@@ -166,20 +137,21 @@
 
     function startCampaign() {
       const completed = campaign.stage === stageCount;
-      startRun('campaign', campaign.seed, Math.min(campaign.stage, stageCount - 1), campaign.attempt, campaign.up);
+      startRun('campaign', campaign.seed, Math.min(campaign.stage, stageCount - 1), campaign.attempt);
       startStage(!completed);
       if (completed) openMap(false);
     }
 
     function startEndless(runSeed) {
-      startRun('endless', runSeed, stageCount, 0, initialUpgrades(wallet.perks, stageCount));
+      startRun('endless', runSeed, stageCount, 0);
       startStage();
     }
 
     function fire() {
-      const ball = up.rack[rackIndices[slot]];
+      const ball = left[slot];
       const firedPower = Math.max(JD.CFG.POWER_MIN, power);
       const perfect = JD.isPerfect(firedPower);
+      left.splice(slot, 1);
       rackIndices.splice(slot, 1);
       slot = undefined;
       power = lastPower = firedPower;
@@ -188,7 +160,7 @@
       hitPins = [];
       if (perfect) perfects++;
       enter('LAUNCH');
-      emit('shot_fired', { stage: stageNumber(), ballsLeft: rackIndices.length, power: firedPower, perfect, balls: [ball] });
+      emit('shot_fired', { stage: stageNumber(), ballsLeft: left.length, power: firedPower, perfect, balls: [ball] });
     }
 
     function startCharge() {
@@ -296,7 +268,7 @@
       if (stageScore >= stage.target) {
         board.parked.length = 0;
         const number = stageNumber();
-        const ballsLeft = rackIndices.length;
+        const ballsLeft = left.length;
         const bonus = Math.round(stage.target / 10) * ballsLeft;
         const firstClear = mode === 'campaign' && number > cleared;
         const unlock = firstClear && number === unlockStage && !endlessUnlocked;
@@ -304,21 +276,27 @@
         const kind = allClear ? 'allclear' : unlock ? 'unlock' : 'clear';
         runScore += bonus;
         if (firstClear) cleared = number;
+        if (mode === 'campaign') {
+          campaign.stage = stageIndex + 1;
+          campaign.attempt = 0;
+        }
         emit('stage_clear', { stage: number, stageScore, ballsLeft, bonus, firstClear });
+        const newBall = mode === 'campaign' && number === 1 ? 'iron' : null;
+        if (newBall) emit('ball_unlocked', { ball: newBall });
         if (unlock) {
           endlessUnlocked = true;
           emit('endless_unlocked');
         } else if (allClear) {
-          campaign.stage = stageCount;
-          campaign.attempt = 0;
           emit('all_clear', { runScore });
           emit('campaign_clear');
         }
         if (firstClear) creditCoins(JD.CFG.CLEAR_COINS, 'clear');
-        banner = { kind, text: allClear ? 'CAMPAIGN CLEAR!' : unlock ? 'ENDLESS UNLOCKED' : 'STAGE CLEAR!', ratio: null };
+        banner = { kind, text: allClear ? 'CAMPAIGN CLEAR!' : unlock ? 'ENDLESS UNLOCKED' : 'STAGE CLEAR!', ratio: null, newBall };
         enter('BANNER');
-      } else if (rackIndices.length > 0) {
-        enterAim();
+      } else if (left.length > 0) {
+        offer = JD.drawOffer(offerRandom, up, left);
+        enter('CARD');
+        emit('cards_offered', { ids: offer.slice(), fixed: false });
       } else {
         board.parked.length = 0;
         const ratio = Math.floor(stageScore * 100 / stage.target);
@@ -336,6 +314,7 @@
 
     function finishBanner() {
       if (banner.kind === 'fail') {
+        up = JD.newUpgrades(wallet.perks, stageIndex);
         if (mode === 'campaign') {
           enter('SHOP');
           emit('shop_opened', { coins: wallet.coins, attempt });
@@ -345,18 +324,19 @@
           result = {
             won: false, reached, stageReached, stageName: stage.name, ratio: banner.ratio,
             runScore, biggestShot, jackpots, perfects, bestTier, pegsPopped, blocksBroken,
-            coins: runCoins, rack: up.rack.slice()
+            coins: runCoins, rack: fullRack.slice()
           };
           endlessBest = Math.max(endlessBest, stageReached);
           enter('RESULT');
           emit('run_ended', { won: false, reached, stageReached, runScore });
         }
       } else if (banner.kind === 'allclear') {
+        up = JD.newUpgrades(wallet.perks, stageIndex);
         openMap(false);
       } else {
-        offer = JD.drawOffer(offerRandom, up, stageIndex);
-        enter('CARD');
-        emit('cards_offered', { ids: offer.slice(), fixed: !!stage.reward });
+        stageIndex++;
+        attempt = 0;
+        startStage();
       }
       banner = null;
     }
@@ -364,21 +344,19 @@
     function pickCard(index) {
       if (!Number.isInteger(index) || index < 0 || index >= offer.length) return;
       const id = offer[index];
-      JD.applyCard(up, id);
+      JD.applyCard(up, id, board, left, offerRandom);
+      // Keep the displayed slots stable after a shot or a temporary ball upgrade.
+      if (left.length > rackIndices.length) rackIndices.push(fullRack.length);
+      left.forEach((ball, index) => { fullRack[rackIndices[index]] = ball; });
       emit('card_picked', { id, level: up[id] });
-      stageIndex++;
-      attempt = 0;
-      if (mode === 'campaign') {
-        campaign.stage = stageIndex;
-        campaign.attempt = 0;
-      }
-      startStage();
+      offer = null;
+      enterAim();
     }
 
     function pickBall(index) {
-      if (charging || !Number.isInteger(index) || index < 0 || index >= rackIndices.length) return;
+      if (charging || !Number.isInteger(index) || index < 0 || index >= left.length) return;
       slot = index;
-      emit('ball_picked', { slot, ball: up.rack[rackIndices[slot]] });
+      emit('ball_picked', { slot, ball: left[slot] });
     }
 
     function handleAim(command) {
@@ -411,7 +389,6 @@
       if (!JD.PERK_IDS.includes(id)) return;
       const cost = JD.perkCost(id, wallet.perks[id]);
       if (!JD.buyPerk(wallet, id)) return;
-      JD.syncPerks(up, wallet.perks);
       emit('perk_bought', { id, level: wallet.perks[id], cost, coins: wallet.coins });
     }
 
@@ -440,7 +417,7 @@
       if (command.type === 'newCampaign') {
         campaign.seed = nextSeed();
         campaign.stage = campaign.attempt = 0;
-        campaign.up = JD.newUpgrades(wallet.perks);
+        campaignRandom = null;
         startCampaign();
       } else if (state === 'AIM') handleAim(command);
       else if (state === 'PAYOUT' && command.type === 'skip') finishPayout();
@@ -496,7 +473,7 @@
       return {
         coins: wallet.coins,
         perks: { ...wallet.perks },
-        campaign: { ...campaign, up: copyUpgrades(campaign.up) },
+        campaign: { ...campaign },
         cleared, stageBest: stageBest.slice(), endlessUnlocked, endlessBest,
         muted: source.muted === true
       };
@@ -505,23 +482,22 @@
     function snapshot() {
       const elapsed = tick - enteredTick;
       const shownShot = state === 'FLIGHT' ? shot : null;
-      const fullRack = up.rack.slice();
       return {
         tick, state, seed, stage: stageNumber(), stageIndex, stageName: stage.name, endless: mode === 'endless',
         stageStartedTick, stateElapsed: elapsed, practiceStart, practice, target: stage.target, stageScore, runScore,
         mode, attempt, coins: wallet.coins, perks: { ...wallet.perks }, cleared, endlessUnlocked, endlessBest,
         shop: state === 'SHOP' ? shopSnapshot() : null,
         map: state === 'MAP' ? mapSnapshot() : null,
-        ballsLeft: rackIndices.length, power, charging, lastPower,
-        perfect: JD.isPerfect(power), rack: rackIndices.map(index => fullRack[index]),
-        fullRack, rackIndices: rackIndices.slice(), slot,
+        ballsLeft: left.length, power, charging, lastPower,
+        perfect: JD.isPerfect(power), rack: left.slice(),
+        fullRack: fullRack.slice(), rackIndices: rackIndices.slice(), slot,
         rows: board.rows, landY: board.landY, boardH: board.h,
         hint: stage.hint ? Object.assign({}, stage.hint) : null,
         iron: board.iron.map(group => ({ id: group.id, alive: group.alive, segs: group.segs.map(segment => segment.slice()) })),
         parked: board.parked.map(({ x, y, r, ball, group, bank }) => ({ x, y, r, ball, group, bank })),
         bank: board.parked.reduce((total, ball) => total + ball.bank, 0),
         warps: board.warps ? { ins: copyRecords(board.warps.ins) } : null,
-        ball: launch ? launch.ball : shot ? shot.ballKeys[0] : fullRack[rackIndices[slot]] || null,
+        ball: launch ? launch.ball : shot ? shot.ballKeys[0] : left[slot] || null,
         launch: launch ? { elapsed: elapsed + 1, power: launch.power, perfect: launch.perfect, balls: [launch.ball] } : null,
         stageMult: board.mult,
         up: copyUpgrades(up),

@@ -112,7 +112,7 @@
     }
 
     function canPickBall(state) {
-      return state.state === 'AIM' && (state.mode === 'endless' || state.stage > 1) && state.rack.length > 1 &&
+      return state.state === 'AIM' && JD.UI.ballSelectionEnabled(state) && state.rack.length > 1 &&
         !state.charging && chargeKey === null && pointer === null;
     }
 

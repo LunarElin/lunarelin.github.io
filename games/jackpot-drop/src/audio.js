@@ -210,6 +210,7 @@
           tone('sine',150,.04,.29);
           break;
         case 'ball_picked':
+        case 'reward_ball_arrived':
           sequence([900,1500],.015,'square',.18,0,.015);
           break;
         case 'shot_fired': {
@@ -324,7 +325,7 @@
           tone('sine',880*Math.pow(2,Math.min(e.index || 0,24)/12),.03,.20);
           break;
         case 'stage_clear':
-          if(e.stage!==JD.STAGES.length&&!(e.stage===8&&e.firstClear)) fanfare(0);
+          if(snapshot.mode==='endless'||e.stage!==JD.STAGES.length&&!(e.stage===8&&e.firstClear)) fanfare(0);
           break;
         case 'endless_unlocked':
           tone('square',600,.030,.16);

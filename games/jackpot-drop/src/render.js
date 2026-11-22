@@ -139,6 +139,7 @@
       if (s.rack[s.slot]) slots.unshift(s.slot);
       return slots.map((slot,row)=>({slot,y:590-row*52}));
     },
+    ballSelectionEnabled:s=>s.endless||s.stage!==1||s.rack.some(kind=>kind!=='normal'),
     magazineTop:s=>Math.min(340,564-Math.max(0,s.fullRack.length-1)*52),
     ironAnchor(group) {
       let plate=null;
@@ -151,8 +152,7 @@
       }
       return plate||{x:(left+right)/2,y:top};
     },
-    cards:s=>s.offer&&(s.offer.length===1?[{x:46,y:220,w:300,h:200}]:
-      s.offer.map((_,i)=>({x:30,y:170+120*i,w:332,h:100}))),
+    cards:s=>s.offer?.map((_,i)=>({x:30,y:170+120*i,w:332,h:100})),
     shopPerks:JD.PERK_IDS.map((id,i)=>({x:30,y:184+72*i,w:332,h:64,id})),
     shopRetry:{x:76,y:560,w:240,h:56},
     mapStages:JD.STAGES.map((_,i)=>({x:30+84*(i%4),y:96+84*Math.floor(i/4),w:72,h:72})),
@@ -161,6 +161,45 @@
     result:{x:76,y:470,w:240,h:56},
     resultMap:{x:76,y:540,w:240,h:44}
   };
+
+  function activeCardNotice(s,ui,id) {
+    const notice=ui.cardNotice;
+    return s.state==='AIM'&&notice?.event.id===id&&notice.before.stageIndex===s.stageIndex?notice:null;
+  }
+
+  function ballArrival(s,ui) {
+    if (s.state!=='AIM'||ui.reduced) return null;
+    if (ui.ironUnlockAge!=null&&ui.ironUnlockAge<32) {
+      const slot=s.rack.indexOf('iron');
+      if (slot>=0) return {slot,key:'iron',age:ui.ironUnlockAge,startX:180,startY:346};
+    }
+    const notice=ui.cardNotice;
+    if (!notice?.before?.offer||notice.before.stageIndex!==s.stageIndex||notice.age>=40) return null;
+    const id=notice.event.id;
+    const key=JD.CARD_BALL[id]||(id==='extra'?'normal':null);
+    if (!key) return null;
+    const slot=s.rack.findIndex((kind,index)=>kind===key&&kind!==notice.before.rack[index]);
+    const card=JD.UI.cards(notice.before)[notice.before.offer.indexOf(id)];
+    return slot>=0&&card?{slot,key,age:notice.age-8,startX:card.x+34,startY:card.y+49}:null;
+  }
+
+  function drawBallArrival(c,arrival,position) {
+    if (!arrival||arrival.age<0||position===null) return;
+    const {key,age,startX,startY}=arrival;
+    const progress=clamp(age/20,0,1);
+    const x=startX+(416-startX)*progress;
+    const y=startY+(position-startY)*progress-48*Math.sin(Math.PI*progress);
+    const color=key==='iron'?colors.ironEdge:key==='normal'?colors.pegNormal:colors.glass;
+    const radius=JD.BALLS[key].r;
+    if (progress<1) {
+      line(c,x-11*progress,y-8,x,y,rgba(color,.72),2);
+      ball(c,key,x,y,radius*(1.8-.3*progress),{cracked:key==='glass'});
+    } else {
+      const land=clamp((age-20)/12,0,1);
+      ball(c,key,416,position,radius*1.5*(1.4-.4*land),{cracked:key==='glass'});
+      circle(c,416,position,12+land*9,null,rgba(color,.8*(1-land)),2);
+    }
+  }
 
   JD.updateCamera = function (s,ui) {
     const bottom=Math.max(0,s.boardH-viewHeight);
@@ -223,7 +262,10 @@
     if ((ui.cameraY||0)+640<offset+(beam?380:580)) return;
     c.save();
     c.translate(0,offset);
-    const x=s.buckets.x;
+    const notice=activeCardNotice(s,ui,'jackpot');
+    const old=notice?.before.buckets.x;
+    const widen=notice&&!ui.reduced?ease(clamp(notice.age/12,0,1)):1;
+    const x=widen<1?s.buckets.x.map((edge,i)=>old[i]+(edge-old[i])*widen):s.buckets.x;
     const tutorial=!s.endless&&s.stage===1&&!ui.tutorialSeen;
     s.buckets.mult.forEach((mult,i)=>{
       const left=x[i], width=x[i+1]-left, center=left+width/2;
@@ -318,7 +360,7 @@
     line(c,368+tremor,handleY+6,384+tremor,handleY+6,rgba(colors.bgTop,.45));
   }
 
-  function drawMagazine(c,s,ui,t,animation,fx) {
+  function drawMagazine(c,s,ui,t,animation,fx,arrival) {
     const slots=JD.UI.magazine(s);
     const start=animation.from;
     const stage=s.mode+':'+s.stage+':'+s.attempt;
@@ -343,7 +385,7 @@
     line(c,392.5,top,392.5,628,colors.laneEdge);
     const ready=s.state==='AIM'&&!s.charging;
     const progress=ui.reduced?1:clamp((t-animation.at)/6,0,1);
-    const canPick=s.endless||s.stage!==1;
+    const canPick=JD.UI.ballSelectionEnabled(s);
     const hint=ready&&canPick&&!ui.stageFired?s.hint?.ball:null;
     const last=ready&&slots.length===1;
     const loadColor=last&&Math.floor(t/15)%2?colors.danger:colors.text;
@@ -363,6 +405,7 @@
       }
     }
     const picked=fresh(fx,'ball_picked');
+    let landingY=null;
     for (const {slot,y} of slots) {
       const id=s.rackIndices[slot];
       const kind=s.rack[slot];
@@ -370,10 +413,12 @@
       const spot=from+(y-from)*progress;
       const dy=slot===s.slot&&canPick?3:0;
       const bump=picked?.age<6&&slot===picked.e.slot&&!ui.reduced?1+.12*Math.sin(Math.PI*picked.age/6):1;
-      ball(c,kind,416,spot+dy,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
+      if (slot===arrival?.slot) landingY=spot+dy;
+      else ball(c,kind,416,spot+dy,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
     }
     c.restore();
     label(c,slots.length+'/'+s.fullRack.length,416,628,12,last?colors.danger:colors.textDim);
+    return landingY;
   }
 
   function stageIntro(s) {
@@ -577,7 +622,9 @@
         {max:133,outline:rgba(colors.ink,alpha)});
     }
     const mult=s.shot?Math.max(s.stageMult,s.shot.liveMult-(fx?fx.pendingMult():0)):s.stageMult;
-    label(c,'×'+score(mult),12,66,22,mult>=4?colors.jackpot:colors.text,'left',
+    const addedMult=activeCardNotice(s,ui,'fever');
+    const multBump=addedMult?.age<12&&!ui.reduced?1+.25*Math.sin(Math.PI*addedMult.age/12):1;
+    label(c,'×'+score(mult),12,66,22*multBump,mult>=4||multBump>1?colors.jackpot:colors.text,'left',
       {max:100,outline:ui.cameraY>0?colors.ink:null});
   }
 
@@ -594,7 +641,8 @@
         return;
       }
       background(c,s,fx);
-      drawMagazine(c,s,ui,t,magazine,fx);
+      const arrival=ballArrival(s,ui);
+      const landingY=drawMagazine(c,s,ui,t,magazine,fx,arrival);
       c.save();
       c.beginPath(); c.rect(0,0,360,640); c.clip();
       if(fx) fx.world(c,s,ui);
@@ -605,7 +653,7 @@
       if(ui.introReveal) drawStageIntro(c,stageIntro(s),s.boardH-102);
       c.restore();
       lane(c,s,ui,fx,t);
-      if (s.state!=='CARD'&&s.state!=='RESULT'&&s.state!=='SHOP') {
+      if (s.state!=='RESULT'&&s.state!=='SHOP') {
         // Keep the score fixed, then paint even high rebounds in front of it.
         hud(c,s,ui,fx);
         panel(c,s,ui,fx);
@@ -625,7 +673,8 @@
       if(fx) fx.overlay(c,s,ui);
       drawAim(c,s,ui,fx,t);
       if(JD.drawScreens) JD.drawScreens(c,s,ui,fx,t);
-      if(JD.drawCardReward) JD.drawCardReward(c,s,ui);
+      if(JD.drawPickedCard) JD.drawPickedCard(c,s,ui);
+      drawBallArrival(c,arrival,landingY);
     };
   };
 })(JD);
@@ -634,6 +683,7 @@
   'use strict';
 
   const glows = new Map();
+  const changedPegCache = new WeakMap();
   const pegColors = {
     normal: ['pegNormal', 'pegNormalLit'],
     gold: ['pegGold', 'pegGoldLit'],
@@ -930,16 +980,44 @@
     ctx.restore();
   }
 
+  function changedPegs(s,ui) {
+    const notice=ui.cardNotice;
+    if (ui.reduced||s.state!=='AIM'||!notice||notice.age>=18||notice.before.stageIndex!==s.stageIndex||
+      !['goldPlus','bombPlus'].includes(notice.event.id)) return null;
+    let changes=changedPegCache.get(notice);
+    if (!changes) {
+      changes=new Map();
+      const before=new Map(notice.before.pegs.map(peg=>[peg.id,peg.type]));
+      for (const peg of s.pegs) {
+        const type=before.get(peg.id);
+        if (peg.alive&&type&&type!==peg.type) changes.set(peg.id,{type,delay:changes.size*4});
+      }
+      changedPegCache.set(notice,changes);
+    }
+    return changes;
+  }
+
   JD.drawBoardObjects = function (ctx, snapshot, ui, fx, time) {
     const D = JD.Drawing;
     const top=(ui.cameraY||0)-72, bottom=top+784;
     const inView=y=>y>=top&&y<=bottom;
+    const transformations=changedPegs(snapshot,ui);
     drawTerrain(ctx, snapshot.terrain, D);
     for (const peg of snapshot.pegs) {
       if (!inView(peg.y)) continue;
       if (peg.alive) {
-        const drawn=fx&&fx.pegsPending.has(peg.id)?Object.assign({},peg,{lit:false}):peg;
+        const change=transformations?.get(peg.id);
+        const age=change?ui.cardNotice.age-change.delay:Infinity;
+        const pending=fx?.pegsPending.has(peg.id);
+        let drawn=peg;
+        if (pending||age<0) drawn={...peg,lit:pending?false:peg.lit,type:age<0?change.type:peg.type};
         drawPeg(ctx, drawn, snapshot, ui, fx, time, D);
+        if (age>=0&&age<8) {
+          const tint=peg.type==='gold'?D.colors.jackpot:D.colors.pegBomb;
+          const alpha=1-age/8;
+          D.circle(ctx,peg.x,peg.y,7,D.rgba(D.colors.text,.58*alpha));
+          D.circle(ctx,peg.x,peg.y,8+age,null,D.rgba(tint,.9*alpha),2);
+        }
       } else if (D.fresh(fx,'peg_break',peg.id)?.age<2) {
         D.circle(ctx,peg.x,peg.y,7,D.colors.text);
       }
@@ -975,16 +1053,15 @@
   'use strict';
 
   const cards = {
-    goldPlus: ['GOLD RUSH', '+3 gold pegs on every board', '✦', 'jackpot'],
+    goldPlus: ['GOLD RUSH', '3 blue pegs turn gold', '✦', 'jackpot'],
     heavy: ['RICH PEGS', '+10 points per blue/gold peg', '✦', 'pegNormal'],
-    bombPlus: ['BIG BANG', '+2 bombs, blast radius +16', '●', 'pegBomb'],
-    fever: ['HOT START', 'Stage multiplier starts +1', '×', 'jackpot'],
+    bombPlus: ['BIG BANG', '2 pegs turn bombs, blast +16', '●', 'pegBomb'],
+    fever: ['HOT STREAK', 'Stage multiplier +1 now', '×', 'jackpot'],
     jackpot: ['WIDE JACKPOT', '×5 buckets 40px wider', '×5', 'jackpot'],
-    gate: ['MULTI BALL', '+1 green gate on every board', '+1', 'gatePlus'],
-    extra: ['EXTRA BALL', '+1 ball every stage', '+', 'pegNormal'],
+    extra: ['EXTRA BALL', '+1 ball this stage', '+', 'pegNormal'],
     split: ['SPLIT SHOT', '+1 ball on first new peg hit', '÷', 'text'],
-    ballIron: ['IRON BALL', 'Breaks iron walls,\nblocks take 2 damage', '', 'iron'],
-    ballGlass: ['GLASS BALL', 'Cracks at 12 hits,\nshatters into 3 at 24', '', 'glass'],
+    ballIron: ['IRON BALL', 'Breaks iron walls, blocks take 2 damage', '', 'iron'],
+    ballGlass: ['GLASS BALL', 'Cracks at 12 hits, shatters into 3 at 24', '', 'glass'],
     ballBig: ['BIG BALL', 'Bigger ball, more hits', '', 'glass']
   };
 
@@ -1013,11 +1090,21 @@
   }
 
   function effectLines(ctx,text,width,size,D) {
-    const lines=text.split('\n');
-    if(lines.length>1) return lines;
-    lines[0]='';
     ctx.save();
     ctx.font='600 '+size+'px '+D.bodyFamily;
+    if (ctx.measureText(text).width<=width) {
+      ctx.restore();
+      return [text];
+    }
+    const comma=text.indexOf(', ');
+    if (comma!==-1) {
+      const clauses=[text.slice(0,comma+1),text.slice(comma+2)];
+      if (clauses.every(clause=>ctx.measureText(clause).width<=width)) {
+        ctx.restore();
+        return clauses;
+      }
+    }
+    const lines=[''];
     const tokens=text.split(' ');
     for (const token of tokens) {
       const index=lines.length-1;
@@ -1029,21 +1116,14 @@
     return lines;
   }
 
-  function rackAfter(rack, id) {
-    const next = rack.slice();
-    const index = rack.indexOf('normal');
-    if (index < 0) next.push(JD.CARD_BALL[id]);
-    else next[index] = JD.CARD_BALL[id];
-    return next;
-  }
-
   function rackRow(ctx, rack, x, y, gap, r, D) {
     rack.forEach((kind, index) => D.ball(ctx, kind, x + index * gap, y, kind === 'big' ? r * 1.18 : r,
       {cracked: kind === 'glass'}));
   }
 
   function rackPreview(ctx, rack, id, x, y, width, r, D) {
-    const next = rackAfter(rack, id);
+    const firstNormal=rack.indexOf('normal');
+    const next=rack.map((ball,index)=>index===firstNormal?JD.CARD_BALL[id]:ball);
     const gap = Math.min(r * 2.7, (width - 32) / (rack.length + next.length));
     const beforeW = (rack.length - 1) * gap;
     const afterW = (next.length - 1) * gap;
@@ -1076,7 +1156,6 @@
     const [name,effect,,token]=cards[id];
     const C=D.colors;
     const focus=index===ui.focus;
-    const fixed=s.offer.length===1;
     const age=Math.max(0,ui.stateAge-6*index);
     const enter=selectedAge===null&&!ui.reduced?D.clamp(age/12,0,1):1;
     const scale=ui.reduced?1:selectedAge!==null?1+.1*Math.sin(Math.PI*selectedAge/12):focus?1.03:1;
@@ -1090,43 +1169,31 @@
     const face=ctx.createLinearGradient(0,y,0,y+h);
     face.addColorStop(0,'#252D63');
     face.addColorStop(1,'#121634');
-    D.box(ctx,x,y+5,w,h,fixed?18:14,'#080A20');
-    D.box(ctx,x,y,w,h,fixed?18:14,face,focus||selectedAge!==null?C.text:C[token],focus||selectedAge!==null?3:1.5);
-    if (fixed) {
-      drawIcon(ctx,id,cx,y+48,40,D);
-      D.label(ctx,name,cx,y+110,26,C.text,'center',{max:w-30});
-      effectLines(ctx,effect,w-38,16,D).forEach((value,i)=>
-        D.label(ctx,value,cx,y+134+i*18,16,C.text,'center',{body:true,max:w-38,minSize:14}));
-      rackPreview(ctx,s.fullRack,id,cx,y+180,w-60,8,D);
+    D.box(ctx,x,y+5,w,h,14,'#080A20');
+    D.box(ctx,x,y,w,h,14,face,focus||selectedAge!==null?C.text:C[token],focus||selectedAge!==null?3:1.5);
+    D.label(ctx,String(index+1),43,y+19,12,focus?C.text:C.textDim);
+    drawIcon(ctx,id,x+34,y+49,24,D);
+    D.label(ctx,name,x+63,y+31,21,C.text,'left',{max:w-80,minSize:19});
+    effectLines(ctx,effect,w-81,15,D).forEach((value,i)=>
+      D.label(ctx,value,x+63,y+51+i*17,15,C.text,'left',{body:true,max:w-81,minSize:13}));
+    if (JD.CARD_BALL[id]) {
+      rackPreview(ctx,s.rack,id,x+142,y+86,156,5,D);
+      D.label(ctx,'NEW BALL',x+w-14,y+91,14,C[token],'right');
     } else {
-      D.label(ctx,String(index+1),43,y+19,12,focus?C.text:C.textDim);
-      drawIcon(ctx,id,x+34,y+49,24,D);
-      D.label(ctx,name,x+63,y+31,21,C.text,'left',{max:w-80,minSize:19});
-      effectLines(ctx,effect,w-81,15,D).forEach((value,i)=>
-        D.label(ctx,value,x+63,y+51+i*17,15,C.text,'left',{body:true,max:w-81,minSize:13}));
-      if (JD.CARD_BALL[id]) {
-        rackPreview(ctx,s.fullRack,id,x+152,y+86,176,5,D);
-        D.label(ctx,'NEW BALL',x+w-14,y+91,12,C[token],'right');
-      } else {
-        const level=s.up[id]||0;
-        D.label(ctx,'Lv '+level+' → '+(level+1),x+w-14,y+89,12,C.textDim,'right');
-      }
+      const level=s.up[id]||0;
+      D.label(ctx,'Lv '+level+' → '+(level+1),x+w-14,y+89,14,C.textDim,'right');
     }
+    if (selectedAge!==null&&selectedAge<5) D.box(ctx,x,y,w,h,14,D.rgba(C.text,.23*(1-selectedAge/5)));
     ctx.restore();
   }
 
-  function drawCardScreen(ctx,s,ui,t,D) {
+  function drawCardScreen(ctx,s,ui,D) {
     const C=D.colors;
-    const fixed=s.offer.length===1;
-    D.box(ctx,0,0,440,640,0,D.rgba(C.ink,.75));
-    D.label(ctx,fixed?'NEW BALL!':'PICK ONE',196,120,fixed?28:24,fixed?C.jackpot:C.text);
-    D.label(ctx,preview(s),196,146,15,C.textDim,'center',{max:352,minSize:11});
+    D.box(ctx,0,0,440,640,0,D.rgba(C.ink,.6));
+    D.label(ctx,'PICK ONE',196,120,24,C.text);
+    D.label(ctx,'FOR THIS STAGE',196,146,14,C.textDim);
     for(let i=0;i<s.offer.length;i++) {
       if(ui.stateAge>=6*i||ui.reduced) drawCard(ctx,s,i,ui,D);
-    }
-    if(fixed) {
-      const alpha=ui.reduced?1:.75+.25*D.pulse(t,30);
-      D.label(ctx,'TAP TO TAKE',196,452,16,D.rgba(C.text,alpha));
     }
   }
 
@@ -1310,28 +1377,33 @@
     if (b.kind==='unlock') {
       const age=ui.stateAge;
       const opening=ui.reduced?1:D.clamp(age/12,0,1);
-      D.box(ctx,12,232,336,184,18,'#10152D',D.rgba(C.jackpot,.7),1.5);
+      D.box(ctx,12,232,336,203,18,'#10152D',D.rgba(C.jackpot,.7),1.5);
       if (!ui.reduced) lockRays(ctx,180,300,40,age,D);
       drawLock(ctx,180,300,40,opening,D);
       D.label(ctx,'ENDLESS UNLOCKED',180,373,28,C.jackpot,'center',{max:314,minSize:24});
       D.label(ctx,'스테이지 지도에서 도전하세요',180,397,13,C.textDim,'center',{max:305});
+      D.label(ctx,preview(s),180,419,14,C.textDim,'center',{max:312,minSize:11});
       return;
     }
-    const clear=b.kind==='clear';
+    if (b.kind==='clear') {
+      D.box(ctx,12,269,336,111,18,'#10152D',D.rgba(C.success,.58),1.5);
+      D.label(ctx,'STAGE CLEAR!',180,322,32,C.success,'center',{max:312});
+      if (b.newBall==='iron') D.label(ctx,'NEW BALL: IRON',180,343,18,C.iron);
+      D.label(ctx,preview(s),180,362,14,C.textDim,'center',{max:312,minSize:11});
+      return;
+    }
     const allClear=b.kind==='allclear';
     const flash=ui.reduced?0:1-D.clamp(ui.stateAge/12,0,1);
-    const tint=clear?C.success:allClear?C.jackpot:b.ratio>=80?C.danger:C.text;
-    const bonus=clear?Math.round(s.target/10)*s.ballsLeft:0;
-    const subtitle=allClear?'20 / 20':bonus>0?'BALL BONUS +'+D.score(bonus):'';
-    const title=allClear?'CAMPAIGN CLEAR!':clear?'STAGE CLEAR!':b.ratio>=80?'SO CLOSE!':'OUT OF BALLS';
-    D.box(ctx,12,269,336,b.kind==='fail'?112:subtitle?109:82,18,'#10152D',D.rgba(tint,.58),1.5);
+    const tint=allClear?C.jackpot:b.ratio>=80?C.danger:C.text;
+    const title=allClear?'CAMPAIGN CLEAR!':b.ratio>=80?'SO CLOSE!':'OUT OF BALLS';
+    D.box(ctx,12,269,336,112,18,'#10152D',D.rgba(tint,.58),1.5);
     const beat=allClear&&!ui.reduced?ui.stateAge<8?.5+ui.stateAge*.08125:1+.15*Math.max(0,1-(ui.stateAge-8)/12):1;
     D.label(ctx,title,180,322,36*beat,tint,'center',{max:312,minSize:30});
     if(b.kind==='fail') {
       D.label(ctx,b.ratio+'%',180,350,24,tint);
       drawRatio(ctx,b.ratio,180,360,t,D);
-    } else if (subtitle&&(!allClear||ui.stateAge>=30||ui.reduced)) {
-      D.label(ctx,subtitle,180,354,allClear?18:23,C.text,'center',{max:300,minSize:18});
+    } else if (allClear&&(ui.stateAge>=30||ui.reduced)) {
+      D.label(ctx,'20 / 20',180,354,18,C.text,'center',{max:300});
     }
     if(allClear&&flash) D.box(ctx,3,3,386,634,6,null,D.rgba(C.jackpot,flash*.75),6);
   }
@@ -1370,7 +1442,7 @@
   JD.drawScreens = function (ctx,s,ui,fx,t) {
     const D = JD.Drawing;
     if(s.state === 'BANNER') drawBanner(ctx,s,ui,t,D);
-    else if(s.state === 'CARD') drawCardScreen(ctx,s,ui,t,D);
+    else if(s.state === 'CARD') drawCardScreen(ctx,s,ui,D);
     else if(s.state === 'SHOP') {
       drawShop(ctx,s,ui,fx,t,D);
       fx?.shopOverlay?.(ctx,s,ui);
@@ -1379,38 +1451,11 @@
     else if(s.state === 'RESULT') drawResult(ctx,s,ui,t,D);
   };
 
-  JD.drawCardReward = function (ctx,s,ui) {
+  JD.drawPickedCard = function (ctx,s,ui) {
     const notice=ui.cardNotice;
-    if(!notice?.before||s.state!=='AIM') return;
+    if (!notice?.before?.offer||s.state!=='AIM'||notice.age>=12||ui.reduced||notice.before.stageIndex!==s.stageIndex) return;
     const {event,before,age}=notice;
-    const id=event.id;
-    const index=before.offer.indexOf(id);
-    if(index<0) return;
-    const D=JD.Drawing;
-    if(age<12&&!ui.reduced) drawCard(ctx,before,index,ui,D,age);
-    const kind=JD.CARD_BALL[id];
-    if(!kind) return;
-    const fullIndex=s.fullRack.findIndex((value,i)=>value!==before.fullRack[i]);
-    const slot=s.rackIndices.indexOf(fullIndex);
-    const destination=JD.UI.magazine(s).find(item=>item.slot===slot);
-    if(!destination) return;
-    const card=JD.UI.cards(before)[index];
-    const fixed=before.offer.length===1;
-    const startX=fixed?card.x+card.w/2:card.x+34;
-    const startY=card.y+(fixed?48:49);
-    const progress=ui.reduced?1:D.clamp((age-8)/20,0,1);
-    if(progress===0) return;
-    const x=startX+(416-startX)*progress;
-    const y=startY+(destination.y-startY)*progress-(ui.reduced?0:48*Math.sin(Math.PI*progress));
-    const land=Math.max(0,age-28);
-    const bump=ui.reduced?1:1+.4*(1-Math.min(land/12,1));
-    const tint=D.colors[cards[id][3]];
-    if(progress<1) {
-      D.line(ctx,x-11*progress,y-8,x,y,D.rgba(tint,.7),2);
-      D.ball(ctx,kind,x,y,JD.BALLS[kind].r*(1.8-.3*progress),{cracked:kind==='glass'});
-    } else if(land<13) {
-      D.ball(ctx,kind,x,y,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
-      D.circle(ctx,x,y,12+land*.75,null,D.rgba(tint,.8*(1-land/13)),2);
-    }
+    const index=before.offer.indexOf(event.id);
+    if (index>=0) drawCard(ctx,before,index,ui,JD.Drawing,age);
   };
 }(window.JD));

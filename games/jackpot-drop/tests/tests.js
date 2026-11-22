@@ -38,15 +38,12 @@ function send(g,...commands) { queue(g,...commands); g.step(); return g.drainEve
 function tutorial() {
   const g = JD.createGame({seed:1}), es = g.drainEvents();
   fire(g,0.85);
-  until(g,'CARD',es);
+  until(g,614,es);
   return {g,es};
 }
 const rack = ['iron','normal','normal'];
-const ironRack = () => {
-  const upgrades=up();
-  JD.applyCard(upgrades,'ballIron');
-  return upgrades;
-};
+const ironRack = () => JD.newUpgrades(null,1);
+const cardLevels = value => JD.CARD_IDS.map(id=>value[id]);
 const makeGate = (id, kind, x, y) => ({id,kind,x,y,alive:true});
 const makeBlock = (hp, kind = 'block', y = 240) => ({id:0,kind,hp,maxHp:hp,x:152,y,w:kind==='vault'?72:44,h:kind==='vault'?28:20,alive:true});
 test('F01','보드 생성',eq => {
@@ -88,9 +85,9 @@ test('F01','보드 생성',eq => {
   const ironHint={ball:'iron'};
   eq('힌트',[null,ironHint,null,null,ironHint,null,ironHint,null,null,ironHint,ironHint,ironHint,
     null,null,null,ironHint,null,null,ironHint,ironHint],JD.STAGES.map(s=>s.hint));
-  eq('목표 점수',[3000,18000,4600,10000,62000,13000,11000,100000,84000,1030000,180000,280000,380000,600000,
-    430000,2770000,650000,2000000,9710000,17130000],JD.STAGES.map(s=>s.target));
-  eq('고정 보상',[['ballIron'],...Array(19).fill(null)],JD.STAGES.map(s=>s.reward));
+  eq('목표 점수',[3000,19000,6200,12000,62000,16000,12000,84000,36000,440000,46000,56000,57000,110000,
+    94000,440000,88000,280000,930000,1830000],JD.STAGES.map(s=>s.target));
+  eq('단계에 고정 보상 필드 없음',true,JD.STAGES.every(s=>!('reward' in s)));
   eq('새로 생성한 워프 입구 상태',true,list.every(b=>!b.warps || b.warps.ins.every(entrance=>entrance.alive===true)));
   eq('새 보드의 주차와 핀 접촉 초기화',true,list.every(b=>b.parked.length===0 && b.pegs.every(p=>(p.touches||0)===0)));
   eq('시드 1~100 금고 파괴 수',24,range(100,seed => all(shot(board(8,seed),0.85).events,'block_broken')
@@ -117,14 +114,35 @@ test('F02','첫 발',eq => {
   eq('칸·정산 길이·종료 틱·단계 점수',[2,130,554,22125],
     [one(es,'ball_landed').bucket,one(es,'payout_done').tick-one(es,'shot_finished').tick,...fields(one(es,'payout_done'),'tick','stageScore')]);
 });
-test('F03','아까운 실패와 상점',eq => {
+test('F03','발 사이 카드, 아까운 실패와 상점',eq => {
   const g=JD.createGame({seed:1}), es=g.drainEvents();
   const initial=g.snapshot();
-  [0.2,0.1,0.2].forEach((p,i)=>{ fire(g,p); until(g,'PAYOUT',es); until(g,i===2?'BANNER':'AIM',es); });
+  const expected=[
+    [0.2,['ballGlass','ballBig','extra'],'extra',3,['normal','normal','normal']],
+    [0.1,['ballBig','goldPlus','jackpot'],'jackpot',2,['normal','normal']],
+    [0.2,['bombPlus','goldPlus','ballBig'],'ballBig',1,['big']]
+  ];
+  for(const [power,ids,id,ballsLeft,rackAfter] of expected) {
+    fire(g,power);
+    const view=until(g,'CARD',es), offered=all(es,'cards_offered').at(-1), settled=all(es,'payout_done').at(-1);
+    eq('정산과 같은 틱에 세 장 제시', [view.tick,view.tick,ids,false],
+      [settled.tick,...fields(offered,'tick','ids','fixed')]);
+    const picked=one(send(g,{type:'pick',index:2}),'card_picked');
+    eq('선택 즉시 같은 단계에 적용', [id,1,'AIM',1,ballsLeft,rackAfter],
+      [...fields(picked,'id','level'),...fields(g.snapshot(),'state','stage','ballsLeft','rack')]);
+    if(id==='extra') {
+      const saved=g.saveState(), restored=JD.createGame({save:saved}).snapshot();
+      eq('도전 중 저장은 카드와 소비 구슬 없이 같은 도전 재개',
+        [{seed:1,stage:0,attempt:0},1550,1,0,'AIM',initial.rack,cardLevels(initial.up)],
+        [saved.campaign,saved.stageBest[0],...fields(restored,'stage','attempt','state','rack'),cardLevels(restored.up)]);
+    }
+  }
+  fire(g,0.3); until(g,'BANNER',es);
   const v=g.snapshot(), end=until(g,'SHOP',es);
-  eq('발 점수·PERFECT',[[1550,150,1000],[false,false,false]],
-    [all(es,'shot_finished').map(e=>e.score),all(es,'shot_fired').map(e=>e.perfect)]);
-  eq('발마다 코인 획득량·잔액·사유',[[0,0,'shot'],[0,0,'shot'],[1,1,'shot']],
+  eq('발 점수·PERFECT·넷째 구슬',[[1550,150,1000,0],[false,false,false,false],['big']],
+    [all(es,'shot_finished').map(e=>e.score),all(es,'shot_fired').map(e=>e.perfect),all(es,'shot_fired').at(-1).balls]);
+  eq('마지막 발에는 카드 없음',3,all(es,'cards_offered').length);
+  eq('발마다 코인 획득량·잔액·사유',[[0,0,'shot'],[0,0,'shot'],[1,1,'shot'],[0,1,'shot']],
     all(es,'coins_earned').map(event=>fields(event,'amount','total','cause')));
   eq('배수·단계 점수·달성률·배너·배너 길이·상점',[2,2700,90,'SO CLOSE!',45,1,0,'SHOP'],
     [v.stageMult,v.stageScore,one(es,'stage_failed').ratio,v.banner.text,end.tick-v.tick,
@@ -133,23 +151,24 @@ test('F03','아까운 실패와 상점',eq => {
     ['ball',0,2,80,false],['blast',0,3,15,false]],end.shop.items.map(item=>fields(item,'id','level','max','cost','affordable')));
   eq('부족한 코인으로는 구매할 수 없음',[],all(send(g,{type:'buy',id:'value'}),'perk_bought'));
   const retried=send(g,{type:'retry'}), current=g.snapshot();
-  eq('재도전 이벤트 및 다음 상태',[[1,1],[1,'TUTORIAL',3000,3,false,'campaign',1],['AIM',0,3,1]],
+  eq('재도전 이벤트 및 다음 상태',[[1,1],[1,'TUTORIAL',3000,3,false,'campaign',1],['AIM',0,3,1,initial.rack]],
     [fields(one(retried,'stage_retry'),'stage','attempt'),fields(one(retried,'stage_started'),'stage','name','target','balls','endless','mode','attempt'),
-      fields(current,'state','stageScore','ballsLeft','coins')]);
+      fields(current,'state','stageScore','ballsLeft','coins','rack')]);
+  eq('재도전에서 카드 단계 모두 초기화',cardLevels(initial.up),cardLevels(current.up));
   eq('튜토리얼의 재도전 배치는 고정',initial.pegs,current.pegs);
 });
-test('F04','고정 보상과 2단계',eq => {
+test('F04','쇠 구슬 해금과 2단계',eq => {
   const {g,es}=tutorial(), clear=one(es,'stage_clear');
   eq('정산·클리어 틱·단계·단계 점수·남은 공·보너스·판 점수',[554,554,1,22125,2,600,22725],
     [one(es,'payout_done').tick,...fields(clear,'tick','stage','stageScore','ballsLeft','bonus'),g.snapshot().runScore]);
   eq('첫 클리어에는 금 핀 4코인과 첫 클리어 10코인 획득',[[4,4,'shot'],[10,14,'clear']],
     all(es,'coins_earned').map(event=>fields(event,'amount','total','cause')));
-  eq('고정 보상 제시',[614,['ballIron'],true],fields(one(es,'cards_offered'),'tick','ids','fixed'));
-  const rejected=send(g,{type:'pick',index:1},{type:'pick',index:2});
-  eq('범위 밖 카드 거부',['CARD',0],[g.snapshot().state,all(rejected,'card_picked').length]);
-  const taken=send(g,{type:'pick',index:0}), v=g.snapshot();
-  eq('카드 선택 id·레벨',['ballIron',1],fields(one(taken,'card_picked'),'id','level'));
-  eq('2단계 시작',[2,'IRON LID',18000,3,false],fields(one(taken,'stage_started'),'stage','name','target','balls','endless'));
+  eq('클리어와 같은 틱에 쇠 구슬 해금, 카드 제시 없음',[[554,'iron'],0],
+    [fields(one(es,'ball_unlocked'),'tick','ball'),all(es,'cards_offered').length]);
+  const v=g.snapshot();
+  const stageStart=all(es,'stage_started').find(event=>event.stage===2)||{};
+  eq('2단계는 클리어 배너 뒤 곧바로 조준',[614,2,'IRON LID',19000,3,false,'AIM'],
+    [...fields(stageStart,'tick','stage','name','target','balls','endless'),v.state]);
   eq('랙·남은 랙·장전·구슬·힌트·쇠 벽·깨지지 않는 벽·주차·저금·줄·높이',
     [rack,rack,0,'iron',{ball:'iron'},[[true,3]],[],[],0,12,640],
     [...fields(v,'fullRack','rack','slot','ball','hint'),v.iron.map(w=>[w.alive,w.segs.length]),...fields(v,'terrain','parked','bank','rows','boardH')]);
@@ -161,19 +180,39 @@ test('F04','고정 보상과 2단계',eq => {
   eq('한 칸 장전 교체',2,g.snapshot().slot);
   send(g,{type:'loadAll'});
   eq('삭제된 모두 장전 명령 무시',2,g.snapshot().slot);
-  const exact=tutorial().g;
-  eq('정상 선택 틱',615,one(send(exact,{type:'pick',index:0}),'card_picked').tick);
+  eq('조준 중 카드 선택은 무시',0,all(send(g,{type:'pick',index:0}),'card_picked').length);
+  eq('2단계는 카드 보너스 없이 시작',JD.CARD_IDS.map(()=>0),cardLevels(v.up));
 });
 test('F05','분열',eq => {
   const u=up({split:2}), v=shot(board(1,1,u),0.85,u);
   eq('공 수·칸·칸 합·핀·폭발·배수·점수·구슬 충돌 수',[3,[2,1,2],12,67,2,8,262560,6],
     [v.s.balls.length,v.cells,v.s.bucketSum,v.s.hits,all(v.events,'bomb_exploded').length,v.s.board.mult,v.s.score,all(v.events,'ball_hit').length]);
 });
-test('F06','강화 수치와 칸 배치',eq => {
-  const b=board(2,1,up({goldPlus:1,bombPlus:1,fever:1}));
-  eq('핀·금·폭탄·초기 배수',[102,11,6,2],[...counts(b).slice(0,3),b.mult]);
-  eq('초록 게이트',[['plus',288,240]],board(2,1,up({gate:1})).gates.map(g=>fields(g,'kind','x','y')));
-  const s=JD.createShot(blank(),0.5,up({heavy:1}));
+test('F06','카드 효과와 칸 배치',eq => {
+  const line=[0,80,144,216,280,360];
+  const cases=[
+    ['goldPlus',[[22,'gold'],[69,'gold'],[77,'gold']],1,line,['normal','normal']],
+    ['bombPlus',[[69,'bomb'],[77,'bomb']],1,line,['normal','normal']],
+    ['fever',[],2,line,['normal','normal']],
+    ['jackpot',[],1,[0,80,124,236,280,360],['normal','normal']],
+    ['extra',[],1,line,['normal','normal','normal']],
+    ['ballGlass',[],1,line,['glass','normal']],
+    ['heavy',[],1,line,['normal','normal']],
+    ['split',[],1,line,['normal','normal']]
+  ];
+  for(const [id,types,mult,buckets,balls] of cases) {
+    const u=ironRack(), b=board(2,1,u), left=['normal','normal'];
+    const previous=b.pegs.map(pin=>pin.type);
+    JD.applyCard(u,id,b,left,JD.mulberry32(5));
+    const changes=b.pegs.flatMap((pin,i)=>pin.type===previous[i]?[]:[[pin.id,pin.type]]);
+    eq(id+' 즉시 적용·적용 카드 단계만 증가',[types,mult,buckets,balls,JD.CARD_IDS.map(key=>key===id?1:0)],
+      [changes,b.mult,b.buckets.x,left,cardLevels(u)]);
+  }
+  const u=ironRack(), b=board(2,1,u), left=['normal','normal'], rnd=JD.mulberry32(5);
+  JD.applyCard(u,'heavy',b,left,rnd);
+  JD.applyCard(u,'bombPlus',b,left,rnd);
+  const s=JD.createShot(b,0.5,u);
+  eq('같은 보드의 핀 기본값·폭발 반경',[20,80],fields(s,'base','blastR'));
   JD.lightPeg(s,{id:7,type:'normal',lit:false},'ball');
   eq('콤보 0 RICH PEGS',[0,20],[s.tier,s.pts]);
   const radii=[0,1,2,3].map(bombPlus=>JD.createShot(blank(),0.5,up({bombPlus})).blastR);
@@ -185,34 +224,33 @@ test('F06','강화 수치와 칸 배치',eq => {
   eq('WIDE 경계',[[0,80,124,236,280,360],[0,92,136,208,280,360],[0,80,152,224,268,360],[0,44,148,212,316,360]],
     ['center','left','right','twin'].map(x=>layout(x,1).x));
 });
-test('F07','카드 제시와 적용',eq => {
-  const u=up(), next=JD.mulberry32(1000); let calls=0;
-  const counted=()=>{ calls++; return next(); };
-  eq('카드 11종과 여러 개 장전 카드 없음',[11,false,false],
-    [JD.CARD_IDS.length,JD.CARD_IDS.includes('springLoad'),'springLoad' in JD.CARD_CAP]);
-  eq('튜토리얼 고정 보상은 난수를 쓰지 않음',[['ballIron'],0],[JD.drawOffer(counted,u,0),calls]);
-  eq('시드 1에서 이어진 두 제시',[['ballGlass','ballBig','split'],['ballBig','goldPlus','jackpot']],
-    [JD.drawOffer(counted,u,1),JD.drawOffer(counted,u,2)]);
-  eq('난수를 새로 시작한 시드 1·2의 단계번호 2 카드',[['ballGlass','ballBig','split'],['heavy','fever','goldPlus']],
-    [JD.drawOffer(JD.mulberry32(1000),u,2),JD.drawOffer(JD.mulberry32(1001),u,2)]);
-  eq('상한 7종 제외',[7,['fever','bombPlus','heavy']],
-    [Object.keys(JD.CARD_CAP).length,JD.drawOffer(JD.mulberry32(1000),up(JD.CARD_CAP),2)]);
-  const staged=up(), draw=JD.mulberry32(1000);
-  const offers=range(4,i=>{
-    const offer=JD.drawOffer(draw,staged,i-1);
-    JD.applyCard(staged,offer[0]);
+test('F07','카드 제시와 기본 랙',eq => {
+  const u=ironRack(), rnd=JD.mulberry32(1000), two=['iron','normal'];
+  eq('카드 열 종류와 카드 상한',[
+    ['goldPlus','heavy','bombPlus','fever','jackpot','extra','split','ballGlass','ballBig','ballIron'],
+    {jackpot:1,extra:2,split:2,ballGlass:1,ballBig:1,ballIron:1}], [JD.CARD_IDS,JD.CARD_CAP]);
+  eq('시드 1에서 이어진 두 제시',[['ballGlass','ballBig','extra'],['ballBig','goldPlus','jackpot']],
+    [JD.drawOffer(rnd,u,two),JD.drawOffer(rnd,u,two)]);
+  eq('일반 구슬이 없으면 구슬 카드가 빠짐',['extra','jackpot','fever'],JD.drawOffer(JD.mulberry32(1000),u,['iron']));
+  eq('상한 카드는 제외',['fever','bombPlus','heavy'],JD.drawOffer(JD.mulberry32(1000),up(JD.CARD_CAP),['normal']));
+  const staged=ironRack(), b=board(2,1,staged), draw=JD.mulberry32(1000), left=staged.rack.slice();
+  const offers=range(4,()=>{
+    const offer=JD.drawOffer(draw,staged,left);
+    JD.applyCard(staged,offer[0],b,left,draw);
     return offer;
   });
-  eq('순차 카드 제시와 적용 결과',[[['ballIron'],['ballGlass','ballBig','split'],['ballBig','goldPlus','jackpot'],['bombPlus','goldPlus','gate']],['iron','glass','big']],
-    [offers,staged.rack]);
-  eq('시드 1~100 단계 2~11 세 장 중복 없음',true,
-    range(100,seed=>range(10,i=>JD.drawOffer(JD.mulberry32(seed+999),u,i))).every(
-      entries=>entries.every(cards=>cards.length===3 && new Set(cards).size===3)));
-  eq('초기 강화 키',['goldPlus','heavy','bombPlus','fever','jackpot','extra','split','gate','ballGlass','ballBig','ballIron','rack','perks'],Object.keys(u));
-  JD.applyCard(u,'ballIron');
-  eq('쇠 구슬 첫 적용',rack,u.rack.slice());
-  ['ballGlass','ballBig','ballIron','extra'].forEach(id=>JD.applyCard(u,id));
-  eq('카드 적용 후 랙·스프링 필드 없음',[['iron','glass','big','iron','normal'],false],[u.rack,'springs' in u]);
+  eq('같은 난수 흐름의 순차 제시와 적용',[[['ballGlass','ballBig','extra'],['ballBig','goldPlus','fever'],
+    ['bombPlus','goldPlus','extra'],['heavy','split','fever']],['iron','glass','big']], [offers,left]);
+  eq('일반 구슬 유무에 관계없이 제시 카드 세 장이 서로 다름',true,range(100,seed=>JD.mulberry32(seed+999)).every(next=>
+    [['iron'],['normal']].every(balls=>{
+      const cards=JD.drawOffer(next,u,balls);
+      return cards.length===3&&new Set(cards).size===3;
+    })));
+  eq('초기 강화 키와 동기화 함수 없음',
+    [['goldPlus','heavy','bombPlus','fever','jackpot','extra','split','ballGlass','ballBig','ballIron','rack','perks'],'undefined'],
+    [Object.keys(up()),typeof JD.syncPerks]);
+  eq('1단계·2단계·추가 구슬 강화가 있는 무한 단계 기본 랙',[['normal','normal','normal'],rack,['iron','normal','normal','normal','normal']],
+    [up().rack,u.rack,JD.newUpgrades({...JD.newPerks(),ball:2},20).rack]);
 });
 test('F08','정산 길이와 건너뛰기',eq => {
   eq('핀 0·9·28·30·34·61개 정산 틱',[70,97,126,130,104,131],[0,9,28,30,34,61].map(JD.payoutDuration));
@@ -232,9 +270,9 @@ test('F09','끼임과 시간 제한',eq => {
 });
 test('F10','밸런스 하네스',eq => {
   [
-    ['random',200,19,[196,84,72,53,29,22,20,19],5,[19700,31200,16025,10080,83050,6540]],
-    ['aim',200,61,[200,155,127,105,88,73,67,61],1,[19100,13700]],
-    ['pro',20,17,[20,17,17,17,17,17,17,17],8,[18400,22200,11690,67230,472320,53550,17120,548100]]
+    ['random',200,5,[198,104,71,44,23,13,6,5],1,[19700,12210]],
+    ['aim',200,8,[200,176,138,102,76,39,21,8],7,[19100,28890,9610,16280,69836,25800,44850,62420]],
+    ['pro',20,18,[20,20,20,20,18,18,18,18],8,[18400,65310,12300,34965,147160,16950,12750,118560]]
   ].forEach(([policy,n,wins,clears,reached,points])=>{
     const runs=range(n,seed=>JD.simulateRun(seed,policy));
     eq(policy+' 완주·단계별 클리어 수',[wins,clears],
@@ -289,22 +327,22 @@ test('F16','HP 블록',eq => {
 test('F17','무한 모드',eq => {
   const defs=[20,21,22,31,32,43].map(JD.stageDef);
   eq('무한 단계의 지도와 목표',[
-    ['CROSSFIRE',17000],['DEEP WELL',231000],['LOCKBOX',45000],['GRAND JACKPOT',11918000],['CROSSFIRE',65000],['GRAND JACKPOT',46430000]],
+    ['CROSSFIRE',22000],['DEEP WELL',296000],['LOCKBOX',35000],['GRAND JACKPOT',3819000],['CROSSFIRE',84000],['GRAND JACKPOT',14880000]],
     defs.map(s=>fields(s,'name','target')));
-  eq('무한 모드·보상·긴 보드·반복 블록 HP',[true,null,24,[5,5],[7,7],[16,10,10,10,10]],
-    [defs[0].endless,defs[0].reward,defs[1].rows,...[0,4,5].map(i=>defs[i].blocks.map(b=>b[4]))]);
-  eq('무한 지도 풀·목표 계수·증가율',[range(12,i=>i+7),0.2,1.12],[JD.ENDLESS_POOL,JD.ENDLESS_SCALE,JD.CFG.ENDLESS_GROWTH]);
-  const run=JD.simulateEndless(4,'aim',{mult:3,value:4,gold:4,ball:1,blast:3},24);
-  eq('시드 4 무한 클리어 수·실패 지도·점수·목표',[4,'WARP MAZE',74420,120000],
-    [run.reached,JD.stageDef(24).name,run.scores[4],JD.stageDef(24).target]);
+  eq('무한 모드·고정 보상 필드 없음·긴 보드·반복 블록 HP',[true,false,24,[5,5],[7,7],[16,10,10,10,10]],
+    [defs[0].endless,'reward' in defs[0],defs[1].rows,...[0,4,5].map(i=>defs[i].blocks.map(b=>b[4]))]);
+  eq('무한 지도 풀·목표 계수·증가율',[range(12,i=>i+7),0.6,1.12],[JD.ENDLESS_POOL,JD.ENDLESS_SCALE,JD.CFG.ENDLESS_GROWTH]);
+  const run=JD.simulateEndless(2,'aim',{mult:3,value:4,gold:4,ball:1,blast:3},24);
+  eq('시드 2 무한 클리어 수·실패 지도·점수·목표',[6,'BUMPER PARK',99830,111000],
+    [run.reached,JD.stageDef(26).name,run.scores[6],JD.stageDef(26).target]);
   const g=JD.createGame({seed:1,endless:true}), es=g.drainEvents();
-  eq('무한 1단계 시작 이벤트',[1,'CROSSFIRE',17000,3,true,'endless',0],
+  eq('무한 1단계 시작 이벤트',[1,'CROSSFIRE',22000,3,true,'endless',0],
     fields(one(es,'stage_started'),'stage','name','target','balls','endless','mode','attempt'));
   eq('무한 기본 랙·코인',[rack,0],fields(g.snapshot(),'rack','coins'));
   for(let i=0;i<3;i++) {
     fire(g,0.05);
-    until(g,'PAYOUT',es);
-    until(g,i<2?'AIM':'BANNER',es);
+    until(g,i<2?'CARD':'BANNER',es);
+    if(i<2) es.push(...send(g,{type:'pick',index:0}));
   }
   const v=until(g,'RESULT',es);
   eq('무한 모드 실패는 결과 화면으로 이어짐',[false,0,1,0,'RESULT'],
@@ -317,12 +355,12 @@ test('F18','벽과 검수용 시작',eq => {
       return [all(v.events,'terrain_hit').length,v.steps,v.cells[0]];
     }));
   const g=JD.createGame({seed:1,start:8}), h=JD.createGame({seed:1,start:2});
-  eq('8단계 연습 시작',[8,'VAULT',100000,3,false,'campaign',0],
+  eq('8단계 연습 시작',[8,'VAULT',84000,3,false,'campaign',0],
     fields(one(g.drainEvents(),'stage_started'),'stage','name','target','balls','endless','mode','attempt'));
   eq('8단계 핀·판 점수',[128,0],[g.snapshot().pegs.length,g.snapshot().runScore]);
   eq('2단계 지도·랙',['IRON LID',rack],fields(h.snapshot(),'stageName','fullRack'));
   eq('3단계 지도·랙',['CURVE',rack],fields(JD.createGame({seed:1,start:3}).snapshot(),'stageName','fullRack'));
-  eq('20단계 연습 시작',[20,'GRAND JACKPOT',17130000,24],fields(JD.createGame({seed:1,start:20}).snapshot(),'stage','stageName','target','rows'));
+  eq('20단계 연습 시작',[20,'GRAND JACKPOT',1830000,24],fields(JD.createGame({seed:1,start:20}).snapshot(),'stage','stageName','target','rows'));
   eq('유효 범위 밖의 시작값은 1단계 일반 캠페인',true,[21,1,'x'].every(start=>{
     const v=JD.createGame({seed:1,start}).snapshot();
     return v.stage===1&&v.mode==='campaign'&&!v.practice;
@@ -346,8 +384,9 @@ test('F19','발사대·구슬·핀 깨짐',eq => {
     [curveShots.map(cells=>cells.join('')).join(' '),curveShots.filter(cells=>cells.includes(0)).length]);
   const a=shot(board(3),0.85);
   eq('CURVE 0.85 점수·칸·핀',[3075,0,12],[a.s.score,a.cells[0],a.s.hits]);
-  const u=up(); JD.applyCard(u,'ballGlass');
-  const c=shot(board(1,1,u),0.88,u,{ball:'glass'});
+  const u=up(), glassBoard=board(1,1,u), glassRack=u.rack.slice();
+  JD.applyCard(u,'ballGlass',glassBoard,glassRack,JD.mulberry32(1000));
+  const c=shot(glassBoard,0.88,u,{ball:glassRack[0]});
   eq('유리 파열 수·착지 칸·핀·점수',[[2],[2,2,2],47,182175],
     [all(c.events,'ball_shatter').map(e=>e.count),c.cells,c.s.hits,c.s.score]);
   const tutorialShot=shot(board(1),0.85);
@@ -386,13 +425,15 @@ test('F19','발사대·구슬·핀 깨짐',eq => {
       ignored.filter(e=>['shot_fired','charge_started','charge_cancel','ball_picked','spring_picked'].includes(e.type))]);
   const original=JD.createGame({seed:1});
   fire(original,0.1);
-  eq('원래 재현의 첫 발 0.1은 3,150점으로 카드를 엶',[3150,'CARD'],fields(until(original,'CARD'),'stageScore','state'));
-  // Use the first two F03 shots to reach AIM after a 0.1 shot.
+  eq('원래 재현의 첫 발 0.1은 3,150점으로 단계를 클리어',[3150,'clear'],
+    [until(original,'BANNER').stageScore,original.snapshot().banner.kind]);
+  // Use the first two F03 shots and their cards to reach AIM after a 0.1 shot.
   const next=JD.createGame({seed:1});
   for (const power of [0.2,0.1]) {
     fire(next,power);
-    until(next,'PAYOUT');
-    eq('다음 AIM 세기·직전 세기',[0,power],fields(until(next,'AIM'),'power','lastPower'));
+    until(next,'CARD');
+    send(next,{type:'pick',index:2});
+    eq('다음 AIM 세기·직전 세기',[0,power],fields(next.snapshot(),'power','lastPower'));
   }
 });
 test('F20','철문·주차·저금·워프·탄창',eq => {
@@ -438,30 +479,38 @@ test('F20','철문·주차·저금·워프·탄창',eq => {
   eq('2단계 초기 탄창·선택',[rack,0],fields(g.snapshot(),'rack','slot'));
   const first=send(g,{type:'pickBall',slot:1},{type:'pull',power:0.5},{type:'fire'});
   eq('첫 일반 구슬 선택',[1,'normal'],fields(one(first,'ball_picked'),'slot','ball'));
-  until(g,'PAYOUT',first); const firstAim=until(g,'AIM',first);
-  eq('1차 주차 점수·핀값·주차와 2발 남은 탄창',[0,530,1,[530],530,['iron','normal'],0,2],
-    [...fields(one(first,'shot_finished'),'score','pts','parked'),firstAim.parked.map(ball=>ball.bank),...fields(firstAim,'bank','rack','slot','ballsLeft')]);
+  const firstCard=until(g,'CARD',first);
+  eq('1차 주차 점수·핀값·주차와 2발 남은 탄창',[0,530,1,[530],530,['iron','normal'],2],
+    [...fields(one(first,'shot_finished'),'score','pts','parked'),firstCard.parked.map(ball=>ball.bank),
+      ...fields(firstCard,'bank','rack','ballsLeft')]);
+  eq('첫 발 뒤 단계 중 카드',[['ballGlass','ballBig','extra'],false],fields(one(first,'cards_offered'),'ids','fixed'));
+  const glassPicked=one(send(g,{type:'pick',index:0}),'card_picked');
+  eq('유리 구슬 선택 후 조준과 탄창',['ballGlass','AIM',0,['iron','glass']],
+    [glassPicked.id,...fields(g.snapshot(),'state','slot','rack')]);
   queue(g,{type:'pickBall',slot:1}); fire(g,0.85);
   const second=[];
-  until(g,'PAYOUT',second); const secondAim=until(g,'AIM',second);
-  eq('2차 주차 점수·주차·저금·탄창',[0,1,635,['iron']],
-    [...fields(one(second,'shot_finished'),'score','parked'),...fields(secondAim,'bank','rack')]);
+  const secondCard=until(g,'CARD',second);
+  eq('유리 구슬 주차 점수·핀값·주차·저금·배수·탄창',[0,445,1,975,4,['iron']],
+    [...fields(one(second,'shot_finished'),'score','pts','parked'),...fields(secondCard,'bank','stageMult','rack')]);
+  eq('일반 구슬이 없는 두 번째 카드 제시',[['split','goldPlus','fever'],false],fields(one(second,'cards_offered'),'ids','fixed'));
+  eq('분열 선택','split',one(send(g,{type:'pick',index:0}),'card_picked').id);
   fire(g,0.85);
   const third=[];
-  until(g,'CARD',third);
-  eq('3차 방출·점수·저금·칸 합·단계 종료·남은 구슬·보너스',[2,38100,635,12,2,38100,0,0],
+  const clear=until(g,'BANNER',third);
+  eq('3차 방출·점수·저금·칸 합·단계 종료·남은 구슬·보너스',[2,46800,975,12,2,46800,0,0],
     [one(third,'parked_release').count,...fields(one(third,'shot_finished'),'score','bankIn','bucketSum'),
       ...fields(one(third,'stage_clear'),'stage','stageScore','ballsLeft','bonus')]);
-  eq('2단계 보상은 세 장',[['ballGlass','ballBig','split'],false],fields(one(third,'cards_offered'),'ids','fixed'));
-  send(g,{type:'pick',index:2});
-  eq('3단계 랙과 빈 주차',[3,rack,rack,[]],fields(g.snapshot(),'stage','fullRack','rack','parked'));
+  const next=until(g,clear.tick+60,third);
+  eq('클리어 뒤 카드 없이 3단계의 기본 랙과 빈 주차',[0,3,'AIM',rack,rack,[],JD.CARD_IDS.map(()=>0)],
+    [all(third,'cards_offered').length,...fields(next,'stage','state','fullRack','rack','parked'),cardLevels(next.up)]);
 });
 test('F21','한 발 한 구슬과 공끼리 충돌',eq => {
   const u=ironRack();
   eq('여러 개 장전 상수와 강화 필드 없음',false,['LOAD_GAP','LOAD_MAX','LOAD_SPREAD'].some(key=>key in JD.CFG)||
     ['springLoad','load'].some(key=>key in u||key in JD.CARD_CAP||JD.CARD_IDS.includes(key)));
-  const oldCard=ironRack(); JD.applyCard(oldCard,'springLoad');
-  eq('지워진 카드로 랙이나 장전 능력이 바뀌지 않음',[rack,false],[oldCard.rack,'load' in oldCard]);
+  const oldCard=ironRack(), oldLeft=oldCard.rack.slice();
+  JD.applyCard(oldCard,'springLoad',board(3,1,oldCard),oldLeft,JD.mulberry32(1000));
+  eq('지워진 카드로 랙이나 장전 능력이 바뀌지 않음',[rack,false],[oldLeft,'load' in oldCard]);
   const direct=JD.createShot(board(3,1,u),0.84,u,{balls:['normal','normal','iron']});
   eq('예전 선택 배열 대신 일반 구슬 하나로 시작',[['normal'],['normal']],
     [direct.balls.map(ball=>ball.key),one(direct.events,'launch').balls]);
@@ -539,13 +588,14 @@ test('F23','코인과 강화',eq => {
   eq('구매 결과와 차감 후 코인',[[true,75],[false,75],[true,60],[true,35],[false,35]],
     ['mult','ball','gold','gold','gold'].map(id=>[JD.buyPerk(wallet,id),wallet.coins]));
   eq('구매 후 강화 레벨',{mult:1,value:0,gold:2,ball:0,blast:0},wallet.perks);
-  const u=JD.newUpgrades({mult:1,value:2,gold:1,ball:1,blast:1}), b=board(2,1,u);
+  const u=JD.newUpgrades({mult:1,value:2,gold:1,ball:1,blast:1},1), b=board(2,1,u);
   const s=JD.createShot(b,0.5,u);
-  eq('영구 강화가 랙·금 핀·배수·핀 값·폭발 반경에 적용',[Array(4).fill('normal'),10,2,20,76],
+  eq('영구 강화가 랙·금 핀·배수·핀 값·폭발 반경에 적용',[['iron','normal','normal','normal'],10,2,20,76],
     [u.rack,b.pegs.filter(peg=>peg.type==='gold').length,b.mult,s.base,s.blastR]);
-  const synced=up();
-  JD.syncPerks(synced,{mult:1,value:0,gold:0,ball:2,blast:0});
-  eq('강화한 구슬 수를 랙에 반영',[Array(5).fill('normal'),2],[synced.rack,synced.perks.ball]);
+  const perks={...JD.newPerks(),ball:2};
+  eq('새 도전에서 강화한 구슬 수를 단계별 랙에 반영',
+    [Array(5).fill('normal'),['iron','normal','normal','normal','normal'],'undefined'],
+    [JD.newUpgrades(perks,0).rack,JD.newUpgrades(perks,1).rack,typeof JD.syncPerks]);
   eq('금 핀 네 개를 켠 발은 4코인',4,JD.shotCoins(shot(board(1),0.85).s));
   eq('재도전 번호로 금 핀 배치와 워프 난수 변경',[[0,6,18,37],[3,7,43,49],2967,2980],
     [[0,1].map(attempt=>board(2,1,up(),attempt).pegs.filter(peg=>peg.type==='gold').slice(0,4).map(peg=>peg.id)),
@@ -553,28 +603,30 @@ test('F23','코인과 강화',eq => {
 });
 test('F24','캠페인 하네스와 상점·지도 API',eq => {
   const total=values=>values.reduce((sum,value)=>sum+value,0);
-  for(const [policy,count,expected] of [['aim',40,[40,28,29,39,43]],['random',20,[20,35,36,48,49]]]) {
+  for(const [policy,count,expected] of [['aim',40,[40,34,39,43]],['random',20,[20,41,49,54]]]) {
     const runs=range(count,seed=>JD.simulateCampaign(seed,policy,30));
     const tries=runs.map(run=>total(run.tries)).sort((a,b)=>a-b);
     // ACCEPTANCE reports the lower middle observation when the sample size is even.
     const middle=count/2;
-    eq(policy+' 20단계 클리어 수와 총 도전 수의 아래·위 중앙 관측값·상위 10% 시작·최대',expected,
-      [runs.filter(run=>run.cleared===20).length,tries[middle-1],tries[middle],tries[count*0.9],tries[count-1]]);
+    eq(policy+' 20단계 클리어 수와 총 도전 수의 아래 중앙 관측값·90% 순위·최대',expected,
+      [runs.filter(run=>run.cleared===20).length,tries[middle-1],tries[Math.ceil(count*0.9)-1],tries[count-1]]);
     if(policy==='aim') {
       const run=runs[0];
       eq('시드 1 캠페인 클리어·도전 수·누적 코인·잔액·강화·발·카드',
-        [20,[1,2,1,1,1,1,1,1,1,3,5,2,1,3,4,2,1,1,2,2],623,118,{mult:3,value:4,gold:4,ball:0,blast:3},110,19],
+        [20,[1,1,1,1,1,1,1,2,2,3,1,1,2,1,2,1,1,3,3,3],527,92,{mult:2,value:4,gold:4,ball:0,blast:3},83,51],
         [run.cleared,run.tries,run.coins,run.wallet.coins,run.wallet.perks,run.shots,run.cards]);
     }
   }
-  const saved={coins:40,perks:JD.newPerks(),campaign:{seed:7,stage:3,attempt:2,up:{...ironRack(),load:3,springLoad:1}},
+  const campaign={seed:7,stage:3,attempt:2};
+  const saved={coins:40,perks:JD.newPerks(),campaign:{...campaign,up:{...ironRack(),heavy:3,goldPlus:2,
+    rack:['glass','big','normal'],load:3,springLoad:1}},
     cleared:3,endlessUnlocked:false};
   const original=JSON.parse(JSON.stringify(saved));
   const g=JD.createGame({seed:7,save:saved}), es=g.drainEvents();
-  eq('저장된 4단계 도전 및 지갑 이어하기',[4,'HOURGLASS',10000,'campaign',2,40],
-    [...fields(one(es,'stage_started'),'stage','name','target','mode','attempt'),g.snapshot().coins]);
-  eq('v3 저장의 이전 장전 값만 무시하고 랙과 카드 유지',[ironRack(),ironRack()],
-    [g.snapshot().up,g.saveState().campaign.up]);
+  eq('저장된 4단계 도전 및 지갑 이어하기',[4,'HOURGLASS',12000,'campaign',2,40,rack],
+    [...fields(one(es,'stage_started'),'stage','name','target','mode','attempt'),...fields(g.snapshot(),'coins','rack')]);
+  eq('v3 저장의 이전 강화 객체를 무시하고 새 도전에서 카드 없이 시작',[ironRack(),campaign],
+    [g.snapshot().up,g.saveState().campaign]);
   const opened=send(g,{type:'openMap'});
   eq('캠페인 지도 진행도와 잠금',['MAP',3,3,false,1],
     [g.snapshot().state,...fields(g.snapshot().map,'cleared','current','endlessUnlocked'),all(opened,'map_opened').length]);
@@ -587,40 +639,47 @@ test('F24','캠페인 하네스와 상점·지도 API',eq => {
     until(game,'PAYOUT',events);
     events.push(...send(game,{type:'skip'}));
   };
-  for(let i=0;i<3;i++) finishShot(g,0.1);
+  for(let i=0;i<3;i++) {
+    finishShot(g,0.1);
+    if(i<2) send(g,{type:'pick',index:0});
+  }
   const shop=until(g,'SHOP');
-  eq('4단계 재도전에 실패해 상점 진입',[6420,44,2],fields(shop,'stageScore','coins','attempt'));
+  eq('4단계 재도전에 실패해 상점 진입',[6720,44,2],fields(shop,'stageScore','coins','attempt'));
   const bought=one(send(g,{type:'buy',id:'gold'}),'perk_bought');
   eq('구매 이벤트 및 적용된 강화',['gold',1,15,29,1],
     [...fields(bought,'id','level','cost','coins'),g.snapshot().perks.gold]);
   send(g,{type:'retry'});
   const retry=g.snapshot();
-  eq('카드·랙을 그대로 갖고 새 배치에서 재도전',[4,3,rack,29,true],
+  eq('카드를 비우고 기본 랙과 구매한 강화로 새 배치에서 재도전',[4,3,rack,29,1,JD.CARD_IDS.map(()=>0),true],
     [...fields(retry,'stage','attempt','rack','coins'),
+      retry.up.perks.gold,cardLevels(retry.up),
       JSON.stringify(retry.pegs)!==JSON.stringify(board(4,7,retry.up,2).pegs)]);
   eq('재도전은 같은 시드와 새 도전 번호로 보드를 만듦',board(4,7,retry.up,3).pegs,retry.pegs);
   eq('createGame은 전달된 저장 객체를 직접 수정하지 않음',original,saved);
 
-  const unlock=JD.createGame({seed:4,save:{campaign:{seed:4,stage:7,attempt:0,up:ironRack()},cleared:7}}), unlockEvents=[];
+  const unlock=JD.createGame({seed:4,save:{campaign:{seed:4,stage:7,attempt:0},cleared:7}}), unlockEvents=[];
   finishShot(unlock,0.35,unlockEvents);
   const milestone=until(unlock,'BANNER',unlockEvents), cleared=one(unlockEvents,'stage_clear');
   const unlocked=one(unlockEvents,'endless_unlocked');
   eq('첫 8단계 클리어 직후 무한 해금',[8,270000,true,true,true,'unlock',true],
     [...fields(cleared,'stage','stageScore','firstClear'),cleared.tick===unlocked.tick,
       unlockEvents.indexOf(cleared)+1===unlockEvents.indexOf(unlocked),milestone.banner.kind,milestone.endlessUnlocked]);
-  const reward=until(unlock,'CARD',unlockEvents);
-  eq('해금 배너 90틱 뒤 보상',90,reward.tick-milestone.tick);
-  send(unlock,{type:'pick',index:0});
+  const afterUnlock=until(unlock,milestone.tick+90,unlockEvents);
+  eq('해금 배너 90틱 뒤 새 단계가 카드 없이 시작',[9,'AIM',0],
+    [...fields(afterUnlock,'stage','state'),all(unlockEvents,'cards_offered').length]);
   send(unlock,{type:'openMap'});
   eq('해금 뒤 지도에서 무한 모드가 열림',true,unlock.snapshot().map.endlessUnlocked);
   send(unlock,{type:'startEndless'});
-  eq('열린 무한 모드를 새 판으로 시작',['AIM','endless',1,17000,rack],
+  eq('열린 무한 모드를 새 판으로 시작',['AIM','endless',1,22000,rack],
     fields(unlock.snapshot(),'state','mode','stage','target','fullRack'));
   const endlessEvents=[];
   finishShot(unlock,0.8,endlessEvents);
-  until(unlock,'CARD',endlessEvents);
-  send(unlock,{type:'pick',index:0});
-  for(let i=0;i<3;i++) finishShot(unlock,0.05,endlessEvents);
+  const firstClear=until(unlock,'BANNER',endlessEvents);
+  until(unlock,firstClear.tick+60,endlessEvents);
+  for(let i=0;i<3;i++) {
+    finishShot(unlock,0.05,endlessEvents);
+    if(i<2) endlessEvents.push(...send(unlock,{type:'pick',index:0}));
+  }
   const endlessResult=until(unlock,'RESULT',endlessEvents), endlessSave=unlock.saveState();
   eq('무한 기록은 클리어 수와 구분해 도달 단계로 저장',[1,2,2,2],
     [...fields(endlessResult.result,'reached','stageReached'),endlessResult.endlessBest,endlessSave.endlessBest]);
@@ -628,20 +687,19 @@ test('F24','캠페인 하네스와 상점·지도 API',eq => {
   eq('무한 도전 뒤의 저장은 캠페인 진도와 무한 최고 기록을 유지',['campaign',9,2],
     fields(resumedCampaign,'mode','stage','endlessBest'));
 
-  // The winning stage-20 attempt from the canonical seed-1 aim campaign.
-  const perks={mult:3,value:4,gold:4,ball:0,blast:3};
-  const upgraded={...JD.newUpgrades(perks),goldPlus:1,heavy:3,fever:4,jackpot:1,extra:2,split:2,gate:2,
-    ballGlass:1,ballBig:1,ballIron:2,rack:['iron','big','glass','iron','normal']};
-  const finale=JD.createGame({seed:1,save:{perks,campaign:{seed:1,stage:19,attempt:1,up:upgraded},cleared:19,endlessUnlocked:true}});
+  const perks={mult:2,value:4,gold:4,ball:0,blast:3};
+  const finale=JD.createGame({seed:1,save:{perks,campaign:{seed:1,stage:19,attempt:2},cleared:19,endlessUnlocked:true}});
   const lastEvents=[];
-  for(const [ball,power] of [['big',0.8535484305024148],['normal',0.7490075081214309],
-    ['glass',0.7653042532503606],['iron',0.7210734378173949]]) {
-    queue(finale,{type:'pickBall',slot:finale.snapshot().rack.indexOf(ball)});
-    finishShot(finale,power,lastEvents);
+  for(const [index,id] of [[2,'extra'],[1,'goldPlus'],[1,'fever']]) {
+    queue(finale,{type:'pickBall',slot:1});
+    finishShot(finale,0.8,lastEvents);
+    const taken=send(finale,{type:'pick',index});
+    eq('20단계 도전 중 카드 적용',id,one(taken,'card_picked').id);
   }
+  finishShot(finale,0.8,lastEvents);
   const finalBanner=until(finale,'BANNER',lastEvents), finalClear=one(lastEvents,'stage_clear');
   const finish=until(finale,'MAP',lastEvents), allClear=one(lastEvents,'all_clear'), campaignClear=one(lastEvents,'campaign_clear');
-  eq('20단계 클리어·완주 이벤트·배너·90틱·지도·카드 없음',[20,20235072,true,true,'allclear',90,'MAP',20,0],
+  eq('20단계 클리어·완주 이벤트·배너·90틱·지도로 이어지고 추가 카드 없음',[20,1846992,true,true,'allclear',90,'MAP',20,3],
     [...fields(finalClear,'stage','stageScore'),finalClear.tick===allClear.tick,allClear.tick===campaignClear.tick,
       finalBanner.banner.kind,finish.tick-finalBanner.tick,finish.state,finish.map.cleared,all(lastEvents,'cards_offered').length]);
 });
