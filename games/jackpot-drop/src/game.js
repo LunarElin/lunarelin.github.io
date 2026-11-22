@@ -31,7 +31,6 @@
   function initialUpgrades(perks, stageIndex) {
     const up = JD.newUpgrades(perks);
     if (stageIndex > 0) JD.applyCard(up, 'ballIron');
-    if (stageIndex > 1) JD.applyCard(up, 'springLoad');
     return up;
   }
 
@@ -44,12 +43,11 @@
     const storedPerks = raw.perks ? perksFrom(raw.perks) : { ...perks };
     storedPerks.ball = Math.min(storedPerks.ball, perks.ball);
     const up = JD.newUpgrades(storedPerks);
-    for (const id of [...JD.CARD_IDS, 'springLoad']) {
-      const fixed = JD.STAGES.slice(0, Math.min(stageIndex, 2)).some(stage => stage.reward.includes(id));
+    for (const id of JD.CARD_IDS) {
+      const fixed = stageIndex > 0 && JD.STAGES[0].reward.includes(id);
       const level = integer(raw[id], fixed ? 1 : 0, JD.CARD_CAP[id] || JD.CFG.CAMPAIGN);
       for (let levelIndex = 0; levelIndex < level; levelIndex++) JD.applyCard(up, id);
     }
-    if (raw.load === JD.CFG.LOAD_MAX) up.load = raw.load;
     const specialBalls = Object.keys(JD.CARD_BALL).reduce((total, id) => total + JD.CARD_CAP[id], 0);
     const rackLimit = Math.max(3, specialBalls) + JD.CARD_CAP.extra + perks.ball;
     if (Array.isArray(raw.rack) && raw.rack.length >= 3 && raw.rack.length <= rackLimit) {
@@ -91,7 +89,7 @@
     let tick = 0;
     let mode, seed, attempt, state, enteredTick, stageIndex, stage, stageStartedTick, board, pegById;
     let mapReturn;
-    let up, offerRandom, offer, rackIndices, loaded;
+    let up, offerRandom, offer, rackIndices, slot;
     let power, chargeTicks, charging, enteredPerfect, lastPower;
     let launch, shot, crackedBall, hitPins, readyPayout, banner, result;
     let runScore, stageScore, runCoins, stageCoins;
@@ -127,7 +125,7 @@
       resetCharge();
       readyPayout = null;
       shot = null;
-      loaded = [0];
+      slot = 0;
       enter('AIM');
     }
 
@@ -155,8 +153,8 @@
       up = nextUp;
       offerRandom = JD.mulberry32(seed + 999);
       if (mode === 'campaign' && !practice) {
-        // Each cleared stage after the two fixed rewards uses one three-card offer.
-        for (let draws = Math.max(0, stageIndex - 2) * 3; draws > 0; draws--) offerRandom();
+        // Each cleared stage after the fixed first reward uses one three-card offer.
+        for (let draws = Math.max(0, stageIndex - 1) * 3; draws > 0; draws--) offerRandom();
       }
       runScore = runCoins = biggestShot = jackpots = perfects = bestTier = pegsPopped = blocksBroken = 0;
       result = null;
@@ -179,18 +177,18 @@
     }
 
     function fire() {
-      const balls = loaded.map(slot => up.rack[rackIndices[slot]]);
+      const ball = up.rack[rackIndices[slot]];
       const firedPower = Math.max(JD.CFG.POWER_MIN, power);
       const perfect = JD.isPerfect(firedPower);
-      rackIndices = rackIndices.filter((_, slot) => !loaded.includes(slot));
-      loaded = [];
+      rackIndices.splice(slot, 1);
+      slot = undefined;
       power = lastPower = firedPower;
       charging = false;
-      launch = { power: firedPower, perfect, balls };
+      launch = { power: firedPower, perfect, ball };
       hitPins = [];
       if (perfect) perfects++;
       enter('LAUNCH');
-      emit('shot_fired', { stage: stageNumber(), ballsLeft: rackIndices.length, power: firedPower, perfect, balls: balls.slice() });
+      emit('shot_fired', { stage: stageNumber(), ballsLeft: rackIndices.length, power: firedPower, perfect, balls: [ball] });
     }
 
     function startCharge() {
@@ -377,18 +375,10 @@
       startStage();
     }
 
-    function pickBall(slot) {
-      if (charging || !Number.isInteger(slot) || slot < 0 || slot >= rackIndices.length) return;
-      if (up.load === 1) {
-        loaded = [slot];
-      } else if (loaded.includes(slot)) {
-        if (loaded.length === 1) return;
-        loaded = loaded.filter(index => index !== slot);
-      } else {
-        if (loaded.length >= up.load) return;
-        loaded.push(slot);
-      }
-      emit('ball_picked', { slot, ball: up.rack[rackIndices[slot]], loaded: loaded.slice() });
+    function pickBall(index) {
+      if (charging || !Number.isInteger(index) || index < 0 || index >= rackIndices.length) return;
+      slot = index;
+      emit('ball_picked', { slot, ball: up.rack[rackIndices[slot]] });
     }
 
     function handleAim(command) {
@@ -413,9 +403,6 @@
           break;
         case 'pickBall':
           pickBall(command.slot);
-          break;
-        case 'loadAll':
-          if (!charging && up.load > 1) loaded = rackIndices.slice(0, up.load).map((_, slot) => slot);
           break;
       }
     }
@@ -519,7 +506,6 @@
       const elapsed = tick - enteredTick;
       const shownShot = state === 'FLIGHT' ? shot : null;
       const fullRack = up.rack.slice();
-      const slot = loaded[0];
       return {
         tick, state, seed, stage: stageNumber(), stageIndex, stageName: stage.name, endless: mode === 'endless',
         stageStartedTick, stateElapsed: elapsed, practiceStart, practice, target: stage.target, stageScore, runScore,
@@ -528,15 +514,15 @@
         map: state === 'MAP' ? mapSnapshot() : null,
         ballsLeft: rackIndices.length, power, charging, lastPower,
         perfect: JD.isPerfect(power), rack: rackIndices.map(index => fullRack[index]),
-        fullRack, rackIndices: rackIndices.slice(), slot, loaded: loaded.slice(), load: up.load,
+        fullRack, rackIndices: rackIndices.slice(), slot,
         rows: board.rows, landY: board.landY, boardH: board.h,
         hint: stage.hint ? Object.assign({}, stage.hint) : null,
         iron: board.iron.map(group => ({ id: group.id, alive: group.alive, segs: group.segs.map(segment => segment.slice()) })),
         parked: board.parked.map(({ x, y, r, ball, group, bank }) => ({ x, y, r, ball, group, bank })),
         bank: board.parked.reduce((total, ball) => total + ball.bank, 0),
         warps: board.warps ? { ins: copyRecords(board.warps.ins) } : null,
-        ball: launch ? launch.balls[0] : shot ? shot.ballKeys[0] : fullRack[rackIndices[slot]] || null,
-        launch: launch ? { elapsed: elapsed + 1, power: launch.power, perfect: launch.perfect, balls: launch.balls.slice() } : null,
+        ball: launch ? launch.ball : shot ? shot.ballKeys[0] : fullRack[rackIndices[slot]] || null,
+        launch: launch ? { elapsed: elapsed + 1, power: launch.power, perfect: launch.perfect, balls: [launch.ball] } : null,
         stageMult: board.mult,
         up: copyUpgrades(up),
         offer: offer ? offer.slice() : null,
@@ -546,8 +532,8 @@
         blocks: copyRecords(board.blocks),
         terrain: board.terrain.map(segment => segment.slice()),
         buckets: { x: board.buckets.x.slice(), mult: board.buckets.mult.slice() },
-        balls: shot ? shot.balls.map(({ x, y, r, key, wait, done, lost, parked, bucket }, index) => ({
-          x, y, r, key, wait, done, lost, parked, bucket, cracked: crackedBall === index
+        balls: shot ? shot.balls.map(({ x, y, r, key, done, lost, parked, bucket }, index) => ({
+          x, y, r, key, done, lost, parked, bucket, cracked: crackedBall === index
         })) : [],
         shot: shownShot ? {
           pts: shot.pts, hits: shot.hits, golds: shot.golds, t: shot.t,

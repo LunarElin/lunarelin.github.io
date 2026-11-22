@@ -132,14 +132,25 @@
     circle(c,x-r*.24,y-r*.29,r*.22,'#FFF9DC');
   }
 
-  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,coil,coin,menuButton,fontFamily,bodyFamily};
+  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,coin,menuButton,fontFamily,bodyFamily};
   JD.UI={
     magazine(s) {
-      const loaded=s.loaded.filter(slot=>s.rack[slot]);
-      const unselected=s.rack.map((_,slot)=>slot).filter(slot=>!loaded.includes(slot));
-      return [...loaded,...unselected].map((slot,row)=>({slot,y:590-row*52}));
+      const slots=s.rack.map((_,slot)=>slot).filter(slot=>slot!==s.slot);
+      if (s.rack[s.slot]) slots.unshift(s.slot);
+      return slots.map((slot,row)=>({slot,y:590-row*52}));
     },
     magazineTop:s=>Math.min(340,564-Math.max(0,s.fullRack.length-1)*52),
+    ironAnchor(group) {
+      let plate=null;
+      let left=Infinity, right=-Infinity, top=Infinity;
+      for (const [x1,y1,x2,y2] of group.segs) {
+        left=Math.min(left,x1,x2);
+        right=Math.max(right,x1,x2);
+        top=Math.min(top,y1,y2);
+        if (y1===y2&&(!plate||y1>plate.y)) plate={x:(x1+x2)/2,y:y1};
+      }
+      return plate||{x:(left+right)/2,y:top};
+    },
     cards:s=>s.offer&&(s.offer.length===1?[{x:46,y:220,w:300,h:200}]:
       s.offer.map((_,i)=>({x:30,y:170+120*i,w:332,h:100}))),
     shopPerks:JD.PERK_IDS.map((id,i)=>({x:30,y:184+72*i,w:332,h:64,id})),
@@ -164,7 +175,7 @@
     } else if (s.state==='FLIGHT') {
       let lowest=null;
       for (const marble of s.balls) {
-        if (!marble.done&&!marble.wait) lowest=Math.max(lowest??0,marble.y);
+        if (!marble.done) lowest=Math.max(lowest??0,marble.y);
       }
       if (lowest===null) return;
       const target=clamp(lowest-384,0,bottom);
@@ -260,11 +271,11 @@
     c.restore();
   }
 
-  function launchPosition(k,duration,startY) {
-    const e=1-Math.pow(1-clamp(k/duration,0,1),2);
-    const straight=startY-84;
+  function launchPosition(k) {
+    const e=1-Math.pow(1-clamp(k/JD.CFG.LAUNCH_TICKS,0,1),2);
+    const straight=540-84;
     const d=e*(straight+Math.PI*12);
-    if (d<=straight) return [376,startY-d];
+    if (d<=straight) return [376,540-d];
     const a=(d-straight)/24;
     return [352+24*Math.cos(a),84-24*Math.sin(a)];
   }
@@ -298,9 +309,7 @@
     if(perfect) box(c,363,360,26,160,2,null,rgba(colors.jackpot,zone&&zone.age<6?.9:.25+.25*pulse(t,10)),2);
     c.restore();
     if(s.lastPower!==null) label(c,'◀',387,523-s.lastPower*160,9,colors.textDim);
-    const trailBall=fresh(fx,'lane_released');
-    const followRecoil=trailBall?.age<6&&!ui.reduced?-4*(1-trailBall.age/6):0;
-    const recoil=(shot&&shot.age<18 ? -10*Math.cos(shot.age*.9)*Math.pow(.75,shot.age) : ui.demoRecoil)+followRecoil;
+    const recoil=shot&&shot.age<18?-10*Math.cos(shot.age*.9)*Math.pow(.75,shot.age):ui.demoRecoil;
     const handleY=616+p*48+recoil, trayY=548+p*24;
     coil(c,376,trayY,8,handleY-trayY);
     box(c,367,trayY-1,18,3,1,colors.laneEdge);
@@ -335,57 +344,41 @@
     const ready=s.state==='AIM'&&!s.charging;
     const progress=ui.reduced?1:clamp((t-animation.at)/6,0,1);
     const canPick=s.endless||s.stage!==1;
-    const hint=ready&&canPick&&!ui.stageFired?s.hint:null;
-    const loaded=s.loaded.length;
-    const multi=s.load>1;
+    const hint=ready&&canPick&&!ui.stageFired?s.hint?.ball:null;
     const last=ready&&slots.length===1;
-    const loadColor=last&&Math.floor(t/15)%2?colors.danger:loaded===3?colors.jackpot:colors.text;
+    const loadColor=last&&Math.floor(t/15)%2?colors.danger:colors.text;
     c.save();
     c.globalAlpha=ready?1:.5;
     for (let i=0;i<s.fullRack.length;i++) {
       const y=590-i*52;
-      const selected=canPick&&i<loaded;
-      const warning=i===0&&last;
       const slot=slots[i]?.slot;
-      const matchingHint=slot!==undefined&&hint&&
-        (hint.ball===s.rack[slot]||hint.load==='all'&&loaded<s.load&&!selected);
-      const edge=matchingHint?rgba(colors.hint,.64+.36*pulse(t,20)):warning||selected&&!multi?loadColor:rgba(colors.laneEdge,.63);
-      box(c,396,y-22,40,44,9,selected?'#252947':'#10152E',edge,matchingHint||warning||selected&&!multi?2:1);
-      if (selected&&!multi) {
+      const selected=canPick&&slot!==undefined&&slot===s.slot;
+      const warning=i===0&&last;
+      const matchingHint=slot!==undefined&&hint===s.rack[slot];
+      const edge=matchingHint?rgba(colors.hint,.64+.36*pulse(t,20)):warning||selected?loadColor:rgba(colors.laneEdge,.63);
+      box(c,396,y-22,40,44,9,selected?'#252947':'#10152E',edge,matchingHint||warning||selected?2:1);
+      if (selected) {
         label(c,'◀',395,y+4,11,loadColor);
         label(c,'장전',416,y-11,10,loadColor);
       }
-      if (ready&&slot!==undefined&&slot===ui.magazineFocus) {
-        box(c,397,y-21,38,42,8,null,colors.combo1,2);
-      }
-    }
-    if (multi&&loaded) {
-      const top=590-(loaded-1)*52-22;
-      box(c,396,top,40,52*loaded-8,9,null,loadColor,2);
-      if (loaded===3) label(c,'×3',420,top-1,11,colors.jackpot,'right',{outline:colors.ink,outlineWidth:2});
     }
     const picked=fresh(fx,'ball_picked');
-    slots.forEach(({slot,y},index)=>{
+    for (const {slot,y} of slots) {
       const id=s.rackIndices[slot];
       const kind=s.rack[slot];
       const from=animation.from.get(id)??y;
       const spot=from+(y-from)*progress;
-      const dy=!multi&&index===0&&canPick?3:0;
+      const dy=slot===s.slot&&canPick?3:0;
       const bump=picked?.age<6&&slot===picked.e.slot&&!ui.reduced?1+.12*Math.sin(Math.PI*picked.age/6):1;
-      c.save();
-      if (multi&&index>=loaded) c.globalAlpha*=.6;
       ball(c,kind,416,spot+dy,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
-      if (multi&&index<loaded) label(c,String(index+1),403,spot-9,10,colors.text,'center',{outline:colors.ink});
-      c.restore();
-    });
+    }
     c.restore();
     label(c,slots.length+'/'+s.fullRack.length,416,628,12,last?colors.danger:colors.textDim);
   }
 
   function stageIntro(s) {
     const title=(s.endless?'ENDLESS ':'STAGE ')+s.stage+' · '+s.stageName;
-    const hint=s.hint?.load==='all'?'LOAD ALL 3 · FIRE TOGETHER':
-      s.hint?.ball==='iron'?'SAVE BALLS ON THE GATE · IRON BALL LAST':'GET THE JACKPOT';
+    const hint=s.hint?.ball==='iron'?'SAVE BALLS ON THE GATE · IRON BALL LAST':'GET THE JACKPOT';
     return [title,hint];
   }
 
@@ -455,8 +448,6 @@
   function panel(c,s,ui,fx) {
     const {shot,payout}=s;
     const fired=fresh(fx,'shot_fired');
-    const multishot=fired?.e.balls?.length>1&&fired.age<30;
-    if (multishot) label(c,'×'+fired.e.balls.length+' SHOT!',180,136,20,colors.jackpot,'center',{outline:colors.ink});
     if (fired?.e.perfect&&fired.age<30) {
       const age=fired.age;
       const scale=ui.reduced?1:age<5?.6+.12*age:1+.2*Math.max(0,1-(age-5)/12);
@@ -473,7 +464,7 @@
       box(c,150,84,180,32,16,rgba(colors.ink,.7),shot.tier?combo(shot.tier):colors.laneEdge,2);
       label(c,base,162,109,(bank?20:28)*pop,bank?colors.bank:colors.text,'left',{max:99,minSize:18});
       label(c,'× '+score(mult),316,108,22,colors.jackpot,'right',{max:54,minSize:19});
-      if (shot.tier&&!multishot) {
+      if (shot.tier) {
         const award=JD.CFG.COMBO_NAMES[shot.tier]+' +'+JD.CFG.COMBO_BONUS[shot.tier];
         label(c,award,240,146,25+shot.tier,combo(shot.tier),'center',{outline:colors.ink,max:174,minSize:22});
       }
@@ -500,44 +491,31 @@
     }
   }
 
-  function flyingUpLane(c,key,startY,elapsed,duration,perfect,ui) {
+  function drawLaneBall(c,s,ui) {
+    if (s.state==='AIM'&&s.ball) {
+      const power=Math.max(s.power,ui.demoPower);
+      ball(c,s.ball,376,540+power*24,JD.BALLS[s.ball].r);
+      return;
+    }
+    if (!s.launch) return;
+    const {elapsed,perfect}=s.launch;
+    const key=s.launch.balls[0];
     const tint=perfect?colors.jackpot:colors.text;
-    const tail=Math.min(duration-1,ui.reduced?4:6);
+    const tail=ui.reduced?4:6;
     for (let i=tail;i>0;i--) {
       if (elapsed<=i) continue;
-      const q=launchPosition(elapsed-i,duration,startY);
+      const q=launchPosition(elapsed-i);
       circle(c,q[0],q[1],8*(1-i/(tail+2)),rgba(tint,.5*(1-i/(tail+1))));
     }
-    const q=launchPosition(elapsed,duration,startY);
+    const q=launchPosition(elapsed);
     ball(c,key,q[0],q[1],JD.BALLS[key].r);
-  }
-
-  function drawLaneBalls(c,s,ui) {
-    if (s.state==='AIM') {
-      const p=Math.max(s.power,ui.demoPower);
-      s.loaded.forEach((slot,i)=>{
-        const key=s.rack[slot];
-        if (key) ball(c,key,376,540-20*i+p*24,JD.BALLS[key].r);
-      });
-    } else if (s.launch) {
-      s.launch.balls.forEach((key,i)=>{
-        if (i) ball(c,key,376,540-20*i,JD.BALLS[key].r);
-      });
-      flyingUpLane(c,s.launch.balls[0],540,s.launch.elapsed,JD.CFG.LAUNCH_TICKS,s.launch.perfect,ui);
-    } else if (s.shot) {
-      s.balls.forEach((b,i)=>{
-        if (b.done||!b.wait) return;
-        const gap=JD.CFG.LOAD_GAP;
-        flyingUpLane(c,b.key,540-20*i,Math.max(0,gap-b.wait),gap,s.shot.perfect,ui);
-      });
-    }
   }
 
   function drawWorldBalls(c,s,ui,fx,t) {
     if(!s.shot) return;
     const tier=s.shot.tier,tint=combo(tier);
     s.balls.forEach((b,i)=>{
-      if(b.done||b.wait) return;
+      if(b.done) return;
       const warp=fresh(fx,'warp',i);
       const warpAge=warp?warp.age:Infinity;
       let x=b.x,y=b.y,r=b.r;
@@ -635,7 +613,7 @@
       cameraProgress(c,s,ui);
       c.save();
       c.beginPath(); c.rect(0,0,392,640); c.clip();
-      drawLaneBalls(c,s,ui);
+      drawLaneBall(c,s,ui);
       c.restore();
       c.save();
       c.beginPath(); c.rect(0,0,360,640); c.clip();
@@ -853,7 +831,7 @@
 
   function drawIron(ctx, group, snapshot, fx, time, D) {
     const broken = D.fresh && D.fresh(fx, 'iron_break', group.id);
-    const breaking = broken && broken.age < 3;
+    const breaking = !group.alive && broken?.age < 3;
     if (!group.alive && !breaking) return;
 
     const C = D.colors;
@@ -861,16 +839,13 @@
     const pulse = usable ? D.pulse(time, 40) : 0;
     ctx.save();
     ctx.lineCap = 'round';
-    let top = Infinity, left = 360, right = 0;
     for (const [x1, y1, x2, y2] of group.segs) {
-      top = Math.min(top, y1, y2);
-      left = Math.min(left, x1, x2);
-      right = Math.max(right, x1, x2);
       if (breaking) {
         D.line(ctx, x1, y1, x2, y2, '#FFFFFF', 10);
         continue;
       }
       if (usable) D.line(ctx, x1, y1, x2, y2, D.rgba(C.ironEdge, 0.35 * pulse), 13);
+      D.line(ctx, x1, y1+2, x2, y2+2, '#293148', 10);
       D.line(ctx, x1, y1, x2, y2, C.ironEdge, 10);
       D.line(ctx, x1, y1, x2, y2, C.ironWall, 7);
       const length = Math.hypot(x2 - x1, y2 - y1);
@@ -880,19 +855,10 @@
       }
     }
     if (!breaking&&!snapshot.parked.some(ball=>ball.group===group.id)) {
-      D.label(ctx,'IRON',(left+right)/2,top-9,9,C.ironEdge,'center',{outline:'#0B0E2A'});
+      const {x,y}=JD.UI.ironAnchor(group);
+      D.label(ctx,'IRON',x,y-10,10,C.ironEdge,'center',{outline:C.bgTop});
     }
     ctx.restore();
-  }
-
-  function savedPillPosition(group) {
-    let left=360,right=0,top=Infinity;
-    for(const [x1,y1,x2,y2] of group.segs) {
-      left=Math.min(left,x1,x2);
-      right=Math.max(right,x1,x2);
-      top=Math.min(top,y1,y2);
-    }
-    return {x:(left+right)/2,y:Math.max(520,top-32)};
   }
 
   function drawParked(ctx,s,ui,fx,time,D) {
@@ -913,10 +879,11 @@
     }
 
     for(const group of s.iron) {
-      const entry=byGroup.get(group.id);
+      const entry=group.alive?byGroup.get(group.id):null;
       const release=D.fresh(fx,'parked_release',group.id);
       if(!entry && !(release?.age<8)) continue;
-      const {x,y}=savedPillPosition(group);
+      const anchor=JD.UI.ironAnchor(group);
+      const x=anchor.x,y=anchor.y-32;
       if(!entry) {
         const alpha=.85*(1-release.age/8);
         const cx=D.clamp(x,82,278);
@@ -1018,11 +985,10 @@
     split: ['SPLIT SHOT', '+1 ball on first new peg hit', '÷', 'text'],
     ballIron: ['IRON BALL', 'Breaks iron walls,\nblocks take 2 damage', '', 'iron'],
     ballGlass: ['GLASS BALL', 'Cracks at 12 hits,\nshatters into 3 at 24', '', 'glass'],
-    ballBig: ['BIG BALL', 'Bigger ball, more hits', '', 'glass'],
-    springLoad: ['MULTI LOAD', 'Load up to 3 balls and fire them together', '', 'jackpot']
+    ballBig: ['BIG BALL', 'Bigger ball, more hits', '', 'glass']
   };
 
-  const previewNames = {1:'IRON LID',2:'CURVE · LOAD ALL 3',3:'BLOCKS ×+1 · WARP',4:'ZIGZAG · LONG BOARD',
+  const previewNames = {1:'IRON LID',3:'BLOCKS ×+1 · WARP',4:'ZIGZAG · LONG BOARD',
     7:'THE VAULT ×+3 · LONG BOARD',8:'CROSSFIRE · ENDLESS UNLOCKED'};
   const previewJackpots = {center:'JACKPOT ▼',left:'JACKPOT ◀',right:'JACKPOT ▶',twin:'TWIN JACKPOT'};
   const resultStats = [
@@ -1087,15 +1053,6 @@
     rackRow(ctx, next, left + beforeW + 34, y, gap, r, D);
   }
 
-  function loadPreview(ctx,x,y,D) {
-    for (const [offset,count] of [[-42,1],[42,3]]) {
-      const center=x+offset;
-      D.box(ctx,center-9,y-15,18,32,4,D.colors.lane,D.colors.laneEdge);
-      for (let i=0;i<count;i++) D.ball(ctx,'normal',center,y+9-9*i,4);
-    }
-    D.label(ctx,'1 → 3',x,y+5,15,D.colors.jackpot);
-  }
-
   function drawIcon(ctx, id, x, y, r, D) {
     const [, , glyph, token] = cards[id];
     const tint = D.colors[token];
@@ -1103,9 +1060,6 @@
     if (JD.CARD_BALL[id]) {
       const kind = JD.CARD_BALL[id];
       D.ball(ctx, kind, x, y, Math.min(r-3,JD.BALLS[kind].r*2), { cracked:kind === 'glass' });
-    } else if (id === 'springLoad') {
-      D.coil(ctx,x,y+5,9,23);
-      for(let i=0;i<3;i++) D.ball(ctx,'normal',x,y-1-11*i,5);
     } else if (id === 'bombPlus') {
       D.circle(ctx, x, y + 3, r * .40, tint);
       D.circle(ctx, x, y + 3, r * .16, '#5A0F1E');
@@ -1143,8 +1097,7 @@
       D.label(ctx,name,cx,y+110,26,C.text,'center',{max:w-30});
       effectLines(ctx,effect,w-38,16,D).forEach((value,i)=>
         D.label(ctx,value,cx,y+134+i*18,16,C.text,'center',{body:true,max:w-38,minSize:14}));
-      if (id==='springLoad') loadPreview(ctx,cx,y+180,D);
-      else rackPreview(ctx,s.fullRack,id,cx,y+180,w-60,8,D);
+      rackPreview(ctx,s.fullRack,id,cx,y+180,w-60,8,D);
     } else {
       D.label(ctx,String(index+1),43,y+19,12,focus?C.text:C.textDim);
       drawIcon(ctx,id,x+34,y+49,24,D);
@@ -1166,7 +1119,7 @@
     const C=D.colors;
     const fixed=s.offer.length===1;
     D.box(ctx,0,0,440,640,0,D.rgba(C.ink,.75));
-    D.label(ctx,fixed?(s.offer[0]==='springLoad'?'NEW SPRING!':'NEW BALL!'):'PICK ONE',196,120,fixed?28:24,fixed?C.jackpot:C.text);
+    D.label(ctx,fixed?'NEW BALL!':'PICK ONE',196,120,fixed?28:24,fixed?C.jackpot:C.text);
     D.label(ctx,preview(s),196,146,15,C.textDim,'center',{max:352,minSize:11});
     for(let i=0;i<s.offer.length;i++) {
       if(ui.stateAge>=6*i||ui.reduced) drawCard(ctx,s,i,ui,D);

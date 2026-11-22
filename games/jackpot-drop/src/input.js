@@ -119,7 +119,7 @@
     function selectBall(state, slot) {
       if (!canPickBall(state) || !state.rack[slot]) return;
       controls.activateAudio();
-      if (state.load > 1 || slot !== state.slot) controls.queue({ type: 'pickBall', slot });
+      if (slot !== state.slot) controls.queue({ type: 'pickBall', slot });
       canvas.focus({ preventScroll: true });
     }
 
@@ -153,20 +153,17 @@
       const action = key === ' ' || key === 'Enter';
       const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(key);
       const state = controls.snapshot();
-      const toggleLoaded = state.state === 'AIM' && state.load > 1 && (key === 'a' || key === 'A');
-      const loadAll = state.state === 'AIM' && state.load > 1 && (key === 'l' || key === 'L');
       const magazineTarget = magazineButtons.includes(ev.target);
       const uiTarget=ev.target instanceof Element&&ev.target.closest('a, button, input, select, textarea, [contenteditable]');
       if(state.state==='SHOP'||state.state==='MAP'||state.state==='RESULT') {
         if(!uiTarget||uiTarget.classList.contains('panel-hit')) panelKey(ev,state,action,arrow);
         return;
       }
-      if (uiTarget &&
-          !(magazineTarget && (arrow >= 0 || toggleLoaded || loadAll))) return;
+      if (uiTarget && !(magazineTarget && arrow >= 0)) return;
       const directCard = ['1', '2', '3'].indexOf(key);
       const cardTab = state.state === 'CARD' && ev.target === canvas && key === 'Tab';
       const cardMove = state.state === 'CARD' && (arrow >= 0 || cardTab);
-      if (!action && arrow < 0 && !cardTab && directCard < 0 && key !== 'Shift' && !toggleLoaded && !loadAll) return;
+      if (!action && arrow < 0 && !cardTab && directCard < 0 && key !== 'Shift') return;
       if (key !== 'Shift') ev.preventDefault();
       if (ev.repeat) return;
       controls.activateAudio();
@@ -177,25 +174,9 @@
         if (action && chargeKey === null && pointer === null && !state.charging) {
           chargeKey = key;
           controls.queue({ type: 'hold' });
-        } else if (canPickBall(state)) {
-          const focused = magazineTarget ? Number(ev.target.dataset.slot) : controls.magazineFocused() ?? state.slot;
-          if (arrow >= 0) {
-            const direction = arrow === 1 || arrow === 2 ? 1 : -1;
-            if (state.load > 1) {
-              const slots = JD.UI.magazine(state);
-              const row = slots.findIndex(entry => entry.slot === focused);
-              controls.focusMagazine(slots[cycle(row, direction, slots.length)].slot);
-              canvas.focus({ preventScroll: true });
-            } else {
-              controls.queue({ type: 'pickBall', slot: cycle(state.slot, direction, state.rack.length) });
-            }
-          } else if (toggleLoaded) {
-            controls.focusMagazine(focused);
-            selectBall(state, focused);
-          } else if (loadAll) {
-            controls.queue({ type: 'loadAll' });
-            canvas.focus({ preventScroll: true });
-          }
+        } else if (arrow >= 0 && canPickBall(state)) {
+          const direction = arrow === 1 || arrow === 2 ? 1 : -1;
+          selectBall(state,cycle(state.slot,direction,state.rack.length));
         }
       } else if (state.state === 'PAYOUT' && action) {
         controls.queue({ type: 'skip' });

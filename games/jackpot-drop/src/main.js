@@ -59,7 +59,7 @@
   let s=game.snapshot();
   const ui={
     focus:0,muted:!s.practice&&stored?.muted===true,newBest:false,age:0,
-    paused:false,magazineFocus:null,cameraY:0,panelFocus:null,panelShake:null,mapUnlock:false,
+    paused:false,cameraY:0,panelFocus:null,panelShake:null,mapUnlock:false,
     stageAge:0,stateAge:0,stageFired:false,tutorialSeen:false,hintHidden:false,
     demoPower:0,demoRecoil:0,slowBlend:0,cardNotice:null,reduced:media.matches
   };
@@ -92,7 +92,7 @@
       button.dataset.slot=entry.slot;
       button.style.top=(entry.y-26)*100/640+'%';
       button.setAttribute('aria-label','구슬 '+(entry.slot+1)+': '+balls[s.rack[entry.slot]]);
-      button.setAttribute('aria-pressed',String(equipmentEnabled&&s.loaded.includes(entry.slot)));
+      button.setAttribute('aria-pressed',String(equipmentEnabled&&entry.slot===s.slot));
     });
   }
 
@@ -151,8 +151,7 @@
       MAP:'위아래 방향키로 고르고 Enter 또는 Space로 선택합니다. Esc로 지도를 닫습니다.',
       RESULT:'Space 또는 Enter로 다시 시작하고 G로 지도를 엽니다.'};
     canvas.setAttribute('aria-label',labels[s.state]||'잭팟 드롭 보드');
-    canvas.setAttribute('aria-description',descriptions[s.state]||(s.load>1?
-      playDescription+' A로 초점 구슬을 장전하거나 뺍니다. L로 최대 세 개를 장전합니다.':playDescription));
+    canvas.setAttribute('aria-description',descriptions[s.state]||playDescription);
     updateMagazine();
     updatePanel();
   }
@@ -186,8 +185,6 @@
     queue:cmd=>game.queue(cmd),
     focus:index=>{ui.focus=index;},
     focused:()=>ui.focus,
-    focusMagazine:slot=>{ui.magazineFocus=slot;},
-    magazineFocused:()=>ui.magazineFocus,
     activateAudio:()=>{if(audio) audio.activate();},
     toggleMute,
     cancel:cancelInput,
@@ -210,7 +207,6 @@
           ui.stageAge=0;
           ui.stageFired=false;
           ui.hintHidden=false;
-          ui.magazineFocus=null;
           break;
         case 'charge_started':
           ui.hintHidden=true;
@@ -219,7 +215,6 @@
           ui.stageFired=true;
           ui.tutorialSeen=true;
           ui.hintHidden=true;
-          ui.magazineFocus=null;
           slowFrames=0;
           slowPhase=false;
           break;
@@ -256,22 +251,17 @@
       if(s.state==='SHOP') ui.panelFocus='retry';
       if(s.state==='MAP') setMapFocus();
     }
-    const loadedChanged=s.loaded.length!==before.loaded.length||s.loaded.some((slot,index)=>slot!==before.loaded[index]);
-    if(changed || s.charging!==before.charging || loadedChanged || s.state==='SHOP'&&s.coins!==before.coins ||
+    if(changed || s.charging!==before.charging || s.slot!==before.slot || s.state==='SHOP'&&s.coins!==before.coins ||
         s.rack.length!==before.rack.length) updateControls();
     if(changed&&(s.state==='SHOP'||s.state==='MAP'||s.state==='CARD'||s.state==='RESULT'||
         before.state==='SHOP'||before.state==='MAP'||before.state==='RESULT')) focusPlayfield();
-    const events=game.drainEvents();
-    if(before.state==='FLIGHT'&&s.balls.some((ball,index)=>ball.wait===0&&before.balls[index]?.wait>0)) {
-      events.push({type:'lane_released'});
-    }
-    handleEvents(events,before);
+    handleEvents(game.drainEvents(),before);
   }
 
   function nearJackpot() {
     if(s.state!=='FLIGHT') return false;
-    const moving=s.balls.filter(ball=>!ball.done&&ball.wait<=0);
-    if(moving.length!==1||moving[0].y<s.landY-76||s.balls.some(ball=>ball.wait>0)) return false;
+    const moving=s.balls.filter(ball=>!ball.done);
+    if(moving.length!==1||moving[0].y<s.landY-76) return false;
     return s.buckets.mult.some((mult,i)=>mult===5&&moving[0].x>=s.buckets.x[i]-20&&moving[0].x<=s.buckets.x[i+1]+20);
   }
 

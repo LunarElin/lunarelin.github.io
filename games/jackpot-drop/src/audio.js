@@ -210,7 +210,7 @@
           tone('sine',150,.04,.29);
           break;
         case 'ball_picked':
-          sequence(e.loaded.includes(e.slot)?[900,1500]:[1500,900],.015,'square',.18,0,.015);
+          sequence([900,1500],.015,'square',.18,0,.015);
           break;
         case 'shot_fired': {
           stopCharge();
@@ -220,9 +220,6 @@
         }
         case 'launch':
           noise('highpass',1500,1500,.08,.22);
-          break;
-        case 'lane_released':
-          noise('highpass',1500,1500,.04,.14);
           break;
         case 'peg_hit': {
           if(e.cause !== 'ball') break;
@@ -244,6 +241,7 @@
           noise('highpass',3400,3400,.10,.11);
           break;
         case 'iron_hit':
+          if(rateLimited(e,8,e.ball,e.tick)) break;
           tone('square',1400,.025,.14);
           tone('sine',300,.06,.24);
           break;
@@ -286,7 +284,7 @@
           const pitch=180*Math.pow(2,((block ? block.maxHp : e.hp)-e.hp)/12);
           tone('square',pitch,.05,.25);
           noise('highpass',950,950,.05,.15);
-          if(snapshot.shot?.balls.every(ball=>ball==='iron')) {
+          if(snapshot.shot?.balls[0]==='iron') {
             tone('square',1200,.03,.13);
             tone('sine',600,.08,.20);
           } else if(block && block.kind === 'vault') silverPing();

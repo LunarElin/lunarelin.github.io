@@ -125,15 +125,10 @@
         text(heads,'SAFE!',e.x,e.y-15,14,C.text,16);
       } else text(heads,'MAX BALLS',e.x,e.y-15,12,C.textDim,16);
     }
-    function ironCenter(iron) {
-      const points=[].concat(...iron.segs);
-      const xs=points.filter((_,i)=>i%2===0), ys=points.filter((_,i)=>i%2===1);
-      return {x:(Math.min(...xs)+Math.max(...xs))/2,y:Math.min(...ys)};
-    }
     function gotIron(e,s,before) {
       const iron=s.iron.find(group=>group.id===e.id);
       if(!iron) return;
-      const {x,y}=ironCenter(iron);
+      const {x,y}=JD.UI.ironAnchor(iron);
       if(e.type==='iron_hit') {
         const b=s.balls[e.ball]||before.balls[e.ball];
         if(b) burst(b.x,b.y,4,C.text,{speed:3,life:11,up:true});
@@ -170,7 +165,7 @@
       if(e.type==='parked_release'){
         const iron=s.iron.find(group=>group.id===e.group);
         const bank=before.parked.reduce((sum,ball)=>sum+(ball.group===e.group?ball.bank:0),0);
-        if(iron) e=Object.assign({},e,ironCenter(iron),{bank});
+        if(iron) e=Object.assign({},e,JD.UI.ironAnchor(iron),{bank});
       }
       if(e.type==='peg_hit'){
         const p=s.pegs.find(peg=>peg.id===e.id);
@@ -329,7 +324,7 @@
       if(s.shot&&s.tick!==lastTrailTick){
         lastTrailTick=s.tick;
         s.balls.forEach((b,i)=>{
-          if(b.done||b.wait>0) return;
+          if(b.done) return;
           const past=trails[i]||(trails[i]=[]);
           const off=fresh('warp',i);
           if(!off||off.age>=8) past.push({x:b.x,y:b.y});
@@ -489,7 +484,7 @@
         if(a>0) c.translate(Math.sin(time*2.1)*a,Math.cos(time*2.9)*a*.55);
       }
       if(ui.slowBlend>0.01&&s.shot){
-        const b=s.balls.find(p=>!p.done&&p.wait<=0);
+        const b=s.balls.find(p=>!p.done);
         if(b) {
           const scale=1+.06*ui.slowBlend;
           const y=b.y-ui.cameraY;
@@ -516,11 +511,6 @@
       for(const p of particles) if(p.screen) drawParticle(c,p);
       drawScoreEffects(c,ui);
       for(const flight of coinFlights) coinFlight(c,flight.x,flight.y-ui.cameraY,300,20,(time-flight.at)/24,62,3);
-      const earned=fresh('coins_earned');
-      if(earned?.e.cause==='clear'&&earned.age<30) {
-        D.label(c,'+10 FIRST CLEAR',288,66-earned.age*.15,14,C.jackpot,'center',
-          {outline:C.ink,max:142});
-      }
       for(const b of bonuses) {
         if(time<b.at) continue;
         const a=Math.min(1,(time-b.at)/28);
