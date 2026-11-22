@@ -26,14 +26,18 @@ JD.CFG = {
 
 // The cannon at the top centre of the board (no plunger, no shooter lane). While the player holds, it swings left and
 // right; releasing fires one ball at speed from (x, y) in the direction it points. angle is in degrees, 0 = straight
-// down, + = to the right, at most maxAngle either way. It starts straight down and swings to the right first: from the
+// down, + = to the right, at most maxAngle either way. A hold first LOADS the cannon: for the first load ticks the barrel
+// is pulled back and the angle stays 0. Only then it swings, to the right first: from the
 // centre to the right end in swing ticks, dwell ticks there, across to the left end in 2 x swing ticks, dwell ticks,
 // back to the centre in swing ticks, and round again. A shot fired inside the aim zone (JD.aimZone, +-zoneHalf around
 // the spot it points at) is PERFECT: its combo starts perfectTier tiers higher. A hold shorter than minHold ticks does
 // not fire (a mistaken tap).
-JD.CANNON = { x: 180, y: 40, speed: 5, maxAngle: 60, swing: 60, dwell: 10, zoneHalf: 8, perfectTier: 1, minHold: 3 };
+JD.CANNON = { x: 180, y: 40, speed: 5, maxAngle: 60, load: 10, swing: 60, dwell: 10, zoneHalf: 8, perfectTier: 1, minHold: 3 };
+// n = ticks held. n <= load: loading (angle 0). After that the swing starts from the centre.
 JD.aimAngle = function (n) {
-  var K = JD.CANNON, s = K.swing, w = K.dwell, P = 4 * s + 2 * w, m = ((n % P) + P) % P, A = K.maxAngle;
+  var K = JD.CANNON, s = K.swing, w = K.dwell, P = 4 * s + 2 * w, A = K.maxAngle;
+  if (n <= K.load) return 0;
+  var m = (n - K.load) % P;
   if (m < s) return A * m / s;
   if (m < s + w) return A;
   if (m < 3 * s + w) return A - A * (m - s - w) / s;

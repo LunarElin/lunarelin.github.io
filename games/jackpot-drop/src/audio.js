@@ -130,7 +130,10 @@
 
     function aimFrame(snapshot) {
       const angle = snapshot.charging ? snapshot.angle : 0;
-      if (snapshot.charging && angle !== previousAngle && angle % 10 === 0) {
+      if (snapshot.chargeTicks === JD.CANNON.load) {
+        tone('square',900,.015,.22);
+        noise('bandpass',1900,1900,.02,.15);
+      } else if (snapshot.chargeTicks > JD.CANNON.load && angle !== previousAngle && angle % 10 === 0) {
         tone('square',220,.01,.15);
         if (Math.abs(angle) === JD.CANNON.maxAngle) tone('square',460,.018,.13);
       }

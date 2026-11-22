@@ -375,11 +375,11 @@ test('F18','벽과 검수용 시작',eq => {
   }));
 });
 test('F19','포·노림 구간·구슬·핀 깨짐',eq => {
-  eq('포의 기준 수치',{x:180,y:40,speed:5,maxAngle:60,swing:60,dwell:10,zoneHalf:8,perfectTier:1,minHold:3},JD.CANNON);
+  eq('포의 기준 수치',{x:180,y:40,speed:5,maxAngle:60,load:10,swing:60,dwell:10,zoneHalf:8,perfectTier:1,minHold:3},JD.CANNON);
   eq('예전 슈터 레인과 세기 API 제거',false,['SPRING','isPerfect'].some(key=>key in JD)||
     ['EXIT_X','EXIT_Y','EXIT_VY','POWER_MIN'].some(key=>key in JD.CFG));
-  eq('260틱 포 흔들기와 끝의 정지',[1,4,8,30,60,60,60,30,0,-30,-60,-60,-55,-20,0,1],
-    [1,4,8,30,60,65,70,100,130,160,190,200,205,240,260,261].map(JD.aimAngle));
+  eq('10틱 장전 뒤 260틱 포 흔들기와 끝의 정지',[0,0,0,1,4,8,9,30,60,60,60,30,9,8,0,-30,-60,-60,-55,-20,0,1],
+    [1,4,10,11,14,18,19,40,70,75,80,110,131,132,140,170,200,210,215,250,270,271].map(JD.aimAngle));
   eq('노림 구간 경계',[true,false],[8,8.01].map(angle=>JD.inZone({lo:-8,hi:8},angle)));
   eq('각도별 포의 발사 속도·구슬 종류',[[0,0,5,8,'normal'],[30,2.5,4.330,8,'normal'],
     [-60,-4.330,2.5,8,'normal'],[60,4.330,2.5,8,'normal'],[0,0,5,11,'big'] ],
@@ -416,21 +416,30 @@ test('F19','포·노림 구간·구슬·핀 깨짐',eq => {
   const uncontacted=JD.createShot(blank({pegs:[peg]}),0,up());
   JD.lightPeg(uncontacted,peg,'ball');
   eq('점등만으로 접촉 횟수를 늘리지 않음',0,peg.touches||0);
-  const g=JD.createGame({seed:1}), es=send(g,{type:'hold'});
-  eq('1틱 흔들기 시작·각도',[1,true,1],[one(es,'charge_started').tick,...fields(g.snapshot(),'charging','angle')]);
-  const outside=until(g,9,es), inside=until(g,122,es);
-  eq('1틱과 122틱 PERFECT 구간에 진입하고 9틱에는 구간 밖',[[[1,'perfect'],[122,'perfect']],9,8],
+  const g=JD.createGame({seed:1});
+  eq('대기 중에는 장전 경과가 0틱',[false,0],fields(g.snapshot(),'charging','chargeTicks'));
+  const es=send(g,{type:'hold'});
+  eq('1틱 장전 시작·경과·각도',[1,true,1,0],[one(es,'charge_started').tick,...fields(g.snapshot(),'charging','chargeTicks','angle')]);
+  const loading=until(g,10,es), swinging=until(g,11,es);
+  eq('10틱까지 고정되고 11틱부터 회전',[[10,0],[11,1]],
+    [fields(loading,'chargeTicks','angle'),fields(swinging,'chargeTicks','angle')]);
+  const outside=until(g,19,es), inside=until(g,132,es);
+  eq('1틱과 132틱 PERFECT 구간에 진입하고 19틱에는 구간 밖',[[[1,'perfect'],[132,'perfect']],9,8],
     [all(es,'charge_zone').map(e=>fields(e,'tick','zone')),outside.angle,inside.angle]);
-  const held=JD.createGame({seed:1}); queue(held,{type:'hold'}); until(held,4);
+  const held=JD.createGame({seed:1}); queue(held,{type:'hold'}); until(held,14);
   const releases=send(held,{type:'release'});
+  eq('발사하면 장전 경과 초기화',[false,0],fields(held.snapshot(),'charging','chargeTicks'));
   until(held,'PAYOUT',releases);
-  eq('5틱 발사 각도·PERFECT·구슬·남은 공',[5,4,true,['normal'],2],
+  eq('15틱 발사 각도·PERFECT·구슬·남은 공',[15,4,true,['normal'],2],
     fields(one(releases,'shot_fired'),'tick','angle','perfect','balls','ballsLeft'));
-  eq('17틱 진입·325틱 종료·발 점수',[17,325,1860],[one(releases,'launch').tick,...fields(one(releases,'shot_finished'),'tick','score')]);
+  eq('27틱 진입·335틱 종료·발 점수',[27,335,1860],[one(releases,'launch').tick,...fields(one(releases,'shot_finished'),'tick','score')]);
+  const early=JD.createGame({seed:1}); queue(early,{type:'hold'}); until(early,5);
+  eq('장전 중 6틱에 놓으면 0° 발사',[6,0,true],
+    fields(one(send(early,{type:'release'}),'shot_fired'),'tick','angle','perfect'));
   const brief=JD.createGame({seed:1}); queue(brief,{type:'hold'}); until(brief,2);
   const cancel=send(brief,{type:'release'});
-  eq('짧은 홀드 취소 틱·누른 틱 수·발사 수·남은 공·리셋',[3,2,0,3,0],
-    [...fields(one(cancel,'charge_cancel'),'tick','ticks'),all(cancel,'shot_fired').length,...fields(brief.snapshot(),'ballsLeft','angle')]);
+  eq('짧은 홀드 취소 틱·누른 틱 수·발사 수·남은 공·리셋',[3,2,0,3,0,0],
+    [...fields(one(cancel,'charge_cancel'),'tick','ticks'),all(cancel,'shot_fired').length,...fields(brief.snapshot(),'ballsLeft','angle','chargeTicks')]);
   const guards=JD.createGame({seed:1,start:3});
   const obsolete=[{type:'pull',power:0.85},{type:'loadAll'},{type:'pickSpring',spring:'spin'}], pick={type:'pickBall',slot:1};
   eq('조준 중 예전 명령은 무시',[],send(guards,...obsolete).filter(e=>e.type!=='stage_started'&&e.type!=='run_started'));

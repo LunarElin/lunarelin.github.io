@@ -8,7 +8,8 @@
     block:'#2E3A8C', blockEdge:'#8FA2FF', vault:'#5A3A00', vaultEdge:'#FFC83D',
     terrain:'#3A3F66', terrainEdge:'#C9CEF5', ball:'#FFFFFF', jackpot:'#FFC83D',
     combo1:'#3DD6FF', combo2:'#5CFFB0', combo3:'#FFC83D', combo4:'#FF4DD2',
-    springStandard:'#C9CEF5', ironWall:'#59627E',
+    springStandard:'#C9CEF5', turret:'#8D96D6', turretLight:'#D7DCFF', turretDark:'#4B5291', turretEdge:'#252A5E',
+    ironWall:'#59627E',
     ironEdge:'#C9D1E6', warp:'#9D4DFF', bank:'#5CFFB0', hint:'#FFC83D', glass:'#BDF3FF',
     iron:'#9AA3B8', text:'#FFFFFF', textDim:'#A9B0D6', danger:'#FF6B6B', success:'#5CFFB0', ink:'#05061A'
   };
@@ -363,52 +364,153 @@
       {outline:colors.ink,outlineWidth:2.5,max:88});
   }
 
-  function drawCannon(c,s,ui,fx) {
-    const {x,y}=JD.CANNON;
-    const aiming=s.state==='AIM';
-    const demo=aiming&&!s.charging&&!s.endless&&s.stage===1&&!ui.tutorialSeen;
-    const aim=s.launch?.angle??(demo?(ui.demoAngle??s.angle):s.angle);
-    const angle=aim*degrees;
-    const fired=fresh(fx,'shot_fired');
-    const flash=fresh(fx,'charge_zone');
-    const perfect=s.launch?.perfect??(aiming&&JD.inZone(s.zone,aim));
-    const glowing=aiming&&s.charging&&perfect&&flash?.age<6;
-    const offset=s.charging?-Math.min(10,s.holdTicks*.5):ui.reduced?0:
-      fired?.age<18?6*Math.cos(fired.age*.9)*Math.pow(.75,fired.age):(ui.demoRecoil||0);
-    const muzzle=26+offset;
-    if (aiming) {
-      const dx=Math.sin(angle),dy=Math.cos(angle);
-      dashed(c,x+dx*muzzle,y+dy*muzzle,x+dx*(muzzle+90),y+dy*(muzzle+90),
-        rgba(perfect?colors.jackpot:colors.text,.5),1.8);
-    }
+  const easeOut=progress=>1-Math.pow(1-clamp(progress,0,1),3);
+  const retractedBarrel=ticks=>-8*easeOut(ticks/JD.CANNON.load);
+  const turretRadius=13;
+  const barrelHalfWidth=5;
+  const turretJoin=Math.sqrt(turretRadius**2-barrelHalfWidth**2);
+  const turretArc=Math.atan2(turretJoin,barrelHalfWidth);
 
-    box(c,x-14,y-9,28,11,4,colors.lane,colors.laneEdge,1.5);
+  function cannonPose(s,ui,fx) {
+    const aiming=s.state==='AIM';
+    const cancelled=fresh(fx,'charge_cancel');
+    const demo=aiming&&!s.charging&&!s.endless&&s.stage===1&&!ui.tutorialSeen&&!ui.reduced;
+    const cycle=ui.age%90;
+    const {load,swing,dwell}=JD.CANNON;
+    const demoHold=demo&&cycle>=6&&cycle<60
+      ? Math.min(cycle-6,load)+Math.max(0,cycle-6-load)*(swing*2+dwell)/(54-load)
+      : 0;
+    const ticks=s.charging?s.chargeTicks:demoHold;
+    const launchTick=s.launch?.elapsed??(demo&&cycle>=60&&cycle<66?1+2*(cycle-60):0);
+    const returnAngle=(s.lastAngle??0)*(1-easeOut(s.stateElapsed/8));
+    const aim=s.launch?.angle??(demo?JD.aimAngle(ticks):aiming&&!s.charging&&!ui.reduced?returnAngle:s.angle);
+    let barrel=28,body=0,loadFlash=0,muzzleFlash=-1;
+    if (launchTick) {
+      barrel+=launchTick<=9?-8+11*(launchTick/9)**2:12-launchTick;
+      body=ui.reduced?0:-3*(1-easeOut((launchTick-1)/8));
+      if (launchTick>=10) muzzleFlash=clamp((launchTick-10)/2,0,1);
+    } else if (ticks>0) {
+      barrel+=retractedBarrel(ticks);
+      if (ticks>=load&&ticks<load+4) loadFlash=1-(ticks-load)/4;
+      if (!ui.reduced) body=ticks<=load?Math.max(0,1-(ticks-1)/4):.5*Math.sin((ticks-load)*twoPi/3);
+    } else if (aiming&&cancelled?.age<6) {
+      barrel+=retractedBarrel(cancelled.e.ticks)*(1-easeOut(cancelled.age/6));
+    }
+    return {aim,barrel,body,loadFlash,muzzleFlash};
+  }
+
+  function drawTurretMount(c,x,y) {
     c.beginPath();
-    c.arc(x,y,12,0,Math.PI);
+    c.moveTo(x-20,y-14);
+    c.quadraticCurveTo(x-20,y-16,x-18,y-16);
+    c.lineTo(x+18,y-16);
+    c.quadraticCurveTo(x+20,y-16,x+20,y-14);
+    c.lineTo(x+20,y-2);
+    c.quadraticCurveTo(x+20,y,x+18,y);
+    c.lineTo(x+17,y);
+    c.quadraticCurveTo(x+15,y,x+15,y-2);
+    c.lineTo(x+15,y-12);
+    c.lineTo(x-15,y-12);
+    c.lineTo(x-15,y-2);
+    c.quadraticCurveTo(x-15,y,x-17,y);
+    c.lineTo(x-18,y);
+    c.quadraticCurveTo(x-20,y,x-20,y-2);
     c.closePath();
     c.fillStyle=colors.lane;
     c.fill();
     c.strokeStyle=colors.laneEdge;
-    c.lineWidth=2;
+    c.lineWidth=1.5;
     c.stroke();
-    c.save();
-    c.translate(x,y);
-    c.rotate(-angle);
-    box(c,-5,offset,10,26,5,glowing?colors.jackpot:colors.springStandard,colors.laneEdge);
-    box(c,-5,offset+22,10,4,2,colors.text);
-    if (glowing) box(c,-7,offset,14,26,7,null,rgba(colors.jackpot,.8*(1-flash.age/6)),2);
-    c.restore();
+  }
+
+  function turretOutline(barrel) {
+    const shape=new Path2D();
+    shape.arc(0,0,turretRadius,turretArc,Math.PI-turretArc,true);
+    shape.lineTo(-barrelHalfWidth,barrel-5);
+    shape.lineTo(-6,barrel-5);
+    shape.arcTo(-6,barrel,-4,barrel,2);
+    shape.lineTo(4,barrel);
+    shape.arcTo(6,barrel,6,barrel-2,2);
+    shape.lineTo(6,barrel-5);
+    shape.lineTo(barrelHalfWidth,barrel-5);
+    shape.lineTo(barrelHalfWidth,turretJoin);
+    shape.closePath();
+    return shape;
+  }
+
+  function drawCannon(c,s,ui,fx,t) {
+    const {x,y}=JD.CANNON;
+    const aiming=s.state==='AIM';
+    const {aim,barrel,body,loadFlash,muzzleFlash}=cannonPose(s,ui,fx);
+    const angle=aim*degrees;
+    const dx=Math.sin(angle),dy=Math.cos(angle);
+    const perfect=s.launch?.perfect??(aiming&&JD.inZone(s.zone,aim));
+    const muzzle=body+barrel;
+    if (aiming) {
+      dashed(c,x+dx*muzzle,y+dy*muzzle,x+dx*(muzzle+90),y+dy*(muzzle+90),
+        rgba(perfect?colors.jackpot:colors.text,.5),1.8);
+    }
+    drawTurretMount(c,x,y);
     if (s.lastAngle!==null) {
       const last=s.lastAngle*degrees;
-      const dx=Math.sin(last),dy=Math.cos(last);
-      line(c,x+dx*15.5,y+dy*15.5,x+dx*20.5,y+dy*20.5,colors.lane,3);
-      line(c,x+dx*15.5,y+dy*15.5,x+dx*20.5,y+dy*20.5,rgba(colors.text,.6),1.5);
+      const lastX=Math.sin(last),lastY=Math.cos(last);
+      line(c,x+lastX*17.5,y+lastY*17.5,x+lastX*22.5,y+lastY*22.5,rgba(colors.text,.6),2);
     }
+
+    const shape=turretOutline(barrel);
+    const headX=x+dx*body,headY=y+dy*body;
+    c.save();
+    c.translate(headX,headY);
+    c.rotate(-angle);
+    c.save();
+    c.translate(-3*dx,3*dy);
+    c.fillStyle='rgba(0,0,0,.3)';
+    c.fill(shape);
+    c.restore();
+    const metal=c.createLinearGradient(-turretRadius,0,turretRadius,0);
+    metal.addColorStop(0,colors.turretLight);
+    metal.addColorStop(.5,colors.turret);
+    metal.addColorStop(1,colors.turretDark);
+    c.fillStyle=metal;
+    c.fill(shape);
+
+    const zoneEntry=fresh(fx,'charge_zone');
+    const bandAlpha=aiming&&!s.charging&&!ui.reduced?.7+.3*pulse(t,40)
+      : perfect&&zoneEntry?.age<6?.75+.25*(1-zoneEntry.age/6):1;
+    c.save();
+    c.clip(shape);
+    c.fillStyle=rgba(perfect?colors.jackpot:colors.turretDark,bandAlpha);
+    c.fillRect(-barrelHalfWidth,(turretJoin+barrel-5)/2-2,barrelHalfWidth*2,4);
+    c.fillStyle=colors.turretLight;
+    c.fillRect(-6,barrel-5,12,5);
+    if (loadFlash) {
+      c.fillStyle=rgba(colors.text,loadFlash);
+      c.fillRect(-6,barrel-5,12,5);
+    }
+    c.restore();
+    c.strokeStyle=colors.turretEdge;
+    c.lineWidth=2;
+    c.stroke(shape);
+
     const key=s.launch?.balls[0]??(aiming?s.ball:null);
     if (key) {
-      const breath=s.launch&&!ui.reduced?.9+.2*clamp(s.launch.elapsed/JD.CFG.LAUNCH_TICKS,0,1):1;
-      ball(c,key,x+Math.sin(angle)*muzzle,y+Math.cos(angle)*muzzle,JD.BALLS[key].r*breath);
+      const radius=JD.BALLS[key].r;
+      c.save();
+      c.beginPath();
+      c.rect(-radius-2,barrel,radius*2+4,radius+2);
+      c.clip();
+      ball(c,key,0,barrel-1,radius);
+      c.restore();
     }
+    if (muzzleFlash>=0) {
+      circle(c,0,barrel,4+10*muzzleFlash,rgba(colors.text,1-muzzleFlash));
+    }
+    c.restore();
+    circle(c,x,y,3,colors.turretEdge);
+    c.beginPath();
+    c.ellipse(headX-5,headY-5,4,2,0,0,twoPi);
+    c.fillStyle=rgba(colors.text,.35);
+    c.fill();
   }
 
   function drawWallSprings(c,s,ui,fx,t) {
@@ -602,7 +704,7 @@
       const travel=ui.reduced?0:progress*progress;
       c.save();
       c.globalAlpha=1-travel;
-      label(c,'= '+score(payout.score),240-60*travel,143-110*travel,32-16*travel,colors.jackpot,'center',{outline:colors.ink,max:174});
+      label(c,'= '+score(payout.score),240-60*travel,143-124*travel,32-16*travel,colors.jackpot,'center',{outline:colors.ink,max:174});
       c.restore();
     }
   }
@@ -658,10 +760,10 @@
     if (s.attempt>0) label(c,'TRY '+(s.attempt+1),12,39,10,colors.textDim,'left',{max:76});
     const clear=fresh(fx,'stage_clear');
     const bump=clear&&clear.age<6&&!ui.reduced ? .1*Math.sin(clear.age*Math.PI/6) : 0;
-    const barHeight=18*(1+bump);
-    box(c,96,23-barHeight/2,168,barHeight,9,rgba(colors.text,.12));
-    box(c,96,23-barHeight/2,168*clamp(displayed/s.target,0,1),barHeight,9,win?colors.success:colors.jackpot);
-    label(c,score(displayed)+' / '+score(s.target),180,28,16,colors.text,'center',{outline:colors.ink,max:158,minSize:13});
+    const barHeight=16*(1+bump);
+    box(c,96,22-barHeight,168,barHeight,8,rgba(colors.text,.12));
+    box(c,96,22-barHeight,168*clamp(displayed/s.target,0,1),barHeight,8,win?colors.success:colors.jackpot);
+    label(c,score(displayed)+' / '+score(s.target),180,19,13,colors.text,'center',{outline:colors.ink,max:158,minSize:13});
     const earnedCoin=fresh(fx,'coins_earned');
     const coinArrival=fresh(fx,'coin_arrived');
     const coinAge=Math.min(earnedCoin?.age??Infinity,coinArrival?.age??Infinity);
@@ -707,7 +809,7 @@
       if (zone) drawZone(c,s,zone,fx);
       drawWallSprings(c,s,ui,fx,t);
       if(JD.drawBoardObjects) JD.drawBoardObjects(c,s,ui,fx,t);
-      drawCannon(c,s,ui,fx);
+      drawCannon(c,s,ui,fx,t);
       if (zone&&s.state==='AIM') drawZoneLabel(c,s,ui,zone);
       if(ui.introReveal) drawStageIntro(c,stageIntro(s),s.boardH-102);
       c.restore();

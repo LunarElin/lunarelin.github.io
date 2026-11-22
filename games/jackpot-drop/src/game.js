@@ -488,6 +488,7 @@
         shop: state === 'SHOP' ? shopSnapshot() : null,
         map: state === 'MAP' ? mapSnapshot() : null,
         ballsLeft: left.length, angle, charging, holdTicks, lastAngle, zone: { ...zone },
+        chargeTicks: charging ? holdTicks : 0,
         perfect: JD.inZone(zone, angle), rack: left.slice(),
         fullRack: fullRack.slice(), rackIndices: rackIndices.slice(), slot,
         rows: board.rows, landY: board.landY, boardH: board.h,

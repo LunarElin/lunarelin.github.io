@@ -61,7 +61,7 @@
     focus:0,muted:!s.practice&&stored?.muted===true,newBest:false,age:0,
     paused:false,cameraY:0,panelFocus:null,panelShake:null,mapUnlock:false,
     stageAge:0,stateAge:0,stageFired:false,tutorialSeen:false,hintHidden:false,
-    demoAngle:0,demoRecoil:0,zoneFrom:null,zoneAge:8,slowBlend:0,cardNotice:null,ironUnlockAge:null,reduced:media.matches
+    zoneFrom:null,zoneAge:8,slowBlend:0,cardNotice:null,ironUnlockAge:null,reduced:media.matches
   };
   const audio=JD.createAudio ? JD.createAudio(ui.muted) : null;
   const fx=JD.createFx ? JD.createFx() : null;
@@ -311,10 +311,6 @@
     }
     ui.slowBlend=Math.max(0,Math.min(1,ui.slowBlend+(slowActive?.125:-.125)));
     const demo=s.mode==='campaign'&&s.stage===1&&s.state==='AIM'&&!s.charging&&!ui.tutorialSeen;
-    const cycle=ui.age%90;
-    const {swing,dwell}=JD.CANNON;
-    ui.demoAngle=demo&&!ui.reduced&&cycle>=6&&cycle<60 ? JD.aimAngle((cycle-6)*(2*swing+dwell)/54) : 0;
-    ui.demoRecoil=demo&&!ui.reduced&&cycle>=60&&cycle<78 ? 6*Math.cos((cycle-60)*.9)*Math.pow(.75,cycle-60) : 0;
     JD.updateCamera(s,ui);
     if(audio&&demo&&ui.age>=300&&(ui.age-300)%600===0) audio.event({type:'tutorial_nudge'},s);
     if(fx) fx.frame(s,ui,audio);

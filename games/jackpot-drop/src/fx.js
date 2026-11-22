@@ -186,13 +186,9 @@
           coinFlights.length=0;
           combo=null;banner=null;shake=null;vaultAt=-1000;hotTier=0;heat=0;
           break;
-        case 'shot_fired': {
+        case 'shot_fired':
           trails.length=0; births.length=0; combo=null;
-          const {x,y}=JD.CANNON, angle=e.angle*Math.PI/180;
-          ring(x+32*Math.sin(angle),y+32*Math.cos(angle),4,14,C.text,6,2);
-          shakeScreen(1,4);
           break;
-        }
         case 'launch':
           ring(JD.CANNON.x,JD.CANNON.y,10,0,C.text,6,2);
           if(e.tier) setCombo(e.tier);
@@ -325,6 +321,7 @@
     }
     function frame(s,ui,audio) {
       time=ui.age; reduced=ui.reduced;
+      if(s.launch?.elapsed===10) shakeScreen(1,4);
       const slowVault=time-vaultAt>=3&&time-vaultAt<33;
       visualTime+=slowVault?.5:1;
       flushPending();
@@ -526,7 +523,7 @@
       for(const b of bonuses) {
         if(time<b.at) continue;
         const a=Math.min(1,(time-b.at)/28);
-        const x=b.x+(264-b.x)*a,y=b.y+(23-b.y)*a+84*Math.sin(a*Math.PI);
+        const x=b.x+(264-b.x)*a,y=b.y+(14-b.y)*a+84*Math.sin(a*Math.PI);
         if(a<.2) D.ball(c,'normal',x,y,7*(1-a/.25));
         else D.label(c,'+'+D.number(b.amount),x,y,15,C.success,'center',{outline:C.ink});
       }
