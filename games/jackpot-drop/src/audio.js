@@ -232,13 +232,6 @@
           noise('bandpass',2500,2500,.25,.34);
           tone('sine',120,.20,.43);
           break;
-        case 'ball_parked':
-          tone('square',700,.020,.20);
-          tone('sine',1100,.040,.22);
-          break;
-        case 'parked_release':
-          sequence([C6,E6,G6],.07,'triangle',.24,0,.03);
-          break;
         case 'warp':
           tone('sine',900,.20,.32,{endHz:150});
           tone('sine',150,.12,.24,{delay:4/60,endHz:600});

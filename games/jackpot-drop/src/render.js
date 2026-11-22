@@ -10,7 +10,7 @@
     combo1:'#3DD6FF', combo2:'#5CFFB0', combo3:'#FFC83D', combo4:'#FF4DD2',
     springStandard:'#C9CEF5', turret:'#8D96D6', turretLight:'#D7DCFF', turretDark:'#4B5291', turretEdge:'#252A5E',
     ironWall:'#59627E',
-    ironEdge:'#C9D1E6', warp:'#9D4DFF', bank:'#5CFFB0', hint:'#FFC83D', glass:'#BDF3FF',
+    ironEdge:'#C9D1E6', warp:'#9D4DFF', hint:'#FFC83D', glass:'#BDF3FF',
     iron:'#9AA3B8', text:'#FFFFFF', textDim:'#A9B0D6', danger:'#FF6B6B', success:'#5CFFB0', ink:'#05061A'
   };
   const twoPi = 2 * Math.PI;
@@ -136,15 +136,8 @@
     ballSelectionEnabled:s=>s.endless||s.stage!==1||s.rack.some(kind=>kind!=='normal'),
     magazineTop:340,
     ironAnchor(group) {
-      let plate=null;
-      let left=Infinity, right=-Infinity, top=Infinity;
-      for (const [x1,y1,x2,y2] of group.segs) {
-        left=Math.min(left,x1,x2);
-        right=Math.max(right,x1,x2);
-        top=Math.min(top,y1,y2);
-        if (y1===y2&&(!plate||y1>plate.y)) plate={x:(x1+x2)/2,y:y1};
-      }
-      return plate||{x:(left+right)/2,y:top};
+      const [x1,y1,x2,y2]=group.segs[0];
+      return {x:(x1+x2)/2,y:(y1+y2)/2};
     },
     cards:s=>s.offer?.map((_,i)=>({x:30,y:170+120*i,w:332,h:100})),
     shopPerks:JD.PERK_IDS.map((id,i)=>({x:30,y:184+72*i,w:332,h:64,id})),
@@ -251,6 +244,20 @@
     for(let y=0;y<640;y+=40) line(c,0,y+.5,440,y+.5,rgba(colors.text,.04));
   }
 
+  function roofFlash(s,fx,left,right) {
+    let strength=0;
+    for (const group of s.iron) {
+      if (group.alive) continue;
+      const hit=fresh(fx,'iron_break',group.id);
+      if (!hit||hit.age>=12) continue;
+      const [x1,,x2]=group.segs[0];
+      if (Math.max(x1,x2)>left&&Math.min(x1,x2)<right) {
+        strength=Math.max(strength,1-hit.age/12);
+      }
+    }
+    return strength;
+  }
+
   function buckets(c,s,ui,fx,t,beam) {
     const offset=s.boardH-640;
     if ((ui.cameraY||0)+640<offset+(beam?380:580)) return;
@@ -268,7 +275,9 @@
       if(beam) {
         if(!jackpot) return;
         const g=c.createLinearGradient(0,380,0,600);
-        const alpha=landing && landing.age<20 ? .5 : (.12+.10*pulse(t,40))*(tutorial?1.5:1)*(1+ui.slowBlend);
+        const ambient=(.12+.10*pulse(t,40))*(tutorial?1.5:1)*(1+ui.slowBlend);
+        const roof=roofFlash(s,fx,left,left+width);
+        const alpha=landing&&landing.age<20?.5:ambient+(.56-ambient)*roof;
         g.addColorStop(0,rgba(colors.jackpot,0)); g.addColorStop(1,rgba(colors.jackpot,alpha));
         c.fillStyle=g; c.fillRect(left,380,width,220);
         return;
@@ -290,11 +299,9 @@
         }
         if(t%60<10) circle(c,center+9,632,2,rgba(colors.text,1-(t%60)/10));
         if(ui.introReveal||!offset&&ui.stageAge<60) {
-          const gate=s.iron.some(group=>group.alive&&group.segs.some(([x1,y1,x2,y2])=>
-            Math.max(x1,x2)>left&&Math.min(x1,x2)<x[i+1]&&Math.min(y1,y2)>=offset+562&&Math.max(y1,y2)<=offset+586));
-          const cueY=gate?597:584+(ui.reduced?0:4*Math.sin(t*Math.PI/20));
+          const cueY=584+(ui.reduced?0:4*Math.sin(t*Math.PI/20));
           const cueX=clamp(center,40,320);
-          label(c,'▼ JACKPOT',cueX,cueY,gate?12:14,colors.jackpot,'center',
+          label(c,'▼ JACKPOT',cueX,cueY,14,colors.jackpot,'center',
             {outline:colors.ink,max:Math.min(94,2*cueX-6,714-2*cueX),minSize:11});
         }
       } else {
@@ -354,6 +361,7 @@
       labelY=clamp(zone.y-64,top+56,top+613);
     } else if (zone.kind==='iron'&&zone.y<=top+627) {
       labelX+=zone.x<180?84:-84;
+      labelY=clamp(zone.y-25,top+56,top+613);
     } else if ((zone.kind==='block'||zone.kind==='vault')&&zone.y<=top+627) {
       const target=s.blocks.find(block=>block.alive&&block.x===s.zone.x&&block.y===s.zone.y);
       if (target) labelY=clamp(zone.y-target.h/2-14,top+56,top+613);
@@ -602,7 +610,7 @@
 
   function stageIntro(s) {
     const title=(s.endless?'ENDLESS ':'STAGE ')+s.stage+' · '+s.stageName;
-    const hint=s.hint?.ball==='iron'?'SAVE BALLS ON THE GATE · IRON BALL LAST':'GET THE JACKPOT';
+    const hint=s.hint?.ball==='iron'?'IRON BALL FIRST · OPEN THE JACKPOT':'GET THE JACKPOT';
     return [title,hint];
   }
 
@@ -677,10 +685,8 @@
       const mult=Math.max(s.stageMult,shot.liveMult-(fx?fx.pendingMult():0));
       const hit=fresh(fx,'peg_hit');
       const pop=hit&&hit.age<4&&!ui.reduced?1+.12*Math.sin(hit.age*Math.PI/4):1;
-      const bank=Math.max(0,shot.bankIn-(fx?.pendingBank?.()||0));
-      const base=bank?'('+score(shot.pts)+' + '+score(bank)+')':score(shot.pts);
       box(c,150,84,180,32,16,rgba(colors.ink,.7),shot.tier?combo(shot.tier):colors.laneEdge,2);
-      label(c,base,162,109,(bank?20:28)*pop,bank?colors.bank:colors.text,'left',{max:99,minSize:18});
+      label(c,score(shot.pts),162,109,28*pop,colors.text,'left',{max:99,minSize:18});
       label(c,'× '+score(mult),316,108,22,colors.jackpot,'right',{max:54,minSize:19});
       if (shot.tier) {
         const award=JD.CFG.COMBO_NAMES[shot.tier]+' +'+JD.CFG.COMBO_BONUS[shot.tier];
@@ -693,10 +699,9 @@
     const tint=(reveal>=20&&payout.jackpot)||(reveal>=0&&payout.mult>=4)?colors.jackpot:colors.laneEdge;
     const pop=fresh(fx,'payout_pop',payout.pins[Math.max(0,Math.floor(payout.elapsed/payout.spacing)-1)]?.id);
     const bump=pop?.age<5&&!ui.reduced?1+.08*(1-pop.age/5):1;
-    const base=payout.bankIn?'('+score(payout.pts)+' + '+score(payout.bankIn)+')':score(payout.pts);
     const factor=age=>ui.reduced?1:1+.6*Math.max(0,1-age/20);
     box(c,150,84,180,32,16,rgba(colors.ink,.7),tint,2);
-    label(c,base,162,108,22*bump,payout.bankIn?colors.bank:colors.text,'left',{max:68,minSize:17});
+    label(c,score(payout.pts),162,108,22*bump,colors.text,'left',{max:68,minSize:17});
     if (reveal>=0) label(c,'× '+score(payout.mult),276,108,20*factor(reveal),reveal>=20&&payout.mult<4?colors.text:colors.jackpot,'right',{max:42,minSize:17});
     if (reveal>=20) label(c,'× '+score(payout.bucketSum),320,108,20*factor(reveal-20),payout.jackpot?colors.jackpot:colors.text,'right',{max:42,minSize:17});
     if (reveal>=40) {
@@ -809,9 +814,14 @@
       if (zone) drawZone(c,s,zone,fx);
       drawWallSprings(c,s,ui,fx,t);
       if(JD.drawBoardObjects) JD.drawBoardObjects(c,s,ui,fx,t);
-      drawCannon(c,s,ui,fx,t);
       if (zone&&s.state==='AIM') drawZoneLabel(c,s,ui,zone);
       if(ui.introReveal) drawStageIntro(c,stageIntro(s),s.boardH-102);
+      c.restore();
+      c.save();
+      c.beginPath(); c.rect(0,0,360,640); c.clip();
+      if(fx) fx.world(c,s,ui,false);
+      c.translate(0,-(ui.cameraY||0));
+      drawCannon(c,s,ui,fx,t);
       c.restore();
       if (s.state!=='RESULT'&&s.state!=='SHOP') {
         // Keep the score fixed, then paint even high rebounds in front of it.
@@ -1041,79 +1051,46 @@
     if (!group.alive && !breaking) return;
 
     const C = D.colors;
+    const [x1,y1,x2,y2]=group.segs[0];
     const usable = snapshot.rack.includes('iron');
     const pulse = usable ? D.pulse(time, 40) : 0;
     ctx.save();
     ctx.lineCap = 'round';
-    for (const [x1, y1, x2, y2] of group.segs) {
-      if (breaking) {
-        D.line(ctx, x1, y1, x2, y2, '#FFFFFF', 10);
-        continue;
-      }
+    if (breaking) {
+      D.line(ctx, x1, y1, x2, y2, C.text, 10);
+    } else {
       if (usable) D.line(ctx, x1, y1, x2, y2, D.rgba(C.ironEdge, 0.35 * pulse), 13);
       D.line(ctx, x1, y1+2, x2, y2+2, '#293148', 10);
       D.line(ctx, x1, y1, x2, y2, C.ironEdge, 10);
       D.line(ctx, x1, y1, x2, y2, C.ironWall, 7);
-      const length = Math.hypot(x2 - x1, y2 - y1);
-      for (let offset = 6; offset < length; offset += 12) {
-        const t = offset / length;
-        D.circle(ctx, x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, 1.5, C.ironEdge);
-      }
-    }
-    if (!breaking&&!snapshot.parked.some(ball=>ball.group===group.id)) {
-      const [x1,y1,x2,y2]=group.segs[0];
-      const {x,y}=group.segs.length===1&&y1!==y2
-        ? {x:(x1+x2)/2,y:(y1+y2)/2}
-        : JD.UI.ironAnchor(group);
-      D.label(ctx,'IRON',x,y-10,10,C.ironEdge,'center',{outline:C.bgTop});
+      drawIronMarks(ctx,x1,y1,x2,y2,D);
+      const {x,y}=JD.UI.ironAnchor(group);
+      D.label(ctx,'IRON',x,y-10,9,C.ironEdge,'center',{outline:C.bgTop});
     }
     ctx.restore();
   }
 
-  function drawParked(ctx,s,ui,fx,time,D) {
-    const C=D.colors;
-    const byGroup=new Map();
-    for(const token of s.parked) {
-      const {x,y,r,group}=token;
-      const arrival=D.fresh(fx,'ball_parked',group);
-      const age=arrival&&Math.abs(arrival.e.x-x)<.01&&Math.abs(arrival.e.y-y)<.01?arrival.age:Infinity;
-      const squash=age<6&&!ui.reduced?1-.15*Math.sin(age*Math.PI/6):1;
-      const halo=age<6&&!ui.reduced?20+(r+3-20)*age/6:r+3;
-      D.ball(ctx,token.ball,x,y,r*squash,{cracked:token.ball==='glass'});
-      D.circle(ctx,x,y,halo,null,D.rgba(C.bank,.5+.4*D.pulse(time,40)),1.5);
-      const info=byGroup.get(group)||{count:0,points:0};
-      info.count++;
-      info.points+=token.bank;
-      byGroup.set(group,info);
+  function drawIronMarks(ctx,x1,y1,x2,y2,D) {
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    const slope = Math.atan2(y2-y1,x2-x1);
+    const downhill = y2>y1?1:-1;
+    ctx.save();
+    ctx.translate(x1,y1);
+    ctx.rotate(slope);
+    for (let offset = 6; offset < length; offset += 12) {
+      D.circle(ctx,offset,-2,1.5,D.colors.ironEdge);
     }
-
-    for(const group of s.iron) {
-      const entry=group.alive?byGroup.get(group.id):null;
-      const release=D.fresh(fx,'parked_release',group.id);
-      if(!entry && !(release?.age<8)) continue;
-      const anchor=JD.UI.ironAnchor(group);
-      const x=anchor.x,y=anchor.y-32;
-      if(!entry) {
-        const alpha=.85*(1-release.age/8);
-        const cx=D.clamp(x,82,278);
-        D.box(ctx,cx-60,y-10,120,20,10,D.rgba(C.jackpot,alpha*.45),D.rgba(C.jackpot,alpha),1.5);
-        continue;
-      }
-      const saved='SAVED ×'+entry.count;
-      const bank=entry.points?' · '+D.score(entry.points):'';
-      const finish=D.fresh(fx,'shot_finished');
-      const bump=finish?.age<8&&finish.e.parked&&!ui.reduced?1+.3*Math.sin(finish.age*Math.PI/8):1;
-      ctx.save();
-      ctx.font='900 13px '+D.fontFamily;
-      const leftWidth=ctx.measureText(saved).width;
-      const rightWidth=bank?ctx.measureText(bank).width*bump:0;
-      const width=Math.min(244,leftWidth+rightWidth+20);
-      const left=D.clamp(x-width/2,24,336-width);
-      D.box(ctx,left,y-10,width,20,10,D.rgba(C.ink,.91),C.ironEdge,1.5);
-      D.label(ctx,saved,left+10,y+4,13,C.text,'left',{max:width-20});
-      if(bank) D.label(ctx,bank,left+10+leftWidth,y+4,13*bump,C.bank,'left',{max:width-20-leftWidth,minSize:12});
-      ctx.restore();
+    ctx.beginPath();
+    for (const position of [.25,.5,.75]) {
+      const x=length*position;
+      ctx.moveTo(x-2.5*downhill,-.5);
+      ctx.lineTo(x+2.5*downhill,1.1);
+      ctx.lineTo(x-2.5*downhill,3);
     }
+    ctx.strokeStyle=D.rgba(D.colors.ironEdge,.6);
+    ctx.lineWidth=1.4;
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawWarp(ctx, hole, time, D, scale=1) {
@@ -1191,7 +1168,6 @@
     snapshot.blocks.forEach(block => { if (inView(block.y)) drawBlock(ctx, block, ui, fx, time, D); });
     snapshot.gates.forEach(gate => { if (inView(gate.y)) drawGate(ctx, gate, fx, time, D); });
     snapshot.iron.forEach(group => drawIron(ctx, group, snapshot, fx, time, D));
-    drawParked(ctx,snapshot,ui,fx,time,D);
     snapshot.warps?.ins.forEach((hole,index)=>{
       if (!inView(hole.y)) return;
       if (hole.alive) {

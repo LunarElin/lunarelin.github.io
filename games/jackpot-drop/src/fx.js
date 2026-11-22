@@ -6,9 +6,9 @@
   JD.createFx=function () {
     const D=JD.Drawing, C=D.colors;
     const recent=new Map(), pending=[], pegsPending=new Set();
-    const trails=[], births=[], particles=[], rings=[], floats=[], heads=[], rewards=[], bonuses=[], bankFlights=[];
+    const trails=[], births=[], particles=[], rings=[], floats=[], heads=[], rewards=[], bonuses=[];
     const coinFlights=[];
-    const firstIronHits=new Set(), contactTimes=new Map();
+    const ironContacts=new Map(), contactTimes=new Map();
     let time=0, visualTime=0, seed=20261120, reduced=false, shake=null;
     let combo=null, banner=null, vaultAt=-1000, hotTier=0, heat=0, payoutIndex=0;
     let lastTrailTick=-1, lastHeatTime=-1, lastConfetti=-1;
@@ -128,15 +128,17 @@
     function gotIron(e,s,before) {
       const iron=s.iron.find(group=>group.id===e.id);
       if(!iron) return;
-      const {x,y}=JD.UI.ironAnchor(iron);
       if(e.type==='iron_hit') {
+        if(ironContacts.get(e.ball)?.id===e.id) return;
         const b=s.balls[e.ball]||before.balls[e.ball];
-        if(b) burst(b.x,b.y,4,C.text,{speed:3,life:11,up:true});
-        if(!firstIronHits.has(e.id)) {
-          firstIronHits.add(e.id); text(heads,'IRON ONLY',x,y-18,12,C.ironEdge,30);
-        }
+        if(!b) return;
+        const segment=iron.segs[0];
+        const point=JD.segPoint(b.x,b.y,segment);
+        burst(point.cx,point.cy,4,C.text,{speed:3,life:8,up:true});
+        ironContacts.set(e.ball,{id:e.id,segment,tick:s.tick});
         return;
       }
+      const {x,y}=JD.UI.ironAnchor(iron);
       for(const w of iron.segs) {
         const dx=w[2]-w[0], dy=w[3]-w[1], length=Math.hypot(dx,dy);
         for(let a=5;a<length;a+=12) {
@@ -145,9 +147,23 @@
           fragment(w[0]+a*dx/length,w[1]+a*dy/length,11,7,C.ironEdge,40,(random()-.5)*2,-random()*2,tilt,3);
         }
       }
-      const releasesBalls=before.parked.some(ball=>ball.group===e.id);
-      text(heads,'CRASH!',x,y-(releasesBalls?79:18),22,C.text,32);
+      text(heads,'CRASH!',x,y-20,22,C.text,32);
       shakeScreen(5,10);
+    }
+    function rollSparks(s) {
+      for(const [index, contact] of ironContacts) {
+        const ball=s.balls[index];
+        if(!ball||ball.done||!s.iron.find(iron=>iron.id===contact.id)?.alive) {
+          ironContacts.delete(index);
+          continue;
+        }
+        const point=JD.segPoint(ball.x,ball.y,contact.segment);
+        if(point.d>ball.r+9) ironContacts.delete(index);
+        else if(s.tick-contact.tick>=4) {
+          burst(point.cx,point.cy,1,C.text,{speed:1.7,life:8,size:1.2,up:true});
+          contact.tick=s.tick;
+        }
+      }
     }
     function coinFan(x,y,count,screen=false) {
       burst(x,y,count,['#FFC83D','#FFE695','#E79C21'],{shape:'coin',speed:7.3,up:true,life:65,lift:2.8,screen});
@@ -162,12 +178,6 @@
       if(e.type==='ball_landed') id=e.bucket;
       if(e.type==='terrain_hit'||e.type==='bumper_hit') id=e.index;
       if(e.type==='wall_spring') id=e.side;
-      if(e.type==='ball_parked'||e.type==='parked_release') id=e.group;
-      if(e.type==='parked_release'){
-        const iron=s.iron.find(group=>group.id===e.group);
-        const bank=before.parked.reduce((sum,ball)=>sum+(ball.group===e.group?ball.bank:0),0);
-        if(iron) e=Object.assign({},e,JD.UI.ironAnchor(iron),{bank});
-      }
       if(e.type==='peg_hit'){
         const p=s.pegs.find(peg=>peg.id===e.id);
         if(!p) return;
@@ -180,14 +190,14 @@
       mark(e,id);
       switch(e.type){
         case 'stage_started':
-          firstIronHits.clear();contactTimes.clear();trails.length=0;births.length=0;
+          ironContacts.clear();contactTimes.clear();trails.length=0;births.length=0;
           recent.clear();particles.length=0;rings.length=0;floats.length=0;heads.length=0;
-          rewards.length=0;bonuses.length=0;bankFlights.length=0;pending.length=0;pegsPending.clear();
+          rewards.length=0;bonuses.length=0;pending.length=0;pegsPending.clear();
           coinFlights.length=0;
           combo=null;banner=null;shake=null;vaultAt=-1000;hotTier=0;heat=0;
           break;
         case 'shot_fired':
-          trails.length=0; births.length=0; combo=null;
+          trails.length=0; births.length=0; ironContacts.clear(); combo=null;
           break;
         case 'launch':
           ring(JD.CANNON.x,JD.CANNON.y,10,0,C.text,6,2);
@@ -233,18 +243,6 @@
           rings.push({x:e.ox,y:e.oy,r0:30,r1:0,color:C.warp,life:20,width:3,at:time+4});
           text(heads,'?!',e.ox,e.oy-12,14,C.warp,20,{at:time+4}); break;
         case 'iron_hit': case 'iron_break': gotIron(e,s,before); break;
-        case 'ball_parked': {
-          const ball=s.balls[e.ball];
-          ring(e.x,e.y,20,(ball?.r||8)+3,C.bank,6,2);
-          text(heads,'SAVED',e.x,e.y-30,14,C.bank,30);
-          break;
-        }
-        case 'parked_release':
-          if(e.x!==undefined) {
-            text(heads,'RELEASE! ×'+e.count,e.x,e.y-52,20,C.bank,40);
-            if(e.bank>0) bankFlights.push({x:Math.min(e.x+104,320),y:e.y-34,bank:e.bank,at:time,life:20});
-          }
-          break;
         case 'block_hit': {
           const b=s.blocks.find(p=>p.id===e.id);
           if(!b||e.cause!=='ball') break;
@@ -330,6 +328,7 @@
       lastHeatTime=time;
       if(s.shot&&s.tick!==lastTrailTick){
         lastTrailTick=s.tick;
+        rollSparks(s);
         s.balls.forEach((b,i)=>{
           if(b.done) return;
           const past=trails[i]||(trails[i]=[]);
@@ -373,7 +372,7 @@
         if(s.result) coinFan(196,625,4,true);
         else confetti(4);
       }
-      keep(particles,visualTime);keep(rings,time);keep(floats,time);keep(heads,time);keep(bankFlights,time);
+      keep(particles,visualTime);keep(rings,time);keep(floats,time);keep(heads,time);
     }
 
     function drawParticle(c,p) {
@@ -442,12 +441,6 @@
     }
     function drawScoreEffects(c,ui) {
       drawRewards(c,ui.cameraY);
-      for(const flight of bankFlights){
-        const a=D.clamp((time-flight.at)/flight.life,0,1);
-        const startY=flight.y-ui.cameraY;
-        const x=flight.x+(235-flight.x)*a,y=startY+(100-startY)*a;
-        D.label(c,'+'+D.number(flight.bank),x,y,17,C.bank,'center',{outline:C.ink});
-      }
       if(banner) {
         const age=visualTime-banner.at;
         if(age>=0&&age<banner.life){
@@ -486,13 +479,13 @@
         if(tile) coinFlight(c,tile.x+28,tile.y+30,180,149,bought.age/14,36,3.6);
       }
     }
-    function world(c,s,ui) {
+    function world(c,s,ui,zoom=true) {
       if(reduced) return;
       if(shake){
         const a=shake.amount*Math.max(0,1-(time-shake.at)/shake.life);
         if(a>0) c.translate(Math.sin(time*2.1)*a,Math.cos(time*2.9)*a*.55);
       }
-      if(ui.slowBlend>0.01&&s.shot){
+      if(zoom&&ui.slowBlend>0.01&&s.shot){
         const b=s.balls.find(p=>!p.done);
         if(b) {
           const scale=1+.06*ui.slowBlend;
@@ -533,7 +526,6 @@
       ballHitAge(index){return fresh('ball_hit',index)?.age??Infinity;},
       get hotTier(){return hotTier;},get heat(){return heat;},
       pendingMult(){return rewards.reduce((sum,r)=>sum+(r.done?0:r.add),0);},
-      pendingBank(){return bankFlights.reduce((sum,flight)=>sum+flight.bank,0);}
     };
   };
 })(JD);

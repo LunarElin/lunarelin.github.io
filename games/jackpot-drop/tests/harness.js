@@ -2,37 +2,34 @@
 // policy: 'random' | 'aim' | 'pro'. One rnd stream: picks, angle draws, card offers and card choices.
 //   random: fires any ball left in the rack at any cannon angle.
 //   aim:    follows the stage hint and aims at the gold aim zone, missing by up to +-2 x zoneHalf degrees (a first-time
-//           player who reads the stage intro). { ball }: fires the other balls first and the hinted ball last.
+//           player who reads the stage intro). { ball }: fires the hinted ball first (to open the iron lids).
 //   pro:    test-fires every ball type left at the zone centre and at -60, -50 ... 60 degrees on a copy of the board
-//           and keeps the best (a player who has learned the board). Points banked by a ball parked on an iron wall
-//           count x5 if an iron ball is still left to release them.
+//           and keeps the best (a player who has learned the board). Breaking iron walls counts as a bonus worth
+//           JD.PRO_IRON_VALUE x stage mult per wall while balls are left to use the opened way.
 JD.PRO_ANGLES = [-60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60];
+JD.PRO_IRON_VALUE = 400;
 
 // Returns { ball, angle } for the next shot. left = ball types still in the rack this stage.
 JD.choosePick = function (board, policy, rnd, up, left, hint) {
   var K = JD.CANNON;
   if (policy !== 'pro') {
     var pool = left.slice();
-    if (policy === 'aim' && hint && hint.ball) {
-      var others = pool.filter(function (t) { return t !== hint.ball; });
-      pool = others.length ? others : [hint.ball];
-    }
+    if (policy === 'aim' && hint && hint.ball && pool.indexOf(hint.ball) >= 0) pool = [hint.ball];
     var ball = pool[Math.floor(rnd() * pool.length)];
-    var angle = policy === 'random' ? (rnd() * 2 - 1) * K.maxAngle : JD.aimZone(board).center + (rnd() * 2 - 1) * 2 * K.zoneHalf;
+    var angle = policy === 'random' ? (rnd() * 2 - 1) * K.maxAngle : JD.aimZone(board, ball).center + (rnd() * 2 - 1) * 2 * K.zoneHalf;
     return { ball: ball, angle: angle };
   }
   var best = null, types = left.filter(function (t, i) { return left.indexOf(t) === i; }).sort();
-  var angles = [JD.aimZone(board).center].concat(JD.PRO_ANGLES);
   types.forEach(function (ball) {
+    var angles = [JD.aimZone(board, ball).center].concat(JD.PRO_ANGLES);
     for (var i = 0; i < angles.length; i++) {
       var a = angles[i] + (i ? (rnd() - 0.5) * 2 : 0);
       var pick = { ball: ball, angle: a };
       var copy = JSON.parse(JSON.stringify(board)), shot = JD.createShot(copy, a, up, pick);
       while (!JD.stepShot(shot)) {}
-      // value = this shot's score + what newly banked points will pay if an iron ball is still left to release them (x5)
-      var rest = left.slice(); rest.splice(rest.indexOf(ball), 1);
-      var banked = copy.parked.reduce(function (s, q) { return s + q.bank; }, 0) - board.parked.reduce(function (s, q) { return s + q.bank; }, 0);
-      var value = shot.score + (rest.indexOf('iron') >= 0 ? banked * copy.mult * 5 : 0);
+      // value = this shot's score + a bonus for each iron wall it broke while balls are left to use the opened way
+      var broken = shot.events.filter(function (e) { return e.type === 'iron_break'; }).length;
+      var value = shot.score + (left.length > 1 ? broken * JD.PRO_IRON_VALUE * copy.mult : 0);
       if (!best || value > best.value) best = { pick: pick, value: value };
     }
   });
@@ -51,7 +48,7 @@ JD.playStage = function (s, perks, seed, attempt, policy, rnd) {
     while (!JD.stepShot(shot)) {}
     score += shot.score; r.shots++; r.flightTicks += shot.t; r.coins += JD.shotCoins(shot);
     if (shot.perfect) r.perfects++;
-    if (shot.balls.some(function (b) { return !b.lost && !b.parked && shot.bucketMult[b.bucket] === 5; })) r.jackpots++;
+    if (shot.balls.some(function (b) { return !b.lost && shot.bucketMult[b.bucket] === 5; })) r.jackpots++;
     if (score >= S.target || !left.length) break;
     var offer = JD.drawOffer(rnd, up, left);
     JD.applyCard(up, offer[Math.floor(rnd() * offer.length)], board, left, rnd);

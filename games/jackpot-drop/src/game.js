@@ -93,10 +93,10 @@
 
     function enterAim() {
       resetAim();
-      zone = JD.aimZone(board);
       readyPayout = null;
       shot = null;
       slot = 0;
+      zone = JD.aimZone(board, left[slot]);
       enter('AIM');
     }
 
@@ -233,18 +233,17 @@
       const finished = JD.stepShot(shot);
       collectShotEvents();
       if (!finished) return;
-      const { score, pts, bankIn, golds, bucketSum, hits, t, tier } = shot;
-      const parked = shot.balls.filter(ball => ball.parked).length;
+      const { score, pts, golds, bucketSum, hits, t, tier } = shot;
       const mult = board.mult;
       biggestShot = Math.max(biggestShot, score);
       bestTier = Math.max(bestTier, tier);
       pegsPopped += hits;
       readyPayout = {
         duration: JD.payoutDuration(hits), spacing: payoutSpacing(hits),
-        score, pts, bankIn, mult, bucketSum, hits, tier, pins: hitPins, coins: JD.shotCoins(shot),
+        score, pts, mult, bucketSum, hits, tier, pins: hitPins, coins: JD.shotCoins(shot),
         jackpot: shot.balls.some(ball => !ball.lost && shot.bucketMult[ball.bucket] === 5)
       };
-      emit('shot_finished', { score, pts, bankIn, golds, stageMult: mult, bucketSum, hits, t, tier, parked });
+      emit('shot_finished', { score, pts, golds, stageMult: mult, bucketSum, hits, t, tier });
       enter('PAYOUT');
     }
 
@@ -264,7 +263,6 @@
       shot = null;
       emit('payout_done', { stageScore });
       if (stageScore >= stage.target) {
-        board.parked.length = 0;
         const number = stageNumber();
         const ballsLeft = left.length;
         const bonus = Math.round(stage.target / 10) * ballsLeft;
@@ -296,7 +294,6 @@
         enter('CARD');
         emit('cards_offered', { ids: offer.slice(), fixed: false });
       } else {
-        board.parked.length = 0;
         const ratio = Math.floor(stageScore * 100 / stage.target);
         banner = { kind: 'fail', ratio, text: ratio >= 80 ? 'SO CLOSE!' : 'OUT OF BALLS' };
         emit('stage_failed', { stage: stageNumber(), ratio });
@@ -354,6 +351,7 @@
     function pickBall(index) {
       if (charging || !Number.isInteger(index) || index < 0 || index >= left.length) return;
       slot = index;
+      zone = JD.aimZone(board, left[slot]);
       emit('ball_picked', { slot, ball: left[slot] });
     }
 
@@ -494,8 +492,6 @@
         rows: board.rows, landY: board.landY, boardH: board.h,
         hint: stage.hint ? Object.assign({}, stage.hint) : null,
         iron: board.iron.map(group => ({ id: group.id, alive: group.alive, segs: group.segs.map(segment => segment.slice()) })),
-        parked: board.parked.map(({ x, y, r, ball, group, bank }) => ({ x, y, r, ball, group, bank })),
-        bank: board.parked.reduce((total, ball) => total + ball.bank, 0),
         warps: board.warps ? { ins: copyRecords(board.warps.ins) } : null,
         ball: launch ? launch.ball : shot ? shot.ballKeys[0] : left[slot] || null,
         launch: launch ? { elapsed: elapsed + 1, angle: launch.angle, perfect: launch.perfect, balls: [launch.ball] } : null,
@@ -509,13 +505,12 @@
         blocks: copyRecords(board.blocks),
         terrain: board.terrain.map(segment => segment.slice()),
         buckets: { x: board.buckets.x.slice(), mult: board.buckets.mult.slice() },
-        balls: shot ? shot.balls.map(({ x, y, r, key, done, lost, parked, bucket }, index) => ({
-          x, y, r, key, done, lost, parked, bucket, cracked: crackedBall === index
+        balls: shot ? shot.balls.map(({ x, y, r, key, done, lost, bucket }, index) => ({
+          x, y, r, key, done, lost, bucket, cracked: crackedBall === index
         })) : [],
         shot: shownShot ? {
           pts: shot.pts, hits: shot.hits, golds: shot.golds, t: shot.t,
           liveMult: board.mult + shot.golds, tier: shot.tier, perfect: shot.perfect,
-          bankIn: shot.balls.reduce((total, ball) => total + (ball.bank || 0), 0),
           balls: shot.ballKeys.slice(),
           cracked: shot.cracked, shattered: shot.shattered, hitstop: shot.hitstop
         } : null,
