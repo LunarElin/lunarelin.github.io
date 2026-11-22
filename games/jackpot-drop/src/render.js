@@ -109,32 +109,46 @@
     c.strokeStyle=colors.springStandard; c.stroke(); c.restore();
   }
 
-  function menuButton(c, {x,y,w,h}, text, primary, focused) {
+  function menuButton(c, {x,y,w,h}, text, variant, focused) {
     const radius = h/2;
-    const fill = c.createLinearGradient(0, y, 0, y+h);
-    fill.addColorStop(0, primary ? '#FFE493' : '#3C345F');
-    fill.addColorStop(1, primary ? colors.jackpot : '#25203E');
+    if (variant==='outline') {
+      box(c,x,y,w,h,radius,null,focused?colors.text:colors.textDim,focused?3:1.5);
+      label(c,text,x+w/2,y+h/2+6,16,colors.text);
+      return;
+    }
+    const success=variant==='success';
+    const fill=c.createLinearGradient(0,y,0,y+h);
+    fill.addColorStop(0,success?'#A1FFD3':'#FFE493');
+    fill.addColorStop(1,success?colors.success:colors.jackpot);
     if (focused) box(c,x-4,y-4,w+8,h+12,radius+4,null,colors.text,3);
-    box(c,x,y+4,w,h,radius,primary ? '#A55826' : '#15112C');
-    box(c,x,y,w,h,radius,fill,primary ? '#FFF6CA' : '#7768A6',1.5);
-    label(c,text,x+w/2,y+h/2+7,22,primary ? colors.bgBottom : colors.text);
+    box(c,x,y+4,w,h,radius,success?'#2D876B':'#A55826');
+    box(c,x,y,w,h,radius,fill,success?'#D6FFEA':'#FFF6CA',1.5);
+    label(c,text,x+w/2,y+h/2+7,22,colors.bgBottom,'center',{max:w-24,minSize:17});
   }
 
-  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,coil,menuButton,fontFamily,bodyFamily};
+  function coin(c,x,y,r) {
+    circle(c,x,y,r,'#C78024','#FFF0A5',1);
+    circle(c,x,y,r*.72,colors.jackpot);
+    circle(c,x-r*.24,y-r*.29,r*.22,'#FFF9DC');
+  }
+
+  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,coil,coin,menuButton,fontFamily,bodyFamily};
   JD.UI={
     magazine(s) {
       const loaded=s.loaded.filter(slot=>s.rack[slot]);
       const unselected=s.rack.map((_,slot)=>slot).filter(slot=>!loaded.includes(slot));
       return [...loaded,...unselected].map((slot,row)=>({slot,y:590-row*52}));
     },
+    magazineTop:s=>Math.min(340,564-Math.max(0,s.fullRack.length-1)*52),
     cards:s=>s.offer&&(s.offer.length===1?[{x:46,y:220,w:300,h:200}]:
       s.offer.map((_,i)=>({x:30,y:170+120*i,w:332,h:100}))),
+    shopPerks:JD.PERK_IDS.map((id,i)=>({x:30,y:184+72*i,w:332,h:64,id})),
+    shopRetry:{x:76,y:560,w:240,h:56},
+    mapStages:JD.STAGES.map((_,i)=>({x:30+84*(i%4),y:96+84*Math.floor(i/4),w:72,h:72})),
+    mapEndless:{x:30,y:540,w:332,h:68},
+    mapClose:{x:330,y:2,w:44,h:44},
     result:{x:76,y:470,w:240,h:56},
-    pauseButtons:[
-      {x:84,y:253,w:272,h:60,label:'계속'},
-      {x:84,y:325,w:272,h:60,label:'처음부터'},
-      {x:84,y:397,w:272,h:60,label:'포트폴리오'}
-    ]
+    resultMap:{x:76,y:540,w:240,h:44}
   };
 
   JD.updateCamera = function (s,ui) {
@@ -179,17 +193,6 @@
     circle(c,4,20+s.landY*scale,3,colors.jackpot);
   }
 
-  function drawPause(c, focus) {
-    const panel = c.createLinearGradient(0, 175, 0, 481);
-    panel.addColorStop(0, '#352650');
-    panel.addColorStop(1, '#1A1436');
-    box(c,0,0,440,640,0,rgba(colors.ink,.8));
-    box(c,56,181,328,306,19,'#100822');
-    box(c,56,175,328,306,19,panel,'#8C78BF',1.5);
-    label(c,'일시 정지',220,225,29,colors.text);
-    JD.UI.pauseButtons.forEach((button,index) => menuButton(c,button,button.label,index===0,index===focus));
-  }
-
   function background(c,s,fx) {
     const bg=c.createLinearGradient(0,0,0,640);
     bg.addColorStop(0,colors.bgTop); bg.addColorStop(1,colors.bgBottom);
@@ -210,7 +213,7 @@
     c.save();
     c.translate(0,offset);
     const x=s.buckets.x;
-    const tutorial=s.stage===1 && !ui.tutorialSeen;
+    const tutorial=!s.endless&&s.stage===1&&!ui.tutorialSeen;
     s.buckets.mult.forEach((mult,i)=>{
       const left=x[i], width=x[i+1]-left, center=left+width/2;
       const landing=fresh(fx,'ball_landed',i);
@@ -309,27 +312,29 @@
   function drawMagazine(c,s,ui,t,animation,fx) {
     const slots=JD.UI.magazine(s);
     const start=animation.from;
-    const key=s.stage+':'+slots.map(({slot})=>s.rackIndices[slot]).join(',');
+    const stage=s.mode+':'+s.stage+':'+s.attempt;
+    const key=stage+':'+slots.map(({slot})=>s.rackIndices[slot]).join(',');
     if (key!==animation.key) {
       animation.key=key;
       animation.from=new Map();
-      if (animation.stage===s.stage) {
+      if (animation.stage===stage) {
         const progress=clamp((t-animation.at)/6,0,1);
         for (const [id,target] of animation.targets) {
           const from=start.get(id)??target;
           animation.from.set(id,from+(target-from)*progress);
         }
       }
-      animation.stage=s.stage;
+      animation.stage=stage;
       animation.at=t;
       animation.targets=new Map(slots.map(({slot,y})=>[s.rackIndices[slot],y]));
     }
 
-    box(c,392,340,48,288,0,rgba(colors.lane,.6));
-    line(c,392.5,340,392.5,628,colors.laneEdge);
+    const top=JD.UI.magazineTop(s);
+    box(c,392,top,48,628-top,0,rgba(colors.lane,.6));
+    line(c,392.5,top,392.5,628,colors.laneEdge);
     const ready=s.state==='AIM'&&!s.charging;
     const progress=ui.reduced?1:clamp((t-animation.at)/6,0,1);
-    const canPick=s.stage!==1;
+    const canPick=s.endless||s.stage!==1;
     const hint=ready&&canPick&&!ui.stageFired?s.hint:null;
     const loaded=s.loaded.length;
     const multi=s.load>1;
@@ -394,8 +399,9 @@
     if (s.charging) return ['RELEASE IN GOLD!'];
     if (fresh(fx,'charge_cancel')?.age<30) return ['HOLD!'];
     if (s.state!=='AIM') return [];
-    if (s.stage===1 && !ui.tutorialSeen) return ['HOLD','release in GOLD · aim for JACKPOT ×5'];
-    if (s.stage===1 || ui.stageAge>=90 || ui.hintHidden || ui.introReveal) return [];
+    const first=!s.endless&&s.stage===1;
+    if (first&&!ui.tutorialSeen) return ['HOLD','release in GOLD · aim for JACKPOT ×5'];
+    if (first||ui.stageAge>=90||ui.hintHidden||ui.introReveal) return [];
     return stageIntro(s);
   }
 
@@ -416,7 +422,7 @@
       label(c,messages[0],180+wiggle,136,24,s.perfect?colors.jackpot:colors.text,'center',{outline:colors.ink,max:326});
       return;
     }
-    if (s.stage===1 && s.state==='AIM') {
+    if (!s.endless&&s.stage===1&&s.state==='AIM') {
       if (ui.tutorialSeen) {
         label(c,'HOLD',350,439,14,colors.text,'right',{outline:colors.ink});
         drawHand(c,339,451,.44,-Math.PI*.47);
@@ -570,15 +576,28 @@
     const earned=payout?payout.score*clamp((payout.elapsed-(payout.duration-30))/30,0,1):0;
     const displayed=s.stageScore+earned;
     const win=displayed>=s.target;
-    label(c,s.endless?'ENDLESS '+s.stage:'STAGE '+s.stage+'/8',12,27,14,s.endless?colors.jackpot:colors.text,'left',{max:80});
+    label(c,s.endless?'ENDLESS '+s.stage:'STAGE '+s.stage+'/'+JD.STAGES.length,12,24,14,
+      s.endless?colors.jackpot:colors.text,'left',{max:80});
+    if (s.attempt>0) label(c,'TRY '+(s.attempt+1),12,39,10,colors.textDim,'left',{max:76});
     const clear=fresh(fx,'stage_clear');
     const bump=clear&&clear.age<6&&!ui.reduced ? .1*Math.sin(clear.age*Math.PI/6) : 0;
     const barHeight=18*(1+bump);
     box(c,96,23-barHeight/2,168,barHeight,9,rgba(colors.text,.12));
     box(c,96,23-barHeight/2,168*clamp(displayed/s.target,0,1),barHeight,9,win?colors.success:colors.jackpot);
     label(c,score(displayed)+' / '+score(s.target),180,28,16,colors.text,'center',{outline:colors.ink,max:158,minSize:13});
-    label(c,'BALLS',291,26,12,colors.textDim);
-    label(c,String(s.ballsLeft),326,30,22,s.ballsLeft===1?colors.danger:colors.text);
+    const earnedCoin=fresh(fx,'coins_earned');
+    const coinArrival=fresh(fx,'coin_arrived');
+    const coinAge=Math.min(earnedCoin?.age??Infinity,coinArrival?.age??Infinity);
+    const coinBump=coinAge<12&&!ui.reduced?1+.2*Math.sin(Math.PI*coinAge/12):1;
+    coin(c,300,20,6);
+    label(c,number(s.coins),352,25,14*coinBump,colors.jackpot,'right',{max:44,minSize:11});
+    label(c,'BALLS',290,44,11,colors.textDim);
+    label(c,String(s.ballsLeft),328,46,18,s.ballsLeft===1?colors.danger:colors.text);
+    if (earnedCoin?.e.cause==='clear'&&earnedCoin.age<30) {
+      const alpha=Math.min(1,(30-earnedCoin.age)/8);
+      label(c,'+'+earnedCoin.e.amount+' FIRST CLEAR',352,67,14,rgba(colors.jackpot,alpha),'right',
+        {max:133,outline:rgba(colors.ink,alpha)});
+    }
     const mult=s.shot?Math.max(s.stageMult,s.shot.liveMult-(fx?fx.pendingMult():0)):s.stageMult;
     label(c,'×'+score(mult),12,66,22,mult>=4?colors.jackpot:colors.text,'left',
       {max:100,outline:ui.cameraY>0?colors.ink:null});
@@ -592,6 +611,10 @@
       const w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr));
       if(canvas.width!==w||canvas.height!==h) { canvas.width=w;canvas.height=h; }
       c.setTransform(w/440,0,0,h/640,0,0);
+      if (s.state==='MAP') {
+        JD.drawScreens(c,s,ui,fx,t);
+        return;
+      }
       background(c,s,fx);
       drawMagazine(c,s,ui,t,magazine,fx);
       c.save();
@@ -604,7 +627,7 @@
       if(ui.introReveal) drawStageIntro(c,stageIntro(s),s.boardH-102);
       c.restore();
       lane(c,s,ui,fx,t);
-      if (s.state!=='CARD'&&s.state!=='RESULT') {
+      if (s.state!=='CARD'&&s.state!=='RESULT'&&s.state!=='SHOP') {
         // Keep the score fixed, then paint even high rebounds in front of it.
         hud(c,s,ui,fx);
         panel(c,s,ui,fx);
@@ -625,7 +648,6 @@
       drawAim(c,s,ui,fx,t);
       if(JD.drawScreens) JD.drawScreens(c,s,ui,fx,t);
       if(JD.drawCardReward) JD.drawCardReward(c,s,ui);
-      if(ui.paused) drawPause(c,ui.pauseFocus);
     };
   };
 })(JD);
@@ -712,7 +734,7 @@
     const factor = ui.reduced ? Math.min(hitSize, 0.15) : hitSize;
     const bounce = liveHit ? 1 + factor * Math.sin(Math.PI * hit.age / 8) : 1;
     const tier = peg.tier || (hit && hit.e.tier) || 0;
-    const tutorialBomb = snapshot.stage === 1 && peg.id === 3 && !ui.tutorialSeen && snapshot.state === 'AIM';
+    const tutorialBomb = !snapshot.endless && snapshot.stage === 1 && peg.id === 3 && !ui.tutorialSeen && snapshot.state === 'AIM';
     const pulse = tutorialBomb ? D.pulse(time, 20) : 0;
     if (peg.lit) ctx.drawImage(glow(D, peg.type, tier), peg.x - 19, peg.y - 19);
     if (tutorialBomb) {
@@ -1001,19 +1023,27 @@
   };
 
   const previewNames = {1:'IRON LID',2:'CURVE · LOAD ALL 3',3:'BLOCKS ×+1 · WARP',4:'ZIGZAG · LONG BOARD',
-    7:'THE VAULT ×+3 · LONG BOARD',8:'ENDLESS'};
+    7:'THE VAULT ×+3 · LONG BOARD',8:'CROSSFIRE · ENDLESS UNLOCKED'};
   const previewJackpots = {center:'JACKPOT ▼',left:'JACKPOT ◀',right:'JACKPOT ▶',twin:'TWIN JACKPOT'};
   const resultStats = [
-    ['BEST STAGE',null],['BIGGEST SHOT','biggestShot'],['JACKPOTS','jackpots'],
+    ['REACHED','stageReached'],['BIGGEST SHOT','biggestShot'],['JACKPOTS','jackpots'],
     ['PERFECT SHOTS','perfects'],['BEST COMBO','bestTier'],
-    ['PEGS POPPED','pegsPopped'],['BLOCKS BROKEN','blocksBroken']
+    ['COINS','coins'],['BLOCKS BROKEN','blocksBroken']
   ];
+  const perkArt = {
+    mult:['START ×','Stage multiplier starts +1','×','jackpot'],
+    value:['PEG VALUE','+5 points per blue/gold peg','+','pegNormal'],
+    gold:['GOLD PEGS','+2 gold pegs on every board','✦','jackpot'],
+    ball:['EXTRA BALL','+1 ball every stage','','glass'],
+    blast:['BLAST','Blast radius +12','','pegBomb']
+  };
+  JD.UI.perkNames=Object.fromEntries(Object.entries(perkArt).map(([id,[name]])=>[id,name]));
 
   function preview(s) {
-    const next=JD.stageDef(s.stage);
-    const current=JD.stageDef(s.stage-1);
+    const next=JD.stageDef(s.stageIndex+1);
+    const current=JD.stageDef(s.stageIndex);
     const suffix=next.buckets===current.buckets?'':' · '+previewJackpots[next.buckets];
-    return 'NEXT: '+(previewNames[s.stage]||next.name+(next.rows===24?' · LONG BOARD':''))+suffix;
+    return 'NEXT: '+(previewNames[s.stageIndex+1]||next.name+(next.rows===24?' · LONG BOARD':''))+suffix;
   }
 
   function effectLines(ctx,text,width,size,D) {
@@ -1160,59 +1190,239 @@
     return (s.endless?'ENDLESS ':'STAGE ')+s.stage+' · '+s.stageName;
   }
 
+  function drawPerk(ctx,item,rect,ui,bought,t,D) {
+    const {x,y,w,h}=rect;
+    const C=D.colors;
+    const [name,effect,glyph,token]=perkArt[item.id];
+    const maxed=item.level===item.max;
+    const focused=ui.panelFocus===item.id;
+    const age=bought?.e.id===item.id?bought.age:Infinity;
+    const bounce=age<8&&!ui.reduced?1+.06*Math.sin(Math.PI*age/8):1;
+    ctx.save();
+    ctx.translate(x+w/2,y+h/2);
+    ctx.scale(bounce,bounce);
+    ctx.translate(-x-w/2,-y-h/2);
+    const trim=item.affordable?D.rgba(C.jackpot,.61+.39*(ui.reduced?1:D.pulse(t,40))):C.laneEdge;
+    D.box(ctx,x,y+3,w,h,12,'#080A20');
+    D.box(ctx,x,y,w,h,12,'#151B3B',focused?C.text:trim,focused?3:1.5);
+    const tint=C[token];
+    const iconX=x+30, iconY=y+h/2;
+    if (item.id==='blast') drawIcon(ctx,'bombPlus',iconX,iconY,20,D);
+    else {
+      D.circle(ctx,iconX,iconY,20,D.rgba(tint,.13),D.rgba(tint,.55),1.3);
+      if (item.id==='ball') D.ball(ctx,'normal',iconX,iconY,10);
+      else D.label(ctx,glyph,iconX,iconY+7,25,tint);
+    }
+    D.label(ctx,name,x+58,y+21,16,C.text,'left',{max:166});
+    D.label(ctx,effect,x+58,y+39,12,C.textDim,'left',{body:true,max:172});
+    for (let i=0;i<item.max;i++) {
+      const justBought=i===item.level-1&&age<8;
+      const color=i>=item.level?null:justBought&&age<4?C.text:C.jackpot;
+      D.box(ctx,x+58+12*i,y+49,9,8,2,color,D.rgba(C.textDim,.7),1);
+    }
+    const priceX=x+w-97;
+    if (maxed) D.label(ctx,'MAX',priceX+44,y+37,14,C.jackpot);
+    else {
+      const priceColor=item.affordable?C.bgBottom:C.textDim;
+      D.box(ctx,priceX,y+12,88,40,12,item.affordable?C.jackpot:null,
+        item.affordable?'#FFF6CA':D.rgba(C.textDim,.55),1.5);
+      D.coin(ctx,priceX+18,y+32,7);
+      D.label(ctx,D.number(item.cost),priceX+74,y+38,17,priceColor,'right',{max:46,minSize:13});
+    }
+    ctx.restore();
+  }
+
+  function drawShop(ctx,s,ui,fx,t,D) {
+    const C=D.colors, {items,coins,earned,ratio}=s.shop;
+    const center=196;
+    D.box(ctx,0,0,440,640,0,D.rgba(C.ink,.82));
+    D.label(ctx,'UPGRADE',center,96,26,C.text);
+    D.label(ctx,stageLabel(s)+' · '+ratio+'%',center,122,13,ratio>=80?C.danger:C.textDim,'center',{max:330});
+    const lastPurchase=D.fresh(fx,'perk_bought');
+    const age=ui.stateAge;
+    const added=ui.reduced?1:D.clamp(age/30,0,1);
+    const spent=lastPurchase&&!ui.reduced?Math.max(0,1-lastPurchase.age/12)*lastPurchase.e.cost:0;
+    const balance=Math.max(0,Math.round(coins-(1-added)*earned+spent));
+    const digits=D.number(balance);
+    ctx.save();
+    ctx.font='900 22px '+D.fontFamily;
+    const textWidth=Math.min(99,ctx.measureText(digits).width);
+    ctx.restore();
+    D.coin(ctx,center-textWidth/2-4,149,9);
+    D.label(ctx,digits,center+10,156,22,C.text,'center',{max:99});
+    if (earned>0&&age<36) D.label(ctx,'+'+D.number(earned),center+26+textWidth/2,156,14,
+      D.rgba(C.jackpot,Math.min(1,(36-age)/6)),'left',{max:60});
+    items.forEach((item,index)=>drawPerk(ctx,item,JD.UI.shopPerks[index],ui,lastPurchase,t,D));
+    const cheapest=Math.min(...items.filter(item=>item.cost!=null).map(item=>item.cost));
+    if (cheapest>coins&&Number.isFinite(cheapest)) D.label(ctx,'NEXT +'+D.number(cheapest-coins),center,550,12,C.textDim);
+    D.menuButton(ctx,JD.UI.shopRetry,'RETRY STAGE '+s.stage,'success',ui.panelFocus==='retry');
+  }
+
+  function lockRays(ctx,x,y,r,age,D) {
+    if (age>=34) return;
+    const alpha=1-age/34;
+    for (let i=0;i<8;i++) {
+      const a=i*Math.PI/4;
+      const radius=r*(1.12+age/68);
+      const end=radius+r*.42;
+      D.line(ctx,x+Math.cos(a)*radius,y+Math.sin(a)*radius,x+Math.cos(a)*end,y+Math.sin(a)*end,
+        D.rgba(D.colors.jackpot,.88*alpha),Math.max(1,r*.06));
+    }
+  }
+
+  function drawLock(ctx,x,y,r,opening,D) {
+    const C=D.colors;
+    ctx.save();
+    ctx.translate(x-r*.55,y-r*.22);
+    ctx.rotate(-Math.PI/12*opening);
+    ctx.beginPath();
+    ctx.arc(r*.55,-r*.10*opening,r*.55,Math.PI,2*Math.PI);
+    ctx.strokeStyle=C.ironEdge;
+    ctx.lineWidth=Math.max(1.5,r*.22);
+    ctx.lineCap='round';
+    ctx.stroke();
+    ctx.restore();
+    D.box(ctx,x-r*.8,y-r*.22,r*1.6,r*1.2,3,'#59627E',C.ironEdge,1.5);
+    D.circle(ctx,x,y+r*.28,r*.15,C.ink);
+    D.line(ctx,x,y+r*.31,x,y+r*.59,C.ink,Math.max(1,r*.13));
+  }
+
+  function drawMapTile(ctx,rect,index,s,ui,t,D) {
+    const C=D.colors, {x,y,w,h}=rect;
+    const {current,cleared,stageBest}=s.map;
+    const stage=JD.STAGES[index];
+    const active=index===current;
+    const done=!active&&index<cleared;
+    const locked=!active&&!done;
+    const focus=ui.panelFocus===index;
+    const trim=active?D.rgba(C.jackpot,.68+.32*(ui.reduced?1:D.pulse(t,40))):D.rgba(C.laneEdge,.52);
+    D.box(ctx,x,y+2,w,h,11,'#080A20');
+    if (focus) D.box(ctx,x-3,y-3,w+6,h+6,13,null,C.text,2);
+    D.box(ctx,x,y,w,h,11,done?'#2E3A8C':active?'#1F2750':D.rgba(C.text,.055),trim,active?2:1);
+    if (locked) drawLock(ctx,x+w/2,y+39,10,0,D);
+    if (done) {
+      D.line(ctx,x+52,y+15,x+57,y+20,C.success,2);
+      D.line(ctx,x+57,y+20,x+65,y+11,C.success,2);
+    } else if (active) {
+      D.label(ctx,'▶',x+60,y+18,11,C.jackpot);
+    }
+    const details=active||done;
+    D.label(ctx,String(index+1),x+w/2,y+(locked?22:31),22,locked?D.rgba(C.text,.40):C.text);
+    D.label(ctx,stage.name,x+w/2,y+(details?48:64),9,C.textDim,'center',{max:64,minSize:8});
+    if (active) D.label(ctx,'이어하기',x+w/2,y+64,10,C.jackpot,'center',{max:53});
+    if (done) D.label(ctx,D.score(stageBest[index]||0),x+w/2,y+64,9,C.success,'center',{max:48,minSize:8});
+    if (stage.rows===24) D.label(ctx,'↓',x+w-9,y+(locked?51:h-6),10,C.jackpot);
+  }
+
+  function drawMap(ctx,s,ui,t,D) {
+    const C=D.colors;
+    const gradient=ctx.createLinearGradient(0,0,0,640);
+    gradient.addColorStop(0,C.bgTop);
+    gradient.addColorStop(1,C.bgBottom);
+    D.box(ctx,0,0,440,640,0,gradient);
+    D.label(ctx,'STAGES',196,60,24,C.text);
+    D.label(ctx,'CLEARED '+s.map.cleared+' / '+JD.STAGES.length,196,82,13,C.textDim);
+    D.coin(ctx,267,21,6);
+    D.label(ctx,D.number(s.coins),310,26,14,C.jackpot,'right',{max:34,minSize:11});
+    const close=JD.UI.mapClose;
+    const cx=close.x+close.w/2, cy=close.y+close.h/2;
+    const closeAvailable=s.map.canClose;
+    const closeFocus=closeAvailable&&ui.panelFocus==='close';
+    D.box(ctx,close.x,close.y,close.w,close.h,9,'#141936',closeFocus?C.text:C.laneEdge,closeFocus?3:1);
+    const cross=closeAvailable?C.text:D.rgba(C.textDim,.46);
+    D.line(ctx,cx-6,cy-6,cx+6,cy+6,cross,2);
+    D.line(ctx,cx-6,cy+6,cx+6,cy-6,cross,2);
+    JD.UI.mapStages.forEach((rect,index)=>drawMapTile(ctx,rect,index,s,ui,t,D));
+
+    const endless=s.map.endlessUnlocked;
+    const {x,y,w,h}=JD.UI.mapEndless;
+    const focus=ui.panelFocus==='endless';
+    const shake=ui.panelShake?.target==='endless'&&!ui.reduced?ui.panelShake.age:Infinity;
+    const dx=shake<12?4*Math.sin(shake*Math.PI/2):0;
+    const unlockAge=ui.mapUnlock?ui.stateAge:Infinity;
+    const opening=endless?(ui.reduced?1:D.clamp(unlockAge/12,0,1)):0;
+    D.box(ctx,x,y+3,w,h,16,'#080A20');
+    D.box(ctx,x,y,w,h,16,endless?D.rgba(C.jackpot,.24):D.rgba(C.text,.06),focus?C.text:endless?C.jackpot:C.laneEdge,
+      focus?3:endless?2:1);
+    const lockX=x+38+dx, lockY=y+30;
+    if (endless&&!ui.reduced) lockRays(ctx,lockX,lockY,16,unlockAge,D);
+    drawLock(ctx,lockX,lockY,16,opening,D);
+    D.label(ctx,'ENDLESS',x+68,y+30,20,endless?C.jackpot:D.rgba(C.text,.52),'left');
+    D.label(ctx,endless?'최고 ENDLESS '+s.map.endlessBest:'8단계를 넘기면 열립니다',x+68,y+51,13,C.textDim,'left',{max:244});
+  }
+
   function drawBanner(ctx,s,ui,t,D) {
     const C=D.colors;
     const b=s.banner;
+    if (b.kind==='unlock') {
+      const age=ui.stateAge;
+      const opening=ui.reduced?1:D.clamp(age/12,0,1);
+      D.box(ctx,12,232,336,184,18,'#10152D',D.rgba(C.jackpot,.7),1.5);
+      if (!ui.reduced) lockRays(ctx,180,300,40,age,D);
+      drawLock(ctx,180,300,40,opening,D);
+      D.label(ctx,'ENDLESS UNLOCKED',180,373,28,C.jackpot,'center',{max:314,minSize:24});
+      D.label(ctx,'스테이지 지도에서 도전하세요',180,397,13,C.textDim,'center',{max:305});
+      return;
+    }
     const clear=b.kind==='clear';
     const allClear=b.kind==='allclear';
     const flash=ui.reduced?0:1-D.clamp(ui.stateAge/12,0,1);
     const tint=clear?C.success:allClear?C.jackpot:b.ratio>=80?C.danger:C.text;
     const bonus=clear?Math.round(s.target/10)*s.ballsLeft:0;
-    const subtitle=allClear?'ENDLESS MODE':bonus>0?'BALL BONUS +'+D.score(bonus):'';
-    const title=allClear?'ALL CLEAR!':clear?'STAGE CLEAR!':b.ratio>=80?'SO CLOSE!':'OUT OF BALLS';
+    const subtitle=allClear?'20 / 20':bonus>0?'BALL BONUS +'+D.score(bonus):'';
+    const title=allClear?'CAMPAIGN CLEAR!':clear?'STAGE CLEAR!':b.ratio>=80?'SO CLOSE!':'OUT OF BALLS';
     D.box(ctx,12,269,336,b.kind==='fail'?112:subtitle?109:82,18,'#10152D',D.rgba(tint,.58),1.5);
-    D.label(ctx,title,180,322,36,tint,'center',{max:312,minSize:34});
+    const beat=allClear&&!ui.reduced?ui.stateAge<8?.5+ui.stateAge*.08125:1+.15*Math.max(0,1-(ui.stateAge-8)/12):1;
+    D.label(ctx,title,180,322,36*beat,tint,'center',{max:312,minSize:30});
     if(b.kind==='fail') {
       D.label(ctx,b.ratio+'%',180,350,24,tint);
       drawRatio(ctx,b.ratio,180,360,t,D);
-    } else if (subtitle) D.label(ctx,subtitle,180,354,23,C.text,'center',{max:300,minSize:20});
+    } else if (subtitle&&(!allClear||ui.stateAge>=30||ui.reduced)) {
+      D.label(ctx,subtitle,180,354,allClear?18:23,C.text,'center',{max:300,minSize:18});
+    }
     if(allClear&&flash) D.box(ctx,3,3,386,634,6,null,D.rgba(C.jackpot,flash*.75),6);
   }
 
   function drawResult(ctx,s,ui,t,D) {
     const r=s.result,C=D.colors;
-    const title=r.won?'JACKPOT RUN!':r.ratio>=80?'SO CLOSE!':'OUT OF BALLS';
-    const tint=r.won?C.jackpot:r.ratio>=80?C.danger:C.text;
-    const shownScore=Math.round(r.runScore*D.clamp(ui.stateAge/40,0,1));
+    const title=r.ratio>=80?'SO CLOSE!':'ENDLESS OVER';
+    const tint=r.ratio>=80?C.danger:C.text;
+    const shownScore=ui.reduced?r.runScore:Math.round(r.runScore*D.clamp(ui.stateAge/40,0,1));
     D.box(ctx,0,0,440,640,0,D.rgba(C.ink,.94));
     D.label(ctx,title,196,150,32,tint,'center',{max:352,minSize:28});
-    if(r.won) D.label(ctx,'ALL CLEAR · REACHED STAGE '+r.stageReached,196,176,14,C.jackpot,'center',{max:352,minSize:13});
     D.label(ctx,stageLabel(s)+' · '+r.ratio+'%',196,200,18,C.text,'center',{max:352,minSize:16});
     drawRatio(ctx,r.ratio,196,210,t,D);
     D.label(ctx,'RUN SCORE',196,250,16,C.textDim);
     D.label(ctx,D.number(shownScore),196,289,40,C.text,'center',{max:344,minSize:37});
-    const best=s.practiceStart?'PRACTICE · START '+s.practiceStart:ui.newBest?'NEW BEST!':'BEST '+D.score(ui.saved.best);
-    if(ui.newBest&&!s.practiceStart) D.box(ctx,146,298,100,18,9,D.rgba(C.jackpot,.18),C.jackpot);
-    D.label(ctx,best,196,311,13,ui.newBest&&!s.practiceStart?C.jackpot:C.textDim,'center',{max:346,minSize:12});
+    const newBest=ui.newBest&&!s.practice;
+    const best=s.practice?'PRACTICE':newBest?'NEW BEST!':'BEST ENDLESS '+s.endlessBest;
+    if(newBest) D.box(ctx,146,298,100,18,9,D.rgba(C.jackpot,.18),C.jackpot);
+    D.label(ctx,best,196,311,13,newBest?C.jackpot:C.textDim,'center',{max:346,minSize:12});
     D.box(ctx,42,318,308,137,11,'#131834',D.rgba(C.laneEdge,.62));
     resultStats.forEach(([label,key],i)=>{
       const y=332+i*19;
-      const value=key==='bestTier'?JD.CFG.COMBO_NAMES[r.bestTier]||'—':D.score(key?r[key]:ui.saved.bestStage);
-      const emphasis=i===0&&ui.newBestStage&&!s.practiceStart;
+      const value=key==='bestTier'?JD.CFG.COMBO_NAMES[r.bestTier]||'—':D.score(r[key]);
+      const emphasis=i===0&&newBest;
       const color=key==='bestTier'?D.combo(r.bestTier):emphasis?C.jackpot:C.text;
       if(i>0) D.line(ctx,51,y-14,341,y-14,D.rgba(C.laneEdge,.28));
       D.label(ctx,label,56,y,14,emphasis?C.jackpot:C.textDim,'left',{body:true});
       D.label(ctx,value,336,y,15,color,'right',{max:132,minSize:13});
     });
-    D.menuButton(ctx,JD.UI.result,'PLAY AGAIN',true,ui.focus===0);
-    rackRow(ctx,r.rack,196-(r.rack.length-1)*23/2,571,23,8,D);
-    D.label(ctx,'SEED '+s.seed,376,610,12,C.textDim,'right',{max:170});
+    D.menuButton(ctx,JD.UI.result,'PLAY AGAIN','jackpot',ui.panelFocus==='replay');
+    D.menuButton(ctx,JD.UI.resultMap,'MAP','outline',ui.panelFocus==='map');
+    rackRow(ctx,r.rack,196-(r.rack.length-1)*23/2,604,23,8,D);
+    D.label(ctx,'SEED '+s.seed,376,625,11,C.textDim,'right',{max:170});
   }
 
   JD.drawScreens = function (ctx,s,ui,fx,t) {
     const D = JD.Drawing;
     if(s.state === 'BANNER') drawBanner(ctx,s,ui,t,D);
     else if(s.state === 'CARD') drawCardScreen(ctx,s,ui,t,D);
+    else if(s.state === 'SHOP') {
+      drawShop(ctx,s,ui,fx,t,D);
+      fx?.shopOverlay?.(ctx,s,ui);
+    }
+    else if(s.state === 'MAP') drawMap(ctx,s,ui,t,D);
     else if(s.state === 'RESULT') drawResult(ctx,s,ui,t,D);
   };
 

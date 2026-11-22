@@ -17,7 +17,8 @@ JD.CFG = {
   WIDE_STEP: 20, TERRAIN_HALF: 4, TERRAIN_PEG_CLEAR: 17, TERRAIN_GATE_CLEAR: 20,
   PTS_NORMAL: 10, PTS_HEAVY_STEP: 10, PTS_BOMB: 25,
   PTS_BLOCK_HIT: 5, PTS_BLOCK_BREAK_PER_HP: 20, BLOCK_GOLDS: 1, VAULT_GOLDS: 3,
-  ENDLESS_GROWTH: 1.4, ENDLESS_HP_STEP: 2, ENDLESS_FIRST: 5, ENDLESS_CYCLE: 3,
+  ENDLESS_GROWTH: 1.12, ENDLESS_HP_STEP: 2, CAMPAIGN: 20, ENDLESS_UNLOCK: 8,
+  PTS_VALUE_STEP: 5, PERK_GOLD_STEP: 2, PERK_BLAST_STEP: 12, CLEAR_COINS: 10,
   BLOCK_CD: 6, BLAST_BLOCK_DMG: 2, BLOCK_PEG_CLEAR: 11, BLOCK_GATE_CLEAR: 16,
   HITSTOP_BOMB: 4, HITSTOP_BREAK: 3,
   GATE_HALF_W: 36, GATE_BUMPER_CLEAR: 24, MAX_BALLS: 6
@@ -80,6 +81,13 @@ JD.bucketLayout = function (S, up) {
 // reward: fixed card offer after clearing this stage (a one-card choice), or null for the normal 3-card offer.
 // hint: what the stage is built around, shown at stage start: { ball } (fire that ball last), { load: 'all' }
 //       (load every ball and fire them together), or null.
+// Map row sets reused by stages 9..20.
+JD.ROWS_FULL = ['#########', '########', '#########', '########', '#########', '########',
+              '#########', '########', '#########', '########', '#########', '########'];
+JD.ROWS_CHECK = ['#.#.#.#.#', '.#.#.#.#', '#..###..#', '.#.##.#.', '#.#.#.#.#', '.#.#.#.#',
+               '##.#.#.##', '.#.##.#.', '#.#.#.#.#', '.#.#.#.#', '#.#.#.#.#', '########'];
+JD.ROWS_VAULT = ['#########', '########', '#.#####.#', '#.####.#', '##.###.##', '##.##.##',
+               '###.#.###', '########', '#########', '########', '#########', '########'];
 JD.STAGES = [
   { name: 'TUTORIAL', gold: 8, bomb: 3, plus: 0, minus: 0, balls: 3, target: 3000, bumpers: [], blocks: [], buckets: 'center',
     reward: ['ballIron'], hint: null, iron: [], warps: null,
@@ -135,22 +143,142 @@ JD.STAGES = [
     map: ['#########', '########', '#.#####.#', '#.####.#', '##.###.##', '##.##.##',
           '###.#.###', '########', '#########', '########', '#########', '########',
           '#.#.#.#.#', '.#.#.#.#', '#..###..#', '.#.##.#.', '#.#.#.#.#', '.#.#.#.#',
-          '##.#.#.##', '.#.##.#.', '#.#.#.#.#', '.#.#.#.#', '#.#.#.#.#', '########'] }
+          '##.#.#.##', '.#.##.#.', '#.#.#.#.#', '.#.#.#.#', '#.#.#.#.#', '########'] },
+  // ---- stages 9..20: the same gimmicks in new combinations ----
+  // 9 CROSSFIRE: a wall diamond in the middle with a bumper inside, two blocks, twin JACKPOTs. Load all and spray.
+  { name: 'CROSSFIRE', gold: 11, bomb: 5, plus: 2, minus: 2, balls: 3, target: 300000, buckets: 'twin',
+    bumpers: [[180, 390]], reward: null, hint: { load: 'all' }, iron: [], warps: null,
+    terrain: [[90, 300, 150, 360], [270, 300, 210, 360], [150, 420, 90, 480], [210, 420, 270, 480]],
+    blocks: [[60, 240, 44, 20, 5, 'block'], [300, 240, 44, 20, 5, 'block']],
+    map: JD.ROWS_FULL },
+  // 10 DEEP WELL (long): side walls squeeze the lower half into a well; a warp in the well throws balls back up;
+  // an iron gate seals the JACKPOT at the bottom.
+  { name: 'DEEP WELL', gold: 14, bomb: 7, plus: 2, minus: 2, balls: 3, target: 1900000, rows: 24, buckets: 'center',
+    bumpers: [[120, 380], [240, 380]], reward: null, hint: { ball: 'iron' },
+    terrain: [[60, 560, 60, 760], [300, 560, 300, 760], [0, 884, 136, 964], [360, 884, 224, 964]],
+    iron: [[[136, 964, 224, 964]]], warps: { ins: [[180, 700]], outs: [[60, 200], [300, 200], [180, 860]] },
+    blocks: [[180, 480, 44, 20, 6, 'block']],
+    map: JD.ROWS_FULL.concat(JD.ROWS_CHECK) },
+  // 11 LOCKBOX: a vault boxed in by four blocks; the left JACKPOT is under an iron plate.
+  { name: 'LOCKBOX', gold: 12, bomb: 6, plus: 2, minus: 1, balls: 3, target: 320000, buckets: 'left',
+    bumpers: [], reward: null, hint: { ball: 'iron' }, iron: [[[4, 566, 76, 566]]], warps: null, terrain: [],
+    blocks: [[180, 336, 72, 28, 12, 'vault'], [108, 336, 44, 20, 6, 'block'], [252, 336, 44, 20, 6, 'block'],
+             [180, 280, 44, 20, 6, 'block'], [180, 392, 44, 20, 6, 'block']],
+    map: JD.ROWS_FULL },
+  // 12 TWIN LIDS: both JACKPOTs have their own iron lid (two groups); a centre wall splits the floor.
+  { name: 'TWIN LIDS', gold: 12, bomb: 6, plus: 2, minus: 1, balls: 3, target: 420000, buckets: 'twin',
+    bumpers: [[180, 300]], reward: null, hint: { ball: 'iron' }, warps: null,
+    terrain: [[180, 440, 180, 596], [0, 500, 64, 560], [360, 500, 296, 560]],
+    iron: [[[64, 566, 128, 566]], [[232, 566, 296, 566]]],
+    blocks: [[90, 400, 44, 20, 6, 'block'], [270, 400, 44, 20, 6, 'block']],
+    map: JD.ROWS_FULL },
+  // 13 WARP MAZE: two wall lanes and three one-shot warps; the JACKPOT is on the right.
+  { name: 'WARP MAZE', gold: 11, bomb: 5, plus: 2, minus: 2, balls: 3, target: 900000, buckets: 'right',
+    bumpers: [], reward: null, hint: null, iron: [],
+    terrain: [[120, 250, 120, 450], [240, 250, 240, 450]],
+    warps: { ins: [[60, 420], [180, 420], [300, 330]], outs: [[324, 500], [40, 140], [180, 140], [300, 140]] },
+    blocks: [[180, 510, 44, 20, 5, 'block']],
+    map: JD.ROWS_FULL },
+  // 14 TOWER (long): three wall shelves zigzag the ball down past blocks to a vault above the funnel.
+  { name: 'TOWER', gold: 15, bomb: 7, plus: 2, minus: 1, balls: 3, target: 4200000, rows: 24, buckets: 'center',
+    bumpers: [[180, 250]], reward: null, hint: { load: 'all' }, iron: [], warps: null,
+    terrain: [[0, 330, 150, 360], [360, 520, 210, 550], [0, 710, 150, 740], [0, 884, 136, 964], [360, 884, 224, 964]],
+    blocks: [[270, 420, 44, 20, 6, 'block'], [90, 610, 44, 20, 6, 'block'], [270, 800, 44, 20, 6, 'block'],
+             [180, 850, 72, 28, 12, 'vault']],
+    map: JD.ROWS_FULL.slice(0, 6).concat(JD.ROWS_CHECK.slice(0, 6), JD.ROWS_FULL.slice(0, 6), JD.ROWS_CHECK.slice(0, 6)) },
+  // 15 BUMPER PARK: five bumpers and five gates; the JACKPOT is on the left.
+  { name: 'BUMPER PARK', gold: 12, bomb: 6, plus: 3, minus: 2, balls: 3, target: 1200000, buckets: 'left',
+    bumpers: [[90, 260], [270, 260], [180, 340], [90, 420], [270, 420]], reward: null, hint: null,
+    iron: [], warps: null, terrain: [],
+    blocks: [[180, 480, 44, 20, 6, 'block']],
+    map: JD.ROWS_FULL },
+  // 16 IRON CAGE: an iron box (lid and two sides, one group) over the centre JACKPOT; funnel walls lead to its lid.
+  { name: 'IRON CAGE', gold: 12, bomb: 6, plus: 2, minus: 1, balls: 3, target: 520000, buckets: 'center',
+    bumpers: [], reward: null, hint: { ball: 'iron' }, warps: null,
+    terrain: [[0, 460, 120, 540], [360, 460, 240, 540]],
+    iron: [[[136, 520, 224, 520], [136, 520, 136, 580], [224, 520, 224, 580]]],
+    blocks: [[90, 330, 44, 20, 6, 'block'], [270, 330, 44, 20, 6, 'block']],
+    map: JD.ROWS_FULL },
+  // 17 SPLIT RIVER: a wall splits the board in two; warps at the bottom of each side swap balls to the other side.
+  { name: 'SPLIT RIVER', gold: 12, bomb: 6, plus: 2, minus: 2, balls: 3, target: 1900000, buckets: 'twin',
+    bumpers: [], reward: null, hint: { load: 'all' }, iron: [],
+    terrain: [[180, 200, 180, 596]], warps: { ins: [[100, 480], [260, 480]], outs: [[260, 160], [100, 160]] },
+    blocks: [[100, 360, 44, 20, 6, 'block'], [260, 360, 44, 20, 6, 'block']],
+    map: JD.ROWS_FULL },
+  // 18 VAULT DEEP (long): two vaults stacked, blocks between, bottom warps send balls back to either vault.
+  { name: 'VAULT DEEP', gold: 18, bomb: 9, plus: 3, minus: 1, balls: 3, target: 3800000, rows: 24, buckets: 'center',
+    bumpers: [[180, 256], [180, 640]], reward: null, hint: null, iron: [], terrain: [],
+    warps: { ins: [[40, 904], [320, 904]], outs: [[180, 316], [180, 700], [96, 560], [264, 560]] },
+    blocks: [[180, 368, 72, 28, 12, 'vault'], [180, 752, 72, 28, 12, 'vault'], [72, 560, 44, 20, 7, 'block'], [288, 560, 44, 20, 7, 'block']],
+    map: JD.ROWS_VAULT.concat(JD.ROWS_VAULT) },
+  // 19 GAUNTLET (long): five bumpers and four red gates on the way down to an iron-gated JACKPOT.
+  { name: 'GAUNTLET', gold: 16, bomb: 8, plus: 2, minus: 4, balls: 3, target: 9000000, rows: 24, buckets: 'center',
+    bumpers: [[90, 300], [270, 300], [180, 520], [90, 740], [270, 740]], reward: null, hint: { ball: 'iron' }, warps: null,
+    terrain: [[0, 884, 136, 964], [360, 884, 224, 964]], iron: [[[136, 964, 224, 964]]],
+    blocks: [[180, 640, 44, 20, 7, 'block']],
+    map: JD.ROWS_CHECK.concat(JD.ROWS_FULL) },
+  // 20 GRAND JACKPOT (long): everything at once: vault, four blocks, two warps, an iron gate over the JACKPOT.
+  { name: 'GRAND JACKPOT', gold: 20, bomb: 10, plus: 3, minus: 2, balls: 3, target: 11000000, rows: 24, buckets: 'center',
+    bumpers: [[180, 256], [180, 680]], reward: null, hint: { load: 'all' },
+    terrain: [[0, 884, 136, 964], [360, 884, 224, 964]], iron: [[[136, 964, 224, 964]]],
+    warps: { ins: [[40, 700], [320, 700]], outs: [[180, 500], [96, 860], [264, 860]] },
+    blocks: [[180, 560, 72, 28, 14, 'vault'], [72, 400, 44, 20, 8, 'block'], [288, 400, 44, 20, 8, 'block'],
+             [126, 800, 44, 20, 8, 'block'], [234, 800, 44, 20, 8, 'block']],
+    map: JD.ROWS_FULL.concat(JD.ROWS_CHECK) }
 ];
 
-// Stage definition for any 0-based index. Index 8 and later is ENDLESS: it cycles stages 6..8
-// (BOWL, RING, VAULT), multiplies the stage-8 target by ENDLESS_GROWTH per stage and adds block hit points per loop.
+// Stage definition for any 0-based index. 0..19 is the CAMPAIGN (JD.STAGES). Index 20 and later is ENDLESS mode
+// (a separate run, unlocked by clearing campaign stage ENDLESS_UNLOCK = 8): endless stage k = i - 20 reuses the layout of
+// JD.ENDLESS_POOL[k % pool length], its target is that layout's campaign target x ENDLESS_SCALE x ENDLESS_GROWTH^k
+// and blocks get ENDLESS_HP_STEP more hit points per loop through the pool.
+JD.ENDLESS_POOL = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+JD.ENDLESS_SCALE = 0.2;
 JD.stageDef = function (i) {
   var C = JD.CFG, n = JD.STAGES.length;
   if (i < n) return JD.STAGES[i];
-  var k = i - n, loop = Math.floor(k / C.ENDLESS_CYCLE) + 1, base = JD.STAGES[C.ENDLESS_FIRST + (k % C.ENDLESS_CYCLE)];
+  var k = i - n, P = JD.ENDLESS_POOL, loop = Math.floor(k / P.length), base = JD.STAGES[P[k % P.length]];
   return {
     name: base.name, gold: base.gold, bomb: base.bomb, plus: base.plus, minus: base.minus, balls: base.balls, rows: base.rows,
-    target: Math.round(JD.STAGES[n - 1].target * Math.pow(C.ENDLESS_GROWTH, k + 1) / 1000) * 1000,
+    target: Math.round(base.target * JD.ENDLESS_SCALE * Math.pow(C.ENDLESS_GROWTH, k) / 1000) * 1000,
     bumpers: base.bumpers, map: base.map, terrain: base.terrain, buckets: base.buckets, endless: true,
     iron: base.iron, warps: base.warps, reward: null, hint: base.hint,
     blocks: base.blocks.map(function (q) { return [q[0], q[1], q[2], q[3], q[4] + C.ENDLESS_HP_STEP * loop, q[5]]; })
   };
+};
+
+// PERKS: permanent upgrades bought with coins (1 coin per gold peg lit, CLEAR_COINS more for each first clear of a
+// campaign stage). They stay across retries, campaign restarts and endless runs. cost(level) = round(base x grow^level / 5) x 5.
+//   mult:  stage multiplier starts +1 per level      value: blue/gold pegs +PTS_VALUE_STEP points per level
+//   gold:  +PERK_GOLD_STEP gold pegs on every board   ball:  +1 normal ball in the rack per level
+//   blast: bomb blast radius +PERK_BLAST_STEP per level
+JD.PERKS = {
+  mult:  { max: 5, base: 25, grow: 1.7 },
+  value: { max: 5, base: 15, grow: 1.6 },
+  gold:  { max: 5, base: 15, grow: 1.6 },
+  ball:  { max: 2, base: 80, grow: 2.2 },
+  blast: { max: 3, base: 15, grow: 1.7 }
+};
+JD.PERK_IDS = ['mult', 'value', 'gold', 'ball', 'blast'];
+JD.newPerks = function () { return { mult: 0, value: 0, gold: 0, ball: 0, blast: 0 }; };
+JD.perkCost = function (id, level) {
+  var P = JD.PERKS[id];
+  return level >= P.max ? null : Math.round(P.base * Math.pow(P.grow, level) / 5) * 5;
+};
+// wallet = { coins, perks }. Buys one level of perk id if affordable; returns true on success.
+JD.buyPerk = function (wallet, id) {
+  var cost = JD.perkCost(id, wallet.perks[id]);
+  if (cost === null || wallet.coins < cost) return false;
+  wallet.coins -= cost; wallet.perks[id]++;
+  return true;
+};
+// Coins a finished shot earns: one per gold peg it lit.
+JD.shotCoins = function (S) { return S.goldPegs; };
+// After buying perks between attempts, bring a run's upgrades in line with the wallet: copy the levels and add
+// one normal ball to the rack for each new ball level.
+JD.syncPerks = function (up, perks) {
+  var add = perks.ball - up.perks.ball;
+  for (var i = 0; i < add; i++) up.rack.push('normal');
+  up.perks = { mult: perks.mult, value: perks.value, gold: perks.gold, ball: perks.ball, blast: perks.blast };
 };
 // Gate slots: centre (x, y). y lies halfway between two peg rows. The last three rows exist only on long boards.
 JD.GATE_SLOTS = [
@@ -177,9 +305,13 @@ JD.CARD_CAP = { jackpot: 1, extra: 2, split: 2, gate: 2, ballGlass: 1, ballBig: 
 JD.CARD_BALL = { ballGlass: 'glass', ballBig: 'big', ballIron: 'iron' };
 
 // rack: ball types for each stage (refilled at every stage start). load: how many balls one shot may carry.
-JD.newUpgrades = function () {
+// perks: the permanent PERKS levels this run plays with (default none). perks.ball adds normal balls to the rack.
+JD.newUpgrades = function (perks) {
+  var pk = perks ? { mult: perks.mult, value: perks.value, gold: perks.gold, ball: perks.ball, blast: perks.blast } : JD.newPerks();
+  var rack = ['normal', 'normal', 'normal'];
+  for (var i = 0; i < pk.ball; i++) rack.push('normal');
   return { goldPlus: 0, heavy: 0, bombPlus: 0, fever: 0, jackpot: 0, extra: 0, split: 0, gate: 0,
-    ballGlass: 0, ballBig: 0, ballIron: 0, springLoad: 0, load: 1, rack: ['normal', 'normal', 'normal'] };
+    ballGlass: 0, ballBig: 0, ballIron: 0, springLoad: 0, load: 1, rack: rack, perks: pk };
 };
 
 JD.applyCard = function (up, id) {
@@ -233,10 +365,11 @@ JD.pegGrid = function (rows) {
   return out; // 102 pegs for 12 rows, 204 for 24
 };
 
-// up = JD.newUpgrades() shape. stageIndex is 0-based.
-JD.buildBoard = function (stageIndex, up, runSeed) {
-  var C = JD.CFG, S = JD.stageDef(stageIndex), size = JD.boardSize(S);
-  var rnd = JD.mulberry32(runSeed * 7919 + stageIndex * 104729 + 13);
+// up = JD.newUpgrades() shape. stageIndex is 0-based. attempt = 0 for the first try of a stage, 1, 2... for retries
+// (each retry deals a new peg/gate layout and warp sequence).
+JD.buildBoard = function (stageIndex, up, runSeed, attempt) {
+  var C = JD.CFG, S = JD.stageDef(stageIndex), size = JD.boardSize(S), at = attempt || 0, pk = up.perks || JD.newPerks();
+  var rnd = JD.mulberry32(runSeed * 7919 + stageIndex * 104729 + 13 + at * 7);
   var pegs = JD.pegGrid(size.rows).map(function (p) {
     var r = Math.round((p.y - C.ROW_Y0) / C.ROW_DY), c = Math.round((p.x - (r % 2 === 0 ? 36 : 54)) / 36);
     return { id: p.id, x: p.x, y: p.y, type: 'normal', lit: false, alive: S.map[r].charAt(c) === '#' };
@@ -264,7 +397,7 @@ JD.buildBoard = function (stageIndex, up, runSeed) {
     pegs.forEach(function (p) { if (Math.hypot(p.x - h[0], p.y - h[1]) < C.WARP_CLEAR) p.alive = false; });
   });
   var live = order.filter(function (id) { return pegs[id].alive; });
-  var g = S.gold + 3 * up.goldPlus, bo = S.bomb + 2 * up.bombPlus;
+  var g = S.gold + 3 * up.goldPlus + C.PERK_GOLD_STEP * pk.gold, bo = S.bomb + 2 * up.bombPlus;
   // fixed: [[id, type], ...] pegs placed by hand (the tutorial stage). They count toward gold/bomb.
   (S.fixed || []).forEach(function (f) {
     if (!pegs[f[0]].alive) return;
@@ -315,10 +448,10 @@ JD.buildBoard = function (stageIndex, up, runSeed) {
     warps: S.warps ? {
       ins: S.warps.ins.map(function (h) { return { x: h[0], y: h[1], alive: true }; }),
       outs: S.warps.outs.map(function (h) { return { x: h[0], y: h[1] }; }),
-      rnd: { s: runSeed * 31 + stageIndex * 977 + 5 }
+      rnd: { s: runSeed * 31 + stageIndex * 977 + 5 + at * 13 }
     } : null,
     buckets: JD.bucketLayout(S, up),
-    mult: 1 + up.fever
+    mult: 1 + up.fever + pk.mult
   };
 };
 
@@ -352,12 +485,12 @@ JD.createShot = function (board, power, up, pick) {
       B.wait = C.LOAD_GAP * i; return B;
     }),
     landY: board.landY || 596, maxFlight: board.maxFlight || C.FLIGHT_PER_ROW * C.ROWS,
-    pts: 0, golds: 0, hits: 0, blockHits: 0, split: false, cracked: false, shattered: false,
+    pts: 0, golds: 0, goldPegs: 0, hits: 0, blockHits: 0, split: false, cracked: false, shattered: false,
     comboBase: perfect ? sp.perfectTier : 0, tier: 0,
     t: 0, hitstop: 0, finished: false,
     bucketX: board.buckets.x, bucketMult: board.buckets.mult,
-    base: C.PTS_NORMAL + C.PTS_HEAVY_STEP * up.heavy,
-    blastR: C.BLAST_R + C.BLAST_R_STEP * up.bombPlus,
+    base: C.PTS_NORMAL + C.PTS_HEAVY_STEP * up.heavy + C.PTS_VALUE_STEP * (up.perks ? up.perks.value : 0),
+    blastR: C.BLAST_R + C.BLAST_R_STEP * up.bombPlus + C.PERK_BLAST_STEP * (up.perks ? up.perks.blast : 0),
     events: []
   };
   S.tier = Math.min(C.COMBO_MAX, S.comboBase);
@@ -381,7 +514,7 @@ JD.lightPeg = function (S, p, cause) {
   if (tier > S.tier) { S.tier = tier; S.events.push({ type: 'combo_up', tier: tier, n: S.hits }); }
   var add = (p.type === 'bomb' ? C.PTS_BOMB : S.base) + C.COMBO_BONUS[S.tier];
   S.pts += add;
-  if (p.type === 'gold') S.golds++;
+  if (p.type === 'gold') { S.golds++; S.goldPegs++; }
   S.events.push({ type: 'peg_hit', id: p.id, pegType: p.type, n: S.hits, cause: cause, tier: S.tier, pts: add });
 };
 

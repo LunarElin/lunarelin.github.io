@@ -23,34 +23,31 @@
       return JD.UI.cards(state).findIndex(card => over(point, card.x, card.y, card.w, card.h));
     }
 
-    function pauseAt(point) {
-      return JD.UI.pauseButtons.findIndex(button => over(point, button.x, button.y, button.w, button.h));
-    }
-
-    function overReplay(point) {
-      const { x, y, w, h } = JD.UI.result;
-      return over(point, x, y, w, h);
+    function resultAt(point) {
+      const minHeight=44*640/canvas.getBoundingClientRect().height;
+      for(const [id,{x,y,w,h}] of [['replay',JD.UI.result],['map',JD.UI.resultMap]]) {
+        const height=Math.max(h,minHeight);
+        if(over(point,x,y-(height-h)/2,w,height)) return id;
+      }
+      return null;
     }
 
     function pointerDown(ev) {
-      if (pointer || controls.isInactive() || ev.button !== 0 || !ev.isPrimary) return;
+      if (pointer || controls.isInactive() || controls.isPaused() || ev.button !== 0 || !ev.isPrimary) return;
       const target = ev.currentTarget;
       const magazineButton = target !== canvas;
-      const paused = controls.isPaused();
       const state = controls.snapshot();
-      if (magazineButton && (paused || target.disabled || !canPickBall(state))) return;
-      if (!paused && state.state === 'AIM' && !magazineButton &&
-          (chargeKey !== null || state.charging || over(position(ev), 392, 340, 48, 288))) return;
-      pointer = { id: ev.pointerId, target, kind: paused ? 'pause' : state.state, option: -1 };
+      if (magazineButton && (target.disabled || !canPickBall(state))) return;
+      const magazineTop=JD.UI.magazineTop(state);
+      if (state.state === 'AIM' && !magazineButton &&
+          (chargeKey !== null || state.charging || over(position(ev),392,magazineTop,48,628-magazineTop))) return;
+      pointer = { id: ev.pointerId, target, kind: state.state, option: -1 };
       controls.activateAudio();
       target.focus({ preventScroll: true });
       if (target.setPointerCapture) {
         try { target.setPointerCapture(ev.pointerId); } catch (_) { /* The pointer may have ended. */ }
       }
-      if (paused) {
-        pointer.option = pauseAt(position(ev));
-        if (pointer.option !== -1) controls.focusPause(pointer.option);
-      } else if (magazineButton) {
+      if (magazineButton) {
         pointer.kind = 'magazine';
         pointer.slot = Number(target.dataset.slot);
       } else if (state.state === 'AIM') {
@@ -59,8 +56,8 @@
       } else if (state.state === 'CARD') {
         pointer.option = cardAt(position(ev), state);
         if (pointer.option !== -1) controls.focus(pointer.option);
-      } else if (state.state === 'RESULT' && overReplay(position(ev))) {
-        pointer.kind = 'replay';
+      } else if (state.state === 'RESULT') {
+        pointer.option=resultAt(position(ev));
       }
     }
 
@@ -68,13 +65,7 @@
       if (!pointer || pointer.id !== ev.pointerId) return;
       const press = pointer;
       pointer = null;
-      if (controls.isInactive()) return;
-      if (controls.isPaused()) {
-        if (press.kind === 'pause' && press.option >= 0 && pauseAt(position(ev)) === press.option) {
-          controls.choosePause(press.option);
-        }
-        return;
-      }
+      if (controls.isInactive() || controls.isPaused()) return;
 
       const state = controls.snapshot();
       if (press.kind === 'charge') {
@@ -88,8 +79,8 @@
         controls.queue({ type: 'skip' });
       } else if (press.kind === 'CARD' && state.state === 'CARD' && press.option >= 0 && cardAt(position(ev), state) === press.option) {
         controls.queue({ type: 'pick', index: press.option });
-      } else if (press.kind === 'replay' && state.state === 'RESULT' && overReplay(position(ev))) {
-        controls.queue({ type: 'restart' });
+      } else if (press.kind === 'RESULT' && state.state === 'RESULT' && press.option && resultAt(position(ev))===press.option) {
+        controls.activatePanel(press.option);
       }
     }
 
@@ -121,7 +112,7 @@
     }
 
     function canPickBall(state) {
-      return state.state === 'AIM' && state.stage > 1 && state.rack.length > 1 &&
+      return state.state === 'AIM' && (state.mode === 'endless' || state.stage > 1) && state.rack.length > 1 &&
         !state.charging && chargeKey === null && pointer === null;
     }
 
@@ -132,6 +123,24 @@
       canvas.focus({ preventScroll: true });
     }
 
+    function panelKey(ev,state,action,arrow) {
+      const lower=ev.key.toLowerCase();
+      if(state.state==='SHOP') {
+        const perk=JD.PERK_IDS[Number(lower)-1];
+        if(!action&&lower!=='r'&&!perk) return;
+        ev.preventDefault();
+        if(!ev.repeat) controls.activatePanel(perk||'retry');
+      } else if(state.state==='MAP') {
+        if(arrow<0&&!action) return;
+        ev.preventDefault();
+        if(arrow>=0) controls.moveMapFocus(arrow%2===0?-1:1);
+        else if(!ev.repeat) controls.activatePanel(controls.panelFocused());
+      } else if(state.state==='RESULT'&&(action||lower==='g')) {
+        ev.preventDefault();
+        if(!ev.repeat) controls.activatePanel(action?'replay':'map');
+      }
+    }
+
     function keyDown(ev) {
       if (ev.altKey || ev.metaKey || ev.ctrlKey) return;
       const key = ev.key;
@@ -140,27 +149,20 @@
         if (!ev.repeat) controls.toggleMute();
         return;
       }
-      if (controls.isInactive()) return;
+      if (controls.isInactive() || controls.isPaused()) return;
       const action = key === ' ' || key === 'Enter';
       const arrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].indexOf(key);
       const state = controls.snapshot();
       const toggleLoaded = state.state === 'AIM' && state.load > 1 && (key === 'a' || key === 'A');
       const loadAll = state.state === 'AIM' && state.load > 1 && (key === 'l' || key === 'L');
       const magazineTarget = magazineButtons.includes(ev.target);
-      if (ev.target instanceof Element &&
-          ev.target.closest('a, button, input, select, textarea, [contenteditable]') &&
-          !(magazineTarget && (arrow >= 0 || toggleLoaded || loadAll))) return;
-      if (controls.isPaused()) {
-        if (!action && arrow < 0 && key !== 'Tab') return;
-        ev.preventDefault();
-        if (action) {
-          if (!ev.repeat) controls.choosePause(controls.pauseFocused());
-        } else {
-          const direction = key === 'Tab' ? (ev.shiftKey ? -1 : 1) : (arrow % 2 === 0 ? -1 : 1);
-          controls.focusPause(cycle(controls.pauseFocused(), direction, JD.UI.pauseButtons.length));
-        }
+      const uiTarget=ev.target instanceof Element&&ev.target.closest('a, button, input, select, textarea, [contenteditable]');
+      if(state.state==='SHOP'||state.state==='MAP'||state.state==='RESULT') {
+        if(!uiTarget||uiTarget.classList.contains('panel-hit')) panelKey(ev,state,action,arrow);
         return;
       }
+      if (uiTarget &&
+          !(magazineTarget && (arrow >= 0 || toggleLoaded || loadAll))) return;
       const directCard = ['1', '2', '3'].indexOf(key);
       const cardTab = state.state === 'CARD' && ev.target === canvas && key === 'Tab';
       const cardMove = state.state === 'CARD' && (arrow >= 0 || cardTab);
@@ -204,8 +206,6 @@
         } else if (action || directCard >= 0) {
           controls.queue({ type: 'pick', index: action ? controls.focused() : directCard });
         }
-      } else if (state.state === 'RESULT' && action) {
-        controls.queue({ type: 'restart' });
       }
     }
 

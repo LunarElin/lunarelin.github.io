@@ -326,7 +326,23 @@
           tone('sine',880*Math.pow(2,Math.min(e.index || 0,24)/12),.03,.20);
           break;
         case 'stage_clear':
-          if(e.stage !== JD.STAGES.length) fanfare(0);
+          if(e.stage!==JD.STAGES.length&&!(e.stage===8&&e.firstClear)) fanfare(0);
+          break;
+        case 'endless_unlocked':
+          tone('square',600,.030,.16);
+          tone('sine',1200,.060,.15,{delay:.02});
+          fanfare(.09);
+          break;
+        case 'coins_earned':
+          if(e.amount>0) sequence([1600,1600],.040,'triangle',.12,0,.023);
+          break;
+        case 'perk_bought': {
+          const base=440*Math.pow(2,(e.level-1)/12);
+          sequence([base,base*1.5],.07,'sine',.20,0,.023);
+          break;
+        }
+        case 'map_locked':
+          tone('sine',170,.065,.24);
           break;
         case 'all_clear':
           fanfare(0);
@@ -337,7 +353,7 @@
           sequence([392,262],.15,'sine',.32);
           break;
         case 'run_ended':
-          if(e.won) { fanfare(0); fanfare(.60); }
+          if(e.newBest) fanfare(0);
           break;
       }
     }

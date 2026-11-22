@@ -7,6 +7,7 @@
     const D=JD.Drawing, C=D.colors;
     const recent=new Map(), pending=[], pegsPending=new Set();
     const trails=[], births=[], particles=[], rings=[], floats=[], heads=[], rewards=[], bonuses=[], bankFlights=[];
+    const coinFlights=[];
     const firstIronHits=new Set(), contactTimes=new Map();
     let time=0, visualTime=0, seed=20261120, reduced=false, shake=null;
     let combo=null, banner=null, vaultAt=-1000, hotTier=0, heat=0, payoutIndex=0;
@@ -65,6 +66,7 @@
       if(e.pegType==='gold'){
         text(floats,'×+1',p.x,p.y+8,14,C.jackpot,20);
         mark({type:'gold'});
+        if(!reduced) coinFlights.push({x:p.x,y:p.y,at:time});
       }
     }
     function contact(e,id) {
@@ -159,7 +161,7 @@
       burst(196,170,count,[C.combo1,C.success,C.jackpot,C.combo4,C.text],
         {shape:'fragment',life:72,speed:5,up:true,spreadX:130,gravity:.14,screen:true});
     }
-    function event(e,s,before,blastDelays) {
+    function event(e,s,before,blastDelays,newBest) {
       let id=e.id;
       if(e.type==='warp') id=e.ball;
       if(e.type==='ball_landed') id=e.bucket;
@@ -185,6 +187,7 @@
           firstIronHits.clear();contactTimes.clear();trails.length=0;births.length=0;
           recent.clear();particles.length=0;rings.length=0;floats.length=0;heads.length=0;
           rewards.length=0;bonuses.length=0;bankFlights.length=0;pending.length=0;pegsPending.clear();
+          coinFlights.length=0;
           combo=null;banner=null;shake=null;vaultAt=-1000;hotTier=0;heat=0;
           break;
         case 'shot_fired':
@@ -288,6 +291,12 @@
           coinFan(196,560,120,true);
           confetti(42);
           break;
+        case 'endless_unlocked':
+          coinFan(180,420,60,true);
+          break;
+        case 'run_ended':
+          if(newBest) coinFan(196,500,40,true);
+          break;
       }
     }
 
@@ -300,7 +309,7 @@
           .sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))
           .forEach((p,i)=>delays.set(p.id,Math.min(6,i+1)));
       }
-      for(const e of items) event(e,s,before,delays);
+      for(const e of items) event(e,s,before,delays,ui.newBest);
       if(s.shot&&s.balls.length>before.balls.length) {
         for(let i=Math.max(1,before.balls.length);i<s.balls.length;i++) births[i]=time;
       }
@@ -327,6 +336,10 @@
           if(past.length>21) past.shift();
           if(s.shot.tier===4&&time%2===0&&!reduced) burst(b.x,b.y,1,C.combo4,{life:11,speed:1.5,gravity:.05,size:1.5});
         });
+      }
+      while(coinFlights.length&&time-coinFlights[0].at>=24) {
+        coinFlights.shift();
+        mark({type:'coin_arrived'});
       }
       if(s.payout){
         const next=Math.min(s.payout.pins.length,Math.floor(s.payout.elapsed/s.payout.spacing));
@@ -445,6 +458,30 @@
         }
       }
     }
+    function coinAt(c,x,y,r) {
+      D.circle(c,x,y,r,C.jackpot,'#FFF1B8',.7);
+      D.circle(c,x-1,y-1,r*.25,C.text);
+    }
+
+    function coinFlight(c,x,y,endX,endY,ratio,lift,r) {
+      const n=D.clamp(ratio,0,1);
+      coinAt(c,x+(endX-x)*n,y+(endY-y)*n-lift*Math.sin(Math.PI*n),r);
+    }
+
+    function shopOverlay(c,s,ui) {
+      const earned=s.shop.earned||0;
+      if(!ui.reduced&&ui.stateAge<30) {
+        for(let i=0;i<Math.min(earned,9);i++) {
+          const n=(ui.stateAge-i)/22;
+          if(n>=0&&n<1) coinFlight(c,78+27*i,270+i*7,180,149,n,32,3.4);
+        }
+      }
+      const bought=fresh('perk_bought');
+      if(bought&&bought.age<14&&!ui.reduced) {
+        const tile=JD.UI.shopPerks[JD.PERK_IDS.indexOf(bought.e.id)];
+        if(tile) coinFlight(c,tile.x+28,tile.y+30,180,149,bought.age/14,36,3.6);
+      }
+    }
     function world(c,s,ui) {
       if(reduced) return;
       if(shake){
@@ -478,6 +515,12 @@
       drawRings(c,true);
       for(const p of particles) if(p.screen) drawParticle(c,p);
       drawScoreEffects(c,ui);
+      for(const flight of coinFlights) coinFlight(c,flight.x,flight.y-ui.cameraY,300,20,(time-flight.at)/24,62,3);
+      const earned=fresh('coins_earned');
+      if(earned?.e.cause==='clear'&&earned.age<30) {
+        D.label(c,'+10 FIRST CLEAR',288,66-earned.age*.15,14,C.jackpot,'center',
+          {outline:C.ink,max:142});
+      }
       for(const b of bonuses) {
         if(time<b.at) continue;
         const a=Math.min(1,(time-b.at)/28);
@@ -487,7 +530,7 @@
       }
     }
     return {
-      events,frame,draw,world,overlay,fresh,trails,births,pegsPending,
+      events,frame,draw,world,overlay,shopOverlay,fresh,trails,births,pegsPending,
       ballHitAge(index){return fresh('ball_hit',index)?.age??Infinity;},
       get hotTier(){return hotTier;},get heat(){return heat;},
       pendingMult(){return rewards.reduce((sum,r)=>sum+(r.done?0:r.add),0);},

@@ -120,17 +120,16 @@ canvas {
   touch-action: none;
 }
 
-.magazine {
+.magazine,
+.panel-controls {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.magazine-slot {
+.magazine-slot,
+.panel-hit {
   position: absolute;
-  left: calc(100% * 360 / 440);
-  right: 0;
-  height: calc(100% * 52 / 640);
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -140,9 +139,26 @@ canvas {
   touch-action: none;
 }
 
+.magazine-slot {
+  left: calc(100% * 360 / 440);
+  right: 0;
+  height: calc(100% * 52 / 640);
+}
+
+.panel-hit {
+  min-width: 44px;
+  min-height: 44px;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
 .magazine-slot:focus-visible {
   outline: 2px solid #fff;
   outline-offset: -3px;
+}
+
+.panel-hit:focus-visible {
+  outline: none;
 }
 
 .machine-button {
@@ -221,4 +237,51 @@ canvas:focus-visible {
 
 .sound[aria-pressed="true"] {
   color: #d0c1e8;
+}
+
+.game-menu {
+  width: min(360px, calc(100vw - 28px));
+  max-height: calc(100dvh - max(14px, env(safe-area-inset-top)) - max(14px, env(safe-area-inset-bottom)));
+  padding: 16px;
+  border: 1px solid #8c78bf;
+  border-bottom: 4px solid #4b376e;
+  border-radius: 17px;
+  background: linear-gradient(#352650, #1a1436);
+  box-shadow: 0 12px 40px #030311ad;
+  color: inherit;
+}
+
+.game-menu::backdrop {
+  background: rgb(5 5 17 / .8);
+}
+
+.game-menu h2 {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: 24px;
+}
+
+.menu-options {
+  display: grid;
+  gap: 8px;
+  padding: 4px;
+}
+
+.menu-options p {
+  margin: 0 0 5px;
+  font-size: 16px;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.menu-primary {
+  border-color: #ffe493;
+  border-bottom-color: #a55826;
+  background: linear-gradient(#ffe89a, #e8a947);
+  color: #24142e;
+}
+
+.machine-button:disabled {
+  opacity: .55;
+  cursor: default;
 }
