@@ -9,6 +9,7 @@ function test(id, title, run) {
 const fields = (value, ...keys) => keys.map(key => value[key]);
 const all = (events, type) => events.filter(e => e.type === type);
 const one = (events, type) => all(events, type)[0] || {};
+const inNode = typeof process !== 'undefined' && Boolean(process.versions?.node);
 const up = (options) => Object.assign(JD.newUpgrades(), options);
 const blank = (options) => Object.assign({pegs:[], bumpers:[], gates:[], blocks:[], terrain:[],
   iron:[], warps:null, buckets:JD.bucketLayout(JD.STAGES[1], up()), mult:1,
@@ -38,7 +39,7 @@ function send(g,...commands) { queue(g,...commands); g.step(); return g.drainEve
 function tutorial() {
   const g = JD.createGame({seed:1}), es = g.drainEvents();
   fire(g,0);
-  until(g,624,es);
+  until(g,632,es);
   return {g,es};
 }
 const rack = ['iron','normal','normal'];
@@ -48,7 +49,7 @@ const makeGate = (id, kind, x, y) => ({id,kind,x,y,alive:true});
 const makeBlock = (hp, kind = 'block', y = 240) => ({id:0,kind,hp,maxHp:hp,x:152,y,w:kind==='vault'?72:44,h:kind==='vault'?28:20,alive:true});
 test('F01','보드 생성',eq => {
   const list = range(20, i => board(i));
-  eq('핀·금·폭탄·게이트·블록·벽·쇠 벽·워프',[[102,8,3,0,0,2,0,0],[102,8,4,0,0,0,2,0],
+  eq('핀·금·폭탄·게이트·블록·벽·쇠 벽·워프',[[102,8,10,0,0,2,0,0],[102,8,4,0,0,0,2,0],
     [98,9,4,2,0,1,0,0],[56,9,4,2,3,4,0,2],[130,14,7,3,4,0,2,0],[67,10,5,3,5,0,0,1],
     [62,12,5,4,3,0,1,0],[128,16,8,4,5,0,0,2],
     [80,11,5,4,2,4,0,0],[150,14,7,4,1,2,2,1],[88,12,6,3,5,0,1,0],[94,12,6,3,2,1,4,0],
@@ -73,9 +74,12 @@ test('F01','보드 생성',eq => {
     list.map(b=>fields(b,'rows','landY','h','maxFlight')));
   eq('단계별 벽 스프링 높이',rows.map((n,i)=>i===0?[]:n===24?[[380,450],[620,690]]:[[380,450]]),list.map(b=>b.springs));
   eq('튜토리얼 포 가이드',[[180,160],...Array(19).fill(null)],list.map(b=>b.guide));
-  const fixed = [[4,45,63],[11,13,30,38,50,58,70,78]];
+  const fixed = [[4,18,24,40,45,63,67,68,86,91],[11,13,30,38,50,58,70,78]];
   eq('시드 1·5 고정 폭탄·금 핀',[fixed,fixed],[list[0],board(1,5)].map(b =>
     ['bomb','gold'].map(k => b.pegs.filter(p => p.type === k).map(p => p.id))));
+  const bombs=list[0].pegs.filter(p=>p.type==='bomb');
+  eq('튜토리얼 폭탄 사이 거리 70px 이상',true,bombs.every((peg,i)=>
+    bombs.slice(i+1).every(other=>Math.hypot(peg.x-other.x,peg.y-other.y)>=70)));
   eq('벽 17px 또는 워프 22px 미만인 핀',0,list.reduce((sum,b) => {
     const segments = b.terrain.concat(...b.iron.map(group => group.segs));
     const holes = b.warps ? b.warps.ins.concat(b.warps.outs) : [];
@@ -92,8 +96,8 @@ test('F01','보드 생성',eq => {
   const ironHint={ball:'iron'};
   eq('힌트',[null,ironHint,null,null,ironHint,null,ironHint,null,null,ironHint,ironHint,ironHint,
     null,null,null,ironHint,null,null,ironHint,ironHint],JD.STAGES.map(s=>s.hint));
-  eq('목표 점수',[3000,5200,5900,17000,19000,15000,8500,89000,41000,63000,58000,62000,61000,110000,
-    79000,83000,87000,400000,140000,280000],JD.STAGES.map(s=>s.target));
+  eq('목표 점수',[3000,6000,5900,17000,20000,15000,8500,89000,41000,67000,62000,62000,61000,110000,
+    79000,83000,87000,400000,160000,280000],JD.STAGES.map(s=>s.target));
   eq('단계에 고정 보상 필드 없음',true,JD.STAGES.every(s=>!('reward' in s)));
   eq('새로 생성한 워프 입구 상태',true,list.every(b=>!b.warps || b.warps.ins.every(entrance=>entrance.alive===true)));
   eq('새 보드에 주차 필드 없이 핀 접촉 초기화',true,list.every(b=>!('parked' in b) && b.pegs.every(p=>(p.touches||0)===0)));
@@ -118,11 +122,14 @@ test('F02','첫 발',eq => {
     fields(one(es,'peg_hit'),'tick','id','pegType','cause','tier','pts'));
   eq('폭탄 틱·켜진 핀',[28,[3,5,11,12,13,14,21]],fields(one(es,'bomb_exploded'),'tick','lit'));
   eq('콤보 단계·순번',[[2,8],[3,16],[4,24]],all(es,'combo_up').map(e=>fields(e,'tier','n')));
-  eq('깨진 핀·구슬 충돌·벽 충돌·벽 스프링 수',[9,0,4,0],
-    ['peg_break','ball_hit','terrain_hit','wall_spring'].map(type=>all(es,type).length));
-  eq('비행 종료 틱·t·핀·핀값·금·배수·칸 합·점수·콤보',[461,441,33,1035,6,7,5,36225,4],
+  eq('폭발·깨진 핀·구슬 충돌·벽 충돌·벽 스프링 수',[3,9,0,4,0],
+    ['bomb_exploded','peg_break','ball_hit','terrain_hit','wall_spring'].map(type=>all(es,type).length));
+  const explosiveHits=all(es,'peg_hit').filter(event=>event.pegType==='bomb');
+  eq('폭탄 세 개 모두 구슬이 직접 적중',[3,true],
+    [explosiveHits.length,explosiveHits.every(event=>event.cause==='ball')]);
+  eq('비행 종료 틱·t·핀·핀값·금·배수·칸 합·점수·콤보',[465,441,37,1250,6,7,5,43750,4],
     fields(one(es,'shot_finished'),'tick','t','hits','pts','golds','stageMult','bucketSum','score','tier'));
-  eq('칸·정산 길이·종료 틱·단계 점수',[2,103,564,36225],
+  eq('칸·정산 길이·종료 틱·단계 점수',[2,107,572,43750],
     [one(es,'ball_landed').bucket,one(es,'payout_done').tick-one(es,'shot_finished').tick,...fields(one(es,'payout_done'),'tick','stageScore')]);
 });
 test('F03','발 사이 카드, 아까운 실패와 상점',eq => {
@@ -130,7 +137,7 @@ test('F03','발 사이 카드, 아까운 실패와 상점',eq => {
   const initial=g.snapshot();
   const expected=[
     [-60,['ballGlass','ballBig','extra'],'ballGlass',2,['glass','normal']],
-    [-45,['ballBig','goldPlus','fever'],'ballBig',1,['big']]
+    [-50,['ballBig','goldPlus','fever'],'ballBig',1,['big']]
   ];
   for(const [angle,ids,id,ballsLeft,rackAfter] of expected) {
     fire(g,angle);
@@ -147,21 +154,21 @@ test('F03','발 사이 카드, 아까운 실패와 상점',eq => {
         [saved.campaign,saved.stageBest[0],...fields(restored,'stage','attempt','state','rack'),cardLevels(restored.up)]);
     }
   }
-  fire(g,-45); until(g,'BANNER',es);
+  fire(g,-60); until(g,'BANNER',es);
   const v=g.snapshot(), end=until(g,'SHOP',es);
-  eq('발 점수·PERFECT·구슬',[[650,1150,1000],[false,false,false],[['normal'],['glass'],['big']]],
+  eq('발 점수·PERFECT·구슬',[[650,780,1275],[false,false,false],[['normal'],['glass'],['big']]],
     [all(es,'shot_finished').map(e=>e.score),all(es,'shot_fired').map(e=>e.perfect),all(es,'shot_fired').map(e=>e.balls)]);
   eq('마지막 발에는 카드 없음',2,all(es,'cards_offered').length);
-  eq('발마다 코인 획득량·잔액·사유',[[0,0,'shot'],[1,1,'shot'],[0,1,'shot']],
+  eq('발마다 코인 획득량·잔액·사유',[[0,0,'shot'],[2,2,'shot'],[0,2,'shot']],
     all(es,'coins_earned').map(event=>fields(event,'amount','total','cause')));
-  eq('배수·단계 점수·달성률·배너·배너 길이·상점',[2,2800,93,'SO CLOSE!',45,1,0,'SHOP'],
+  eq('배수·단계 점수·달성률·배너·배너 길이·상점',[3,2705,90,'SO CLOSE!',45,2,0,'SHOP'],
     [v.stageMult,v.stageScore,one(es,'stage_failed').ratio,v.banner.text,end.tick-v.tick,
       ...fields(one(es,'shop_opened'),'coins','attempt'),end.state]);
   eq('상점의 다섯 강화와 구매 가능 여부',[['mult',0,5,25,false],['value',0,5,15,false],['gold',0,5,15,false],
     ['ball',0,2,80,false],['blast',0,3,15,false]],end.shop.items.map(item=>fields(item,'id','level','max','cost','affordable')));
   eq('부족한 코인으로는 구매할 수 없음',[],all(send(g,{type:'buy',id:'value'}),'perk_bought'));
   const retried=send(g,{type:'retry'}), current=g.snapshot();
-  eq('재도전 이벤트 및 다음 상태',[[1,1],[1,'TUTORIAL',3000,3,false,'campaign',1],['AIM',0,3,1,initial.rack]],
+  eq('재도전 이벤트 및 다음 상태',[[1,1],[1,'TUTORIAL',3000,3,false,'campaign',1],['AIM',0,3,2,initial.rack]],
     [fields(one(retried,'stage_retry'),'stage','attempt'),fields(one(retried,'stage_started'),'stage','name','target','balls','endless','mode','attempt'),
       fields(current,'state','stageScore','ballsLeft','coins','rack')]);
   eq('재도전에서 카드 단계 모두 초기화',cardLevels(initial.up),cardLevels(current.up));
@@ -169,15 +176,15 @@ test('F03','발 사이 카드, 아까운 실패와 상점',eq => {
 });
 test('F04','쇠 구슬 해금과 2단계',eq => {
   const {g,es}=tutorial(), clear=one(es,'stage_clear');
-  eq('정산·클리어 틱·단계·단계 점수·남은 공·보너스·판 점수',[564,564,1,36225,2,600,36825],
+  eq('정산·클리어 틱·단계·단계 점수·남은 공·보너스·판 점수',[572,572,1,43750,2,600,44350],
     [one(es,'payout_done').tick,...fields(clear,'tick','stage','stageScore','ballsLeft','bonus'),g.snapshot().runScore]);
   eq('첫 클리어에는 금 핀 6코인과 첫 클리어 10코인 획득',[[6,6,'shot'],[10,16,'clear']],
     all(es,'coins_earned').map(event=>fields(event,'amount','total','cause')));
-  eq('클리어와 같은 틱에 쇠 구슬 해금, 카드 제시 없음',[[564,'iron'],0],
+  eq('클리어와 같은 틱에 쇠 구슬 해금, 카드 제시 없음',[[572,'iron'],0],
     [fields(one(es,'ball_unlocked'),'tick','ball'),all(es,'cards_offered').length]);
   const v=g.snapshot();
   const stageStart=all(es,'stage_started').find(event=>event.stage===2)||{};
-  eq('2단계는 클리어 배너 뒤 곧바로 조준',[624,2,'IRON LID',5200,3,false,'AIM'],
+  eq('2단계는 클리어 배너 뒤 곧바로 조준',[632,2,'IRON LID',6000,3,false,'AIM'],
     [...fields(stageStart,'tick','stage','name','target','balls','endless'),v.state]);
   eq('랙·남은 랙·장전·구슬·힌트·쇠 벽·깨지지 않는 벽·줄·높이',
     [rack,rack,0,'iron',{ball:'iron'},[[true,1],[true,1]],[],12,640],
@@ -197,7 +204,7 @@ test('F04','쇠 구슬 해금과 2단계',eq => {
 });
 test('F05','분열',eq => {
   const u=up({split:2}), v=shot(board(1,1,u),0,u);
-  eq('공 수·칸·칸 합·핀·폭발·배수·점수·구슬 충돌 수',[3,[2,2,2],15,52,2,6,178650,3],
+  eq('공 수·칸·칸 합·핀·폭발·배수·점수·구슬 충돌 수',[3,[2,2,2],15,60,4,7,253575,3],
     [v.s.balls.length,v.cells,v.s.bucketSum,v.s.hits,all(v.events,'bomb_exploded').length,v.s.board.mult,v.s.score,all(v.events,'ball_hit').length]);
 });
 test('F06','카드 효과와 칸 배치',eq => {
@@ -265,11 +272,11 @@ test('F07','카드 제시와 기본 랙',eq => {
     [up().rack,u.rack,JD.newUpgrades({...JD.newPerks(),ball:2},20).rack]);
 });
 test('F08','정산 길이와 건너뛰기',eq => {
-  eq('핀 0·9·28·30·33·34·61개 정산 틱',[70,97,126,130,103,104,131],[0,9,28,30,33,34,61].map(JD.payoutDuration));
+  eq('핀 0·9·28·30·34·37·61개 정산 틱',[70,97,126,130,104,107,131],[0,9,28,30,34,37,61].map(JD.payoutDuration));
   const g=JD.createGame({seed:1}), es=g.drainEvents(); fire(g,0);
-  eq('정산 진입 경과·길이',[0,103],fields(until(g,'PAYOUT',es).payout,'elapsed','duration'));
+  eq('정산 진입 경과·길이',[0,107],fields(until(g,'PAYOUT',es).payout,'elapsed','duration'));
   until(g,479,es);
-  eq('480틱 skip 즉시 종료',[480,36225],fields(one(send(g,{type:'skip'}),'payout_done'),'tick','stageScore'));
+  eq('480틱 skip 즉시 종료',[480,43750],fields(one(send(g,{type:'skip'}),'payout_done'),'tick','stageScore'));
 });
 test('F09','끼임과 시간 제한',eq => {
   const peg={id:7,x:300,y:400,type:'normal',lit:true,alive:true};
@@ -281,13 +288,12 @@ test('F09','끼임과 시간 제한',eq => {
   eq('전역 시간 제한 필드 없음',false,'MAX_FLIGHT' in JD.CFG);
 });
 test('F10','밸런스 하네스',eq => {
-  // A few aim trajectories diverge between Node and Chrome; the seed 1 scores still agree.
-  const inNode=typeof process!=='undefined'&&Boolean(process.versions?.node);
-  const aimClears=inNode?[200,145,116,68,38,23,15,5]:[200,145,115,67,38,24,15,5];
+  // Node and Chrome differ for a few aim trajectories, with identical seed 1 scores.
+  const aimClears=inNode?[200,161,128,73,44,28,17,8]:[200,161,127,72,44,29,17,8];
   [
-    ['random',200,2,[199,114,96,47,21,9,4,2],4,[15100,5410,6320,17280,15010]],
-    ['aim',200,5,aimClears,3,[6600,7050,6230,3315]],
-    ['pro',20,20,[20,20,20,20,20,20,20,20],8,[36225,10250,22960,48440,22405,15800,25200,132165]]
+    ['random',200,4,[200,148,113,62,29,13,9,4],5,[13050,8660,6320,17280,31710,9465]],
+    ['aim',200,8,aimClears,3,[5360,13400,6230,3315]],
+    ['pro',20,20,[20,20,20,20,20,20,20,20],8,[43750,28350,22960,48440,29240,15800,42000,132165]]
   ].forEach(([policy,n,wins,clears,reached,points])=>{
     const runs=range(n,seed=>JD.simulateRun(seed,policy));
     eq(policy+' 완주·단계별 클리어 수',[wins,clears],
@@ -340,13 +346,13 @@ test('F16','HP 블록',eq => {
 test('F17','무한 모드',eq => {
   const defs=[20,21,22,31,32,43].map(JD.stageDef);
   eq('무한 단계의 지도와 목표',[
-    ['CROSSFIRE',25000],['DEEP WELL',42000],['LOCKBOX',44000],['GRAND JACKPOT',584000],['CROSSFIRE',96000],['GRAND JACKPOT',2277000]],
+    ['CROSSFIRE',25000],['DEEP WELL',45000],['LOCKBOX',47000],['GRAND JACKPOT',584000],['CROSSFIRE',96000],['GRAND JACKPOT',2277000]],
     defs.map(s=>fields(s,'name','target')));
   eq('무한 모드·벽 스프링·고정 보상 필드 없음·긴 보드·반복 블록 HP',[true,[[380,450]],false,24,[5,5],[7,7],[16,10,10,10,10]],
     [defs[0].endless,defs[0].springs,'reward' in defs[0],defs[1].rows,...[0,4,5].map(i=>defs[i].blocks.map(b=>b[4]))]);
   eq('무한 지도 풀·목표 계수·증가율',[range(12,i=>i+7),0.6,1.12],[JD.ENDLESS_POOL,JD.ENDLESS_SCALE,JD.CFG.ENDLESS_GROWTH]);
   const run=JD.simulateEndless(2,'aim',{mult:3,value:4,gold:4,ball:1,blast:3},24);
-  eq('시드 2 무한 클리어 수·실패 지도·점수·목표',[9,'VAULT DEEP',367125,666000],
+  eq('시드 2 무한 클리어 수·실패 지도·점수·목표',[9,'VAULT DEEP',610325,666000],
     [run.reached,JD.stageDef(29).name,run.scores[9],JD.stageDef(29).target]);
   const g=JD.createGame({seed:1,endless:true}), es=g.drainEvents();
   eq('무한 1단계 시작 이벤트',[1,'CROSSFIRE',25000,3,true,'endless',0],
@@ -412,7 +418,7 @@ test('F19','포·노림 구간·구슬·핀 깨짐',eq => {
   const a=shot(board(3),0);
   eq('CURVE 0° 점수·칸·핀',[3525,2,27],[a.s.score,a.cells[0],a.s.hits]);
   const c=shot(board(1),-10,up(),{ball:'glass'});
-  eq('유리 파열 수·착지 칸·핀·점수·PERFECT',[1,[2,2,2],42,122850,false],
+  eq('유리 파열 수·착지 칸·핀·점수·PERFECT',[1,[2,2,2],39,108675,false],
     [all(c.events,'ball_shatter').length,c.cells,c.s.hits,c.s.score,c.s.perfect]);
   const tutorialShot=shot(board(1),0);
   const broken=all(tutorialShot.events,'peg_break').map(event=>tutorialShot.s.board.pegs.find(peg=>peg.id===event.id));
@@ -438,7 +444,7 @@ test('F19','포·노림 구간·구슬·핀 깨짐',eq => {
   until(held,'PAYOUT',releases);
   eq('15틱 발사 각도·PERFECT·구슬·남은 공',[15,4,true,['normal'],2],
     fields(one(releases,'shot_fired'),'tick','angle','perfect','balls','ballsLeft'));
-  eq('27틱 진입·335틱 종료·발 점수',[27,335,1860],[one(releases,'launch').tick,...fields(one(releases,'shot_finished'),'tick','score')]);
+  eq('27틱 진입·413틱 종료·발 점수',[27,413,10275],[one(releases,'launch').tick,...fields(one(releases,'shot_finished'),'tick','score')]);
   const early=JD.createGame({seed:1}); queue(early,{type:'hold'}); until(early,5);
   eq('장전 중 6틱에 놓으면 0° 발사',[6,0,true],
     fields(one(send(early,{type:'release'}),'shot_fired'),'tick','angle','perfect'));
@@ -459,7 +465,7 @@ test('F19','포·노림 구간·구슬·핀 깨짐',eq => {
       ignored.filter(e=>['shot_fired','charge_started','charge_cancel','ball_picked','spring_picked'].includes(e.type))]);
   const original=JD.createGame({seed:1});
   fire(original,30);
-  eq('원래 재현의 첫 발 30°는 3,100점으로 단계를 클리어',[3100,'clear'],
+  eq('원래 재현의 첫 발 30°는 6,825점으로 단계를 클리어',[6825,'clear'],
     [until(original,'BANNER').stageScore,original.snapshot().banner.kind]);
   const next=JD.createGame({seed:1});
   fire(next,-60); until(next,'CARD'); send(next,{type:'pick',index:0});
@@ -468,15 +474,17 @@ test('F19','포·노림 구간·구슬·핀 깨짐',eq => {
 test('F20','기울어진 쇠 벽·워프·탄창',eq => {
   const upgrades=ironRack(), lid=board(2,1,upgrades);
   const centered=(b,ball)=>shot(b,JD.aimZone(b,ball).center,upgrades,{ball});
+  eq('쇠 벽 파괴 보너스의 설정값',[200,1],fields(JD.CFG,'PTS_IRON_BREAK','IRON_GOLDS'));
   eq('두 쇠 지붕 선분',[[[64,584,180,544]],[[180,544,296,584]]],lid.iron.map(group=>group.segs));
   const first=centered(lid,'iron');
-  eq('쇠 구슬로 오른쪽 지붕만 파괴하고 JACKPOT 착지',[[1],[2],555,3,5,8325,417,414,[true,false]],
-    [all(first.events,'iron_break').map(event=>event.id),first.cells,first.s.pts,lid.mult,
-      first.s.bucketSum,first.s.score,first.steps,first.s.t,lid.iron.map(group=>group.alive)]);
-  eq('지붕 파괴 후 같은 보드의 일반 구슬 두 발',[90,3000],['normal','normal'].map(ball=>centered(lid,ball).s.score));
+  eq('오른쪽 지붕만 부순 보너스·금 핀·코인·JACKPOT',[[[1,0,200,1]],[2],755,3,2,4,5,15100,417,414,[true,false]],
+    [all(first.events,'iron_break').map(event=>fields(event,'id','ball','bonus','golds')),first.cells,
+      first.s.pts,first.s.golds,JD.shotCoins(first.s),lid.mult,first.s.bucketSum,first.s.score,
+      first.steps,first.s.t,lid.iron.map(group=>group.alive)]);
+  eq('지붕 파괴 배수가 이어지는 일반 구슬 두 발',[120,4000],['normal','normal'].map(ball=>centered(lid,ball).s.score));
   const lateBreak=board(2,1,upgrades);
   const lateScores=['normal','normal','iron'].map(ball=>centered(lateBreak,ball).s.score);
-  eq('쇠 구슬을 마지막으로 쏘면 세 발 합계',5375,lateScores.reduce((sum,score)=>sum+score,0));
+  eq('쇠 구슬을 마지막으로 쏘면 세 발 합계',8605,lateScores.reduce((sum,score)=>sum+score,0));
   const normalSweep=range(20,i=>shot(board(2),-63+6*i));
   eq('각도 20개에서 일반 구슬은 쇠 지붕에 닿아도 착지',[10,true],[
     normalSweep.filter(v=>all(v.events,'iron_hit').length>0).length,
@@ -484,12 +492,15 @@ test('F20','기울어진 쇠 벽·워프·탄창',eq => {
   ]);
   eq('각도 20개에서 쇠 구슬 지붕 파괴 발수',15,
     range(20,i=>shot(board(2),-63+6*i,up(),{ball:'iron'})).filter(v=>all(v.events,'iron_break').length>0).length);
-  eq('단일 쇠 벽 충돌·파괴 수·칸·스텝·생존',[[1,4,133,true],[1,2,59,false]],
-    [['normal','iron_hit'],['iron','iron_break']].map(([ball,kind])=>{
-      const wall={id:0,segs:[[100,240,220,260]],alive:true};
-      const v=shot(blank({iron:[wall]}),-8,up(),{ball});
-      return [all(v.events,kind).length,v.cells[0],v.steps,wall.alive];
-    }));
+  const singleWall=ball=>shot(blank({iron:[{id:0,segs:[[100,240,220,260]],alive:true}]}),-8,up(),{ball});
+  const normalHit=singleWall('normal'), ironHit=singleWall('iron');
+  eq('단일 쇠 벽의 일반 구슬 충돌 수·칸·스텝·생존',[1,4,133,true],
+    [all(normalHit.events,'iron_hit').length,normalHit.cells[0],normalHit.steps,normalHit.s.board.iron[0].alive]);
+  eq('철구 파괴의 좌표·보너스·칸·배수·득점과 코인',[[[0,0,200,1]],true,2,200,1,2,2000,0,59,false],
+    [all(ironHit.events,'iron_break').map(event=>fields(event,'id','ball','bonus','golds')),
+      fields(one(ironHit.events,'iron_break'),'x','y').every(Number.isFinite),ironHit.cells[0],
+      ironHit.s.pts,ironHit.s.golds,ironHit.s.board.mult,ironHit.s.score,JD.shotCoins(ironHit.s),
+      ironHit.steps,ironHit.s.board.iron[0].alive]);
   eq('주차 규칙·보드·공·득점 필드 제거',[false,false,false,false,false],
     [Object.keys(JD.CFG).some(key=>key.startsWith('PARK_') || ['IRON_FRICTION','E_PARKED'].includes(key)),
       'releaseParked' in JD,'parked' in lid,'parked' in first.s.balls[0],'bankIn' in first.s]);
@@ -521,9 +532,10 @@ test('F20','기울어진 쇠 벽·워프·탄창',eq => {
   const payout=until(g,'PAYOUT',events);
   const clear=until(g,'BANNER',events);
   eq('게임에서 오른쪽 지붕 파괴·JACKPOT·클리어와 보너스',
-    [[1],8325,5,2,8325,2,1040],
-    [all(events,'iron_break').map(event=>event.id),...fields(one(events,'shot_finished'),'score','bucketSum'),
+    [[[1,200,1]],15100,5,2,15100,2,1200],
+    [all(events,'iron_break').map(event=>fields(event,'id','bonus','golds')),...fields(one(events,'shot_finished'),'score','bucketSum'),
       ...fields(one(events,'stage_clear'),'stage','stageScore','ballsLeft','bonus')]);
+  eq('쇠 벽 보너스를 제외한 금 핀 2코인',[2,2,'shot'],fields(one(events,'coins_earned'),'amount','total','cause'));
   eq('스냅샷과 이벤트의 주차·저금 필드 제거',false,
     [initial,flight.shot,flight.balls[0],payout.payout,one(events,'shot_finished')]
       .some(obj=>['parked','bank','bankIn'].some(key=>key in obj)) ||
@@ -624,7 +636,8 @@ test('F23','코인과 강화',eq => {
 });
 test('F24','캠페인 하네스와 상점·지도 API',eq => {
   const total=values=>values.reduce((sum,value)=>sum+value,0);
-  for(const [policy,count,expected] of [['aim',40,[40,32,37,41]],['random',20,[20,39,42,44]]]) {
+  const aimMedian=inNode?33:32, randomMedian=inNode?34:33;
+  for(const [policy,count,expected] of [['aim',40,[40,aimMedian,37,39]],['random',20,[20,randomMedian,39,42]]]) {
     const runs=range(count,seed=>JD.simulateCampaign(seed,policy,30));
     const tries=runs.map(run=>total(run.tries)).sort((a,b)=>a-b);
     // ACCEPTANCE reports the lower middle observation when the sample size is even.
@@ -634,7 +647,7 @@ test('F24','캠페인 하네스와 상점·지도 API',eq => {
     if(policy==='aim') {
       const run=runs[0];
       eq('시드 1 캠페인 클리어·도전 수·누적 코인·잔액·강화·발·카드',
-        [20,[1,1,1,3,1,1,2,1,4,3,2,2,1,1,1,2,1,1,1,7],588,83,{mult:3,value:4,gold:4,ball:0,blast:3},92,55],
+        [20,[1,1,1,3,1,1,2,1,4,3,2,2,1,1,3,2,1,1,2,1],483,48,{mult:2,value:4,gold:4,ball:0,blast:3},75,41],
         [run.cleared,run.tries,run.coins,run.wallet.coins,run.wallet.perks,run.shots,run.cards]);
     }
   }
@@ -717,8 +730,30 @@ test('F24','캠페인 하네스와 상점·지도 API',eq => {
   finishShot(finale,45,lastEvents);
   const finalBanner=until(finale,'BANNER',lastEvents), finalClear=one(lastEvents,'stage_clear');
   const finish=until(finale,'MAP',lastEvents), allClear=one(lastEvents,'all_clear'), campaignClear=one(lastEvents,'campaign_clear');
-  eq('20단계 클리어·완주 이벤트·배너·90틱·지도로 이어지고 카드 없음',[20,846400,true,true,'allclear',90,'MAP',20,0],
+  eq('20단계 클리어·완주 이벤트·배너·90틱·지도로 이어지고 카드 없음',[20,1001440,true,true,'allclear',90,'MAP',20,0],
     [...fields(finalClear,'stage','stageScore'),finalClear.tick===allClear.tick,allClear.tick===campaignClear.tick,
       finalBanner.banner.kind,finish.tick-finalBanner.tick,finish.state,finish.map.cleared,all(lastEvents,'cards_offered').length]);
+
+  const stageBest=[11000,15000,12500,2000,47000,90000,22000,140000,95000,...Array(11).fill(0)];
+  const restart=JD.createGame({seed:7,save:{
+    coins:40,perks:{mult:1,value:2,gold:0,ball:1,blast:0},
+    campaign,cleared:9,stageBest,endlessUnlocked:true,endlessBest:3
+  }});
+  restart.drainEvents();
+  const restarted=send(restart,{type:'newCampaign'});
+  const tutorial=restart.snapshot();
+  eq('처음부터 명령을 받은 틱에 1단계로 돌아감',[tutorial.tick,1,'TUTORIAL',3000,'campaign',0],
+    fields(one(restarted,'stage_started'),'tick','stage','name','target','mode','attempt'));
+  eq('처음부터 돌아가면 코인·강화·추가 탄창·시작 배수 초기화',
+    ['AIM',0,JD.newPerks(),['normal','normal','normal'],1,9,true],
+    fields(tutorial,'state','coins','perks','rack','stageMult','cleared','endlessUnlocked'));
+  const restartedSave=restart.saveState();
+  eq('초기화한 코인·강화·캠페인과 보존한 기록을 저장',[0,JD.newPerks(),[0,0],9,stageBest,true,3,true],
+    [...fields(restartedSave,'coins','perks'),fields(restartedSave.campaign,'stage','attempt'),
+      ...fields(restartedSave,'cleared','stageBest','endlessUnlocked','endlessBest'),
+      restartedSave.campaign.seed===tutorial.seed && restartedSave.campaign.seed!==campaign.seed]);
+  send(restart,{type:'openMap'});
+  eq('처음부터 돌아가도 지도에 기록과 무한 해금이 남음',[9,stageBest,true,3],
+    fields(restart.snapshot().map,'cleared','stageBest','endlessUnlocked','endlessBest'));
 });
 })(window.JD);

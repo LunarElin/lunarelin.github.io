@@ -671,6 +671,13 @@
     if (messages.length>1) drawStageIntro(c,messages,128);
   }
 
+  function shownMultiplier(mult,ui,fx) {
+    const arrival=fresh(fx,'mult_land');
+    const arriving=arrival&&arrival.age<12;
+    const scale=arriving&&!ui.reduced?1+(arrival.e.vault?1:.6)*(1-arrival.age/12):1;
+    return {value:Math.max(1,mult-(fx?.pendingMult()||0)),scale,arriving,duringPayout:arrival?.e.duringPayout};
+  }
+
   function panel(c,s,ui,fx) {
     const {shot,payout}=s;
     const fired=fresh(fx,'shot_fired');
@@ -682,27 +689,34 @@
       label(c,'PERFECT!',x,y,22*scale,colors.jackpot,shot?'left':'center',{outline:colors.ink,max:shot?126:145});
     }
     if (shot) {
-      const mult=Math.max(s.stageMult,shot.liveMult-(fx?fx.pendingMult():0));
+      const mult=shownMultiplier(shot.liveMult,ui,fx);
       const hit=fresh(fx,'peg_hit');
       const pop=hit&&hit.age<4&&!ui.reduced?1+.12*Math.sin(hit.age*Math.PI/4):1;
+      const room=22*(mult.scale-1);
       box(c,150,84,180,32,16,rgba(colors.ink,.7),shot.tier?combo(shot.tier):colors.laneEdge,2);
-      label(c,score(shot.pts),162,109,28*pop,colors.text,'left',{max:99,minSize:18});
-      label(c,'× '+score(mult),316,108,22,colors.jackpot,'right',{max:54,minSize:19});
-      if (shot.tier) {
-        const award=JD.CFG.COMBO_NAMES[shot.tier]+' +'+JD.CFG.COMBO_BONUS[shot.tier];
-        label(c,award,240,146,25+shot.tier,combo(shot.tier),'center',{outline:colors.ink,max:174,minSize:22});
+      label(c,score(shot.pts),162,109,28*pop,colors.text,'left',{max:99-room,minSize:18});
+      label(c,'× '+score(mult.value),316,108,22*mult.scale,colors.jackpot,'right',{max:54+room,minSize:19});
+      const comboTier=fx?.comboTier??shot.tier;
+      if (comboTier) {
+        const award=JD.CFG.COMBO_NAMES[comboTier]+'! +'+JD.CFG.COMBO_BONUS[comboTier];
+        label(c,award,240,146,25+comboTier,combo(comboTier),'center',{outline:colors.ink,max:174,minSize:22});
       }
       return;
     }
     if (!payout) return;
+    const mult=shownMultiplier(payout.mult,ui,fx);
     const reveal=payout.elapsed-payout.pins.length*payout.spacing;
-    const tint=(reveal>=20&&payout.jackpot)||(reveal>=0&&payout.mult>=4)?colors.jackpot:colors.laneEdge;
+    const tint=mult.arriving||(reveal>=20&&payout.jackpot)||(reveal>=0&&mult.value>=4)?colors.jackpot:colors.laneEdge;
     const pop=fresh(fx,'payout_pop',payout.pins[Math.max(0,Math.floor(payout.elapsed/payout.spacing)-1)]?.id);
     const bump=pop?.age<5&&!ui.reduced?1+.08*(1-pop.age/5):1;
     const factor=age=>ui.reduced?1:1+.6*Math.max(0,1-age/20);
     box(c,150,84,180,32,16,rgba(colors.ink,.7),tint,2);
-    label(c,score(payout.pts),162,108,22*bump,colors.text,'left',{max:68,minSize:17});
-    if (reveal>=0) label(c,'× '+score(payout.mult),276,108,20*factor(reveal),reveal>=20&&payout.mult<4?colors.text:colors.jackpot,'right',{max:42,minSize:17});
+    label(c,score(payout.pts),162,108,22*bump,colors.text,'left',{max:61,minSize:17});
+    if (reveal>=0||mult.duringPayout) {
+      const revealScale=reveal>=0?factor(reveal):1;
+      label(c,'× '+score(mult.value),276,108,20*Math.max(mult.scale,revealScale),
+        reveal>=20&&mult.value<4&&!mult.arriving?colors.text:colors.jackpot,'right',{max:reveal>=20?42:52,minSize:17});
+    }
     if (reveal>=20) label(c,'× '+score(payout.bucketSum),320,108,20*factor(reveal-20),payout.jackpot?colors.jackpot:colors.text,'right',{max:42,minSize:17});
     if (reveal>=40) {
       const progress=clamp((reveal-40)/30,0,1);
@@ -782,10 +796,11 @@
       label(c,'+'+earnedCoin.e.amount+' FIRST CLEAR',352,67,14,rgba(colors.jackpot,alpha),'right',
         {max:133,outline:rgba(colors.ink,alpha)});
     }
-    const mult=s.shot?Math.max(s.stageMult,s.shot.liveMult-(fx?fx.pendingMult():0)):s.stageMult;
+    const mult=shownMultiplier(s.shot?.liveMult??s.stageMult,ui,fx);
     const addedMult=activeCardNotice(s,ui,'fever');
-    const multBump=addedMult?.age<12&&!ui.reduced?1+.25*Math.sin(Math.PI*addedMult.age/12):1;
-    label(c,'×'+score(mult),12,66,22*multBump,mult>=4||multBump>1?colors.jackpot:colors.text,'left',
+    const cardBump=addedMult?.age<12&&!ui.reduced?1+.25*Math.sin(Math.PI*addedMult.age/12):1;
+    const multBump=Math.max(mult.scale,cardBump);
+    label(c,'×'+score(mult.value),12,66,22*multBump,mult.value>=4||mult.arriving||cardBump>1?colors.jackpot:colors.text,'left',
       {max:100,outline:ui.cameraY>0?colors.ink:null});
   }
 
@@ -928,7 +943,8 @@
     const factor = ui.reduced ? Math.min(hitSize, 0.15) : hitSize;
     const bounce = liveHit ? 1 + factor * Math.sin(Math.PI * hit.age / 8) : 1;
     const tier = peg.tier || (hit && hit.e.tier) || 0;
-    const tutorialBomb = !snapshot.endless && snapshot.stage === 1 && peg.id === 4 && !ui.tutorialSeen && snapshot.state === 'AIM';
+    const tutorial = !snapshot.endless && snapshot.stage === 1;
+    const tutorialBomb = tutorial && peg.id === 4 && !ui.tutorialSeen && snapshot.state === 'AIM';
     const pulse = tutorialBomb ? D.pulse(time, 20) : 0;
     if (peg.lit) ctx.drawImage(glow(D, peg.type, tier), peg.x - 19, peg.y - 19);
     if (tutorialBomb) {
@@ -942,7 +958,8 @@
     if (peg.lit&&peg.touches>0) D.line(ctx,peg.x-4*bounce,peg.y-2*bounce,peg.x+4*bounce,peg.y+3*bounce, D.colors.jackpot,1.2);
     if (peg.type === 'bomb') {
       D.circle(ctx, peg.x, peg.y, 3 * bounce, '#5A0F1E');
-      D.circle(ctx, peg.x + 1.6, peg.y - 4.5 * bounce, 2, D.rgba('#FFF1B8', 0.42 + 0.58 * D.pulse(time, 10)));
+      const fuse = tutorial ? .7 : .42 + .58 * D.pulse(time, 10);
+      D.circle(ctx, peg.x + 1.6, peg.y - 4.5 * bounce, 2, D.rgba('#FFF1B8', fuse));
     }
   }
 

@@ -281,6 +281,10 @@ canvas:focus-visible {
   color: #24142e;
 }
 
+.menu-danger {
+  border-color: #ff6b6b;
+}
+
 .machine-button:disabled {
   opacity: .55;
   cursor: default;

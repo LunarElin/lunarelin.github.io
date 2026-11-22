@@ -414,6 +414,8 @@
       if (command.type === 'newCampaign') {
         campaign.seed = nextSeed();
         campaign.stage = campaign.attempt = 0;
+        wallet.coins = 0;
+        wallet.perks = JD.newPerks();
         campaignRandom = null;
         startCampaign();
       } else if (state === 'AIM') handleAim(command);

@@ -393,6 +393,8 @@
     pauseOptions.hidden=confirm;
     resetOptions.hidden=!confirm;
     pauseTitle.textContent=confirm?'캠페인 다시 시작':'일시 정지';
+    if(confirm) pauseMenu.setAttribute('aria-describedby','reset-warning');
+    else pauseMenu.removeAttribute('aria-describedby');
   }
 
   function openPause() {

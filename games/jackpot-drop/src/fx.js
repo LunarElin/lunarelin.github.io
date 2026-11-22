@@ -7,7 +7,7 @@
     const D=JD.Drawing, C=D.colors;
     const recent=new Map(), pending=[], pegsPending=new Set();
     const trails=[], births=[], particles=[], rings=[], floats=[], heads=[], rewards=[], bonuses=[];
-    const coinFlights=[];
+    const coinFlights=[],comboQueue=[];
     const ironContacts=new Map(), contactTimes=new Map();
     let time=0, visualTime=0, seed=20261120, reduced=false, shake=null;
     let combo=null, banner=null, vaultAt=-1000, hotTier=0, heat=0, payoutIndex=0;
@@ -85,9 +85,23 @@
       }
     }
     function setCombo(tier) {
-      combo={tier,at:time};
+      if(tier!==(comboQueue.at(-1)??combo?.tier)) {
+        if(combo?.at===time||comboQueue.length) comboQueue.push(tier);
+        else combo={tier,at:time};
+      }
       hotTier=tier; heat=1;
       if(tier===4) shakeScreen(3,8);
+    }
+    function resetCombo() {
+      combo=null;
+      comboQueue.length=0;
+    }
+    function rewardTime(kind) {
+      return kind==='iron'?time:visualTime;
+    }
+    function addMultiplierReward(e,kind,add,y=e.y) {
+      const at=rewardTime(kind)+3;
+      rewards.push({x:e.x,y,kind,add,at,end:at+(kind==='vault'?30:20),done:false});
     }
     function gotBlock(e,s) {
       const vault=e.kind==='vault', delay=3;
@@ -102,9 +116,7 @@
         burst(e.x,e.y,8,[C.blockEdge,C.block,C.glass],{shape:'fragment',life:30,speed:4,delay});
         text(floats,'+'+D.number(e.bonus),e.x,e.y-13,18,C.jackpot,30);
       }
-      const add=vault?3:1;
-      const landing=visualTime+delay+(vault?30:20);
-      rewards.push({x:e.x,y:e.y,vault,add,at:visualTime+delay,end:landing,done:false});
+      addMultiplierReward(e,e.kind,vault?3:1);
     }
     function gotGate(e,s,before) {
       const gate=s.gates.find(g=>g.id===e.id), tint=e.kind==='plus'?C.gatePlus:C.gateMinus;
@@ -147,7 +159,10 @@
           fragment(w[0]+a*dx/length,w[1]+a*dy/length,11,7,C.ironEdge,40,(random()-.5)*2,-random()*2,tilt,3);
         }
       }
-      text(heads,'CRASH!',x,y-20,22,C.text,32);
+      const crashY=Math.min(y-20,e.y-24);
+      text(heads,'CRASH!',x,crashY,22,C.text,32);
+      text(floats,'+'+D.number(e.bonus),e.x,e.y,18,C.text,30,{at:time+3,rise:16});
+      addMultiplierReward(e,'iron',e.golds,crashY-24);
       shakeScreen(5,10);
     }
     function rollSparks(s) {
@@ -194,10 +209,11 @@
           recent.clear();particles.length=0;rings.length=0;floats.length=0;heads.length=0;
           rewards.length=0;bonuses.length=0;pending.length=0;pegsPending.clear();
           coinFlights.length=0;
-          combo=null;banner=null;shake=null;vaultAt=-1000;hotTier=0;heat=0;
+          resetCombo();banner=null;shake=null;vaultAt=-1000;hotTier=0;heat=0;
           break;
         case 'shot_fired':
-          trails.length=0; births.length=0; ironContacts.clear(); combo=null;
+          trails.length=0; births.length=0; ironContacts.clear(); resetCombo();
+          recent.delete(key('mult_land'));
           break;
         case 'launch':
           ring(JD.CANNON.x,JD.CANNON.y,10,0,C.text,6,2);
@@ -274,9 +290,9 @@
           } else if(e.mult===2) text(heads,'×2',x,s.landY-15,18,C.text,18,{pop:true});
           break;
         }
-        case 'shot_finished': combo=null;payoutIndex=0;break;
+        case 'shot_finished': resetCombo();payoutIndex=0;break;
         case 'payout_done':
-          rings.length=0;floats.length=0;
+          rings.length=0;floats.length=0;rewards.length=0;
           if(banner&&banner.value.indexOf('JACKPOT')===0) banner=null;
           break;
         case 'stage_clear':
@@ -319,6 +335,7 @@
     }
     function frame(s,ui,audio) {
       time=ui.age; reduced=ui.reduced;
+      if(comboQueue.length&&time-combo.at>=10) combo={tier:comboQueue.shift(),at:time};
       if(s.launch?.elapsed===10) shakeScreen(1,4);
       const slowVault=time-vaultAt>=3&&time-vaultAt<33;
       visualTime+=slowVault?.5:1;
@@ -356,14 +373,16 @@
         }
       }
       for(const r of rewards){
-        if(!r.done&&visualTime>=r.end) {
+        if(!r.done&&rewardTime(r.kind)>=r.end) {
           r.done=true;
-          mark({type:'mult_land',vault:r.vault});
-          if(r.vault){ring(33,60,9,21,C.jackpot,15,2,{screen:true});ring(33,60,14,30,C.jackpot,18,2,{screen:true});}
-          if(audio) audio.event({type:'mult_land',vault:r.vault},s);
+          const vault=r.kind==='vault';
+          const landed={type:'mult_land',vault,duringPayout:s.state==='PAYOUT'};
+          mark(landed);
+          if(vault){ring(33,60,9,21,C.jackpot,15,2,{screen:true});ring(33,60,14,30,C.jackpot,18,2,{screen:true});}
+          if(audio) audio.event(landed,s);
         }
       }
-      while(rewards.length&&visualTime-rewards[0].end>20) rewards.shift();
+      while(rewards.length&&rewardTime(rewards[0].kind)-rewards[0].end>20) rewards.shift();
       while(bonuses.length&&time-bonuses[0].at>=32) bonuses.shift();
 
       const celebrate=s.banner&&s.banner.kind==='allclear'||s.result&&s.result.won;
@@ -412,7 +431,7 @@
       if(k<0) return;
       const ratio=k/d.life, fade=Math.min(1,(1-ratio)*4);
       const twitch=!reduced&&(d.tier===4||d.wave)?Math.sin(k*2)*(d.wave?4:1):0;
-      const rise=d.fixed?0:20*ratio;
+      const rise=d.fixed?0:(d.rise??20)*ratio;
       const adjust=d.pop?(k<6?.6+k*.1:1+.18*Math.max(0,1-(k-6)/10)):1;
       c.save();
       c.globalAlpha=fade;
@@ -422,12 +441,21 @@
     }
     function drawRewards(c,cameraY) {
       for(const r of rewards){
-        if(r.done||visualTime<r.at) continue;
-        const a=(visualTime-r.at)/(r.end-r.at);
+        const now=rewardTime(r.kind);
+        if(r.done||now<r.at) continue;
+        const a=(now-r.at)/(r.end-r.at);
         const startY=r.y-cameraY;
-        const x=r.x+(28-r.x)*a, y=startY+(64-startY)*a+52*Math.sin(a*Math.PI);
+        const iron=r.kind==='iron';
+        const endX=iron?12:28, endY=iron?66:64;
+        const x=r.x+(endX-r.x)*a, y=startY+(endY-startY)*a+52*Math.sin(a*Math.PI);
         for(let i=1;i<6;i++) D.circle(c,x+(r.x-x)*i*.025,y+(startY-y)*i*.028,4-i*.5,D.rgba(C.jackpot,.35-i*.04));
-        D.label(c,'×+'+r.add,x,y,r.vault?32:22,C.jackpot,'center',{outline:C.ink});
+        if(iron) {
+          const scale=Math.min(.72+.28*D.clamp((now-r.at)/3,0,1),Math.max(.4,(x-2)/25));
+          D.box(c,x-24*scale,y-19*scale,48*scale,26*scale,7*scale,D.rgba(C.ink,.92),C.ironEdge,1.5);
+          D.label(c,'×+'+r.add,x,y,22*scale,C.jackpot,'center');
+        } else {
+          D.label(c,'×+'+r.add,x,y,r.kind==='vault'?32:22,C.jackpot,'center',{outline:C.ink});
+        }
       }
     }
     function draw(c) {
@@ -524,7 +552,7 @@
     return {
       events,frame,draw,world,overlay,shopOverlay,fresh,trails,births,pegsPending,
       ballHitAge(index){return fresh('ball_hit',index)?.age??Infinity;},
-      get hotTier(){return hotTier;},get heat(){return heat;},
+      get hotTier(){return hotTier;},get heat(){return heat;},get comboTier(){return combo?.tier??0;},
       pendingMult(){return rewards.reduce((sum,r)=>sum+(r.done?0:r.add),0);},
     };
   };
