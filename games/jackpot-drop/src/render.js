@@ -3,6 +3,7 @@
 
   const colors = {
     bgTop:'#0B0E2A', bgBottom:'#1A1146', lane:'#070920', laneEdge:'#5A62A8',
+    rail:'#2A2F5C', railEdge:'#7C84C8', rackBg:'#11143A', rackSocket:'#05061A',
     pegNormal:'#39A0FF', pegNormalLit:'#BDF3FF', pegGold:'#FFC83D', pegGoldLit:'#FFF1B8',
     pegBomb:'#FF4D6D', pegBombLit:'#FFD0D8', bumper:'#B26BFF', gatePlus:'#3DFFC8', gateMinus:'#FF4D6D',
     block:'#2E3A8C', blockEdge:'#8FA2FF', vault:'#5A3A00', vaultEdge:'#FFC83D',
@@ -15,7 +16,8 @@
   };
   const twoPi = 2 * Math.PI;
   const degrees = Math.PI / 180;
-  const magazineX = 400;
+  const magazineX = 402;
+  const rack = {x:368,y:336,w:68,h:296};
   const fontFamily='"Arial Black","Segoe UI",system-ui,sans-serif';
   const bodyFamily='"Segoe UI",system-ui,sans-serif';
 
@@ -126,7 +128,7 @@
     circle(c,x-r*.24,y-r*.29,r*.22,'#FFF9DC');
   }
 
-  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,coin,menuButton,fontFamily,bodyFamily};
+  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,coin,menuButton,fontFamily,bodyFamily,aimTarget};
   JD.UI={
     magazine(s) {
       const slots=s.rack.map((_,slot)=>slot).filter(slot=>slot!==s.slot);
@@ -134,7 +136,9 @@
       return slots.map((slot,row)=>({slot,y:590-row*52}));
     },
     ballSelectionEnabled:s=>s.endless||s.stage!==1||s.rack.some(kind=>kind!=='normal'),
-    magazineTop:340,
+    magazineX,
+    magazineTop:rack.y,
+    magazineBottom:rack.y+rack.h,
     ironAnchor(group) {
       const [x1,y1,x2,y2]=group.segs[0];
       return {x:(x1+x2)/2,y:(y1+y2)/2};
@@ -172,6 +176,11 @@
 
   function drawBallArrival(c,arrival,position) {
     if (!arrival||arrival.age<0||position===null) return;
+    c.save();
+    c.beginPath();
+    c.rect(0,0,360,640);
+    c.rect(rack.x,rack.y,rack.w,rack.h);
+    c.clip();
     const {key,age,startX,startY}=arrival;
     const progress=clamp(age/20,0,1);
     const x=startX+(magazineX-startX)*progress;
@@ -184,8 +193,8 @@
     } else {
       const land=clamp((age-20)/12,0,1);
       ball(c,key,magazineX,position,radius*1.5*(1.4-.4*land),{cracked:key==='glass'});
-      circle(c,magazineX,position,12+land*9,null,rgba(color,.8*(1-land)),2);
     }
+    c.restore();
   }
 
   JD.updateCamera = function (s,ui) {
@@ -230,18 +239,32 @@
     circle(c,4,20+s.landY*scale,3,colors.jackpot);
   }
 
-  function background(c,s,fx) {
+  function background(c,s,ui,fx) {
+    c.fillStyle=colors.bgBottom;
+    c.fillRect(360,0,80,640);
     const bg=c.createLinearGradient(0,0,0,640);
     bg.addColorStop(0,colors.bgTop); bg.addColorStop(1,colors.bgBottom);
-    c.fillStyle=bg; c.fillRect(0,0,440,640);
+    c.fillStyle=bg; c.fillRect(0,0,360,640);
     const tier = s.shot ? s.shot.tier : fx ? fx.hotTier : 0;
     if (tier>=3) {
       const heat=c.createLinearGradient(0,0,0,410);
       heat.addColorStop(0,rgba(combo(tier),.06*(s.shot ? 1 : fx.heat)));
-      heat.addColorStop(1,rgba(combo(tier),0)); c.fillStyle=heat; c.fillRect(0,0,440,410);
+      heat.addColorStop(1,rgba(combo(tier),0)); c.fillStyle=heat; c.fillRect(0,0,360,410);
     }
-    for(let x=0;x<440;x+=40) line(c,x+.5,0,x+.5,640,rgba(colors.text,.04));
-    for(let y=0;y<640;y+=40) line(c,0,y+.5,440,y+.5,rgba(colors.text,.04));
+    const shift=(ui.cameraY||0)%40;
+    for(let x=0;x<360;x+=40) line(c,x+.5,0,x+.5,640,rgba(colors.text,.04));
+    for(let y=40-shift;y<640;y+=40) line(c,0,y+.5,360,y+.5,rgba(colors.text,.04));
+  }
+
+  function drawRails(c,s) {
+    const border=s.landY+4;
+    c.fillStyle=colors.rail;
+    c.fillRect(0,48,4,border-48);
+    c.fillRect(356,48,4,border-48);
+    c.fillRect(0,border-2,360,4);
+    c.fillStyle=colors.railEdge;
+    c.fillRect(3,48,1,border-48);
+    c.fillRect(356,48,1,border-48);
   }
 
   function roofFlash(s,fx,left,right) {
@@ -287,8 +310,7 @@
         box(c,left+2,600,width-4,40,3,null,colors.jackpot,2);
         const flash=(ui.introReveal||ui.stageAge<30) && ui.stageAge%10<4 || landing && landing.age<30 && landing.age%10<4;
         if (flash) box(c,left+2,601,width-4,38,3,rgba(colors.text,.45));
-        label(c,'×5',center,width>=56?620:628,width>=56?24:29,colors.bgBottom);
-        if(width>=56) label(c,'JACKPOT',center,630,10,colors.bgBottom);
+        label(c,'×5',center,625,20,colors.bgBottom);
         for(let k=0;k<6;k++) {
           c.beginPath(); c.ellipse(center+(k%3-1)*9+(k>=3?3:0),637-(k>=3?3:0),5,2.3,0,0,twoPi);
           c.fillStyle=k>=3?'#FFED9C':colors.jackpot; c.fill();
@@ -301,7 +323,7 @@
         if(ui.introReveal||!offset&&ui.stageAge<60) {
           const cueY=584+(ui.reduced?0:4*Math.sin(t*Math.PI/20));
           const cueX=clamp(center,40,320);
-          label(c,'▼ JACKPOT',cueX,cueY,14,colors.jackpot,'center',
+          label(c,'▼ JACKPOT',cueX,cueY,12,colors.jackpot,'center',
             {outline:colors.ink,max:Math.min(94,2*cueX-6,714-2*cueX),minSize:11});
         }
       } else {
@@ -348,28 +370,28 @@
     dashed(c,x,y,x+Math.sin(center)*radius,y+Math.cos(center)*radius,rgba(colors.jackpot,.35+.4*flash));
   }
 
-  function drawZoneLabel(c,s,ui,zone) {
+  function aimTarget(c,x,y,ui,t) {
+    const scale=ui.reduced?1:1+.15*pulse(t,40);
+    circle(c,x,y,10*scale,null,colors.jackpot,2);
+    circle(c,x,y,5*scale,null,colors.jackpot,2);
+  }
+
+  function drawZoneTarget(c,ui,zone,t) {
     const top=ui.cameraY||0;
-    if (zone.y<top+45) return;
-    const {x,y}=JD.CANNON;
-    let labelY=clamp(zone.y-14,top+56,top+613);
-    let labelX=zone.x;
-    if (zone.y>top+627) labelX=x+(labelY-y)*Math.tan(zone.center*degrees);
-    if (zone.kind==='guide') {
-      // Keep the tutorial's centered placard clear of the nearby target tag.
-      labelX=x+70;
-      labelY=clamp(zone.y-64,top+56,top+613);
-    } else if (zone.kind==='iron'&&zone.y<=top+627) {
-      labelX+=zone.x<180?84:-84;
-      labelY=clamp(zone.y-25,top+56,top+613);
-    } else if ((zone.kind==='block'||zone.kind==='vault')&&zone.y<=top+627) {
-      const target=s.blocks.find(block=>block.alive&&block.x===s.zone.x&&block.y===s.zone.y);
-      if (target) labelY=clamp(zone.y-target.h/2-14,top+56,top+613);
-    } else if (zone.kind==='jackpot'&&(ui.introReveal||ui.stageAge<60)) {
-      labelY=Math.min(labelY,zone.y-36);
+    if (zone.y<top) return;
+    if (zone.y>top+viewHeight) {
+      const y=top+592;
+      const x=clamp(JD.CANNON.x+(y-JD.CANNON.y)*Math.tan(zone.center*degrees),8,352);
+      c.beginPath();
+      c.moveTo(x-6,y-8);
+      c.lineTo(x+6,y-8);
+      c.lineTo(x,y);
+      c.closePath();
+      c.fillStyle=colors.jackpot;
+      c.fill();
+      return;
     }
-    label(c,'▶ '+zone.kind.toUpperCase(),clamp(labelX,42,318),labelY,11,colors.jackpot,'center',
-      {outline:colors.ink,outlineWidth:2.5,max:88});
+    aimTarget(c,zone.x,zone.y,ui,t);
   }
 
   const easeOut=progress=>1-Math.pow(1-clamp(progress,0,1),3);
@@ -567,44 +589,61 @@
       animation.targets=new Map(slots.map(({slot,y})=>[s.rackIndices[slot],y]));
     }
 
-    const top=JD.UI.magazineTop;
-    box(c,360,top,80,628-top,0,rgba(colors.lane,.6));
-    line(c,360.5,top,360.5,628,colors.laneEdge);
     const ready=s.state==='AIM'&&!s.charging;
     const progress=ui.reduced?1:clamp((t-animation.at)/6,0,1);
     const canPick=JD.UI.ballSelectionEnabled(s);
     const hint=ready&&canPick&&!ui.stageFired?s.hint?.ball:null;
     const last=ready&&slots.length===1;
     const loadColor=last&&Math.floor(t/15)%2?colors.danger:colors.text;
+    const picked=fresh(fx,'ball_picked');
+    const press=picked?.age<4&&!ui.reduced?2*(1-picked.age/4):0;
+    const pressedFrom=press?animation.from.get(s.rackIndices[picked.e.slot]):null;
+    const pressedY=pressedFrom==null?590:590-52*Math.round((590-pressedFrom)/52);
     c.save();
     c.globalAlpha=ready?1:.5;
+    box(c,rack.x,rack.y,rack.w,rack.h,12,colors.rackBg,colors.laneEdge,2);
+    c.save();
+    c.clip();
+    c.fillStyle=rgba('#000000',.35);
+    c.fillRect(rack.x,rack.y,rack.w,4);
+    c.restore();
     for (let i=0;i<Math.min(5,s.fullRack.length);i++) {
       const y=590-i*52;
       const slot=slots[i]?.slot;
       const selected=canPick&&slot!==undefined&&slot===s.slot;
       const warning=i===0&&last;
       const matchingHint=slot!==undefined&&hint===s.rack[slot];
-      const edge=matchingHint?rgba(colors.hint,.64+.36*pulse(t,20)):warning||selected?loadColor:rgba(colors.laneEdge,.63);
-      box(c,magazineX-20,y-22,40,44,9,selected?'#252947':'#10152E',edge,matchingHint||warning||selected?2:1);
+      const seat=y+(y===pressedY?press:0);
+      const edge=matchingHint?rgba(colors.hint,.55+.45*pulse(t,20)):rgba(colors.laneEdge,.6);
+      circle(c,magazineX,seat,19,colors.rackSocket,edge,matchingHint?2:1);
+      c.beginPath();
+      c.arc(magazineX,seat,17.5,Math.PI+.35,twoPi-.35);
+      c.strokeStyle=rgba('#000000',.65);
+      c.lineWidth=2;
+      c.stroke();
+      if (selected||warning) box(c,magazineX-22,seat-24,44,48,10,null,loadColor,2);
       if (selected) {
-        label(c,'◀',magazineX-22,y+4,11,loadColor);
-        label(c,'장전',magazineX,y-11,10,loadColor);
+        c.beginPath();
+        c.moveTo(372,seat);
+        c.lineTo(380,seat-5);
+        c.lineTo(380,seat+5);
+        c.closePath();
+        c.fillStyle=loadColor;
+        c.fill();
       }
     }
-    const picked=fresh(fx,'ball_picked');
     let landingY=null;
     for (const {slot,y} of slots) {
       const id=s.rackIndices[slot];
       const kind=s.rack[slot];
       const from=animation.from.get(id)??y;
       const spot=from+(y-from)*progress;
-      const dy=slot===s.slot&&canPick?3:0;
-      const bump=picked?.age<6&&slot===picked.e.slot&&!ui.reduced?1+.12*Math.sin(Math.PI*picked.age/6):1;
-      if (slot===arrival?.slot) landingY=spot+dy;
-      else ball(c,kind,magazineX,spot+dy,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
+      const pressed=slot===picked?.e.slot?press:0;
+      if (slot===arrival?.slot) landingY=spot+pressed;
+      else ball(c,kind,magazineX,spot+pressed,JD.BALLS[kind].r*1.5,{cracked:kind==='glass'});
     }
+    label(c,slots.length+'/'+s.fullRack.length,magazineX,624,11,last?colors.danger:colors.textDim);
     c.restore();
-    label(c,slots.length+'/'+s.fullRack.length,magazineX,628,12,last?colors.danger:colors.textDim);
     return landingY;
   }
 
@@ -816,42 +855,57 @@
         JD.drawScreens(c,s,ui,fx,t);
         return;
       }
-      background(c,s,fx);
-      const arrival=ballArrival(s,ui);
-      const landingY=drawMagazine(c,s,ui,t,magazine,fx,arrival);
+      background(c,s,ui,fx);
+      const cameraY=ui.cameraY||0;
+      const zone=visibleZone(s,ui);
+      const blockTarget=zone&&zone.y>=cameraY&&zone.y<=cameraY+viewHeight
+        ? s.blocks.find(block=>block.alive&&block.x===zone.x&&block.y===zone.y)
+        : null;
       c.save();
       c.beginPath(); c.rect(0,0,360,640); c.clip();
+      c.save();
       if(fx) fx.world(c,s,ui);
-      c.translate(0,-(ui.cameraY||0));
+      c.translate(0,-cameraY);
       buckets(c,s,ui,fx,t,true);
       buckets(c,s,ui,fx,t,false);
-      const zone=visibleZone(s,ui);
       if (zone) drawZone(c,s,zone,fx);
-      drawWallSprings(c,s,ui,fx,t);
-      if(JD.drawBoardObjects) JD.drawBoardObjects(c,s,ui,fx,t);
-      if (zone&&s.state==='AIM') drawZoneLabel(c,s,ui,zone);
-      if(ui.introReveal) drawStageIntro(c,stageIntro(s),s.boardH-102);
       c.restore();
       c.save();
-      c.beginPath(); c.rect(0,0,360,640); c.clip();
+      c.translate(0,-cameraY);
+      drawRails(c,s);
+      drawWallSprings(c,s,ui,fx,t);
+      c.restore();
+      c.save();
+      c.beginPath(); c.rect(4,0,352,640); c.clip();
+      if(fx) fx.world(c,s,ui);
+      c.translate(0,-cameraY);
+      JD.drawBoardObjects(c,s,ui,fx,t,blockTarget);
+      c.restore();
+      c.save();
       if(fx) fx.world(c,s,ui,false);
-      c.translate(0,-(ui.cameraY||0));
+      c.translate(0,-cameraY);
+      if (zone&&!blockTarget) drawZoneTarget(c,ui,zone,t);
       drawCannon(c,s,ui,fx,t);
       c.restore();
-      if (s.state!=='RESULT'&&s.state!=='SHOP') {
-        // Keep the score fixed, then paint even high rebounds in front of it.
-        hud(c,s,ui,fx);
-        panel(c,s,ui,fx);
-      }
+      const showHud=s.state!=='RESULT'&&s.state!=='SHOP';
+      // Keep the shot panel below the live ball and the fixed HUD above board effects.
+      if (showHud) panel(c,s,ui,fx);
       cameraProgress(c,s,ui);
       c.save();
-      c.beginPath(); c.rect(0,0,360,640); c.clip();
       if(fx) fx.world(c,s,ui);
-      c.translate(0,-(ui.cameraY||0));
+      c.translate(0,-cameraY);
       drawWorldBalls(c,s,ui,fx,t);
       if(fx) fx.draw(c);
       c.restore();
       if(fx) fx.overlay(c,s,ui);
+      if (showHud) hud(c,s,ui,fx);
+      c.restore();
+      c.fillStyle=rgba('#000000',.55);
+      c.fillRect(360,48,6,592);
+      const arrival=ballArrival(s,ui);
+      const landingY=drawMagazine(c,s,ui,t,magazine,fx,arrival);
+      if(fx) fx.rackBonuses(c);
+      if(ui.introReveal) drawStageIntro(c,stageIntro(s),s.boardH-102-cameraY);
       drawAim(c,s,ui,fx,t);
       if(JD.drawScreens) JD.drawScreens(c,s,ui,fx,t);
       if(JD.drawPickedCard) JD.drawPickedCard(c,s,ui);
@@ -973,7 +1027,7 @@
     D.circle(ctx, bumper.x, bumper.y, 2.5, D.rgba('#FFFFFF', 0.65));
   }
 
-  function drawBlock(ctx, block, ui, fx, time, D) {
+  function drawBlock(ctx, block, ui, fx, time, D, targeted) {
     const C = D.colors;
     const vault = block.kind === 'vault';
     const hit = D.fresh && D.fresh(fx, 'block_hit', block.id);
@@ -1008,9 +1062,23 @@
 
     const bump = hit && hit.e.cause === 'ball' && hit.age < 8 ? (ui.reduced ? 0.15 : 0.4) * (1 - hit.age / 8) : 0;
     const text = blinking ? '#242447' : '#FFFFFF';
-    if (vault) D.label(ctx, 'VAULT', block.x, block.y - 1 + down, 11, text);
-    const numberY = block.y + (vault ? 12 : 7) + down;
-    D.label(ctx, block.hp, block.x, numberY, (vault ? 16 : 14) * (1 + bump), text);
+    if (vault) {
+      const cy=block.y+down;
+      const dialX=block.x-24;
+      D.circle(ctx,dialX,cy,6,null,C.vaultEdge,2);
+      for (let i=0;i<4;i++) {
+        const angle=i*Math.PI/2;
+        D.line(ctx,dialX+3*Math.cos(angle),cy+3*Math.sin(angle),
+          dialX+6*Math.cos(angle),cy+6*Math.sin(angle),C.vaultEdge,1);
+      }
+      D.box(ctx,block.x+22.5,cy-6,3,12,1,C.vaultEdge);
+      for (const rivetX of [x+5,x+block.w-5]) {
+        D.circle(ctx,rivetX,y+5,2,C.vaultEdge);
+        D.circle(ctx,rivetX,y+block.h-5,2,C.vaultEdge);
+      }
+    }
+    if (targeted) D.aimTarget(ctx,block.x,block.y,ui,time);
+    D.label(ctx, block.hp, block.x, block.y+(vault?5:7)+down, (vault ? 16 : 14) * (1 + bump), text);
 
     const badgeCenter = y + (vault ? -3 : -1);
     const badgeHeight = vault ? 16 : 15;
@@ -1081,8 +1149,6 @@
       D.line(ctx, x1, y1, x2, y2, C.ironEdge, 10);
       D.line(ctx, x1, y1, x2, y2, C.ironWall, 7);
       drawIronMarks(ctx,x1,y1,x2,y2,D);
-      const {x,y}=JD.UI.ironAnchor(group);
-      D.label(ctx,'IRON',x,y-10,9,C.ironEdge,'center',{outline:C.bgTop});
     }
     ctx.restore();
   }
@@ -1150,7 +1216,7 @@
     return changes;
   }
 
-  JD.drawBoardObjects = function (ctx, snapshot, ui, fx, time) {
+  JD.drawBoardObjects = function (ctx, snapshot, ui, fx, time, blockTarget) {
     const D = JD.Drawing;
     const top=(ui.cameraY||0)-72, bottom=top+784;
     const inView=y=>y>=top&&y<=bottom;
@@ -1182,7 +1248,7 @@
       }
     }
     snapshot.bumpers.forEach((bumper, i) => { if (inView(bumper.y)) drawBumper(ctx, bumper, i, ui, fx, D); });
-    snapshot.blocks.forEach(block => { if (inView(block.y)) drawBlock(ctx, block, ui, fx, time, D); });
+    snapshot.blocks.forEach(block => { if (inView(block.y)) drawBlock(ctx, block, ui, fx, time, D, block===blockTarget); });
     snapshot.gates.forEach(gate => { if (inView(gate.y)) drawGate(ctx, gate, fx, time, D); });
     snapshot.iron.forEach(group => drawIron(ctx, group, snapshot, fx, time, D));
     snapshot.warps?.ins.forEach((hole,index)=>{
@@ -1195,8 +1261,7 @@
       if (!(close?.age<20)) return;
       if (close.age<16&&!ui.reduced) drawWarp(ctx,hole,time+3*close.age,D,1-close.age/16);
       const alpha=.8*(1-close.age/20);
-      D.label(ctx,'CLOSED',hole.x,hole.y-14-close.age/2,10,D.rgba(D.colors.warp,alpha),'center',
-        {outline:D.rgba(D.colors.ink,alpha),outlineWidth:2});
+      D.circle(ctx,hole.x,hole.y,2,D.rgba(D.colors.warp,alpha));
     });
   };
 }(window.JD));

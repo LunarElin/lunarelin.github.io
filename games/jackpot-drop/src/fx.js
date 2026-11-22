@@ -246,10 +246,13 @@
           ring(e.x,e.y,0,24,C.text,16,2);
           text(heads,'SPLIT!',e.x,e.y-16,14,C.text,16); break;
         case 'ball_crack': text(heads,'CRACK!',e.x,e.y-16,14,C.glass,24); break;
-        case 'ball_shatter':
+        case 'ball_shatter': {
           burst(e.x,e.y,14,C.glass,{shape:'triangle',life:30,speed:5});
           ring(e.x,e.y,0,30,C.text,24,3);
-          text(heads,'SHATTER! +'+e.count,e.x,e.y-16,18,C.glass,30); break;
+          const labelX=e.x>300?e.x-90:e.x<60?e.x+90:e.x;
+          text(heads,'SHATTER! +'+e.count,labelX,e.y-16,18,C.glass,30);
+          break;
+        }
         case 'gate_passed': gotGate(e,s,before); break;
         case 'warp':
           if(trails[e.ball]) trails[e.ball].length=0;
@@ -299,7 +302,7 @@
           confetti(60);
           if(e.ballsLeft) {
             const amount=e.bonus/e.ballsLeft;
-            JD.UI.magazine(s).forEach(({y},i)=>bonuses.push({x:400,y,amount,at:time+i*6}));
+            JD.UI.magazine(s).forEach(({y},i)=>bonuses.push({x:402,y,amount,at:time+i*6}));
           }
           break;
         case 'all_clear':
@@ -435,8 +438,11 @@
       const adjust=d.pop?(k<6?.6+k*.1:1+.18*Math.max(0,1-(k-6)/10)):1;
       c.save();
       c.globalAlpha=fade;
-      D.label(c,d.value,D.clamp(d.x+twitch,36,356),d.y-rise,d.size*Math.min(adjust,reduced?1.15:1.25),
-        d.tint,'center',{outline:C.ink,max:350});
+      const size=d.size*Math.min(adjust,reduced?1.15:1.25);
+      c.font='900 '+size+'px '+D.fontFamily;
+      const halfWidth=Math.min(350,c.measureText(d.value).width)/2+4;
+      const x=D.clamp(d.x+twitch,Math.max(36,halfWidth),360-halfWidth);
+      D.label(c,d.value,x,d.y-rise,size,d.tint,'center',{outline:C.ink,max:350});
       c.restore();
     }
     function drawRewards(c,cameraY) {
@@ -474,11 +480,11 @@
         if(age>=0&&age<banner.life){
           const scale=age<4?.6+age*.1375:1+.15*Math.max(0,1-(age-4)/10);
           c.save();c.globalAlpha=Math.min(1,(banner.life-age)/9);
-          const fade=D.rgba(C.ink,.77), grad=c.createLinearGradient(17,0,375,0);
+          const fade=D.rgba(C.ink,.77), grad=c.createLinearGradient(8,0,352,0);
           grad.addColorStop(0,D.rgba(C.ink,0));grad.addColorStop(.21,fade);
           grad.addColorStop(.79,fade);grad.addColorStop(1,D.rgba(C.ink,0));
-          D.box(c,17,283,358,61,9,grad);
-          D.label(c,banner.value,196,326,banner.size*scale,banner.tint,'center',{max:355,outline:C.ink,outlineWidth:4});
+          D.box(c,8,283,344,61,9,grad);
+          D.label(c,banner.value,180,326,banner.size*scale,banner.tint,'center',{max:336,outline:C.ink,outlineWidth:4});
           c.restore();
         }
       }
@@ -530,17 +536,25 @@
       }
       if(combo&&time-combo.at<8){
         const age=time-combo.at;
-        D.box(c,2,2,388,636,9,null,D.rgba(D.combo(combo.tier),.25*(1-age/8)),9);
+        D.box(c,2,2,356,636,9,null,D.rgba(D.combo(combo.tier),.25*(1-age/8)),9);
       }
       if(time-vaultAt<8) {
         c.fillStyle=D.rgba(C.text,.6*(1-(time-vaultAt)/8));c.fillRect(0,0,360,640);
       }
       const clear=fresh('all_clear');
-      if(clear&&clear.age<18) D.box(c,4,4,384,632,8,null,D.rgba(C.jackpot,.65*(1-clear.age/18)),12);
+      if(clear&&clear.age<18) D.box(c,4,4,352,632,8,null,D.rgba(C.jackpot,.65*(1-clear.age/18)),12);
       drawRings(c,true);
       for(const p of particles) if(p.screen) drawParticle(c,p);
       drawScoreEffects(c,ui);
       for(const flight of coinFlights) coinFlight(c,flight.x,flight.y-ui.cameraY,300,20,(time-flight.at)/24,62,3);
+    }
+    function rackBonuses(c) {
+      if(!bonuses.length) return;
+      c.save();
+      c.beginPath();
+      c.rect(0,0,360,640);
+      c.rect(368,336,68,296);
+      c.clip();
       for(const b of bonuses) {
         if(time<b.at) continue;
         const a=Math.min(1,(time-b.at)/28);
@@ -548,9 +562,10 @@
         if(a<.2) D.ball(c,'normal',x,y,7*(1-a/.25));
         else D.label(c,'+'+D.number(b.amount),x,y,15,C.success,'center',{outline:C.ink});
       }
+      c.restore();
     }
     return {
-      events,frame,draw,world,overlay,shopOverlay,fresh,trails,births,pegsPending,
+      events,frame,draw,world,overlay,rackBonuses,shopOverlay,fresh,trails,births,pegsPending,
       ballHitAge(index){return fresh('ball_hit',index)?.age??Infinity;},
       get hotTier(){return hotTier;},get heat(){return heat;},get comboTier(){return combo?.tier??0;},
       pendingMult(){return rewards.reduce((sum,r)=>sum+(r.done?0:r.add),0);},
