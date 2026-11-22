@@ -6,9 +6,9 @@
 
 ## 구성
 
-- `index.html`: 설계·AI 협업 사례를 먼저 보여주는 포트폴리오 메인, 게임과 경력·소개. 경력 프로젝트 상세는 처음부터 모두 펼쳐 표시합니다.
-- `portfolio/block-bloom.html`: 블록 블룸의 설계 의도·Codex 협업·검증 근거와 후속 검증 제안
-- `portfolio/prototypes.html`: 최근 프로토타입 5개의 현재 구조·설계 선택·후속 확인 질문
+- `index.html`: Jackpot Drop을 대표 게임으로 소개하는 포트폴리오 메인, 게임과 경력·소개. 경력 프로젝트 상세는 처음부터 모두 펼쳐 표시합니다.
+- `portfolio/block-bloom.html`: 블록 블룸의 기존 설계·Codex 협업·검증 기록
+- `portfolio/prototypes.html`: 대표 게임을 포함한 최근 프로토타입 6개의 현재 구조·설계 선택·후속 확인 질문
 - `portfolio/prototypes.css`: 최근 제작 노트 페이지 디자인
 - `portfolio/case-study.css`: 대표 사례 페이지 디자인
 - `portfolio/style.css`: 포트폴리오 디자인
@@ -17,6 +17,8 @@
 - `archive/2026-10-14-original/index.html`: 전환 전 원본 페이지
 
 빌드나 패키지 설치 없이 정적 HTTP 서버 또는 GitHub Pages에서 실행합니다.
+
+대표 게임의 `portfolio/assets/jackpot-drop-board.webp`와 `jackpot-drop-screen.webp`는 2026.11.22의 실제 실행 화면입니다. `/games/jackpot-drop/?start=2&seed=11`의 저장하지 않는 2단계 연습판에서 보드 일부와 전체 게임 영역을 캡처했습니다. 게임 규칙은 해당 게임의 README·소스를 근거로 소개하며, 제작 기간·AI 작업 분담·사용자 성과는 추정하지 않습니다.
 
 경력·자기소개의 출처는 [기존 노션 포트폴리오](https://app.notion.com/p/23aeae97f1a2800eb4d8e161e8e464bd)입니다. 사용자가 제공한 비공개 이력서에서 성명·이메일·학력·병역만 반영했으며 주소·전화번호와 원문 전체는 저장하지 않습니다. 파이드픽셀즈 업무는 사용자가 직접 설명한 일본 IP 횡스크롤 액션, 영웅·몬스터 AI 클라이언트 전투, ATB 턴제 결투장 작업으로 한정합니다.
 

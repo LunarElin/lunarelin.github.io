@@ -7,15 +7,15 @@
   <meta name="description" content="정우용의 최근 게임 프로토타입 제작 노트. 잭팟 드롭, 도토리 원정대, 숲의 수호자, 야생의 서약, 룬빛 상회, 오빗 골프의 설계와 구현을 소개합니다.">
   <title>최근 프로토타입 제작 노트 · 정우용</title>
   <link rel="icon" href="mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=jackpot-drop-20261120">
+  <link rel="stylesheet" href="style.css?v=jackpot-main-20261122">
   <link rel="stylesheet" href="case-study.css?v=case-first-20261102">
-  <link rel="stylesheet" href="prototypes.css?v=case-first-20261102">
+  <link rel="stylesheet" href="prototypes.css?v=jackpot-main-20261122">
 </head>
 <body id="top" class="prototype-notes">
   <a class="skip-link" href="#main">본문으로 건너뛰기</a>
   <header class="site-header"><div class="header-inner">
     <a class="brand" href="../" aria-label="정우용 포트폴리오 홈"><svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path d="M25 23A13 13 0 0 1 9 4a13 13 0 1 0 16 19Z" fill="currentColor"/><path d="m23 4 1.2 3.8L28 9l-3.8 1.2L23 14l-1.2-3.8L18 9l3.8-1.2Z" fill="currentColor"/></svg><span>정우용<span class="brand-dot">.</span></span></a>
-    <nav class="main-nav" aria-label="포트폴리오 이동"><a href="../#play">게임 목록</a><a href="block-bloom.html">대표 사례</a></nav>
+    <nav class="main-nav" aria-label="포트폴리오 이동"><a href="../#play">게임 목록</a><a href="#jackpot-drop">대표 게임</a></nav>
   </div></header>
 
   <main id="main" class="case-page wrap prototypes-page">
@@ -24,27 +24,27 @@
 
       <h1 id="notes-title">최근 프로토타입,<br><span>설계와 개선의 기록.</span></h1>
       <p class="case-lead">각 게임의 현재 구조와 구현 결정을 정리했습니다. 다음 확인 질문은 앞으로 플레이어의 반응을 살펴볼 가설이며, 확인된 사용자 성과를 뜻하지 않습니다.</p>
-      <p class="notes-date">최근 업데이트 <time datetime="2026-11-20">2026.11.20</time></p>
+      <p class="notes-date">최근 업데이트 <time datetime="2026-11-22">2026.11.22</time></p>
       <nav class="prototype-index" aria-label="프로토타입 목차">
         <a href="#jackpot-drop">잭팟 드롭</a><a href="#acorn-guard">도토리 원정대</a><a href="#grove-warden">숲의 수호자</a><a href="#wild-oath">야생의 서약</a><a href="#runehaven">룬빛 상회</a><a href="#orbit-golf">오빗 골프</a>
       </nav>
-      <p class="art-disclosure">아래 그림은 각 게임의 아이콘과 카드 아트 미리보기입니다. 실제 게임 실행 화면을 캡처한 이미지는 아닙니다.</p>
+      <p class="art-disclosure">잭팟 드롭은 실제 보드 화면 일부를, 다른 게임은 아이콘과 카드 아트를 보여드립니다.</p>
     </section>
 
     <section class="case-section prototype-note" id="jackpot-drop" aria-labelledby="jackpot-title">
       <div class="note-heading">
         <div class="note-heading-copy">
           <h2 id="jackpot-title">잭팟 드롭</h2>
-          <p class="note-description">구슬을 쏘아 핀과 범퍼를 튕기고, 착지 칸의 배수로 점수를 올리는 브라우저 핀볼입니다. 단계 목표를 넘기면 강화 카드를 고르고, 새 도구를 조합해 다음 보드의 장애물을 공략합니다.</p>
+          <p class="note-description">한 발씩 구슬을 쏘아 핀과 범퍼를 튕기고, 착지 칸의 배수로 점수를 올리는 20단계 핀볼 캠페인입니다. 단계 목표를 넘기면 강화 카드를 고르고, 모은 코인으로 영구 강화를 준비합니다. 8단계 클리어 후에는 별도 무한 모드가 열립니다.</p>
         </div>
-        <figure class="note-art"><span class="jackpot-board" aria-hidden="true"></span><figcaption>잭팟 드롭 보드 일러스트</figcaption></figure>
+        <figure class="note-art note-screen"><img src="assets/jackpot-drop-board.webp" alt="잭팟 드롭의 V자 쇠 벽과 잭팟 착지 칸이 보이는 실제 보드 일부" width="316" height="316" loading="lazy"><figcaption>2단계 연습판 · 보드 일부</figcaption></figure>
       </div>
       <div class="note-decisions" aria-label="잭팟 드롭 구현 결정">
         <article><h3>누르는 시간으로 궤적 조절</h3><p>한 손가락으로 누르고 있다가 떼면 발사합니다. 충전 세기가 구슬의 출발 궤적을 정하고, 금색 구간에 맞추면 콤보를 먼저 얻습니다.</p></article>
         <article><h3>새 도구를 다음 판에서 쓰기</h3><p>첫 보상으로 쇠 구슬을 받습니다. 2단계에서 일반 구슬을 V자 쇠 벽에 모아 점수를 저금하고, 쇠 구슬을 마지막에 쏘면 철문과 V자가 함께 부서져 구슬이 한꺼번에 떨어집니다.</p></article>
       </div>
       <aside class="next-question" aria-labelledby="jackpot-question"><h3 id="jackpot-question">다음 확인 질문</h3><p>처음 플레이할 때 금색 발사 구간을 알아보고, 새로 얻은 도구가 다음 보드에서 어디에 쓰이는지 스스로 찾을 수 있을까?</p></aside>
-      <div class="note-actions"><a class="button button-primary" href="../games/jackpot-drop/">직접 플레이 <span aria-hidden="true">↗</span></a></div>
+      <div class="note-actions"><a class="button button-primary" href="../games/jackpot-drop/">직접 플레이 <span aria-hidden="true">↗</span></a><a class="note-link" href="../games/jackpot-drop/README.md">공개 제작 문서 <span aria-hidden="true">↗</span></a></div>
     </section>
 
     <section class="case-section prototype-note" id="acorn-guard" aria-labelledby="acorn-title">
@@ -114,8 +114,8 @@
 
     <section class="case-section notes-more" aria-labelledby="more-title">
       <h2 id="more-title">설계 의도에서,<br>실제 수정 기록까지.</h2>
-      <p>블록 블룸 대표 사례에서는 제작 요청, AI를 활용한 구현, 후속 수정과 검증 기록을 이어서 볼 수 있습니다. 각 게임의 세부 규칙과 기존 검증 범위는 공개 제작 문서에 정리했습니다.</p>
-      <div class="note-actions"><a class="button button-primary" href="block-bloom.html">블록 블룸 대표 사례 <span aria-hidden="true">↗</span></a><a class="note-link" href="../#play">홈의 게임 목록 <span aria-hidden="true">↗</span></a></div>
+      <p>블록 블룸 제작 기록에서는 제작 요청, AI를 활용한 구현, 후속 수정과 검증 기록을 이어서 볼 수 있습니다. 각 게임의 세부 규칙과 기존 검증 범위는 공개 제작 문서에 정리했습니다.</p>
+      <div class="note-actions"><a class="button button-primary" href="block-bloom.html">블록 블룸 제작 기록 <span aria-hidden="true">↗</span></a><a class="note-link" href="../#play">홈의 게임 목록 <span aria-hidden="true">↗</span></a></div>
       <details class="case-test-details source-notes"><summary>공개 소스 폴더 확인 <span aria-hidden="true">+</span></summary><div><p>현재 구현은 아래 각 게임 폴더에서 확인할 수 있습니다.</p><ul class="source-list">
         <li><a href="https://github.com/LunarElin/lunarelin.github.io/tree/main/games/acorn-guard" target="_blank" rel="noopener noreferrer">도토리 원정대 소스 ↗<span class="sr-only"> (새 탭)</span></a></li>
         <li><a href="https://github.com/LunarElin/lunarelin.github.io/tree/main/games/grove-warden" target="_blank" rel="noopener noreferrer">숲의 수호자 소스 ↗<span class="sr-only"> (새 탭)</span></a></li>
@@ -126,6 +126,6 @@
     </section>
   </main>
 
-  <footer class="site-footer wrap"><a class="footer-name" href="../">정우용<span>.</span></a><p>프로토타입 제작 노트 · 2026.11.20</p><div><a href="../#play">홈으로 <span aria-hidden="true">↗</span></a><a href="#top">맨 위로 <span aria-hidden="true">↑</span></a></div></footer>
+  <footer class="site-footer wrap"><a class="footer-name" href="../">정우용<span>.</span></a><p>프로토타입 제작 노트 · 2026.11.22</p><div><a href="../#play">홈으로 <span aria-hidden="true">↗</span></a><a href="#top">맨 위로 <span aria-hidden="true">↑</span></a></div></footer>
 </body>
 </html>

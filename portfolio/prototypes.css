@@ -13,6 +13,9 @@
 .note-art img { width: 128px; height: 128px; object-fit: contain; margin-inline: auto; filter: drop-shadow(0 8px 10px #49335624); }
 .note-art .note-illustration { width: 208px; height: 128px; }
 .note-art figcaption { margin-top: 20px; color: #614d6b; text-align: center; font-size: 16px; }
+.note-art.note-screen { padding: 12px; background: #fff; }
+.note-screen img { width: 100%; height: auto; border-radius: 6px; filter: none; }
+.note-screen figcaption { margin-top: 12px; }
 .art-acorn { background: linear-gradient(145deg, #e6edd1, #f5ead5); }
 .art-grove { background: linear-gradient(145deg, #d6e6d4, #ece7cf); }
 .art-wild { background: linear-gradient(145deg, #eddef4, #f2dfeb); }
