@@ -161,6 +161,7 @@
       if(e.type==='warp') id=e.ball;
       if(e.type==='ball_landed') id=e.bucket;
       if(e.type==='terrain_hit'||e.type==='bumper_hit') id=e.index;
+      if(e.type==='wall_spring') id=e.side;
       if(e.type==='ball_parked'||e.type==='parked_release') id=e.group;
       if(e.type==='parked_release'){
         const iron=s.iron.find(group=>group.id===e.group);
@@ -185,14 +186,23 @@
           coinFlights.length=0;
           combo=null;banner=null;shake=null;vaultAt=-1000;hotTier=0;heat=0;
           break;
-        case 'shot_fired':
+        case 'shot_fired': {
           trails.length=0; births.length=0; combo=null;
-          ring(376,540,12,0,C.text,6,2,{screen:true});
+          const {x,y}=JD.CANNON, angle=e.angle*Math.PI/180;
+          ring(x+32*Math.sin(angle),y+32*Math.cos(angle),4,14,C.text,6,2);
+          shakeScreen(1,4);
           break;
+        }
         case 'launch':
-          ring(352,60,10,0,C.text,6,2);
+          ring(JD.CANNON.x,JD.CANNON.y,10,0,C.text,6,2);
           if(e.tier) setCombo(e.tier);
           break;
+        case 'wall_spring': {
+          const direction=e.side==='L' ? 0 : Math.PI;
+          for(let i=0;i<3;i++) ring(e.x,e.y,5+i*4,19+i*7,C.text,12,2,{direction,alpha:.75});
+          text(heads,'BOING',e.side==='L'?42:318,e.y-12,11,C.text,20);
+          break;
+        }
         case 'combo_up': setCombo(e.tier); break;
         case 'ball_hit':
           mark(e,e.a);
@@ -279,7 +289,7 @@
           confetti(60);
           if(e.ballsLeft) {
             const amount=e.bonus/e.ballsLeft;
-            JD.UI.magazine(s).forEach(({y},i)=>bonuses.push({x:416,y,amount,at:time+i*6}));
+            JD.UI.magazine(s).forEach(({y},i)=>bonuses.push({x:400,y,amount,at:time+i*6}));
           }
           break;
         case 'all_clear':
@@ -395,7 +405,9 @@
         if(a<0||a>=1) continue;
         const size=r.r0+(r.r1-r.r0)*a;
         c.beginPath();
-        c.arc(r.x,r.y,Math.max(.1,size),0,TAU);
+        const start=r.direction===undefined?0:r.direction-Math.PI/3;
+        const end=r.direction===undefined?TAU:r.direction+Math.PI/3;
+        c.arc(r.x,r.y,Math.max(.1,size),start,end);
         c.strokeStyle=D.rgba(r.color,(r.alpha??1)*(1-a));c.lineWidth=1+(r.width-1)*(1-a);c.stroke();
       }
     }
@@ -496,14 +508,14 @@
       if(ui.slowBlend>0){
         const g=c.createRadialGradient(196,333,150,196,333,340);
         g.addColorStop(0,D.rgba('#000000',0));g.addColorStop(1,D.rgba('#000000',.35*ui.slowBlend));
-        c.fillStyle=g;c.fillRect(0,0,392,640);
+        c.fillStyle=g;c.fillRect(0,0,360,640);
       }
       if(combo&&time-combo.at<8){
         const age=time-combo.at;
         D.box(c,2,2,388,636,9,null,D.rgba(D.combo(combo.tier),.25*(1-age/8)),9);
       }
       if(time-vaultAt<8) {
-        c.fillStyle=D.rgba(C.text,.6*(1-(time-vaultAt)/8));c.fillRect(0,0,392,640);
+        c.fillStyle=D.rgba(C.text,.6*(1-(time-vaultAt)/8));c.fillRect(0,0,360,640);
       }
       const clear=fresh('all_clear');
       if(clear&&clear.age<18) D.box(c,4,4,384,632,8,null,D.rgba(C.jackpot,.65*(1-clear.age/18)),12);

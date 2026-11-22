@@ -61,7 +61,7 @@
     focus:0,muted:!s.practice&&stored?.muted===true,newBest:false,age:0,
     paused:false,cameraY:0,panelFocus:null,panelShake:null,mapUnlock:false,
     stageAge:0,stateAge:0,stageFired:false,tutorialSeen:false,hintHidden:false,
-    demoPower:0,demoRecoil:0,slowBlend:0,cardNotice:null,ironUnlockAge:null,reduced:media.matches
+    demoAngle:0,demoRecoil:0,zoneFrom:null,zoneAge:8,slowBlend:0,cardNotice:null,ironUnlockAge:null,reduced:media.matches
   };
   const audio=JD.createAudio ? JD.createAudio(ui.muted) : null;
   const fx=JD.createFx ? JD.createFx() : null;
@@ -211,6 +211,8 @@
           ui.stageAge=0;
           ui.stageFired=false;
           ui.hintHidden=false;
+          ui.zoneFrom=null;
+          ui.zoneAge=8;
           ui.cardNotice=null;
           ui.ironUnlockAge=pendingIronUnlock&&e.mode==='campaign'&&e.stage===2?0:null;
           pendingIronUnlock=false;
@@ -261,6 +263,11 @@
       if(s.state==='SHOP') ui.panelFocus='retry';
       if(s.state==='MAP') setMapFocus();
     }
+    if(s.state==='AIM'&&before.zone&&s.zone&&
+        (s.zone.kind!==before.zone.kind||s.zone.x!==before.zone.x||s.zone.y!==before.zone.y)) {
+      ui.zoneFrom=before.zone;
+      ui.zoneAge=0;
+    }
     if(changed || s.charging!==before.charging || s.slot!==before.slot || s.state==='SHOP'&&s.coins!==before.coins ||
         s.rack.length!==before.rack.length) updateControls();
     if(changed&&(s.state==='SHOP'||s.state==='MAP'||s.state==='CARD'||s.state==='RESULT'||
@@ -279,6 +286,7 @@
     ui.age++;
     ui.stageAge++;
     ui.stateAge++;
+    if(ui.zoneAge<8) ui.zoneAge++;
     if(ui.cardNotice) {
       const {event,age}=ui.cardNotice;
       if(age===27&&(JD.CARD_BALL[event.id]||event.id==='extra')&&audio) audio.event({type:'reward_ball_arrived'},s);
@@ -303,9 +311,10 @@
     }
     ui.slowBlend=Math.max(0,Math.min(1,ui.slowBlend+(slowActive?.125:-.125)));
     const demo=s.mode==='campaign'&&s.stage===1&&s.state==='AIM'&&!s.charging&&!ui.tutorialSeen;
-    const cycle=(ui.age+12)%90;
-    ui.demoPower=demo&&cycle>=6&&cycle<60 ? (cycle-6)/54*.84 : 0;
-    ui.demoRecoil=demo&&cycle>=60&&cycle<78 ? -10*Math.cos((cycle-60)*.9)*Math.pow(.75,cycle-60) : 0;
+    const cycle=ui.age%90;
+    const {swing,dwell}=JD.CANNON;
+    ui.demoAngle=demo&&!ui.reduced&&cycle>=6&&cycle<60 ? JD.aimAngle((cycle-6)*(2*swing+dwell)/54) : 0;
+    ui.demoRecoil=demo&&!ui.reduced&&cycle>=60&&cycle<78 ? 6*Math.cos((cycle-60)*.9)*Math.pow(.75,cycle-60) : 0;
     JD.updateCamera(s,ui);
     if(audio&&demo&&ui.age>=300&&(ui.age-300)%600===0) audio.event({type:'tutorial_nudge'},s);
     if(fx) fx.frame(s,ui,audio);

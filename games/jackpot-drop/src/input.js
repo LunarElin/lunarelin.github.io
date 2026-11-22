@@ -38,9 +38,9 @@
       const magazineButton = target !== canvas;
       const state = controls.snapshot();
       if (magazineButton && (target.disabled || !canPickBall(state))) return;
-      const magazineTop=JD.UI.magazineTop(state);
+      const magazineTop=JD.UI.magazineTop;
       if (state.state === 'AIM' && !magazineButton &&
-          (chargeKey !== null || state.charging || over(position(ev),392,magazineTop,48,628-magazineTop))) return;
+          (chargeKey !== null || state.charging || over(position(ev),360,magazineTop,80,628-magazineTop))) return;
       pointer = { id: ev.pointerId, target, kind: state.state, option: -1 };
       controls.activateAudio();
       target.focus({ preventScroll: true });

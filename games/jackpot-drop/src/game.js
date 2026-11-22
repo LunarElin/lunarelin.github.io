@@ -60,7 +60,7 @@
     let mapReturn;
     let up, left, fullRack, rackIndices, slot, offer;
     let campaignRandom, offerRandom;
-    let power, chargeTicks, charging, enteredPerfect, lastPower;
+    let angle, holdTicks, charging, holdingInZone, lastAngle, zone;
     let launch, shot, crackedBall, hitPins, readyPayout, banner, result;
     let runScore, stageScore, runCoins, stageCoins;
     let biggestShot, jackpots, perfects, bestTier, pegsPopped, blocksBroken;
@@ -84,15 +84,16 @@
       return runSeedCursor;
     }
 
-    function resetCharge() {
-      power = 0;
-      chargeTicks = 0;
+    function resetAim() {
+      angle = 0;
+      holdTicks = 0;
       charging = false;
-      enteredPerfect = false;
+      holdingInZone = false;
     }
 
     function enterAim() {
-      resetCharge();
+      resetAim();
+      zone = JD.aimZone(board);
       readyPayout = null;
       shot = null;
       slot = 0;
@@ -130,7 +131,7 @@
       runScore = runCoins = biggestShot = jackpots = perfects = bestTier = pegsPopped = blocksBroken = 0;
       result = null;
       launch = null;
-      lastPower = null;
+      lastAngle = null;
       mapReturn = null;
       emit('run_started', { seed });
     }
@@ -149,47 +150,44 @@
 
     function fire() {
       const ball = left[slot];
-      const firedPower = Math.max(JD.CFG.POWER_MIN, power);
-      const perfect = JD.isPerfect(firedPower);
+      const perfect = JD.inZone(zone, angle);
       left.splice(slot, 1);
       rackIndices.splice(slot, 1);
       slot = undefined;
-      power = lastPower = firedPower;
+      lastAngle = angle;
       charging = false;
-      launch = { power: firedPower, perfect, ball };
+      launch = { angle, perfect, ball };
       hitPins = [];
       if (perfect) perfects++;
       enter('LAUNCH');
-      emit('shot_fired', { stage: stageNumber(), ballsLeft: left.length, power: firedPower, perfect, balls: [ball] });
+      emit('shot_fired', { stage: stageNumber(), ballsLeft: left.length, angle, perfect, balls: [ball] });
     }
 
-    function startCharge() {
+    function startHold() {
       if (charging) return;
-      resetCharge();
+      resetAim();
       charging = true;
       emit('charge_started');
     }
 
-    function chargeStep() {
-      chargeTicks++;
-      power = Math.min(1, chargeTicks / JD.SPRING.charge);
-      if (!enteredPerfect && JD.isPerfect(power)) {
-        enteredPerfect = true;
-        emit('charge_zone', { zone: 'perfect' });
-      }
+    function swingStep() {
+      angle = JD.aimAngle(++holdTicks);
+      const inZone = JD.inZone(zone, angle);
+      if (inZone && !holdingInZone) emit('charge_zone', { zone: 'perfect' });
+      holdingInZone = inZone;
     }
 
     function release() {
       if (!charging) return;
-      if (power >= JD.CFG.POWER_MIN) fire();
+      if (holdTicks >= JD.CANNON.minHold) fire();
       else {
-        emit('charge_cancel', { power });
-        resetCharge();
+        emit('charge_cancel', { ticks: holdTicks });
+        resetAim();
       }
     }
 
     function startFlight() {
-      shot = JD.createShot(board, launch.power, up, launch);
+      shot = JD.createShot(board, launch.angle, up, { ball: launch.ball });
       launch = null;
       crackedBall = -1;
       enter('FLIGHT');
@@ -365,15 +363,16 @@
           if (!charging) openMap(true);
           break;
         case 'hold':
-          startCharge();
+          startHold();
           break;
         case 'release':
           release();
           break;
-        case 'pull':
-          if (Number.isFinite(command.power)) {
-            resetCharge();
-            power = Math.max(0, Math.min(1, command.power));
+        case 'aim':
+          if (Number.isFinite(command.angle)) {
+            resetAim();
+            const { maxAngle } = JD.CANNON;
+            angle = Math.max(-maxAngle, Math.min(maxAngle, command.angle || 0));
           }
           break;
         case 'fire':
@@ -438,7 +437,7 @@
       commands = [];
       queued.forEach(handleCommand);
       const elapsed = tick - enteredTick;
-      if (state === 'AIM' && charging) chargeStep();
+      if (state === 'AIM' && charging) swingStep();
       if (state === 'LAUNCH' && elapsed >= JD.CFG.LAUNCH_TICKS) startFlight();
       if (state === 'FLIGHT') flightStep();
       else if (state === 'PAYOUT' && elapsed >= readyPayout.duration) finishPayout();
@@ -488,8 +487,8 @@
         mode, attempt, coins: wallet.coins, perks: { ...wallet.perks }, cleared, endlessUnlocked, endlessBest,
         shop: state === 'SHOP' ? shopSnapshot() : null,
         map: state === 'MAP' ? mapSnapshot() : null,
-        ballsLeft: left.length, power, charging, lastPower,
-        perfect: JD.isPerfect(power), rack: left.slice(),
+        ballsLeft: left.length, angle, charging, holdTicks, lastAngle, zone: { ...zone },
+        perfect: JD.inZone(zone, angle), rack: left.slice(),
         fullRack: fullRack.slice(), rackIndices: rackIndices.slice(), slot,
         rows: board.rows, landY: board.landY, boardH: board.h,
         hint: stage.hint ? Object.assign({}, stage.hint) : null,
@@ -498,7 +497,8 @@
         bank: board.parked.reduce((total, ball) => total + ball.bank, 0),
         warps: board.warps ? { ins: copyRecords(board.warps.ins) } : null,
         ball: launch ? launch.ball : shot ? shot.ballKeys[0] : left[slot] || null,
-        launch: launch ? { elapsed: elapsed + 1, power: launch.power, perfect: launch.perfect, balls: [launch.ball] } : null,
+        launch: launch ? { elapsed: elapsed + 1, angle: launch.angle, perfect: launch.perfect, balls: [launch.ball] } : null,
+        springs: board.springs.map(spring => spring.slice()),
         stageMult: board.mult,
         up: copyUpgrades(up),
         offer: offer ? offer.slice() : null,
@@ -540,7 +540,7 @@
       },
       cancelInput() {
         commands = [];
-        if (state === 'AIM') resetCharge();
+        if (state === 'AIM') resetAim();
       }
     };
   };

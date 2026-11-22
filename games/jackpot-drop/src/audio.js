@@ -9,7 +9,7 @@
     const voices = new Set();
     const contacts = new Map();
     let muted = !!initialMuted;
-    let context, master, noiseBuffer, chargeVoice, chargeNotch = 0, frameNumber = 0;
+    let context, master, noiseBuffer, previousAngle = 0, frameNumber = 0;
     let activePegTones = 0;
 
     function activate() {
@@ -29,7 +29,6 @@
     function dispose(voice) {
       if (!voices.delete(voice)) return;
       if (voice.peg) activePegTones--;
-      if (voice === chargeVoice) chargeVoice = null;
       voice.source.disconnect();
       voice.gain.disconnect();
       if (voice.filter) voice.filter.disconnect();
@@ -115,21 +114,12 @@
       }
     }
 
-    function stopCharge() {
-      if (!chargeVoice) return;
-      const voice = chargeVoice;
-      chargeVoice = null;
-      voice.source.stop();
-      dispose(voice);
-    }
-
     function pause() {
-      stopCharge();
       for (const voice of voices) {
         voice.source.stop();
         dispose(voice);
       }
-      chargeNotch = 0;
+      previousAngle = 0;
     }
 
     function mute(next) {
@@ -138,27 +128,13 @@
       if (muted) pause();
     }
 
-    function chargeFrame(snapshot) {
-      if (muted || !context || !snapshot.charging) {
-        stopCharge();
-        chargeNotch = 0;
-        return;
+    function aimFrame(snapshot) {
+      const angle = snapshot.charging ? snapshot.angle : 0;
+      if (snapshot.charging && angle !== previousAngle && angle % 10 === 0) {
+        tone('square',220,.01,.15);
+        if (Math.abs(angle) === JD.CANNON.maxAngle) tone('square',460,.018,.13);
       }
-      const now = context.currentTime;
-      const hz = 200 + snapshot.power * 500;
-      if (!chargeVoice) {
-        const source = context.createOscillator();
-        const gain = context.createGain();
-        source.type = 'sine';
-        source.frequency.value = hz;
-        gain.gain.value = .25;
-        chargeVoice = schedule(source,gain,null,now,null,false);
-      } else chargeVoice.source.frequency.setTargetAtTime(hz,now,.022);
-      const next = Math.floor((snapshot.power + 1e-7)*10);
-      while (chargeNotch < next) {
-        chargeNotch++;
-        tone('square',840 + 42*chargeNotch,.025,.085);
-      }
+      previousAngle = angle;
     }
 
     function rateLimited(event, gap=3, id=event.index, tick=frameNumber) {
@@ -197,7 +173,7 @@
           tone('sine',880,.06,.26);
           break;
         case 'charge_started':
-          chargeNotch = 0;
+          previousAngle = 0;
           break;
         case 'charge_zone':
           if (e.zone === 'perfect') {
@@ -206,7 +182,6 @@
           }
           break;
         case 'charge_cancel':
-          stopCharge();
           tone('sine',150,.04,.29);
           break;
         case 'ball_picked':
@@ -214,11 +189,15 @@
           sequence([900,1500],.015,'square',.18,0,.015);
           break;
         case 'shot_fired': {
-          stopCharge();
-          tone('sine',180,.120,.36,{endHz:520});
+          noise('lowpass',1400,520,.06,.24);
+          tone('sine',160,.12,.36,{endHz:420});
           if(e.perfect) chord([C6,G6],.15,'sine',.18);
           break;
         }
+        case 'wall_spring':
+          tone('sine',300,.08,.23,{endHz:900});
+          tone('sine',328,.06,.08,{endHz:850,delay:.01});
+          break;
         case 'launch':
           noise('highpass',1500,1500,.08,.22);
           break;
@@ -361,7 +340,7 @@
       activate,mute,event,pause,
       frame(snapshot) {
         frameNumber++;
-        chargeFrame(snapshot);
+        aimFrame(snapshot);
       }
     };
   };

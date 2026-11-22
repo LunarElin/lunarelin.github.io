@@ -13,6 +13,8 @@
     iron:'#9AA3B8', text:'#FFFFFF', textDim:'#A9B0D6', danger:'#FF6B6B', success:'#5CFFB0', ink:'#05061A'
   };
   const twoPi = 2 * Math.PI;
+  const degrees = Math.PI / 180;
+  const magazineX = 400;
   const fontFamily='"Arial Black","Segoe UI",system-ui,sans-serif';
   const bodyFamily='"Segoe UI",system-ui,sans-serif';
 
@@ -100,15 +102,6 @@
     c.restore();
   }
 
-  function coil(c,x,y,halfWidth,height) {
-    const turns=7;
-    c.save(); c.lineJoin='round'; c.lineCap='round';
-    c.beginPath(); c.moveTo(x,y);
-    for(let i=0;i<turns;i++) c.lineTo(x+(i%2?-halfWidth:halfWidth),y+(i+1)*height/(turns+1));
-    c.lineTo(x,y+height); c.lineWidth=2;
-    c.strokeStyle=colors.springStandard; c.stroke(); c.restore();
-  }
-
   function menuButton(c, {x,y,w,h}, text, variant, focused) {
     const radius = h/2;
     if (variant==='outline') {
@@ -140,7 +133,7 @@
       return slots.map((slot,row)=>({slot,y:590-row*52}));
     },
     ballSelectionEnabled:s=>s.endless||s.stage!==1||s.rack.some(kind=>kind!=='normal'),
-    magazineTop:s=>Math.min(340,564-Math.max(0,s.fullRack.length-1)*52),
+    magazineTop:340,
     ironAnchor(group) {
       let plate=null;
       let left=Infinity, right=-Infinity, top=Infinity;
@@ -187,7 +180,7 @@
     if (!arrival||arrival.age<0||position===null) return;
     const {key,age,startX,startY}=arrival;
     const progress=clamp(age/20,0,1);
-    const x=startX+(416-startX)*progress;
+    const x=startX+(magazineX-startX)*progress;
     const y=startY+(position-startY)*progress-48*Math.sin(Math.PI*progress);
     const color=key==='iron'?colors.ironEdge:key==='normal'?colors.pegNormal:colors.glass;
     const radius=JD.BALLS[key].r;
@@ -196,8 +189,8 @@
       ball(c,key,x,y,radius*(1.8-.3*progress),{cracked:key==='glass'});
     } else {
       const land=clamp((age-20)/12,0,1);
-      ball(c,key,416,position,radius*1.5*(1.4-.4*land),{cracked:key==='glass'});
-      circle(c,416,position,12+land*9,null,rgba(color,.8*(1-land)),2);
+      ball(c,key,magazineX,position,radius*1.5*(1.4-.4*land),{cracked:key==='glass'});
+      circle(c,magazineX,position,12+land*9,null,rgba(color,.8*(1-land)),2);
     }
   }
 
@@ -313,51 +306,135 @@
     c.restore();
   }
 
-  function launchPosition(k) {
-    const e=1-Math.pow(1-clamp(k/JD.CFG.LAUNCH_TICKS,0,1),2);
-    const straight=540-84;
-    const d=e*(straight+Math.PI*12);
-    if (d<=straight) return [376,540-d];
-    const a=(d-straight)/24;
-    return [352+24*Math.cos(a),84-24*Math.sin(a)];
+  function dashed(c,x,y,xx,yy,tint,width=1.5) {
+    c.save();
+    c.setLineDash([4,6]);
+    line(c,x,y,xx,yy,tint,width);
+    c.restore();
   }
 
-  function lane(c,s,ui,fx,t) {
-    c.fillStyle=colors.lane; c.fillRect(360,40,32,600);
-    box(c,364,77,24,563,0,colors.lane);
-    for(let y=90;y<640;y+=8) line(c,366,y,386,y,rgba(colors.text,.1));
-    const shot=fresh(fx,'shot_fired');
-    const zone=fresh(fx,'charge_zone');
-    const laneColor=shot&&shot.e.perfect&&shot.age<10 ? colors.jackpot :
-      s.launch&&s.launch.elapsed>8 ? colors.textDim : colors.laneEdge;
-    c.save(); c.lineWidth=24; c.strokeStyle=colors.lane;
-    c.beginPath(); c.arc(352,84,24,-Math.PI/2,0); c.stroke();
-    c.strokeStyle=laneColor; c.lineWidth=2;
-    c.beginPath(); c.arc(352,84,36,-Math.PI/2,0); c.lineTo(388,640); c.stroke();
-    c.beginPath(); c.arc(352,84,12,-Math.PI/2,0); c.lineTo(364,640); c.stroke(); c.restore();
+  function visibleZone(s,ui) {
+    const zone=s.zone;
+    if (!zone||(s.state!=='AIM'&&!s.launch)) return null;
+    if (!ui.zoneFrom||ui.reduced||ui.zoneAge>=8) return zone;
+    const progress=ease(clamp(ui.zoneAge/8,0,1));
+    const shown={kind:zone.kind};
+    for (const key of ['x','y','center','lo','hi']) shown[key]=ui.zoneFrom[key]+(zone[key]-ui.zoneFrom[key])*progress;
+    return shown;
+  }
 
-    const {perfectLo:lo,perfectHi:hi}=JD.SPRING;
-    const example=ui.demoPower;
-    const p=s.state==='AIM' ? Math.max(s.power,example) : 0;
-    const perfect=s.perfect && s.state==='AIM' || example>=lo && example<=hi;
-    const color=p===1?colors.text : perfect?colors.jackpot:colors.combo1;
-    const tremor=!ui.reduced && p===1 ? t%2?1:-1 : 0;
-    c.save(); c.translate(tremor,0);
-    box(c,364,360,24,160,0,rgba(colors.text,.08));
-    if(p>0) box(c,364,520-p*160,24,p*160,0,color);
-    box(c,364,520-hi*160,24,(hi-lo)*160,0,rgba(colors.jackpot,.35));
-    line(c,364,520-hi*160,388,520-hi*160,rgba(colors.jackpot,.8));
-    line(c,364,520-lo*160,388,520-lo*160,rgba(colors.jackpot,.8));
-    if(perfect) box(c,363,360,26,160,2,null,rgba(colors.jackpot,zone&&zone.age<6?.9:.25+.25*pulse(t,10)),2);
+  function drawZone(c,s,zone,fx) {
+    const {x,y}=JD.CANNON;
+    const radius=Math.hypot(zone.x-x,zone.y-y);
+    if (!(radius>0)) return;
+    const mark=fresh(fx,'charge_zone');
+    const fired=fresh(fx,'shot_fired');
+    const flash=s.charging&&s.perfect&&mark?.age<6 ? 1-mark.age/6 : s.launch?.perfect&&fired?.age<10 ? 1-fired.age/10 : 0;
+    c.beginPath();
+    c.moveTo(x,y);
+    c.arc(x,y,radius,Math.PI/2-zone.hi*degrees,Math.PI/2-zone.lo*degrees);
+    c.closePath();
+    c.fillStyle=rgba(colors.jackpot,.16+.27*flash);
+    c.fill();
+    const center=zone.center*degrees;
+    dashed(c,x,y,x+Math.sin(center)*radius,y+Math.cos(center)*radius,rgba(colors.jackpot,.35+.4*flash));
+  }
+
+  function drawZoneLabel(c,s,ui,zone) {
+    const top=ui.cameraY||0;
+    if (zone.y<top+45) return;
+    const {x,y}=JD.CANNON;
+    let labelY=clamp(zone.y-14,top+56,top+613);
+    let labelX=zone.x;
+    if (zone.y>top+627) labelX=x+(labelY-y)*Math.tan(zone.center*degrees);
+    if (zone.kind==='guide') {
+      // Keep the tutorial's centered placard clear of the nearby target tag.
+      labelX=x+70;
+      labelY=clamp(zone.y-64,top+56,top+613);
+    } else if (zone.kind==='iron'&&zone.y<=top+627) {
+      labelX+=zone.x<180?84:-84;
+    } else if ((zone.kind==='block'||zone.kind==='vault')&&zone.y<=top+627) {
+      const target=s.blocks.find(block=>block.alive&&block.x===s.zone.x&&block.y===s.zone.y);
+      if (target) labelY=clamp(zone.y-target.h/2-14,top+56,top+613);
+    } else if (zone.kind==='jackpot'&&(ui.introReveal||ui.stageAge<60)) {
+      labelY=Math.min(labelY,zone.y-36);
+    }
+    label(c,'▶ '+zone.kind.toUpperCase(),clamp(labelX,42,318),labelY,11,colors.jackpot,'center',
+      {outline:colors.ink,outlineWidth:2.5,max:88});
+  }
+
+  function drawCannon(c,s,ui,fx) {
+    const {x,y}=JD.CANNON;
+    const aiming=s.state==='AIM';
+    const demo=aiming&&!s.charging&&!s.endless&&s.stage===1&&!ui.tutorialSeen;
+    const aim=s.launch?.angle??(demo?(ui.demoAngle??s.angle):s.angle);
+    const angle=aim*degrees;
+    const fired=fresh(fx,'shot_fired');
+    const flash=fresh(fx,'charge_zone');
+    const perfect=s.launch?.perfect??(aiming&&JD.inZone(s.zone,aim));
+    const glowing=aiming&&s.charging&&perfect&&flash?.age<6;
+    const offset=s.charging?-Math.min(10,s.holdTicks*.5):ui.reduced?0:
+      fired?.age<18?6*Math.cos(fired.age*.9)*Math.pow(.75,fired.age):(ui.demoRecoil||0);
+    const muzzle=26+offset;
+    if (aiming) {
+      const dx=Math.sin(angle),dy=Math.cos(angle);
+      dashed(c,x+dx*muzzle,y+dy*muzzle,x+dx*(muzzle+90),y+dy*(muzzle+90),
+        rgba(perfect?colors.jackpot:colors.text,.5),1.8);
+    }
+
+    box(c,x-14,y-9,28,11,4,colors.lane,colors.laneEdge,1.5);
+    c.beginPath();
+    c.arc(x,y,12,0,Math.PI);
+    c.closePath();
+    c.fillStyle=colors.lane;
+    c.fill();
+    c.strokeStyle=colors.laneEdge;
+    c.lineWidth=2;
+    c.stroke();
+    c.save();
+    c.translate(x,y);
+    c.rotate(-angle);
+    box(c,-5,offset,10,26,5,glowing?colors.jackpot:colors.springStandard,colors.laneEdge);
+    box(c,-5,offset+22,10,4,2,colors.text);
+    if (glowing) box(c,-7,offset,14,26,7,null,rgba(colors.jackpot,.8*(1-flash.age/6)),2);
     c.restore();
-    if(s.lastPower!==null) label(c,'◀',387,523-s.lastPower*160,9,colors.textDim);
-    const recoil=shot&&shot.age<18?-10*Math.cos(shot.age*.9)*Math.pow(.75,shot.age):ui.demoRecoil;
-    const handleY=616+p*48+recoil, trayY=548+p*24;
-    coil(c,376,trayY,8,handleY-trayY);
-    box(c,367,trayY-1,18,3,1,colors.laneEdge);
-    box(c,362+tremor,handleY,28,12,4,perfect?colors.jackpot:'#E6E9FF');
-    if(handleY+12>640) box(c,362,636,28,4,1,colors.text);
-    line(c,368+tremor,handleY+6,384+tremor,handleY+6,rgba(colors.bgTop,.45));
+    if (s.lastAngle!==null) {
+      const last=s.lastAngle*degrees;
+      const dx=Math.sin(last),dy=Math.cos(last);
+      line(c,x+dx*15.5,y+dy*15.5,x+dx*20.5,y+dy*20.5,colors.lane,3);
+      line(c,x+dx*15.5,y+dy*15.5,x+dx*20.5,y+dy*20.5,rgba(colors.text,.6),1.5);
+    }
+    const key=s.launch?.balls[0]??(aiming?s.ball:null);
+    if (key) {
+      const breath=s.launch&&!ui.reduced?.9+.2*clamp(s.launch.elapsed/JD.CFG.LAUNCH_TICKS,0,1):1;
+      ball(c,key,x+Math.sin(angle)*muzzle,y+Math.cos(angle)*muzzle,JD.BALLS[key].r*breath);
+    }
+  }
+
+  function drawWallSprings(c,s,ui,fx,t) {
+    for (const side of ['L','R']) {
+      const hit=fresh(fx,'wall_spring',side);
+      for (const [y1,y2] of s.springs) {
+        const age=hit&&hit.e.y>=y1&&hit.e.y<=y2?hit.age:Infinity;
+        const width=6-(!ui.reduced&&age<8?3*(1-age/8):0);
+        const left=side==='L';
+        const x=left?0:360-width;
+        box(c,x,y1,width,y2-y1,2,rgba(colors.springStandard,.8));
+        c.beginPath();
+        for (let turn=0;turn<=6;turn++) {
+          const depth=(turn%2?.65:.25)*width;
+          const coilX=left?x+depth:x+width-depth;
+          const y=y1+4+turn*(y2-y1-8)/6;
+          if (turn===0) c.moveTo(coilX,y);
+          else c.lineTo(coilX,y);
+        }
+        c.strokeStyle=rgba(colors.lane,.72);
+        c.lineWidth=1.5;
+        c.stroke();
+        const edge=left?x+width:x;
+        line(c,edge,y1,edge,y2,rgba(colors.text,age<8?1:.6+.4*pulse(t,40)),2);
+      }
+    }
   }
 
   function drawMagazine(c,s,ui,t,animation,fx,arrival) {
@@ -380,9 +457,9 @@
       animation.targets=new Map(slots.map(({slot,y})=>[s.rackIndices[slot],y]));
     }
 
-    const top=JD.UI.magazineTop(s);
-    box(c,392,top,48,628-top,0,rgba(colors.lane,.6));
-    line(c,392.5,top,392.5,628,colors.laneEdge);
+    const top=JD.UI.magazineTop;
+    box(c,360,top,80,628-top,0,rgba(colors.lane,.6));
+    line(c,360.5,top,360.5,628,colors.laneEdge);
     const ready=s.state==='AIM'&&!s.charging;
     const progress=ui.reduced?1:clamp((t-animation.at)/6,0,1);
     const canPick=JD.UI.ballSelectionEnabled(s);
@@ -391,17 +468,17 @@
     const loadColor=last&&Math.floor(t/15)%2?colors.danger:colors.text;
     c.save();
     c.globalAlpha=ready?1:.5;
-    for (let i=0;i<s.fullRack.length;i++) {
+    for (let i=0;i<Math.min(5,s.fullRack.length);i++) {
       const y=590-i*52;
       const slot=slots[i]?.slot;
       const selected=canPick&&slot!==undefined&&slot===s.slot;
       const warning=i===0&&last;
       const matchingHint=slot!==undefined&&hint===s.rack[slot];
       const edge=matchingHint?rgba(colors.hint,.64+.36*pulse(t,20)):warning||selected?loadColor:rgba(colors.laneEdge,.63);
-      box(c,396,y-22,40,44,9,selected?'#252947':'#10152E',edge,matchingHint||warning||selected?2:1);
+      box(c,magazineX-20,y-22,40,44,9,selected?'#252947':'#10152E',edge,matchingHint||warning||selected?2:1);
       if (selected) {
-        label(c,'◀',395,y+4,11,loadColor);
-        label(c,'장전',416,y-11,10,loadColor);
+        label(c,'◀',magazineX-22,y+4,11,loadColor);
+        label(c,'장전',magazineX,y-11,10,loadColor);
       }
     }
     const picked=fresh(fx,'ball_picked');
@@ -414,10 +491,10 @@
       const dy=slot===s.slot&&canPick?3:0;
       const bump=picked?.age<6&&slot===picked.e.slot&&!ui.reduced?1+.12*Math.sin(Math.PI*picked.age/6):1;
       if (slot===arrival?.slot) landingY=spot+dy;
-      else ball(c,kind,416,spot+dy,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
+      else ball(c,kind,magazineX,spot+dy,JD.BALLS[kind].r*1.5*bump,{cracked:kind==='glass'});
     }
     c.restore();
-    label(c,slots.length+'/'+s.fullRack.length,416,628,12,last?colors.danger:colors.textDim);
+    label(c,slots.length+'/'+s.fullRack.length,magazineX,628,12,last?colors.danger:colors.textDim);
     return landingY;
   }
 
@@ -434,9 +511,9 @@
   }
 
   function aimMessages(s,ui,fx) {
+    if (s.state!=='AIM') return [];
     if (s.charging) return ['RELEASE IN GOLD!'];
     if (fresh(fx,'charge_cancel')?.age<30) return ['HOLD!'];
-    if (s.state!=='AIM') return [];
     const first=!s.endless&&s.stage===1;
     if (first&&!ui.tutorialSeen) return ['HOLD','release in GOLD · aim for JACKPOT ×5'];
     if (first||ui.stageAge>=90||ui.hintHidden||ui.introReveal) return [];
@@ -457,13 +534,14 @@
     if (messages.length===1) {
       const cancelled=messages[0]==='HOLD!';
       const wiggle=cancelled&&!ui.reduced?4*Math.sin(ui.stateAge*1.7):0;
-      label(c,messages[0],180+wiggle,136,24,s.perfect?colors.jackpot:colors.text,'center',{outline:colors.ink,max:326});
+      label(c,messages[0],180+wiggle,136,cancelled?20:24,!cancelled&&s.perfect?colors.jackpot:colors.text,
+        'center',{outline:colors.ink,max:326});
       return;
     }
     if (!s.endless&&s.stage===1&&s.state==='AIM') {
       if (ui.tutorialSeen) {
-        label(c,'HOLD',350,439,14,colors.text,'right',{outline:colors.ink});
-        drawHand(c,339,451,.44,-Math.PI*.47);
+        label(c,'HOLD',216,47,12,colors.text,'center',{outline:colors.ink});
+        drawHand(c,243,44,.34,-Math.PI*.36);
         return;
       }
       const scale=ui.reduced?1:1+.12*pulse(t,30);
@@ -472,19 +550,12 @@
       box(c,17,100,326,53,8,rgba(colors.ink,.63));
       label(c,messages[0],180,124,33*scale*bump,colors.text,'center',{outline:colors.ink,max:324});
       label(c,messages[1],180,146,14,colors.jackpot,'center',{body:true,max:312});
-      const cycle=(ui.age+12)%90;
+      const cycle=ui.age%90;
       const down=ui.reduced?0:cycle<6?cycle/6:cycle<60?1:cycle<66?(66-cycle)/6:0;
       const y=430+4*down;
       const ring=cycle<6?cycle/6:(cycle%20)/20;
       if (!ui.reduced&&cycle<66) circle(c,180,y,10+12*ring,null,rgba(colors.text,.65*(1-ring)),2);
       drawHand(c,180,y,1,-.24);
-      if (!ui.reduced&&cycle>=6&&cycle<60) {
-        circle(c,180,y-27,14,rgba(colors.ink,.9),colors.textDim);
-        c.beginPath();
-        c.arc(180,y-27,11,-Math.PI/2,-Math.PI/2+twoPi*(cycle-6)/54);
-        c.strokeStyle=ui.demoPower>=JD.SPRING.perfectLo?colors.jackpot:colors.combo1;
-        c.lineWidth=3; c.stroke();
-      }
       return;
     }
     if (messages.length>1) drawStageIntro(c,messages,128);
@@ -496,7 +567,7 @@
     if (fired?.e.perfect&&fired.age<30) {
       const age=fired.age;
       const scale=ui.reduced?1:age<5?.6+.12*age:1+.2*Math.max(0,1-(age-5)/12);
-      const x=shot?12:300;
+      const x=shot?12:180;
       const y=shot?108:92;
       label(c,'PERFECT!',x,y,22*scale,colors.jackpot,shot?'left':'center',{outline:colors.ink,max:shot?126:145});
     }
@@ -536,29 +607,12 @@
     }
   }
 
-  function drawLaneBall(c,s,ui) {
-    if (s.state==='AIM'&&s.ball) {
-      const power=Math.max(s.power,ui.demoPower);
-      ball(c,s.ball,376,540+power*24,JD.BALLS[s.ball].r);
-      return;
-    }
-    if (!s.launch) return;
-    const {elapsed,perfect}=s.launch;
-    const key=s.launch.balls[0];
-    const tint=perfect?colors.jackpot:colors.text;
-    const tail=ui.reduced?4:6;
-    for (let i=tail;i>0;i--) {
-      if (elapsed<=i) continue;
-      const q=launchPosition(elapsed-i);
-      circle(c,q[0],q[1],8*(1-i/(tail+2)),rgba(tint,.5*(1-i/(tail+1))));
-    }
-    const q=launchPosition(elapsed);
-    ball(c,key,q[0],q[1],JD.BALLS[key].r);
-  }
-
   function drawWorldBalls(c,s,ui,fx,t) {
     if(!s.shot) return;
-    const tier=s.shot.tier,tint=combo(tier);
+    const tier=s.shot.tier;
+    const launch=fresh(fx,'launch');
+    const launchTrail=launch?.age<6;
+    const tint=launchTrail?(launch.e.perfect?colors.jackpot:colors.text):combo(tier);
     s.balls.forEach((b,i)=>{
       if(b.done) return;
       const warp=fresh(fx,'warp',i);
@@ -570,7 +624,7 @@
       if(birth!=null&&t-birth<8) r*=.6+.4*(t-birth)/8;
       const tail=fx&&fx.trails[i];
       if(tail&&warpAge>=8) {
-        const len=Math.min(tail.length,ui.reduced?4:8+3*tier);
+        const len=Math.min(tail.length,ui.reduced?4:launchTrail?6:8+3*tier);
         const a=tier===0?.35:.4+.1*tier;
         for(let j=len-1;j>=0;j--){
           const past=tail[tail.length-1-j], fraction=1-j/(len+1);
@@ -649,20 +703,20 @@
       c.translate(0,-(ui.cameraY||0));
       buckets(c,s,ui,fx,t,true);
       buckets(c,s,ui,fx,t,false);
+      const zone=visibleZone(s,ui);
+      if (zone) drawZone(c,s,zone,fx);
+      drawWallSprings(c,s,ui,fx,t);
       if(JD.drawBoardObjects) JD.drawBoardObjects(c,s,ui,fx,t);
+      drawCannon(c,s,ui,fx);
+      if (zone&&s.state==='AIM') drawZoneLabel(c,s,ui,zone);
       if(ui.introReveal) drawStageIntro(c,stageIntro(s),s.boardH-102);
       c.restore();
-      lane(c,s,ui,fx,t);
       if (s.state!=='RESULT'&&s.state!=='SHOP') {
         // Keep the score fixed, then paint even high rebounds in front of it.
         hud(c,s,ui,fx);
         panel(c,s,ui,fx);
       }
       cameraProgress(c,s,ui);
-      c.save();
-      c.beginPath(); c.rect(0,0,392,640); c.clip();
-      drawLaneBall(c,s,ui);
-      c.restore();
       c.save();
       c.beginPath(); c.rect(0,0,360,640); c.clip();
       if(fx) fx.world(c,s,ui);
@@ -762,7 +816,7 @@
     const factor = ui.reduced ? Math.min(hitSize, 0.15) : hitSize;
     const bounce = liveHit ? 1 + factor * Math.sin(Math.PI * hit.age / 8) : 1;
     const tier = peg.tier || (hit && hit.e.tier) || 0;
-    const tutorialBomb = !snapshot.endless && snapshot.stage === 1 && peg.id === 3 && !ui.tutorialSeen && snapshot.state === 'AIM';
+    const tutorialBomb = !snapshot.endless && snapshot.stage === 1 && peg.id === 4 && !ui.tutorialSeen && snapshot.state === 'AIM';
     const pulse = tutorialBomb ? D.pulse(time, 20) : 0;
     if (peg.lit) ctx.drawImage(glow(D, peg.type, tier), peg.x - 19, peg.y - 19);
     if (tutorialBomb) {
@@ -905,7 +959,10 @@
       }
     }
     if (!breaking&&!snapshot.parked.some(ball=>ball.group===group.id)) {
-      const {x,y}=JD.UI.ironAnchor(group);
+      const [x1,y1,x2,y2]=group.segs[0];
+      const {x,y}=group.segs.length===1&&y1!==y2
+        ? {x:(x1+x2)/2,y:(y1+y2)/2}
+        : JD.UI.ironAnchor(group);
       D.label(ctx,'IRON',x,y-10,10,C.ironEdge,'center',{outline:C.bgTop});
     }
     ctx.restore();
