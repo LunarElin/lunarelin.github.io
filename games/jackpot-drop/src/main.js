@@ -32,7 +32,8 @@
     normal: '기본 구슬',
     big: '큰 구슬',
     iron: '쇠 구슬',
-    glass: '유리 구슬'
+    glass: '유리 구슬',
+    wave: '물결 구슬'
   };
   const storageKey = 'jackpotDrop.v3';
   const query = new URLSearchParams(window.location.search);
@@ -61,7 +62,7 @@
     focus:0,muted:!s.practice&&stored?.muted===true,newBest:false,age:0,
     paused:false,cameraY:0,panelFocus:null,panelShake:null,mapUnlock:false,
     stageAge:0,stateAge:0,stageFired:false,tutorialSeen:false,hintHidden:false,
-    zoneFrom:null,zoneAge:8,slowBlend:0,cardNotice:null,ironUnlockAge:null,reduced:media.matches
+    slowBlend:0,cardNotice:null,ironUnlockAge:null,reduced:media.matches
   };
   const audio=JD.createAudio ? JD.createAudio(ui.muted) : null;
   const fx=JD.createFx ? JD.createFx() : null;
@@ -211,8 +212,6 @@
           ui.stageAge=0;
           ui.stageFired=false;
           ui.hintHidden=false;
-          ui.zoneFrom=null;
-          ui.zoneAge=8;
           ui.cardNotice=null;
           ui.ironUnlockAge=pendingIronUnlock&&e.mode==='campaign'&&e.stage===2?0:null;
           pendingIronUnlock=false;
@@ -264,11 +263,6 @@
       if(s.state==='SHOP') ui.panelFocus='retry';
       if(s.state==='MAP') setMapFocus();
     }
-    if(s.state==='AIM'&&before.zone&&s.zone&&
-        (s.zone.kind!==before.zone.kind||s.zone.x!==before.zone.x||s.zone.y!==before.zone.y)) {
-      ui.zoneFrom=before.zone;
-      ui.zoneAge=0;
-    }
     if(changed || s.charging!==before.charging || s.slot!==before.slot || s.state==='SHOP'&&s.coins!==before.coins ||
         s.rack.length!==before.rack.length) updateControls();
     if(changed&&(s.state==='SHOP'||s.state==='MAP'||s.state==='CARD'||s.state==='RESULT'||
@@ -287,7 +281,6 @@
     ui.age++;
     ui.stageAge++;
     ui.stateAge++;
-    if(ui.zoneAge<8) ui.zoneAge++;
     if(ui.cardNotice) {
       const {event,age}=ui.cardNotice;
       if(age===27&&(JD.CARD_BALL[event.id]||event.id==='extra')&&audio) audio.event({type:'reward_ball_arrived'},s);

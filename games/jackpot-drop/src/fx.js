@@ -2,15 +2,25 @@
   'use strict';
 
   const TAU=2*Math.PI;
+  const particleLimit=400;
+  const fountainsByTier=[
+    {tier:1, bursts:[[0,70]], spread:25, speed:[6,9], particleLife:50,
+      title:'JACKPOT ×5', size:32, start:.6, peak:1.15, life:60, shake:[5,12], column:0},
+    {tier:2, bursts:[[0,60],[10,50],[20,40]], spread:35, speed:[9,13], particleLife:75,
+      title:'BIG JACKPOT!', size:38, start:.5, peak:1.25, life:75, shake:[7,16], column:40},
+    {tier:3, bursts:[[0,65],[8,65],[16,65],[24,65]], spread:45, speed:[12,17], particleLife:90,
+      title:'MEGA JACKPOT!!', size:44, start:.4, peak:1.35, life:90, shake:[10,20], column:60}
+  ];
 
   JD.createFx=function () {
     const D=JD.Drawing, C=D.colors;
     const recent=new Map(), pending=[], pegsPending=new Set();
     const trails=[], births=[], particles=[], rings=[], floats=[], heads=[], rewards=[], bonuses=[];
+    const fountains=[];
     const coinFlights=[],comboQueue=[];
     const ironContacts=new Map(), contactTimes=new Map();
     let time=0, visualTime=0, seed=20261120, reduced=false, shake=null;
-    let combo=null, banner=null, vaultAt=-1000, hotTier=0, heat=0, payoutIndex=0;
+    let combo=null, banner=null, jackpotBanner=null, vaultAt=-1000, hotTier=0, heat=0, payoutIndex=0;
     let lastTrailTick=-1, lastHeatTime=-1, lastConfetti=-1;
 
     function random() {
@@ -38,6 +48,9 @@
     function text(list,value,x,y,size,tint,life,extra) {
       list.push(Object.assign({value,x,y,size,tint,life,at:time},extra));
     }
+    function trimParticles() {
+      if(particles.length>particleLimit) particles.splice(0,particles.length-particleLimit);
+    }
     function burst(x,y,count,tint,options) {
       const o=options||{};
       const n=reduced?Math.ceil(count/3):count;
@@ -52,12 +65,12 @@
           screen:!!o.screen
         });
       }
-      if(particles.length>300) particles.splice(0,particles.length-300);
+      trimParticles();
     }
     function fragment(x,y,w,h,color,life,vx,vy,rotation,delay) {
       particles.push({x,y,vx,vy,color,life,at:visualTime+(delay||0),g:.25,size:w,
         h,shape:'fragment',rotation,speedSpin:(random()-.5)*.35});
-      if(particles.length>300) particles.shift();
+      trimParticles();
     }
     function burstPeg(p,e) {
       mark(e,p.id);
@@ -187,11 +200,84 @@
       burst(196,170,count,[C.combo1,C.success,C.jackpot,C.combo4,C.text],
         {shape:'fragment',life:72,speed:5,up:true,spreadX:130,gravity:.14,screen:true});
     }
+    function fountainJet(f,count) {
+      const total=f.emitted+count;
+      const n=reduced?Math.round(total/3)-Math.round(f.emitted/3):count;
+      f.emitted=total;
+      const style=f.style, [lo,hi]=style.speed;
+      for(let i=0;i<n;i++) {
+        const offset=2*random()-1, angle=offset*style.spread*Math.PI/180;
+        const speed=(lo+(hi-lo)*random())*(1-.15*Math.abs(offset));
+        const coin=random()<.7, spin=random()*8;
+        particles.push({fountain:true,tier:style.tier,x:f.x,y:f.y,at:time,originX:f.x,
+          vx:Math.sin(angle)*speed,vy:-Math.cos(angle)*speed,life:style.particleLife,coin,spin,
+          size:coin?3+random()*2:1.5+random()*1.5,height:coin?2+random()*2:0});
+      }
+      trimParticles();
+    }
+    function goldRain() {
+      for(let i=0;i<3;i++) {
+        particles.push({fountain:true,screen:true,x:random()*360,y:-4,at:time,life:65,
+          vx:(random()-.5)*.7,vy:5+random()*4,coin:random()<.7,spin:random()*8,
+          size:1.5+random()*2,height:2+random()*1.5});
+      }
+      trimParticles();
+    }
+    function startFountain(e,s) {
+      const [left,right]=s.buckets.x.slice(e.bucket,e.bucket+2);
+      const style=fountainsByTier[e.liveMult>=10?2:e.liveMult>=5?1:0];
+      const f={x:(left+right)/2,y:s.landY+4,w:right-left,style,at:time,next:1,emitted:0};
+      fountains.push(f);
+      fountainJet(f,style.bursts[0][1]);
+      if(!jackpotBanner||style.tier>jackpotBanner.style.tier) jackpotBanner={style,at:time};
+      shakeScreen(...style.shake);
+    }
+    function moveFountainParticle(p) {
+      p.prev2X=p.prevX;p.prev2Y=p.prevY;
+      p.prevX=p.x;p.prevY=p.y;
+      if(p.star) return;
+      if(p.screen) {
+        p.x+=p.vx+Math.sin((time-p.at+p.spin)*.25)*.65;
+        p.y+=p.vy;
+        return;
+      }
+      p.x+=p.vx;p.y+=p.vy;
+      const rising=p.vy<0;
+      p.vy=(p.vy+.25)*.99;
+      p.vx*=.99;
+      if(!rising||p.vy<0||p.crest) return;
+      p.crest=true;p.vx*=1.05;
+      if(p.tier===2&&random()<.2) {
+        p.star=true;p.at=time;p.life=8;
+      }
+      if(p.tier===3) {
+        const outward=2+random()*2;
+        const direction=Math.sign(p.x-p.originX)||1;
+        p.vx+=direction*outward;
+        p.vy+=(random()-.5)*outward;
+      }
+    }
+    function advanceFountains() {
+      for(let i=particles.length-1;i>=0;i--) {
+        const p=particles[i], age=(p.fountain?time:visualTime)-p.at;
+        if(age>=p.life) particles.splice(i,1);
+        else if(p.fountain&&age>0) moveFountainParticle(p);
+      }
+      for(let i=fountains.length-1;i>=0;i--) {
+        const f=fountains[i], age=time-f.at, {bursts,tier,life}=f.style;
+        if(age>=(tier===3?114:life)) {
+          fountains.splice(i,1);
+          continue;
+        }
+        if(age===bursts[f.next]?.[0]) fountainJet(f,bursts[f.next++][1]);
+        if(tier===3&&!reduced&&age>=24) goldRain();
+      }
+    }
     function event(e,s,before,blastDelays,newBest) {
       let id=e.id;
       if(e.type==='warp') id=e.ball;
       if(e.type==='ball_landed') id=e.bucket;
-      if(e.type==='terrain_hit'||e.type==='bumper_hit') id=e.index;
+      if(e.type==='terrain_hit'||e.type==='bumper_hit'||e.type==='mover_hit') id=e.index;
       if(e.type==='wall_spring') id=e.side;
       if(e.type==='peg_hit'){
         const p=s.pegs.find(peg=>peg.id===e.id);
@@ -209,10 +295,12 @@
           recent.clear();particles.length=0;rings.length=0;floats.length=0;heads.length=0;
           rewards.length=0;bonuses.length=0;pending.length=0;pegsPending.clear();
           coinFlights.length=0;
-          resetCombo();banner=null;shake=null;vaultAt=-1000;hotTier=0;heat=0;
+          resetCombo();banner=null;jackpotBanner=null;fountains.length=0;shake=null;vaultAt=-1000;hotTier=0;heat=0;
           break;
         case 'shot_fired':
           trails.length=0; births.length=0; ironContacts.clear(); resetCombo();
+          jackpotBanner=null;fountains.length=0;
+          for(let i=particles.length-1;i>=0;i--) if(particles[i].fountain) particles.splice(i,1);
           recent.delete(key('mult_land'));
           break;
         case 'launch':
@@ -282,21 +370,28 @@
           }
           break;
         }
+        case 'mover_hit': {
+          const mover=s.movers[e.index];
+          const flightTick=s.shot?.t??(before.shot?.t??0)+1;
+          const direction=Math.sign(JD.moverAt(mover,flightTick).vx);
+          const originY=mover.y+Math.sign(e.y-mover.y)*5;
+          for(let i=0;i<(reduced?2:5);i++) {
+            fragment(e.x,originY,2,3,C.mover,12,direction*(1+random()*3),-random()*3,0,0);
+          }
+          break;
+        }
         case 'stuck_clear':
           for(const id of e.ids){ const p=s.pegs.find(peg=>peg.id===id); if(p) ring(p.x,p.y,7,0,C.text,10,2); }
           break;
         case 'ball_landed': {
           const x=(s.buckets.x[e.bucket]+s.buckets.x[e.bucket+1])/2;
-          if(e.mult===5) {
-            banner={value:'JACKPOT ×5',tint:C.jackpot,size:32,at:visualTime,life:60};
-            coinFan(x,s.landY+18,60); shakeScreen(5,12);
-          } else if(e.mult===2) text(heads,'×2',x,s.landY-15,18,C.text,18,{pop:true});
+          if(e.mult===5) startFountain(e,s);
+          else if(e.mult===2) text(heads,'×2',x,s.landY-15,18,C.text,18,{pop:true});
           break;
         }
         case 'shot_finished': resetCombo();payoutIndex=0;break;
         case 'payout_done':
           rings.length=0;floats.length=0;rewards.length=0;
-          if(banner&&banner.value.indexOf('JACKPOT')===0) banner=null;
           break;
         case 'stage_clear':
           confetti(60);
@@ -353,7 +448,7 @@
           if(b.done) return;
           const past=trails[i]||(trails[i]=[]);
           const off=fresh('warp',i);
-          if(!off||off.age>=8) past.push({x:b.x,y:b.y});
+          if(!off||off.age>=8) past.push({x:b.x,y:b.y,age:b.age});
           if(past.length>21) past.shift();
           if(s.shot.tier===4&&time%2===0&&!reduced) burst(b.x,b.y,1,C.combo4,{life:11,speed:1.5,gravity:.05,size:1.5});
         });
@@ -394,7 +489,7 @@
         if(s.result) coinFan(196,625,4,true);
         else confetti(4);
       }
-      keep(particles,visualTime);keep(rings,time);keep(floats,time);keep(heads,time);
+      advanceFountains();keep(rings,time);keep(floats,time);keep(heads,time);
     }
 
     function drawParticle(c,p) {
@@ -466,28 +561,112 @@
     }
     function draw(c) {
       drawRings(c,false);
-      for(const p of particles) if(!p.screen) drawParticle(c,p);
+      for(const p of particles) if(!p.screen&&!p.fountain) drawParticle(c,p);
       for(const d of floats) drawText(c,d);
       for(const d of heads) {
         if(d.ghost) D.ball(c,d.ball,d.x,d.y,d.ghost.r*(1-(time-d.at)/d.life));
         else drawText(c,d);
       }
     }
+    function drawGoldParticle(c,p) {
+      const age=time-p.at;
+      const a=Math.min(1,(p.life-age)/10);
+      if(p.star) {
+        c.globalAlpha=a;
+        c.fillStyle=C.fountainLight;
+        c.beginPath();
+        for(let i=0;i<8;i++) {
+          const angle=i*Math.PI/4,r=i%2?1:3;
+          c.lineTo(p.x+Math.cos(angle)*r,p.y+Math.sin(angle)*r);
+        }
+        c.closePath();c.fill();
+        return;
+      }
+      const tint=p.crest||p.screen?C.fountainDeep:C.fountainLight;
+      if(p.prev2X!==undefined) {
+        c.globalAlpha=a*.2;
+        D.circle(c,p.prev2X,p.prev2Y,p.size*.62,tint);
+      }
+      if(p.prevX!==undefined) {
+        c.globalAlpha=a*.4;
+        D.circle(c,p.prevX,p.prevY,p.size*.77,tint);
+      }
+      c.globalAlpha=a;
+      if(!p.coin) {
+        D.circle(c,p.x,p.y,p.size,tint);
+        return;
+      }
+      const spin=.65+.35*Math.cos((age+p.spin)*TAU/8);
+      c.beginPath();c.ellipse(p.x,p.y,p.size*spin,p.height,0,0,TAU);
+      c.fillStyle=C.fountainGold;c.fill();
+      c.strokeStyle=tint;c.lineWidth=.85;c.stroke();
+    }
+    function fountain(c,s,ui) {
+      if(!fountains.length&&!particles.some(p=>p.fountain)) return;
+      c.save();
+      world(c,s,ui);
+      c.translate(0,-ui.cameraY);
+      if(!reduced) for(const f of fountains) {
+        const age=time-f.at, {tier,column}=f.style;
+        if(!column||age>=column) continue;
+        const phase=age/column, height=Math.sin(Math.PI*phase)*(tier===2?300:520);
+        if(height<=0) continue;
+        const water=c.createLinearGradient(0,f.y-height,0,f.y);
+        water.addColorStop(0,D.rgba(C.fountainLight,0));
+        water.addColorStop(.38,D.rgba(C.fountainGold,.5*(1-phase)));
+        water.addColorStop(1,D.rgba(C.fountainDeep,.48*(1-phase)));
+        c.fillStyle=water;c.fillRect(f.x-f.w/2,f.y-height,f.w,height);
+      }
+      for(const p of particles) if(p.fountain&&!p.screen) drawGoldParticle(c,p);
+      c.restore();
+      c.save();
+      for(const p of particles) if(p.fountain&&p.screen&&!reduced) drawGoldParticle(c,p);
+      c.globalAlpha=1;
+      let edge=0,flash=0;
+      for(const {style,at} of fountains) {
+        const age=time-at;
+        if(style.tier===2) edge=Math.max(edge,.4*(1-age/10));
+        if(style.tier===3) flash=Math.max(flash,.6*(1-age/12));
+      }
+      if(edge>0) D.box(c,2,2,356,636,9,null,D.rgba(C.fountainGold,edge),8);
+      if(flash>0) {
+        c.fillStyle=D.rgba(C.fountainGold,flash);
+        c.fillRect(0,0,360,640);
+      }
+      c.restore();
+    }
+    function jackpotRays(c,age) {
+      c.fillStyle=D.rgba(C.fountainLight,.3);
+      for(let i=0;i<12;i++) {
+        const angle=(i/12+(reduced?0:age/120))*TAU;
+        c.beginPath();c.moveTo(180,311);
+        c.lineTo(180+Math.cos(angle-.045)*119,311+Math.sin(angle-.045)*119);
+        c.lineTo(180+Math.cos(angle+.045)*119,311+Math.sin(angle+.045)*119);
+        c.closePath();c.fill();
+      }
+    }
     function drawScoreEffects(c,ui) {
       drawRewards(c,ui.cameraY);
-      if(banner) {
-        const age=visualTime-banner.at;
-        if(age>=0&&age<banner.life){
-          const scale=age<4?.6+age*.1375:1+.15*Math.max(0,1-(age-4)/10);
-          c.save();c.globalAlpha=Math.min(1,(banner.life-age)/9);
-          const fade=D.rgba(C.ink,.77), grad=c.createLinearGradient(8,0,352,0);
-          grad.addColorStop(0,D.rgba(C.ink,0));grad.addColorStop(.21,fade);
-          grad.addColorStop(.79,fade);grad.addColorStop(1,D.rgba(C.ink,0));
-          D.box(c,8,283,344,61,9,grad);
-          D.label(c,banner.value,180,326,banner.size*scale,banner.tint,'center',{max:336,outline:C.ink,outlineWidth:4});
-          c.restore();
-        }
+      const jackpotAge=jackpotBanner?time-jackpotBanner.at:Infinity;
+      const style=jackpotAge<(jackpotBanner?.style.life??0)?jackpotBanner.style:null;
+      const age=style?jackpotAge:visualTime-(banner?.at??Infinity);
+      const message=style||banner;
+      if(!message||age<0||age>=message.life) return;
+      const start=style?.start??.6, peak=Math.min(style?.peak??1.15,reduced?1.15:Infinity);
+      const scale=age<4?start+(peak-start)*age/4:1+(peak-1)*Math.max(0,1-(age-4)/10);
+      c.save();c.globalAlpha=Math.min(1,(message.life-age)/9);
+      if(style?.tier===3) jackpotRays(c,age);
+      const fade=D.rgba(C.ink,.77), grad=c.createLinearGradient(8,0,352,0);
+      grad.addColorStop(0,D.rgba(C.ink,0));grad.addColorStop(.21,fade);
+      grad.addColorStop(.79,fade);grad.addColorStop(1,D.rgba(C.ink,0));
+      D.box(c,8,283,344,61,9,grad);
+      if(style?.tier>=2){
+        c.shadowColor=C.fountainGold;c.shadowBlur=style.tier===3?14:9;
       }
+      const size=message.size*scale;
+      D.label(c,message.title??message.value,180,326,size,message.tint??C.fountainLight,'center',
+        {max:344,minSize:size,outline:C.ink,outlineWidth:4});
+      c.restore();
     }
     function coinAt(c,x,y,r) {
       D.circle(c,x,y,r,C.jackpot,'#FFF1B8',.7);
@@ -544,7 +723,7 @@
       const clear=fresh('all_clear');
       if(clear&&clear.age<18) D.box(c,4,4,352,632,8,null,D.rgba(C.jackpot,.65*(1-clear.age/18)),12);
       drawRings(c,true);
-      for(const p of particles) if(p.screen) drawParticle(c,p);
+      for(const p of particles) if(p.screen&&!p.fountain) drawParticle(c,p);
       drawScoreEffects(c,ui);
       for(const flight of coinFlights) coinFlight(c,flight.x,flight.y-ui.cameraY,300,20,(time-flight.at)/24,62,3);
     }
@@ -565,7 +744,8 @@
       c.restore();
     }
     return {
-      events,frame,draw,world,overlay,rackBonuses,shopOverlay,fresh,trails,births,pegsPending,
+      events,frame,draw,world,fountain,overlay,rackBonuses,shopOverlay,fresh,trails,births,pegsPending,
+      get hasFountain(){return fountains.length>0||particles.some(p=>p.fountain);},
       ballHitAge(index){return fresh('ball_hit',index)?.age??Infinity;},
       get hotTier(){return hotTier;},get heat(){return heat;},get comboTier(){return combo?.tier??0;},
       pendingMult(){return rewards.reduce((sum,r)=>sum+(r.done?0:r.add),0);},

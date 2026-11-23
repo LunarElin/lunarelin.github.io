@@ -96,7 +96,7 @@
       readyPayout = null;
       shot = null;
       slot = 0;
-      zone = JD.aimZone(board, left[slot]);
+      zone = board.guide ? JD.aimZone(board, left[slot]) : null;
       enter('AIM');
     }
 
@@ -173,7 +173,7 @@
 
     function holdStep() {
       holdTicks++;
-      const inZone = JD.inZone(zone, angle);
+      const inZone = zone !== null && JD.inZone(zone, angle);
       if (inZone && !holdingInZone) emit('charge_zone');
       holdingInZone = inZone;
     }
@@ -194,12 +194,13 @@
       enter('FLIGHT');
     }
 
-    function collectShotEvents() {
+    function collectShotEvents(liveMult) {
       for (const event of shot.events) {
-        emit(event.type, event);
+        emit(event.type, event.type === 'ball_landed' ? { ...event, liveMult } : event);
         switch (event.type) {
           case 'peg_hit': {
             const peg = pegById.get(event.id);
+            if (peg.type === 'gold') liveMult++;
             hitPins.push({ id: peg.id, type: peg.type, x: peg.x, y: peg.y, tier: event.tier, removed: false });
             break;
           }
@@ -218,6 +219,10 @@
           }
           case 'block_broken':
             blocksBroken++;
+            liveMult += event.kind === 'vault' ? JD.CFG.VAULT_GOLDS : JD.CFG.BLOCK_GOLDS;
+            break;
+          case 'iron_break':
+            liveMult += event.golds;
             break;
           case 'ball_crack':
             crackedBall = event.ball;
@@ -231,8 +236,10 @@
     }
 
     function flightStep() {
+      // Keep the multiplier at each landing, even if another ball scores later in the same tick.
+      const liveMult = board.mult + shot.golds;
       const finished = JD.stepShot(shot);
-      collectShotEvents();
+      collectShotEvents(liveMult);
       if (!finished) return;
       const { score, pts, golds, bucketSum, hits, t, tier } = shot;
       const mult = board.mult;
@@ -352,7 +359,6 @@
     function pickBall(index) {
       if (charging || !Number.isInteger(index) || index < 0 || index >= left.length) return;
       slot = index;
-      zone = JD.aimZone(board, left[slot]);
       emit('ball_picked', { slot, ball: left[slot] });
     }
 
@@ -494,9 +500,9 @@
         mode, attempt, coins: wallet.coins, perks: { ...wallet.perks }, cleared, endlessUnlocked, endlessBest,
         shop: state === 'SHOP' ? shopSnapshot() : null,
         map: state === 'MAP' ? mapSnapshot() : null,
-        ballsLeft: left.length, angle, charging, holdTicks, lastAngle, zone: { ...zone },
+        ballsLeft: left.length, angle, charging, holdTicks, lastAngle, zone: zone ? { ...zone } : null,
         chargeTicks: charging ? holdTicks : 0,
-        inZone: JD.inZone(zone, angle), rack: left.slice(),
+        inZone: zone !== null && JD.inZone(zone, angle), rack: left.slice(),
         fullRack: fullRack.slice(), rackIndices: rackIndices.slice(), slot,
         rows: board.rows, landY: board.landY, boardH: board.h,
         hint: stage.hint ? Object.assign({}, stage.hint) : null,
@@ -505,6 +511,9 @@
         ball: launch ? launch.ball : shot ? shot.ballKeys[0] : left[slot] || null,
         launch: launch ? { elapsed: elapsed + 1, angle: launch.angle, balls: [launch.ball] } : null,
         springs: board.springs.map(spring => spring.slice()),
+        movers: board.movers.map(mover => ({
+          ...mover, x: shownShot ? JD.moverAt(mover, shownShot.t).x : mover.cx
+        })),
         stageMult: board.mult,
         up: copyUpgrades(up),
         offer: offer ? offer.slice() : null,
@@ -514,8 +523,8 @@
         blocks: copyRecords(board.blocks),
         terrain: board.terrain.map(segment => segment.slice()),
         buckets: { x: board.buckets.x.slice(), mult: board.buckets.mult.slice() },
-        balls: shot ? shot.balls.map(({ x, y, r, key, done, lost, bucket }, index) => ({
-          x, y, r, key, done, lost, bucket, cracked: crackedBall === index
+        balls: shot ? shot.balls.map(({ x, y, r, key, done, lost, bucket, age }, index) => ({
+          x, y, r, key, done, lost, bucket, age, cracked: crackedBall === index
         })) : [],
         shot: shownShot ? {
           pts: shot.pts, hits: shot.hits, golds: shot.golds, t: shot.t,

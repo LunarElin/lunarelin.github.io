@@ -12,7 +12,9 @@
     springStandard:'#C9CEF5', turret:'#8D96D6', turretLight:'#D7DCFF', turretDark:'#4B5291', turretEdge:'#252A5E',
     ironWall:'#59627E',
     ironEdge:'#C9D1E6', warp:'#9D4DFF', hint:'#FFC83D', glass:'#BDF3FF',
-    iron:'#9AA3B8', text:'#FFFFFF', textDim:'#A9B0D6', danger:'#FF6B6B', success:'#5CFFB0', ink:'#05061A'
+    iron:'#9AA3B8', wave:'#5CFFB0', mover:'#2BB6C9', moverEdge:'#B8F6FF',
+    fountainGold:'#FFC83D', fountainLight:'#FFF4C2', fountainDeep:'#E08A00',
+    text:'#FFFFFF', textDim:'#A9B0D6', danger:'#FF6B6B', success:'#5CFFB0', ink:'#05061A'
   };
   const twoPi = 2 * Math.PI;
   const degrees = Math.PI / 180;
@@ -27,6 +29,11 @@
   const compactScore = new Intl.NumberFormat('ko-KR', {notation:'compact', maximumSignificantDigits:4});
   const score = n => n < 1000000 ? number(n) : compactScore.format(n);
   const combo = tier => colors['combo' + tier] || colors.text;
+  const waveTrailColors=Array.from({length:5},(_,tier)=>{
+    const base=parseInt(combo(tier).slice(1),16), wave=parseInt(colors.wave.slice(1),16);
+    return '#'+[16,8,0].map(shift=>
+      Math.round(((base>>shift)&255)*.6+((wave>>shift)&255)*.4).toString(16).padStart(2,'0')).join('');
+  });
   const rgba = (hex, a) => {
     const n = parseInt(hex.slice(1), 16);
     return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
@@ -90,6 +97,7 @@
     let fill=colors.ball, edge=null, width=1.5;
     if (key==='big') { edge=colors.glass; width=2; }
     if (key==='glass') { fill=rgba(colors.glass,.55); edge=colors.text; }
+    if (key==='wave') edge=colors.wave;
     if (key==='iron') {
       fill=c.createRadialGradient(-r*.25,-r*.35,0,0,0,r);
       fill.addColorStop(0,'#E6E9FF'); fill.addColorStop(.5,colors.iron); fill.addColorStop(1,'#4A5068');
@@ -97,6 +105,15 @@
     }
     circle(c,0,0,r,fill,edge,width);
     circle(c,-r*.28,-r*.34,r*.36,rgba(colors.text,.8));
+    if (key==='wave') {
+      c.beginPath();
+      for(let i=0;i<=16;i++) {
+        const portion=i/16;
+        c.lineTo(r*(1.6*portion-.8),-r*.28*Math.sin(twoPi*portion));
+      }
+      c.strokeStyle=colors.wave; c.lineWidth=2; c.lineCap='round';
+      c.stroke();
+    }
     if (o.cracked) {
       line(c,-r*.7,-r*.55,0,-r*.1,colors.text,1);
       line(c,0,-r*.1,r*.38,r*.69,colors.text,1);
@@ -128,7 +145,7 @@
     circle(c,x-r*.24,y-r*.29,r*.22,'#FFF9DC');
   }
 
-  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,coin,menuButton,fontFamily,bodyFamily,aimTarget};
+  JD.Drawing={colors,clamp,pulse,number,score,combo,rgba,fresh,box,circle,line,label,glow,ball,coin,menuButton,fontFamily,bodyFamily};
   JD.UI={
     magazine(s) {
       const slots=s.rack.map((_,slot)=>slot).filter(slot=>slot!==s.slot);
@@ -185,7 +202,7 @@
     const progress=clamp(age/20,0,1);
     const x=startX+(magazineX-startX)*progress;
     const y=startY+(position-startY)*progress-48*Math.sin(Math.PI*progress);
-    const color=key==='iron'?colors.ironEdge:key==='normal'?colors.pegNormal:colors.glass;
+    const color=key==='iron'?colors.ironEdge:key==='normal'?colors.pegNormal:colors[key]||colors.glass;
     const radius=JD.BALLS[key].r;
     if (progress<1) {
       line(c,x-11*progress,y-8,x,y,rgba(color,.72),2);
@@ -343,16 +360,6 @@
     c.restore();
   }
 
-  function visibleZone(s,ui) {
-    const zone=s.zone;
-    if (!zone||(s.state!=='AIM'&&!s.launch)) return null;
-    if (!ui.zoneFrom||ui.reduced||ui.zoneAge>=8) return zone;
-    const progress=ease(clamp(ui.zoneAge/8,0,1));
-    const shown={kind:zone.kind};
-    for (const key of ['x','y','center','lo','hi']) shown[key]=ui.zoneFrom[key]+(zone[key]-ui.zoneFrom[key])*progress;
-    return shown;
-  }
-
   function drawZone(c,s,zone,fx) {
     const {x,y}=JD.CANNON;
     const radius=Math.hypot(zone.x-x,zone.y-y);
@@ -373,24 +380,6 @@
     const scale=ui.reduced?1:1+.15*pulse(t,40);
     circle(c,x,y,10*scale,null,colors.jackpot,2);
     circle(c,x,y,5*scale,null,colors.jackpot,2);
-  }
-
-  function drawZoneTarget(c,ui,zone,t) {
-    const top=ui.cameraY||0;
-    if (zone.y<top) return;
-    if (zone.y>top+viewHeight) {
-      const y=top+592;
-      const x=clamp(JD.CANNON.x+(y-JD.CANNON.y)*Math.tan(zone.center*degrees),8,352);
-      c.beginPath();
-      c.moveTo(x-6,y-8);
-      c.lineTo(x+6,y-8);
-      c.lineTo(x,y);
-      c.closePath();
-      c.fillStyle=colors.jackpot;
-      c.fill();
-      return;
-    }
-    aimTarget(c,zone.x,zone.y,ui,t);
   }
 
   const easeOut=progress=>1-Math.pow(1-clamp(progress,0,1),3);
@@ -487,7 +476,7 @@
     const {aim,barrel,body,loadFlash,muzzleFlash}=cannonPose(s,ui,fx,gesture);
     const angle=aim*degrees;
     const dx=Math.sin(angle),dy=Math.cos(angle);
-    const inZone=aiming&&(gesture?JD.inZone(s.zone,aim):s.inZone);
+    const inZone=aiming&&s.zone&&(gesture?JD.inZone(s.zone,aim):s.inZone);
     const muzzle=body+barrel;
     if (aiming) {
       dashed(c,x+dx*muzzle,y+dy*muzzle,x+dx*(muzzle+90),y+dy*(muzzle+90),
@@ -792,7 +781,7 @@
     const tier=s.shot.tier;
     const launch=fresh(fx,'launch');
     const launchTrail=launch?.age<6;
-    const tint=launchTrail?colors.text:combo(tier);
+    const ordinaryTint=launchTrail?colors.text:combo(tier);
     s.balls.forEach((b,i)=>{
       if(b.done) return;
       const warp=fresh(fx,'warp',i);
@@ -803,12 +792,20 @@
       const birth=fx&&fx.births[i];
       if(birth!=null&&t-birth<8) r*=.6+.4*(t-birth)/8;
       const tail=fx&&fx.trails[i];
+      const tint=b.key==='wave'?waveTrailColors[launchTrail?0:tier]:ordinaryTint;
       if(tail&&warpAge>=8) {
         const len=Math.min(tail.length,ui.reduced?4:launchTrail?6:8+3*tier);
         const a=tier===0?.35:.4+.1*tier;
         for(let j=len-1;j>=0;j--){
           const past=tail[tail.length-1-j], fraction=1-j/(len+1);
           circle(c,past.x,past.y,2+(r-2)*fraction,rgba(tint,a*fraction*.6));
+        }
+        if(b.key==='wave') {
+          const quarter=JD.BALLS.wave.wavePeriod/4, turnAge=(b.age-quarter)%(quarter*2);
+          if(turnAge>=0&&turnAge<8) {
+            const turn=tail.findLast(past=>past.age===b.age-turnAge)??b;
+            circle(c,turn.x,turn.y,4+6*turnAge/8,null,rgba(colors.wave,1-turnAge/8),1.5);
+          }
         }
       }
       if(tier>=3) glow(c,x,y,r*2.2,tint,.35);
@@ -877,11 +874,8 @@
       }
       background(c,s,ui,fx);
       const cameraY=ui.cameraY||0;
-      const zone=visibleZone(s,ui);
+      const zone=s.state==='AIM'||s.launch?s.zone:null;
       const gesture=tutorialGesture(s,ui);
-      const blockTarget=zone&&zone.y>=cameraY&&zone.y<=cameraY+viewHeight
-        ? s.blocks.find(block=>block.alive&&block.x===zone.x&&block.y===zone.y)
-        : null;
       c.save();
       c.beginPath(); c.rect(0,0,360,640); c.clip();
       c.save();
@@ -900,17 +894,16 @@
       c.beginPath(); c.rect(4,0,352,640); c.clip();
       if(fx) fx.world(c,s,ui);
       c.translate(0,-cameraY);
-      JD.drawBoardObjects(c,s,ui,fx,t,blockTarget);
+      JD.drawBoardObjects(c,s,ui,fx,t);
       c.restore();
       c.save();
       if(fx) fx.world(c,s,ui,false);
       c.translate(0,-cameraY);
-      if (zone&&!blockTarget) drawZoneTarget(c,ui,zone,t);
+      if (zone) aimTarget(c,zone.x,zone.y,ui,t);
       drawCannon(c,s,ui,fx,t,gesture);
       c.restore();
       const showHud=s.state!=='RESULT'&&s.state!=='SHOP';
-      // Keep the shot panel below the live ball and the fixed HUD above board effects.
-      if (showHud) panel(c,s,ui,fx);
+      if (showHud&&!fx?.hasFountain) panel(c,s,ui,fx);
       cameraProgress(c,s,ui);
       c.save();
       if(fx) fx.world(c,s,ui);
@@ -918,7 +911,9 @@
       drawWorldBalls(c,s,ui,fx,t);
       if(fx) fx.draw(c);
       c.restore();
+      fx?.fountain?.(c,s,ui);
       if(fx) fx.overlay(c,s,ui);
+      if (showHud&&fx?.hasFountain) panel(c,s,ui,fx);
       if (showHud) hud(c,s,ui,fx);
       c.restore();
       c.fillStyle=rgba('#000000',.55);
@@ -1048,7 +1043,46 @@
     D.circle(ctx, bumper.x, bumper.y, 2.5, D.rgba('#FFFFFF', 0.65));
   }
 
-  function drawBlock(ctx, block, ui, fx, time, D, targeted) {
+  function drawMover(ctx, mover, index, snapshot, ui, fx, time, D) {
+    const {cx,x,y,w,range}=mover, C=D.colors;
+    const trackY=y+9, left=cx-range, right=cx+range;
+    const trackColor=D.rgba(C.moverEdge,.3);
+    ctx.save();
+    ctx.setLineDash([3,4]);
+    D.line(ctx,left,trackY,right,trackY,trackColor,1);
+    ctx.restore();
+    for(const [end,dir] of [[left,1],[right,-1]]) {
+      ctx.beginPath();
+      ctx.moveTo(end,trackY);
+      ctx.lineTo(end+dir*5,trackY-3);
+      ctx.lineTo(end+dir*5,trackY+3);
+      ctx.closePath();
+      ctx.fillStyle=trackColor; ctx.fill();
+    }
+    if(snapshot.shot&&!ui.reduced) {
+      for(const [offset,alpha] of [[4,.15],[2,.3]]) {
+        const prev=JD.moverAt(mover,Math.max(0,snapshot.shot.t-offset)).x;
+        if(Math.abs(prev-x)>.5) D.box(ctx,prev-w/2,y-5,w,10,5,D.rgba(C.mover,alpha));
+      }
+    }
+    const hit=D.fresh(fx,'mover_hit',index)?.age<4;
+    const alpha=snapshot.state==='AIM'&&!ui.reduced?.8+.2*D.pulse(time,20):1;
+    D.box(ctx,x-w/2,y-5,w,10,5,D.rgba(hit?C.text:C.mover,alpha));
+    D.line(ctx,x-w/2+5,y-4,x+w/2-5,y-4,D.rgba(C.moverEdge,alpha),2);
+    ctx.beginPath();
+    for(let i=-1;i<=1;i++){
+      const mid=x+i*18;
+      ctx.moveTo(mid-2,y-2);
+      ctx.lineTo(mid-6,y+.5);
+      ctx.lineTo(mid-2,y+3);
+      ctx.moveTo(mid+2,y-2);
+      ctx.lineTo(mid+6,y+.5);
+      ctx.lineTo(mid+2,y+3);
+    }
+    ctx.strokeStyle=D.rgba(C.text,.5); ctx.lineWidth=1; ctx.stroke();
+  }
+
+  function drawBlock(ctx, block, ui, fx, time, D) {
     const C = D.colors;
     const vault = block.kind === 'vault';
     const hit = D.fresh && D.fresh(fx, 'block_hit', block.id);
@@ -1098,7 +1132,6 @@
         D.circle(ctx,rivetX,y+block.h-5,2,C.vaultEdge);
       }
     }
-    if (targeted) D.aimTarget(ctx,block.x,block.y,ui,time);
     D.label(ctx, block.hp, block.x, block.y+(vault?5:7)+down, (vault ? 16 : 14) * (1 + bump), text);
 
     const badgeCenter = y + (vault ? -3 : -1);
@@ -1237,7 +1270,7 @@
     return changes;
   }
 
-  JD.drawBoardObjects = function (ctx, snapshot, ui, fx, time, blockTarget) {
+  JD.drawBoardObjects = function (ctx, snapshot, ui, fx, time) {
     const D = JD.Drawing;
     const top=(ui.cameraY||0)-72, bottom=top+784;
     const inView=y=>y>=top&&y<=bottom;
@@ -1269,9 +1302,12 @@
       }
     }
     snapshot.bumpers.forEach((bumper, i) => { if (inView(bumper.y)) drawBumper(ctx, bumper, i, ui, fx, D); });
-    snapshot.blocks.forEach(block => { if (inView(block.y)) drawBlock(ctx, block, ui, fx, time, D, block===blockTarget); });
+    snapshot.blocks.forEach(block => { if (inView(block.y)) drawBlock(ctx, block, ui, fx, time, D); });
     snapshot.gates.forEach(gate => { if (inView(gate.y)) drawGate(ctx, gate, fx, time, D); });
     snapshot.iron.forEach(group => drawIron(ctx, group, snapshot, fx, time, D));
+    snapshot.movers.forEach((mover,index)=>{
+      if(inView(mover.y)) drawMover(ctx,mover,index,snapshot,ui,fx,time,D);
+    });
     snapshot.warps?.ins.forEach((hole,index)=>{
       if (!inView(hole.y)) return;
       if (hole.alive) {
@@ -1300,7 +1336,8 @@
     split: ['SPLIT SHOT', '+1 ball on first new peg hit', '÷', 'text'],
     ballIron: ['IRON BALL', 'Breaks iron walls, blocks take 2 damage', '', 'iron'],
     ballGlass: ['GLASS BALL', 'Cracks at 12 hits, shatters into 3 at 24', '', 'glass'],
-    ballBig: ['BIG BALL', 'Bigger ball, more hits', '', 'glass']
+    ballBig: ['BIG BALL', 'Bigger ball, more hits', '', 'glass'],
+    ballWave: ['WAVE BALL', 'Weaves left and right as it falls', '', 'wave']
   };
 
   const previewNames = {1:'IRON LID',3:'BLOCKS ×+1 · WARP',4:'ZIGZAG · LONG BOARD',

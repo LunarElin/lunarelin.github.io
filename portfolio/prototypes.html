@@ -37,11 +37,11 @@
           <h2 id="jackpot-title">잭팟 드롭</h2>
           <p class="note-description">한 발씩 구슬을 쏘아 핀과 범퍼를 튕기고, 착지 칸의 배수로 점수를 올리는 20단계 핀볼 캠페인입니다. 발 사이의 카드는 현재 도전에만 적용되고, 코인으로 산 강화는 재도전에도 남습니다. 8단계 클리어 후에는 별도 무한 모드가 열립니다.</p>
         </div>
-        <figure class="note-art note-screen"><img src="assets/jackpot-drop-board.webp?v=build-22" alt="잭팟 드롭의 쇠 지붕과 잭팟 착지 칸이 보이는 실제 보드 일부" width="316" height="316" loading="lazy"><figcaption>2단계 연습판 · 보드 일부</figcaption></figure>
+        <figure class="note-art note-screen"><img src="assets/jackpot-drop-board.webp?v=build-23" alt="잭팟 드롭의 쇠 지붕과 잭팟 착지 칸이 보이는 실제 보드 일부" width="316" height="316" loading="lazy"><figcaption>2단계 연습판 · 보드 일부</figcaption></figure>
       </div>
       <div class="note-decisions" aria-label="잭팟 드롭 구현 결정">
-        <article><h3>누른 채 좌우로 끌어 조준</h3><p>포는 손가락을 좌우로 움직인 만큼 회전합니다. 금색 노림 구간은 장전한 구슬과 보드 상태에 따라 노릴 곳을 알려 줍니다. 손을 떼면 정한 각도로 발사합니다.</p></article>
-        <article><h3>쇠 구슬을 먼저 쏴 길 열기</h3><p>1단계를 넘기면 쇠 구슬이 해금됩니다. 일반 구슬은 지붕 위를 굴러 옆 칸으로 떨어집니다. 쇠 구슬을 장전하면 노림 구간이 쇠 지붕을 가리키고, 맞힌 지붕 한 장이 부서져 다음 발의 경로가 열립니다.</p></article>
+        <article><h3>누른 채 좌우로 끌어 조준</h3><p>포는 손가락을 좌우로 움직인 만큼 회전합니다. 1단계는 금색 발사 가이드로 조작을 익힐 수 있습니다. 이후에는 쇠 벽과 움직이는 발판을 보고 발사 각도를 고릅니다.</p></article>
+        <article><h3>구슬마다 다른 경로 만들기</h3><p>1단계를 넘기면 쇠 구슬이 해금됩니다. 맞힌 지붕 한 장을 부수면 다음 발의 경로가 열립니다. WAVE BALL 카드를 고르면 좌우로 물결치며 떨어지는 구슬을 쓸 수 있습니다.</p></article>
       </div>
       <aside class="next-question" aria-labelledby="jackpot-question"><h3 id="jackpot-question">다음 확인 질문</h3><p>처음 플레이할 때 금색 발사 구간을 알아보고, 새로 얻은 도구가 다음 보드에서 어디에 쓰이는지 스스로 찾을 수 있을까?</p></aside>
       <div class="note-actions"><a class="button button-primary" href="../games/jackpot-drop/">직접 플레이 <span aria-hidden="true">↗</span></a><a class="note-link" href="../games/jackpot-drop/README.md">공개 제작 문서 <span aria-hidden="true">↗</span></a></div>

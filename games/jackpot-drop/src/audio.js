@@ -155,10 +155,17 @@
 
     function ballLanded(event) {
       if (event.mult === 5) {
-        vibrate(30);
+        const tier=event.liveMult>=10?3:event.liveMult>=5?2:1;
+        vibrate(tier===3?[30,35,30]:30);
         sequence([C5,E5,G5,C6],.07,'sine',.30);
-        sequence([2600,3100,2600,3100,2600,3100,2600,3100],.027,'sine',.08,.02,.038);
-        noise('highpass',3100,3100,.40,.14);
+        const coins=tier>=2?16:8;
+        for(let i=0;i<coins;i++) tone('sine',i%2?3100:2600,.027,.08,{delay:.02+.038*i});
+        if(tier>=2) tone('sine',70,.30,.32);
+        if(tier===3) {
+          tone('sine',400,.50,.24,{endHz:1600});
+          chord([C5,E5,G5,C6],.40,'sine',.16,.22);
+          noise('highpass',3100,3100,.80,.14,.14);
+        }
       } else if (event.mult === 2) sequence([330,440],.08,'sine',.27);
       else tone('sine',110,.10,.3);
     }
@@ -281,6 +288,9 @@
           break;
         case 'terrain_hit':
           if(!rateLimited(e)) tone('sine',140,.03,.40);
+          break;
+        case 'mover_hit':
+          if(!rateLimited(e,8,e.ball,e.tick)) tone('triangle',520,.06,.25,{endHz:780});
           break;
         case 'bumper_hit':
           if(!rateLimited(e)) tone('square',220,.04,.20);
