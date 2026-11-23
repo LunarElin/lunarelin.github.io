@@ -6,6 +6,8 @@
     let pointer = null;
     let chargeKey = null;
     let shift = false;
+    let turnLeft = false;
+    let turnRight = false;
 
     function position(ev) {
       const rect = canvas.getBoundingClientRect();
@@ -38,9 +40,10 @@
       const magazineButton = target !== canvas;
       const state = controls.snapshot();
       if (magazineButton && (target.disabled || !canPickBall(state))) return;
+      const point = position(ev);
       const {magazineTop,magazineBottom}=JD.UI;
       if (state.state === 'AIM' && !magazineButton &&
-          (chargeKey !== null || state.charging || over(position(ev),360,magazineTop,80,magazineBottom-magazineTop))) return;
+          (chargeKey !== null || state.charging || over(point,360,magazineTop,80,magazineBottom-magazineTop))) return;
       pointer = { id: ev.pointerId, target, kind: state.state, option: -1 };
       controls.activateAudio();
       target.focus({ preventScroll: true });
@@ -52,12 +55,12 @@
         pointer.slot = Number(target.dataset.slot);
       } else if (state.state === 'AIM') {
         pointer.kind = 'charge';
-        controls.queue({ type: 'hold' });
+        controls.queue({ type: 'hold', x: point.x });
       } else if (state.state === 'CARD') {
-        pointer.option = cardAt(position(ev), state);
+        pointer.option = cardAt(point, state);
         if (pointer.option !== -1) controls.focus(pointer.option);
       } else if (state.state === 'RESULT') {
-        pointer.option=resultAt(position(ev));
+        pointer.option=resultAt(point);
       }
     }
 
@@ -88,18 +91,18 @@
       if (!pointer || pointer.id !== ev.pointerId) return;
       const wasCharging = pointer.kind === 'charge';
       pointer = null;
-      if (wasCharging && !controls.isInactive() && !controls.isPaused()) controls.queue({ type: 'release' });
-    }
-
-    function lostCapture(ev) {
-      if (!pointer || pointer.id !== ev.pointerId) return;
-      const wasCharging = pointer.kind === 'charge';
-      pointer = null;
       if (wasCharging) controls.cancel();
     }
 
     function pointerMove(ev) {
-      if (pointer || ev.pointerType !== 'mouse' || controls.isInactive() || controls.isPaused()) return;
+      if (controls.isInactive() || controls.isPaused()) return;
+      if (pointer) {
+        if (pointer.id === ev.pointerId && pointer.kind === 'charge') {
+          controls.queue({ type: 'move', x: position(ev).x });
+        }
+        return;
+      }
+      if (ev.target !== canvas || ev.pointerType !== 'mouse') return;
       const state = controls.snapshot();
       if (state.state === 'CARD') {
         const index = cardAt(position(ev), state);
@@ -174,9 +177,12 @@
         if (action && chargeKey === null && pointer === null && !state.charging) {
           chargeKey = key;
           controls.queue({ type: 'hold' });
-        } else if (arrow >= 0 && canPickBall(state)) {
-          const direction = arrow === 1 || arrow === 2 ? 1 : -1;
-          selectBall(state,cycle(state.slot,direction,state.rack.length));
+        } else if (key === 'ArrowLeft') {
+          turnLeft = true;
+        } else if (key === 'ArrowRight') {
+          turnRight = true;
+        } else if (arrow >= 2 && canPickBall(state)) {
+          selectBall(state,cycle(state.slot,key === 'ArrowUp' ? 1 : -1,state.rack.length));
         }
       } else if (state.state === 'PAYOUT' && action) {
         controls.queue({ type: 'skip' });
@@ -192,6 +198,8 @@
 
     function keyUp(ev) {
       if (ev.key === 'Shift') shift = false;
+      if (ev.key === 'ArrowLeft') turnLeft = false;
+      if (ev.key === 'ArrowRight') turnRight = false;
       if (ev.key !== chargeKey) return;
       chargeKey = null;
       ev.preventDefault();
@@ -208,7 +216,7 @@
 
     for (const target of [canvas, ...magazineButtons]) {
       target.addEventListener('pointerdown', pointerDown);
-      target.addEventListener('lostpointercapture', lostCapture);
+      target.addEventListener('lostpointercapture', pointerCancel);
     }
     for (const type of ['selectstart', 'contextmenu', 'dragstart', 'gesturestart', 'dblclick']) {
       document.addEventListener(type, ev => ev.preventDefault(), { passive: false });
@@ -217,7 +225,7 @@
       if (ev.cancelable) ev.preventDefault();
       window.getSelection()?.removeAllRanges();
     }, { capture: true, passive: false });
-    canvas.addEventListener('pointermove', pointerMove);
+    window.addEventListener('pointermove', pointerMove);
     window.addEventListener('pointerup', pointerUp);
     window.addEventListener('pointercancel', pointerCancel);
     window.addEventListener('keydown', keyDown);
@@ -225,11 +233,19 @@
 
     return {
       fast() { return shift || (pointer !== null && pointer.kind === 'FLIGHT'); },
+      beforeStep() {
+        const dir = Number(turnRight) - Number(turnLeft);
+        if (dir && pointer?.kind !== 'charge' && controls.snapshot().state === 'AIM') {
+          controls.queue({ type: 'turn', dir });
+        }
+      },
       reset() {
         const press = pointer;
         pointer = null;
         chargeKey = null;
         shift = false;
+        turnLeft = false;
+        turnRight = false;
         if (press && press.target.hasPointerCapture?.(press.id)) press.target.releasePointerCapture(press.id);
       }
     };

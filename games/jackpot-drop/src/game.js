@@ -60,10 +60,10 @@
     let mapReturn;
     let up, left, fullRack, rackIndices, slot, offer;
     let campaignRandom, offerRandom;
-    let angle, holdTicks, charging, holdingInZone, lastAngle, zone;
+    let angle, holdTicks, charging, holdX, holdAngle, holdingInZone, lastAngle, zone;
     let launch, shot, crackedBall, hitPins, readyPayout, banner, result;
     let runScore, stageScore, runCoins, stageCoins;
-    let biggestShot, jackpots, perfects, bestTier, pegsPopped, blocksBroken;
+    let biggestShot, jackpots, bestTier, pegsPopped, blocksBroken;
     let commands = [], events = [];
 
     function emit(type, detail) {
@@ -128,7 +128,7 @@
         campaignRandom ||= JD.mulberry32(seed + 999);
         offerRandom = campaignRandom;
       } else offerRandom = JD.mulberry32(seed + 999);
-      runScore = runCoins = biggestShot = jackpots = perfects = bestTier = pegsPopped = blocksBroken = 0;
+      runScore = runCoins = biggestShot = jackpots = bestTier = pegsPopped = blocksBroken = 0;
       result = null;
       launch = null;
       lastAngle = null;
@@ -150,30 +150,31 @@
 
     function fire() {
       const ball = left[slot];
-      const perfect = JD.inZone(zone, angle);
       left.splice(slot, 1);
       rackIndices.splice(slot, 1);
       slot = undefined;
       lastAngle = angle;
       charging = false;
-      launch = { angle, perfect, ball };
+      launch = { angle, ball };
       hitPins = [];
-      if (perfect) perfects++;
       enter('LAUNCH');
-      emit('shot_fired', { stage: stageNumber(), ballsLeft: left.length, angle, perfect, balls: [ball] });
+      emit('shot_fired', { stage: stageNumber(), ballsLeft: left.length, angle, balls: [ball] });
     }
 
-    function startHold() {
+    function startHold(x) {
       if (charging) return;
-      resetAim();
+      holdTicks = 0;
+      holdX = Number.isFinite(x) ? x : JD.CANNON.x;
+      holdAngle = angle;
+      holdingInZone = false;
       charging = true;
       emit('charge_started');
     }
 
-    function swingStep() {
-      angle = JD.aimAngle(++holdTicks);
+    function holdStep() {
+      holdTicks++;
       const inZone = JD.inZone(zone, angle);
-      if (inZone && !holdingInZone) emit('charge_zone', { zone: 'perfect' });
+      if (inZone && !holdingInZone) emit('charge_zone');
       holdingInZone = inZone;
     }
 
@@ -318,7 +319,7 @@
           const reached = stageReached - 1;
           result = {
             won: false, reached, stageReached, stageName: stage.name, ratio: banner.ratio,
-            runScore, biggestShot, jackpots, perfects, bestTier, pegsPopped, blocksBroken,
+            runScore, biggestShot, jackpots, bestTier, pegsPopped, blocksBroken,
             coins: runCoins, rack: fullRack.slice()
           };
           endlessBest = Math.max(endlessBest, stageReached);
@@ -361,7 +362,13 @@
           if (!charging) openMap(true);
           break;
         case 'hold':
-          startHold();
+          startHold(command.x);
+          break;
+        case 'move':
+          if (charging && Number.isFinite(command.x)) angle = JD.dragAngle(holdAngle, command.x - holdX);
+          break;
+        case 'turn':
+          if (command.dir === -1 || command.dir === 1) angle = JD.dragAngle(angle + command.dir * JD.CANNON.keyDeg, 0);
           break;
         case 'release':
           release();
@@ -369,8 +376,7 @@
         case 'aim':
           if (Number.isFinite(command.angle)) {
             resetAim();
-            const { maxAngle } = JD.CANNON;
-            angle = Math.max(-maxAngle, Math.min(maxAngle, command.angle || 0));
+            angle = JD.dragAngle(command.angle, 0);
           }
           break;
         case 'fire':
@@ -400,6 +406,7 @@
       if (command.type === 'closeMap' && mapReturn) {
         state = mapReturn.state;
         enteredTick = mapReturn.enteredTick + tick - mapReturn.tick;
+        if (state === 'AIM') resetAim();
         mapReturn = null;
       } else if (command.type === 'continue' && campaign.stage < stageCount) {
         mapReturn = null;
@@ -437,7 +444,7 @@
       commands = [];
       queued.forEach(handleCommand);
       const elapsed = tick - enteredTick;
-      if (state === 'AIM' && charging) swingStep();
+      if (state === 'AIM' && charging) holdStep();
       if (state === 'LAUNCH' && elapsed >= JD.CFG.LAUNCH_TICKS) startFlight();
       if (state === 'FLIGHT') flightStep();
       else if (state === 'PAYOUT' && elapsed >= readyPayout.duration) finishPayout();
@@ -489,14 +496,14 @@
         map: state === 'MAP' ? mapSnapshot() : null,
         ballsLeft: left.length, angle, charging, holdTicks, lastAngle, zone: { ...zone },
         chargeTicks: charging ? holdTicks : 0,
-        perfect: JD.inZone(zone, angle), rack: left.slice(),
+        inZone: JD.inZone(zone, angle), rack: left.slice(),
         fullRack: fullRack.slice(), rackIndices: rackIndices.slice(), slot,
         rows: board.rows, landY: board.landY, boardH: board.h,
         hint: stage.hint ? Object.assign({}, stage.hint) : null,
         iron: board.iron.map(group => ({ id: group.id, alive: group.alive, segs: group.segs.map(segment => segment.slice()) })),
         warps: board.warps ? { ins: copyRecords(board.warps.ins) } : null,
         ball: launch ? launch.ball : shot ? shot.ballKeys[0] : left[slot] || null,
-        launch: launch ? { elapsed: elapsed + 1, angle: launch.angle, perfect: launch.perfect, balls: [launch.ball] } : null,
+        launch: launch ? { elapsed: elapsed + 1, angle: launch.angle, balls: [launch.ball] } : null,
         springs: board.springs.map(spring => spring.slice()),
         stageMult: board.mult,
         up: copyUpgrades(up),
@@ -512,7 +519,7 @@
         })) : [],
         shot: shownShot ? {
           pts: shot.pts, hits: shot.hits, golds: shot.golds, t: shot.t,
-          liveMult: board.mult + shot.golds, tier: shot.tier, perfect: shot.perfect,
+          liveMult: board.mult + shot.golds, tier: shot.tier,
           balls: shot.ballKeys.slice(),
           cracked: shot.cracked, shattered: shot.shattered, hitstop: shot.hitstop
         } : null,

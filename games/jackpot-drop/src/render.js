@@ -358,8 +358,7 @@
     const radius=Math.hypot(zone.x-x,zone.y-y);
     if (!(radius>0)) return;
     const mark=fresh(fx,'charge_zone');
-    const fired=fresh(fx,'shot_fired');
-    const flash=s.charging&&s.perfect&&mark?.age<6 ? 1-mark.age/6 : s.launch?.perfect&&fired?.age<10 ? 1-fired.age/10 : 0;
+    const flash=s.charging&&s.inZone&&mark?.age<6?1-mark.age/6:0;
     c.beginPath();
     c.moveTo(x,y);
     c.arc(x,y,radius,Math.PI/2-zone.hi*degrees,Math.PI/2-zone.lo*degrees);
@@ -401,19 +400,33 @@
   const turretJoin=Math.sqrt(turretRadius**2-barrelHalfWidth**2);
   const turretArc=Math.atan2(turretJoin,barrelHalfWidth);
 
-  function cannonPose(s,ui,fx) {
+  function tutorialGesture(s,ui) {
+    if (s.state!=='AIM'||s.charging||s.angle!==0||s.endless||s.stage!==1||ui.tutorialSeen||ui.reduced) return null;
+    const cycle=ui.age%120;
+    let dx=0;
+    if (cycle>=6&&cycle<30) dx=40*(cycle-6)/24;
+    else if (cycle>=30&&cycle<60) dx=40-80*(cycle-30)/30;
+    else if (cycle>=60&&cycle<78) dx=-40+40*(cycle-60)/18;
+    return {
+      x:180+dx,
+      y:430+4*(cycle<6?cycle/6:cycle<78?1:cycle<84?(84-cycle)/6:0),
+      angle:JD.dragAngle(0,dx),
+      holdTicks:cycle<78?cycle:0,
+      launchTick:cycle>=78&&cycle<84?1+2*(cycle-78):0,
+      dragging:cycle>=6&&cycle<78,
+      ring:cycle<6?cycle/6:cycle<78?((cycle-6)%20)/20:null
+    };
+  }
+
+  function cannonPose(s,ui,fx,gesture) {
     const aiming=s.state==='AIM';
     const cancelled=fresh(fx,'charge_cancel');
-    const demo=aiming&&!s.charging&&!s.endless&&s.stage===1&&!ui.tutorialSeen&&!ui.reduced;
-    const cycle=ui.age%90;
-    const {load,swing,dwell}=JD.CANNON;
-    const demoHold=demo&&cycle>=6&&cycle<60
-      ? Math.min(cycle-6,load)+Math.max(0,cycle-6-load)*(swing*2+dwell)/(54-load)
-      : 0;
-    const ticks=s.charging?s.chargeTicks:demoHold;
-    const launchTick=s.launch?.elapsed??(demo&&cycle>=60&&cycle<66?1+2*(cycle-60):0);
-    const returnAngle=(s.lastAngle??0)*(1-easeOut(s.stateElapsed/8));
-    const aim=s.launch?.angle??(demo?JD.aimAngle(ticks):aiming&&!s.charging&&!ui.reduced?returnAngle:s.angle);
+    const {load}=JD.CANNON;
+    const showingCancel=aiming&&!s.charging&&cancelled?.age<6;
+    const demo=showingCancel?null:gesture;
+    const ticks=s.charging?s.chargeTicks:demo?.holdTicks??0;
+    const launchTick=s.launch?.elapsed??demo?.launchTick??0;
+    const aim=s.launch?.angle??demo?.angle??s.angle;
     let barrel=28,body=0,loadFlash=0,muzzleFlash=-1;
     if (launchTick) {
       barrel+=launchTick<=9?-8+11*(launchTick/9)**2:12-launchTick;
@@ -423,7 +436,7 @@
       barrel+=retractedBarrel(ticks);
       if (ticks>=load&&ticks<load+4) loadFlash=1-(ticks-load)/4;
       if (!ui.reduced) body=ticks<=load?Math.max(0,1-(ticks-1)/4):.5*Math.sin((ticks-load)*twoPi/3);
-    } else if (aiming&&cancelled?.age<6) {
+    } else if (showingCancel) {
       barrel+=retractedBarrel(cancelled.e.ticks)*(1-easeOut(cancelled.age/6));
     }
     return {aim,barrel,body,loadFlash,muzzleFlash};
@@ -468,17 +481,17 @@
     return shape;
   }
 
-  function drawCannon(c,s,ui,fx,t) {
+  function drawCannon(c,s,ui,fx,t,gesture) {
     const {x,y}=JD.CANNON;
     const aiming=s.state==='AIM';
-    const {aim,barrel,body,loadFlash,muzzleFlash}=cannonPose(s,ui,fx);
+    const {aim,barrel,body,loadFlash,muzzleFlash}=cannonPose(s,ui,fx,gesture);
     const angle=aim*degrees;
     const dx=Math.sin(angle),dy=Math.cos(angle);
-    const perfect=s.launch?.perfect??(aiming&&JD.inZone(s.zone,aim));
+    const inZone=aiming&&(gesture?JD.inZone(s.zone,aim):s.inZone);
     const muzzle=body+barrel;
     if (aiming) {
       dashed(c,x+dx*muzzle,y+dy*muzzle,x+dx*(muzzle+90),y+dy*(muzzle+90),
-        rgba(perfect?colors.jackpot:colors.text,.5),1.8);
+        rgba(inZone?colors.jackpot:colors.text,.5),1.8);
     }
     drawTurretMount(c,x,y);
     if (s.lastAngle!==null) {
@@ -505,11 +518,11 @@
     c.fill(shape);
 
     const zoneEntry=fresh(fx,'charge_zone');
-    const bandAlpha=aiming&&!s.charging&&!ui.reduced?.7+.3*pulse(t,40)
-      : perfect&&zoneEntry?.age<6?.75+.25*(1-zoneEntry.age/6):1;
+    const bandAlpha=inZone&&s.charging&&zoneEntry?.age<6?1-.25*zoneEntry.age/6
+      : aiming&&!s.charging&&!ui.reduced?.7+.3*pulse(t,40):.75;
     c.save();
     c.clip(shape);
-    c.fillStyle=rgba(perfect?colors.jackpot:colors.turretDark,bandAlpha);
+    c.fillStyle=rgba(inZone?colors.jackpot:colors.turretDark,aiming?bandAlpha:1);
     c.fillRect(-barrelHalfWidth,(turretJoin+barrel-5)/2-2,barrelHalfWidth*2,4);
     c.fillStyle=colors.turretLight;
     c.fillRect(-6,barrel-5,12,5);
@@ -659,16 +672,6 @@
     label(c,hint,180,y+19,14,colors.hint,'center',{max:310});
   }
 
-  function aimMessages(s,ui,fx) {
-    if (s.state!=='AIM') return [];
-    if (s.charging) return ['RELEASE IN GOLD!'];
-    if (fresh(fx,'charge_cancel')?.age<30) return ['HOLD!'];
-    const first=!s.endless&&s.stage===1;
-    if (first&&!ui.tutorialSeen) return ['HOLD','release in GOLD · aim for JACKPOT ×5'];
-    if (first||ui.stageAge>=90||ui.hintHidden||ui.introReveal) return [];
-    return stageIntro(s);
-  }
-
   function drawHand(c,x,y,scale,angle) {
     c.save();
     c.translate(x,y); c.scale(scale,scale); c.rotate(angle);
@@ -678,16 +681,46 @@
     c.restore();
   }
 
-  function drawAim(c,s,ui,fx,t) {
-    const messages=aimMessages(s,ui,fx);
-    if (messages.length===1) {
-      const cancelled=messages[0]==='HOLD!';
-      const wiggle=cancelled&&!ui.reduced?4*Math.sin(ui.stateAge*1.7):0;
-      label(c,messages[0],180+wiggle,136,cancelled?20:24,!cancelled&&s.perfect?colors.jackpot:colors.text,
-        'center',{outline:colors.ink,max:326});
+  function drawTutorialGesture(c,gesture) {
+    if (!gesture) {
+      drawHand(c,180,430,1,-.24);
       return;
     }
-    if (!s.endless&&s.stage===1&&s.state==='AIM') {
+    const {x,y,ring}=gesture;
+    if (ring!==null) circle(c,x,y,10+12*ring,null,rgba(colors.text,.65*(1-ring)),2);
+    if (gesture.dragging) {
+      c.beginPath();
+      for (const side of [-1,1]) {
+        c.moveTo(x+side*26,y);
+        c.lineTo(x+side*18,y-6);
+        c.lineTo(x+side*18,y+6);
+        c.closePath();
+      }
+      c.fillStyle=rgba(colors.text,.5);
+      c.fill();
+    }
+    drawHand(c,x,y,1,-.24);
+  }
+
+  function drawAim(c,s,ui,fx,t,gesture) {
+    if (s.state!=='AIM') return;
+    const first=!s.endless&&s.stage===1;
+    if (s.charging) {
+      if (first&&!ui.tutorialSeen) {
+        const flash=s.inZone&&fresh(fx,'charge_zone')?.age<6;
+        box(c,17,114,326,30,8,rgba(colors.ink,.6));
+        label(c,'DRAG TO AIM · RELEASE TO FIRE',180,135,18,flash?colors.jackpot:colors.text,
+          'center',{outline:colors.ink,max:310});
+      }
+      return;
+    }
+    const cancelled=fresh(fx,'charge_cancel');
+    if (cancelled?.age<30) {
+      const wiggle=ui.reduced?0:4*Math.sin(cancelled.age*1.7);
+      label(c,'HOLD!',180+wiggle,136,20,colors.text,'center',{outline:colors.ink});
+      return;
+    }
+    if (first) {
       if (ui.tutorialSeen) {
         label(c,'HOLD',216,47,12,colors.text,'center',{outline:colors.ink});
         drawHand(c,243,44,.34,-Math.PI*.36);
@@ -696,18 +729,13 @@
       const scale=ui.reduced?1:1+.12*pulse(t,30);
       const nudge=(ui.age-300)%600;
       const bump=ui.age>=300&&nudge<15&&!ui.reduced?1+.16*Math.sin(nudge*Math.PI/15):1;
-      box(c,17,100,326,53,8,rgba(colors.ink,.63));
-      label(c,messages[0],180,124,33*scale*bump,colors.text,'center',{outline:colors.ink,max:324});
-      label(c,messages[1],180,146,14,colors.jackpot,'center',{body:true,max:312});
-      const cycle=ui.age%90;
-      const down=ui.reduced?0:cycle<6?cycle/6:cycle<60?1:cycle<66?(66-cycle)/6:0;
-      const y=430+4*down;
-      const ring=cycle<6?cycle/6:(cycle%20)/20;
-      if (!ui.reduced&&cycle<66) circle(c,180,y,10+12*ring,null,rgba(colors.text,.65*(1-ring)),2);
-      drawHand(c,180,y,1,-.24);
+      box(c,17,100,326,54,8,rgba(colors.ink,.6));
+      label(c,'HOLD',180,124,36*scale*bump,colors.text,'center',{outline:colors.ink,max:324});
+      label(c,'drag to aim · aim for JACKPOT ×5',180,146,12,colors.jackpot,'center',{body:true,max:312});
+      drawTutorialGesture(c,gesture);
       return;
     }
-    if (messages.length>1) drawStageIntro(c,messages,128);
+    if (ui.stageAge<90&&!ui.hintHidden&&!ui.introReveal) drawStageIntro(c,stageIntro(s),128);
   }
 
   function shownMultiplier(mult,ui,fx) {
@@ -719,14 +747,6 @@
 
   function panel(c,s,ui,fx) {
     const {shot,payout}=s;
-    const fired=fresh(fx,'shot_fired');
-    if (fired?.e.perfect&&fired.age<30) {
-      const age=fired.age;
-      const scale=ui.reduced?1:age<5?.6+.12*age:1+.2*Math.max(0,1-(age-5)/12);
-      const x=shot?12:180;
-      const y=shot?108:92;
-      label(c,'PERFECT!',x,y,22*scale,colors.jackpot,shot?'left':'center',{outline:colors.ink,max:shot?126:145});
-    }
     if (shot) {
       const mult=shownMultiplier(shot.liveMult,ui,fx);
       const hit=fresh(fx,'peg_hit');
@@ -772,7 +792,7 @@
     const tier=s.shot.tier;
     const launch=fresh(fx,'launch');
     const launchTrail=launch?.age<6;
-    const tint=launchTrail?(launch.e.perfect?colors.jackpot:colors.text):combo(tier);
+    const tint=launchTrail?colors.text:combo(tier);
     s.balls.forEach((b,i)=>{
       if(b.done) return;
       const warp=fresh(fx,'warp',i);
@@ -858,6 +878,7 @@
       background(c,s,ui,fx);
       const cameraY=ui.cameraY||0;
       const zone=visibleZone(s,ui);
+      const gesture=tutorialGesture(s,ui);
       const blockTarget=zone&&zone.y>=cameraY&&zone.y<=cameraY+viewHeight
         ? s.blocks.find(block=>block.alive&&block.x===zone.x&&block.y===zone.y)
         : null;
@@ -885,7 +906,7 @@
       if(fx) fx.world(c,s,ui,false);
       c.translate(0,-cameraY);
       if (zone&&!blockTarget) drawZoneTarget(c,ui,zone,t);
-      drawCannon(c,s,ui,fx,t);
+      drawCannon(c,s,ui,fx,t,gesture);
       c.restore();
       const showHud=s.state!=='RESULT'&&s.state!=='SHOP';
       // Keep the shot panel below the live ball and the fixed HUD above board effects.
@@ -906,7 +927,7 @@
       const landingY=drawMagazine(c,s,ui,t,magazine,fx,arrival);
       if(fx) fx.rackBonuses(c);
       if(ui.introReveal) drawStageIntro(c,stageIntro(s),s.boardH-102-cameraY);
-      drawAim(c,s,ui,fx,t);
+      drawAim(c,s,ui,fx,t,gesture);
       if(JD.drawScreens) JD.drawScreens(c,s,ui,fx,t);
       if(JD.drawPickedCard) JD.drawPickedCard(c,s,ui);
       drawBallArrival(c,arrival,landingY);
@@ -1287,7 +1308,7 @@
   const previewJackpots = {center:'JACKPOT ▼',left:'JACKPOT ◀',right:'JACKPOT ▶',twin:'TWIN JACKPOT'};
   const resultStats = [
     ['REACHED','stageReached'],['BIGGEST SHOT','biggestShot'],['JACKPOTS','jackpots'],
-    ['PERFECT SHOTS','perfects'],['BEST COMBO','bestTier'],
+    ['PEGS POPPED','pegsPopped'],['BEST COMBO','bestTier'],
     ['COINS','coins'],['BLOCKS BROKEN','blocksBroken']
   ];
   const perkArt = {

@@ -252,6 +252,7 @@
 
   function gameStep() {
     const before=s;
+    input.beforeStep();
     game.step();
     s=game.snapshot();
     const changed=s.state!==before.state;

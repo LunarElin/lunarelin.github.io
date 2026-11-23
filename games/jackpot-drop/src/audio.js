@@ -129,14 +129,19 @@
     }
 
     function aimFrame(snapshot) {
-      const angle = snapshot.charging ? snapshot.angle : 0;
+      if (snapshot.state !== 'AIM') {
+        previousAngle = 0;
+        return;
+      }
+      const angle = snapshot.angle;
       if (snapshot.chargeTicks === JD.CANNON.load) {
         tone('square',900,.015,.22);
         noise('bandpass',1900,1900,.02,.15);
-      } else if (snapshot.chargeTicks > JD.CANNON.load && angle !== previousAngle && angle % 10 === 0) {
-        tone('square',220,.01,.15);
-        if (Math.abs(angle) === JD.CANNON.maxAngle) tone('square',460,.018,.13);
       }
+      if (Math.trunc(angle / 10) !== Math.trunc(previousAngle / 10)) {
+        tone('square',220,.01,.15);
+      }
+      if (angle !== previousAngle && Math.abs(angle) === JD.CANNON.maxAngle) tone('square',460,.018,.13);
       previousAngle = angle;
     }
 
@@ -175,14 +180,9 @@
         case 'tutorial_nudge':
           tone('sine',880,.06,.26);
           break;
-        case 'charge_started':
-          previousAngle = 0;
-          break;
         case 'charge_zone':
-          if (e.zone === 'perfect') {
-            vibrate(12);
-            tone('sine',1568,.085,.25);
-          }
+          vibrate(12);
+          tone('sine',1568,.085,.25);
           break;
         case 'charge_cancel':
           tone('sine',150,.04,.29);
@@ -191,12 +191,10 @@
         case 'reward_ball_arrived':
           sequence([900,1500],.015,'square',.18,0,.015);
           break;
-        case 'shot_fired': {
+        case 'shot_fired':
           noise('lowpass',1400,520,.06,.24);
           tone('sine',160,.12,.36,{endHz:420});
-          if(e.perfect) chord([C6,G6],.15,'sine',.18);
           break;
-        }
         case 'wall_spring':
           tone('sine',300,.08,.23,{endHz:900});
           tone('sine',328,.06,.08,{endHz:850,delay:.01});
