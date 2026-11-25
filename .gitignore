@@ -1,2 +1,5 @@
 # Visual Studio workspace state is retained locally, including in the archive.
 **/.vs/
+
+# Private old site (proposal pages and their original archive), kept only on this PC.
+.private/

@@ -14,7 +14,6 @@
 - `portfolio/style.css`: 포트폴리오 디자인
 - `portfolio/main.js`: 사례·게임·경력·소개 위치에 맞춘 메뉴 표시와 페이지 복귀 처리
 - `portfolio/mark.svg`: 직접 작성한 달·별 파비콘
-- `archive/2026-10-14-original/index.html`: 전환 전 원본 페이지
 
 빌드나 패키지 설치 없이 정적 HTTP 서버 또는 GitHub Pages에서 실행합니다.
 
@@ -46,11 +45,11 @@
 
 2026년 10월 31일 갱신은 Work 설정에서 로컬 브라우저 사용이 비활성화되어 새 스크린샷·PC/320px/390px 화면·터치 조작을 직접 확인하지 못했습니다. 이번 확인은 정적 링크·앵커·이미지 메타데이터·문서 구조·JavaScript 구문과 배포 파일 대조로 제한하며, 이전 브라우저 확인을 이번 화면 검증으로 간주하지 않습니다.
 
-## 원본 보존
+## 예전 사이트
 
-2026-10-14 작업 시작 전 파일 35개를 `archive/2026-10-14-original/`에 복사하고 SHA-256 일치를 확인했습니다. 수정 및 미추적 파일도 함께 보존했습니다. 페이지에 필요한 HTML, CSS, JavaScript, 이미지 등 28개 파일은 Git에 포함합니다. Visual Studio `.vs` 상태 파일 7개는 원래 위치와 아카이브에 로컬 보관하며 `.gitignore`로 제외합니다. 원래 경로의 보조 파일도 호환성을 위해 유지합니다.
+2026-10-14 전환 전의 예전 사이트(개인 페이지 `letter.html`·`ring.html`·`timeline.html`과 `assets/`·`css/`·`js/`, 원본 보존본 `archive/2026-10-14-original/`)는 2026-11-25에 비공개로 전환했습니다. 공개 저장소와 GitHub Pages에서 제거하고, 작업 PC의 `.private/old-site/`에만 보관하며 `.gitignore`로 제외합니다.
 
-GitHub Pages의 저장소 루트 배포를 사용합니다. 포트폴리오를 수정할 때 원본 아카이브는 수정하지 않습니다.
+GitHub Pages의 저장소 루트 배포를 사용합니다.
 
 ## 게임 추가와 관리
 
